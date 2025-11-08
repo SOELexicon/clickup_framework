@@ -6,7 +6,7 @@ This script creates comprehensive ClickUp documentation and implementation tasks
 for the Model Configuration Manager component.
 
 Usage:
-    python create_model_config_manager_tasks.py
+    python scripts/create_model_config_manager_tasks.py
 """
 
 import sys
@@ -48,6 +48,7 @@ def create_documentation(docs, workspace_id):
     print(f"\n📚 Step 1: Creating ClickUp Documentation")
     print("="*80)
 
+    # Use proper multiline strings for markdown content
     doc_pages = [
         {
             "name": "Overview",
@@ -423,7 +424,7 @@ def test_reload_performance():
     ]
 
     try:
-        print("\n   Creating main index page...")
+        print("\n   Creating documentation with pages...")
         result = docs.create_doc_with_pages(
             workspace_id=workspace_id,
             doc_name="Model Configuration Manager - Documentation",

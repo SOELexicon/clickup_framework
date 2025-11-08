@@ -113,55 +113,58 @@ class DocsAPI:
             doc_data['parent_id'] = parent_id
         return self.client.create_doc(workspace_id, name, **doc_data)
 
-    def get_doc(self, doc_id: str) -> Dict[str, Any]:
+    def get_doc(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
         """
         Get doc by ID.
 
         Args:
+            workspace_id: Workspace/team ID
             doc_id: Doc ID
 
         Returns:
             Doc data including metadata
 
         Example:
-            doc = docs.get_doc("abc123")
+            doc = docs.get_doc("90151898946", "abc123")
             print(doc['name'])
         """
-        return self.client.get_doc(doc_id)
+        return self.client.get_doc(workspace_id, doc_id)
 
     # Page operations
-    def get_doc_pages_list(self, doc_id: str) -> Dict[str, Any]:
+    def get_doc_pages_list(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
         """
         Get page listing/index for a doc.
 
         Args:
+            workspace_id: Workspace/team ID
             doc_id: Doc ID
 
         Returns:
             Page listing data
 
         Example:
-            page_list = docs.get_doc_pages_list("abc123")
+            page_list = docs.get_doc_pages_list("90151898946", "abc123")
         """
-        return self.client.get_doc_pages_list(doc_id)
+        return self.client.get_doc_pages_list(workspace_id, doc_id)
 
-    def get_doc_pages(self, doc_id: str, **params) -> Dict[str, Any]:
+    def get_doc_pages(self, workspace_id: str, doc_id: str, **params) -> List[Dict[str, Any]]:
         """
         Get all pages belonging to a doc.
 
         Args:
+            workspace_id: Workspace/team ID
             doc_id: Doc ID
             **params: Additional query parameters
 
         Returns:
-            Dict containing list of pages
+            List of page dicts
 
         Example:
-            pages = docs.get_doc_pages("abc123")
-            for page in pages['pages']:
+            pages = docs.get_doc_pages("90151898946", "abc123")
+            for page in pages:
                 print(page['name'])
         """
-        return self.client.get_doc_pages(doc_id, **params)
+        return self.client.get_doc_pages(workspace_id, doc_id, **params)
 
     def create_page(
         self,
@@ -197,24 +200,28 @@ class DocsAPI:
         """
         return self.client.create_page(workspace_id, doc_id, name, content, **page_data)
 
-    def get_page(self, page_id: str) -> Dict[str, Any]:
+    def get_page(self, workspace_id: str, doc_id: str, page_id: str) -> Dict[str, Any]:
         """
         Get page by ID.
 
         Args:
+            workspace_id: Workspace/team ID
+            doc_id: Doc ID
             page_id: Page ID
 
         Returns:
             Page data including content
 
         Example:
-            page = docs.get_page("xyz789")
+            page = docs.get_page("90151898946", "abc123", "xyz789")
             print(page['content'])
         """
-        return self.client.get_page(page_id)
+        return self.client.get_page(workspace_id, doc_id, page_id)
 
     def update_page(
         self,
+        workspace_id: str,
+        doc_id: str,
         page_id: str,
         name: Optional[str] = None,
         content: Optional[str] = None,
@@ -224,6 +231,8 @@ class DocsAPI:
         Update a page.
 
         Args:
+            workspace_id: Workspace/team ID
+            doc_id: Doc ID
             page_id: Page ID
             name: New page name (optional)
             content: New page content (optional, markdown format)
@@ -234,9 +243,11 @@ class DocsAPI:
 
         Example:
             updated_page = docs.update_page(
+                workspace_id="90151898946",
+                doc_id="abc123",
                 page_id="xyz789",
                 name="Updated Title",
-                content="# Updated Content\\n\\nNew information here."
+                content="# Updated Content\n\nNew information here."
             )
 
         Note: Content should use markdown format. See class docstring for
@@ -246,7 +257,7 @@ class DocsAPI:
             updates['name'] = name
         if content is not None:
             updates['content'] = content
-        return self.client.update_page(page_id, **updates)
+        return self.client.update_page(workspace_id, doc_id, page_id, **updates)
 
     # Convenience methods
     def create_doc_with_pages(

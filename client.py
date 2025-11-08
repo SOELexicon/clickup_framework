@@ -351,17 +351,17 @@ class ClickUpClient:
         data = {"name": name, **doc_data}
         return self._request("POST", f"/v3/workspaces/{workspace_id}/docs", json=data)
 
-    def get_doc(self, doc_id: str) -> Dict[str, Any]:
+    def get_doc(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
         """Get doc by ID."""
-        return self._request("GET", f"/v3/docs/{doc_id}")
+        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}")
 
-    def get_doc_pages_list(self, doc_id: str) -> Dict[str, Any]:
+    def get_doc_pages_list(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
         """Get page listing/index for a doc."""
-        return self._request("GET", f"/v3/docs/{doc_id}/pages/list")
+        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/list")
 
-    def get_doc_pages(self, doc_id: str, **params) -> Dict[str, Any]:
+    def get_doc_pages(self, workspace_id: str, doc_id: str, **params) -> Dict[str, Any]:
         """Get all pages belonging to a doc."""
-        return self._request("GET", f"/v3/docs/{doc_id}/pages", params=params)
+        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages", params=params)
 
     def create_page(self, workspace_id: str, doc_id: str, name: str, content: Optional[str] = None, **page_data) -> Dict[str, Any]:
         """Create a new page in a doc."""
@@ -371,13 +371,13 @@ class ClickUpClient:
         data.update(page_data)
         return self._request("POST", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages", json=data)
 
-    def get_page(self, page_id: str) -> Dict[str, Any]:
+    def get_page(self, workspace_id: str, doc_id: str, page_id: str) -> Dict[str, Any]:
         """Get page by ID."""
-        return self._request("GET", f"/v3/pages/{page_id}")
+        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/{page_id}")
 
-    def update_page(self, page_id: str, **updates) -> Dict[str, Any]:
+    def update_page(self, workspace_id: str, doc_id: str, page_id: str, **updates) -> Dict[str, Any]:
         """Update a page."""
-        return self._request("PUT", f"/v3/pages/{page_id}", json=updates)
+        return self._request("PUT", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/{page_id}", json=updates)
 
     def __repr__(self) -> str:
         token_preview = self.api_token[:20] if self.api_token else "None"
