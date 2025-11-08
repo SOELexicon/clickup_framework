@@ -1,0 +1,24 @@
+{
+  "description": "Example configuration for bulk task updates",
+  "tasks": [
+    {
+      "id": "86c6chcfe",
+      "name": "Space Management Endpoints",
+      "status": "comitted",
+      "comment": "PHASE 1 COMPLETE: Space Management Endpoints\n\nImplementation completed and committed to repository.\n\nENDPOINTS ADDED:\ncreate_space, update_space, delete_space, get_space, get_space_tags\n\nAll endpoints added to clickup_framework/client.py\nTested and functional. Integrated into main framework.",
+      "add_tags": ["phase-1", "completed"]
+    },
+    {
+      "id": "86c6chcfg",
+      "name": "Custom Fields Endpoints",
+      "status": "comitted",
+      "comment": "PHASE 1 COMPLETE: Custom Fields Endpoints\n\nImplementation completed and committed.\n\nENDPOINTS: set_custom_field_value, remove_custom_field_value"
+    },
+    {
+      "id": "86c6chccx",
+      "name": "TaskAPI Resource",
+      "status": null,
+      "comment": "DEPENDENCY NOTE: This task is blocked by:\n- 86c6chc8q (List Formatter)\n- 86c6chc90 (Workspace Formatter)\n\nCannot start until formatters are complete."
+    }
+  ]
+}
