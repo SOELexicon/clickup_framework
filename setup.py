@@ -9,7 +9,7 @@ import os
 
 # Read long description from README
 def read_long_description():
-    readme_path = os.path.join(os.path.dirname(__file__), "..", "README.md")
+    readme_path = os.path.join(os.path.dirname(__file__), "README.md")
     if os.path.exists(readme_path):
         with open(readme_path, "r", encoding="utf-8") as f:
             return f.read()
@@ -34,7 +34,7 @@ setup(
     description="Token-Efficient Modular Skill Framework for ClickUp API",
     long_description=read_long_description(),
     long_description_content_type="text/markdown",
-    url="https://github.com/anthropics/skills",
+    url="https://github.com/SOELexicon/skills",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -63,8 +63,8 @@ setup(
     },
     keywords="clickup api token-efficient formatters skills claude",
     project_urls={
-        "Documentation": "https://github.com/anthropics/skills/tree/main/docs",
-        "Source": "https://github.com/anthropics/skills",
-        "Issues": "https://github.com/anthropics/skills/issues",
+        "Documentation": "https://github.com/SOELexicon/skills/tree/main/docs",
+        "Source": "https://github.com/SOELexicon/skills",
+        "Issues": "https://github.com/SOELexicon/skills/issues",
     },
 )
