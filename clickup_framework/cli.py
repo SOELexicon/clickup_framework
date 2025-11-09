@@ -123,7 +123,8 @@ def hierarchy_command(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    tasks = client.get_list_tasks(list_id)
+    result = client.get_list_tasks(list_id)
+    tasks = result.get('tasks', [])
     options = create_format_options(args)
 
     # Show available statuses
@@ -152,7 +153,8 @@ def container_command(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    tasks = client.get_list_tasks(list_id)
+    result = client.get_list_tasks(list_id)
+    tasks = result.get('tasks', [])
     options = create_format_options(args)
 
     # Show available statuses
@@ -180,7 +182,8 @@ def flat_command(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    tasks = client.get_list_tasks(list_id)
+    result = client.get_list_tasks(list_id)
+    tasks = result.get('tasks', [])
     options = create_format_options(args)
 
     # Show available statuses
@@ -209,7 +212,8 @@ def filter_command(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    tasks = client.get_list_tasks(list_id)
+    result = client.get_list_tasks(list_id)
+    tasks = result.get('tasks', [])
     options = create_format_options(args)
 
     # Show available statuses
@@ -253,7 +257,8 @@ def detail_command(args):
     if args.list_id:
         try:
             list_id = context.resolve_id('list', args.list_id)
-            all_tasks = client.get_list_tasks(list_id)
+            result = client.get_list_tasks(list_id)
+            all_tasks = result.get('tasks', [])
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -280,7 +285,8 @@ def stats_command(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    tasks = client.get_list_tasks(list_id)
+    result = client.get_list_tasks(list_id)
+    tasks = result.get('tasks', [])
 
     # Show available statuses
     # Note: stats command doesn't have colorize arg, so default to True
@@ -470,6 +476,73 @@ def show_current_command(args):
     print("\n" + box + "\n")
 
 
+def task_update_command(args):
+    """Update a task with specified fields."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Build update dictionary from provided arguments
+    updates = {}
+
+    if args.name:
+        updates['name'] = args.name
+
+    if args.description:
+        updates['description'] = args.description
+
+    if args.status:
+        updates['status'] = args.status
+
+    if args.priority is not None:
+        updates['priority'] = args.priority
+
+    if args.add_tags:
+        # Get current task to append tags
+        task = client.get_task(task_id)
+        existing_tags = [tag['name'] for tag in task.get('tags', [])]
+        all_tags = list(set(existing_tags + args.add_tags))
+        updates['tags'] = all_tags
+
+    if args.remove_tags:
+        # Get current task to remove tags
+        task = client.get_task(task_id)
+        existing_tags = [tag['name'] for tag in task.get('tags', [])]
+        remaining_tags = [tag for tag in existing_tags if tag not in args.remove_tags]
+        updates['tags'] = remaining_tags
+
+    if not updates:
+        print("Error: No updates specified. Use --name, --description, --status, --priority, or tag options.", file=sys.stderr)
+        sys.exit(1)
+
+    # Perform the update
+    try:
+        updated_task = client.update_task(task_id, **updates)
+
+        # Show success message with gradient
+        success_msg = ANSIAnimations.success_message(f"Task updated: {updated_task.get('name', task_id)}")
+        print(success_msg)
+
+        # Show what was updated
+        print("\nUpdated fields:")
+        for key, value in updates.items():
+            if key == 'tags' and isinstance(value, list):
+                value_str = ', '.join(value)
+            else:
+                value_str = str(value)
+            print(f"  {colorize(key, TextColor.BRIGHT_CYAN)}: {value_str}")
+
+    except Exception as e:
+        print(f"Error updating task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -594,6 +667,18 @@ Examples:
     show_current_parser = subparsers.add_parser('show_current',
                                                  help='Show current resource context')
     show_current_parser.set_defaults(func=show_current_command)
+
+    # Task update command
+    task_update_parser = subparsers.add_parser('task_update',
+                                                help='Update a task')
+    task_update_parser.add_argument('task_id', help='Task ID to update (or "current")')
+    task_update_parser.add_argument('--name', help='New task name')
+    task_update_parser.add_argument('--description', help='New task description')
+    task_update_parser.add_argument('--status', help='New task status')
+    task_update_parser.add_argument('--priority', type=int, help='New task priority (1-4)')
+    task_update_parser.add_argument('--add-tags', nargs='+', help='Tags to add')
+    task_update_parser.add_argument('--remove-tags', nargs='+', help='Tags to remove')
+    task_update_parser.set_defaults(func=task_update_command)
 
     # Parse arguments
     args = parser.parse_args()
