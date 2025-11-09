@@ -156,6 +156,36 @@ def detect_commit_emoji(subject, body, changed_files):
     return '💾'
 
 
+def find_existing_commit_task(client, list_id, commit_hash):
+    """
+    Check if a commit task already exists.
+
+    Args:
+        client: ClickUpClient instance
+        list_id: List ID to search in
+        commit_hash: Short commit hash (8 chars)
+
+    Returns:
+        Existing task dictionary or None
+    """
+    try:
+        # Search for existing commit task by checking recent tasks
+        response = client.get_list_tasks(list_id, include_closed=False)
+        tasks = response.get('tasks', [])
+
+        # Look for a commit task with matching hash in the name
+        for task in tasks:
+            task_name = task.get('name', '')
+            # Check if task name contains the commit hash
+            if f'[Commit {commit_hash}]' in task_name and task.get('custom_type') == 'Commit':
+                return task
+
+        return None
+    except Exception as e:
+        print(f"  Warning: Could not check for existing commit: {e}")
+        return None
+
+
 def create_commit_task(client, list_id, commit_info, repo_name, branch_name, parent_task_id=None):
     """Create a ClickUp task for a commit."""
 
@@ -337,6 +367,7 @@ def main():
 
     # Post each commit
     created_tasks = []
+    skipped_tasks = []
     for commit_hash in commit_hashes:
         print(f"Processing commit: {commit_hash[:8]}")
 
@@ -351,21 +382,29 @@ def main():
         print(f"  Author: {commit_info['author_name']}")
         print(f"  Files changed: {commit_info['changed_files_count']}")
 
-        try:
-            # Create task in ClickUp as subtask of branch
-            task = create_commit_task(
-                client,
-                LIST_ID,
-                commit_info,
-                REPO_NAME,
-                BRANCH_NAME,
-                parent_task_id=branch_task_id
-            )
-            created_tasks.append(task)
-            print(f"  ✓ Task created: {task['id']}")
-            print(f"    URL: {task.get('url', 'N/A')}")
-        except Exception as e:
-            print(f"  ✗ Error creating task: {e}")
+        # Check if commit task already exists
+        existing_task = find_existing_commit_task(client, LIST_ID, commit_info['hash'])
+
+        if existing_task:
+            print(f"  ⏭️  Task already exists: {existing_task['id']}")
+            print(f"    URL: {existing_task.get('url', 'N/A')}")
+            skipped_tasks.append(existing_task)
+        else:
+            try:
+                # Create task in ClickUp as subtask of branch
+                task = create_commit_task(
+                    client,
+                    LIST_ID,
+                    commit_info,
+                    REPO_NAME,
+                    BRANCH_NAME,
+                    parent_task_id=branch_task_id
+                )
+                created_tasks.append(task)
+                print(f"  ✓ Task created: {task['id']}")
+                print(f"    URL: {task.get('url', 'N/A')}")
+            except Exception as e:
+                print(f"  ✗ Error creating task: {e}")
 
         print()
 
@@ -382,11 +421,20 @@ def main():
 
     print(f"Commits processed: {len(commit_hashes)}")
     print(f"Commit tasks created: {len(created_tasks)}")
+    print(f"Commit tasks skipped (already exist): {len(skipped_tasks)}")
     print()
 
     if created_tasks:
         print("Created commit tasks (under branch container):")
         for task in created_tasks:
+            print(f"  - {task['name']}")
+            print(f"    ID: {task['id']}")
+            print(f"    URL: {task.get('url', 'N/A')}")
+        print()
+
+    if skipped_tasks:
+        print("Skipped commit tasks (already existed):")
+        for task in skipped_tasks:
             print(f"  - {task['name']}")
             print(f"    ID: {task['id']}")
             print(f"    URL: {task.get('url', 'N/A')}")
