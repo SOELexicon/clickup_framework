@@ -115,6 +115,7 @@ Test results will be added as subtasks below.
     # Create the task with custom_type if supported
     task_data = {
         'name': task_name,
+        'status': 'to do',  # Start PR tasks as 'to do'
         'tags': [
             {'name': f'pr-{pr_number}'},
             {'name': 'pull-request'},
@@ -322,17 +323,19 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
 
     description += "\n---\n\n*This test report was automatically generated and posted to ClickUp.*"
 
-    # Determine task priority based on results
+    # Determine task priority and status based on results
     if failed == 0 and errors == 0:
         priority = 4  # Low priority (success)
+        status = 'passed'  # Test passed
     else:
         priority = 1  # High priority (failure)
+        status = 'failed'  # Test failed
 
     # Create the task
     task_data = {
         'name': task_name,
         'priority': {'priority': str(priority)},
-        'status': 'complete',  # Set status to closed/complete
+        'status': status,  # Use 'passed' or 'failed' based on test results
         'tags': [
             {'name': 'automated'},
             {'name': 'test-results'},
@@ -416,6 +419,7 @@ def create_failed_test_tasks(client, list_id, test_results, parent_task_id):
             'name': f"[Test Failure] {test_name}",
             'parent': parent_task_id,
             'priority': {'priority': '1'},
+            'status': 'failed',  # Individual test failed
             'tags': [
                 {'name': 'test-failure'},
                 {'name': 'automated'}
