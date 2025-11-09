@@ -213,6 +213,10 @@ class TaskHierarchyFormatter:
 
         # Handle string priority names
         if isinstance(priority_val, str):
+            # Check if it's a numeric string first
+            if priority_val.isdigit():
+                return int(priority_val)
+
             priority_map = {
                 'urgent': 1,
                 'high': 2,
