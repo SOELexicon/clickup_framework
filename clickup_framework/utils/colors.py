@@ -5,6 +5,7 @@ Provides ANSI color codes and styling for terminal output.
 """
 
 import os
+import re
 import sys
 from enum import Enum
 from typing import Optional
@@ -78,6 +79,20 @@ def colorize(
 
     reset = TextColor.RESET.value
     return f"{''.join(codes)}{text}{reset}"
+
+
+def strip_ansi(text: str) -> str:
+    """
+    Remove ANSI escape codes from text.
+
+    Args:
+        text: Text containing ANSI codes
+
+    Returns:
+        Text with ANSI codes removed
+    """
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
 
 
 def status_to_code(status: str) -> str:
