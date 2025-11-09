@@ -11,7 +11,7 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 - [Quick Start](#quick-start)
 - [View Commands (Implemented)](#view-commands-implemented-)
 - [Context Management (Implemented)](#context-management-implemented-)
-- [Task Management Commands (Planned)](#task-management-commands-planned-)
+- [Task Management Commands (Implemented)](#task-management-commands-implemented-)
 - [Comment Commands (Planned)](#comment-commands-planned-)
 - [Checklist Commands (Planned)](#checklist-commands-planned-)
 - [Relationship Commands (Planned)](#relationship-commands-planned-)
@@ -46,16 +46,16 @@ export CLICKUP_API_TOKEN="your_api_token_here"
 
 ```bash
 # Try the demo mode (no API token required)
-python -m clickup_framework.cli demo --mode hierarchy
+cum demo --mode hierarchy
 
 # View tasks in a list
-python -m clickup_framework.cli hierarchy <list_id>
+cum hierarchy <list_id>
 
 # Set current list for easier access
-python -m clickup_framework.cli set_current list <list_id>
+cum set_current list <list_id>
 
 # Show current context
-python -m clickup_framework.cli show_current
+cum show_current
 ```
 
 ---
@@ -67,13 +67,15 @@ These commands display tasks in various formats with beautiful tree views and co
 ### `hierarchy` - Hierarchical Parent-Child View
 Display tasks in a tree structure showing parent-child relationships.
 
+**Default Preset**: `full` (shows IDs, descriptions, dates, and all details)
+
 ```bash
-python -m clickup_framework.cli hierarchy <list_id> [options]
+cum hierarchy <list_id> [options]
 
 # Examples:
-python -m clickup_framework.cli hierarchy 901517404278
-python -m clickup_framework.cli hierarchy 901517404278 --preset detailed
-python -m clickup_framework.cli hierarchy 901517404278 --show-ids --show-descriptions
+cum hierarchy 901517404278
+cum hierarchy 901517404278 --preset minimal  # Override to minimal
+cum hierarchy 901517404278 --show-ids --show-descriptions
 ```
 
 **Options**: All [format options](#format-options) and [presets](#presets) are supported.
@@ -84,10 +86,10 @@ python -m clickup_framework.cli hierarchy 901517404278 --show-ids --show-descrip
 Display tasks organized by their ClickUp containers (Space → Folder → List).
 
 ```bash
-python -m clickup_framework.cli container <list_id> [options]
+cum container <list_id> [options]
 
 # Example:
-python -m clickup_framework.cli container 901517404278 --preset full
+cum container 901517404278 --preset full
 ```
 
 ---
@@ -96,11 +98,11 @@ python -m clickup_framework.cli container 901517404278 --preset full
 Display all tasks in a simple flat list format.
 
 ```bash
-python -m clickup_framework.cli flat <list_id> [options]
+cum flat <list_id> [options]
 
 # Examples:
-python -m clickup_framework.cli flat 901517404278
-python -m clickup_framework.cli flat 901517404278 --header "My Tasks"
+cum flat 901517404278
+cum flat 901517404278 --header "My Tasks"
 ```
 
 **Additional Options**:
@@ -112,14 +114,14 @@ python -m clickup_framework.cli flat 901517404278 --header "My Tasks"
 Display tasks filtered by status, priority, tags, or assignee.
 
 ```bash
-python -m clickup_framework.cli filter <list_id> [filter_options] [format_options]
+cum filter <list_id> [filter_options] [format_options]
 
 # Examples:
-python -m clickup_framework.cli filter 901517404278 --status "in progress"
-python -m clickup_framework.cli filter 901517404278 --priority 1
-python -m clickup_framework.cli filter 901517404278 --tags bug critical
-python -m clickup_framework.cli filter 901517404278 --assignee user_123
-python -m clickup_framework.cli filter 901517404278 --status "to do" --view-mode flat
+cum filter 901517404278 --status "in progress"
+cum filter 901517404278 --priority 1
+cum filter 901517404278 --tags bug critical
+cum filter 901517404278 --assignee user_123
+cum filter 901517404278 --status "to do" --view-mode flat
 ```
 
 **Filter Options**:
@@ -135,11 +137,11 @@ python -m clickup_framework.cli filter 901517404278 --status "to do" --view-mode
 Show comprehensive details for a single task including relationships.
 
 ```bash
-python -m clickup_framework.cli detail <task_id> [list_id] [options]
+cum detail <task_id> [list_id] [options]
 
 # Examples:
-python -m clickup_framework.cli detail 86c6e0q06
-python -m clickup_framework.cli detail 86c6e0q06 901517404278
+cum detail 86c6e0q06
+cum detail 86c6e0q06 901517404278
 ```
 
 **Arguments**:
@@ -152,10 +154,10 @@ python -m clickup_framework.cli detail 86c6e0q06 901517404278
 Display aggregate statistics for tasks in a list.
 
 ```bash
-python -m clickup_framework.cli stats <list_id>
+cum stats <list_id>
 
 # Example:
-python -m clickup_framework.cli stats 901517404278
+cum stats 901517404278
 ```
 
 Shows:
@@ -171,13 +173,13 @@ Shows:
 View demo output with sample data (no API token required).
 
 ```bash
-python -m clickup_framework.cli demo [--mode MODE] [options]
+cum demo [--mode MODE] [options]
 
 # Examples:
-python -m clickup_framework.cli demo
-python -m clickup_framework.cli demo --mode container
-python -m clickup_framework.cli demo --mode stats
-python -m clickup_framework.cli demo --preset minimal
+cum demo
+cum demo --mode container
+cum demo --mode stats
+cum demo --preset minimal
 ```
 
 **Modes**:
@@ -189,23 +191,59 @@ python -m clickup_framework.cli demo --preset minimal
 
 ---
 
+### `assigned` - Assigned Tasks View
+Display tasks assigned to a user, sorted by dependency difficulty.
+
+```bash
+cum assigned [--user-id USER_ID] [--team-id TEAM_ID]
+
+# Examples:
+cum assigned  # Uses default assignee from config
+cum assigned --user-id 68483025
+cum assigned --user-id 68483025 --team-id 90151898946
+```
+
+**Features**:
+- **Smart Sorting**: Tasks sorted by difficulty (# of open blockers) then dependency depth
+- **Difficulty Score**: Automatically decreases as blocking tasks get closed
+- **Visual Indicators**:
+  - ✓ Ready (green) - No blockers, ready to start
+  - ⚠ Warning (yellow) - 1-2 blockers
+  - 🚫 Blocked (red) - 3+ blockers
+- **Dependency Analysis**: Shows blocker details, dependency depth, and relationship counts
+- **Summary Stats**: Ready vs blocked task counts
+
+**Options**:
+- `--user-id USER_ID` - User ID to filter tasks (defaults to configured default assignee)
+- `--team-id TEAM_ID` - Team/workspace ID (defaults to current workspace)
+
+**Note**: Requires default assignee configured or --user-id parameter. Set default with:
+```bash
+cum set_current assignee <user_id>
+```
+
+---
+
 ## Context Management (Implemented) ✅
 
 Manage your current working context to avoid repeatedly specifying IDs.
 
 ### `set_current` - Set Current Resource
-Set the current task, list, space, folder, or workspace.
+Set the current task, list, space, folder, workspace, or default assignee.
 
 ```bash
-python -m clickup_framework.cli set_current <resource_type> <resource_id>
+cum set_current <resource_type> <resource_id>
 
 # Examples:
-python -m clickup_framework.cli set_current workspace 90151898946
-python -m clickup_framework.cli set_current list 901517404278
-python -m clickup_framework.cli set_current task 86c6e0q06
+cum set_current workspace 90151898946
+cum set_current list 901517404278
+cum set_current task 86c6e0q06
+cum set_current assignee 68483025  # Set default assignee
 ```
 
-**Resource Types**: `task`, `list`, `space`, `folder`, `workspace`, `team`
+**Resource Types**: `task`, `list`, `space`, `folder`, `workspace`, `team`, `assignee`
+
+**Note**: Setting a default assignee automatically applies it to new tasks created with `task_create` and is used by the `assigned` command.
 
 ---
 
@@ -213,7 +251,7 @@ python -m clickup_framework.cli set_current task 86c6e0q06
 Display your current context with a beautiful animated box.
 
 ```bash
-python -m clickup_framework.cli show_current
+cum show_current
 ```
 
 Shows:
@@ -236,90 +274,182 @@ Clear one or all current resources from your context.
 
 ```bash
 # Clear specific resource
-python -m clickup_framework.cli clear_current <resource_type>
+cum clear_current <resource_type>
 
 # Clear all context
-python -m clickup_framework.cli clear_current
+cum clear_current
 
 # Examples:
-python -m clickup_framework.cli clear_current list
-python -m clickup_framework.cli clear_current  # Clears everything
+cum clear_current list
+cum clear_current  # Clears everything
 ```
 
 ---
 
-## Task Management Commands (Planned) 🚧
+## Task Management Commands (Implemented) ✅
 
-> **Status**: Not yet implemented
+> **Status**: ✅ Implemented
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q0a)
 
-### `task create` - Create New Task
-**Task ID**: [86c6e0q0b](https://app.clickup.com/t/86c6e0q0b)
+### `task_create` - Create New Task
+Create a new task with comprehensive configuration options.
 
 ```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task create <list_id> --name "Task name" [options]
+cum task_create <list_id> <name> [OPTIONS]
+
+# Examples:
+cum task_create 901517404278 "Fix login bug"
+cum task_create current "API Development" \
+  --description "Create RESTful endpoints" \
+  --status "in development" \
+  --priority 1 \
+  --tags backend api \
+  --assignees 68483025 \
+  --parent 86c6e0xyz
+```
+
+**Arguments**:
+- `list_id` - List ID or "current" from context
+- `name` - Task name/title
+
+**Options**:
+- `--description TEXT` - Task description
+- `--status TEXT` - Initial status
+- `--priority INT` - Priority (1=Urgent, 2=High, 3=Normal, 4=Low)
+- `--tags TAG [...]` - One or more tags
+- `--assignees ID [...]` - User IDs to assign
+- `--parent ID` - Parent task ID (creates subtask)
+
+**Note**: Automatically uses default assignee from config if no assignees specified.
+
+---
+
+### `task_update` - Update Existing Task
+Update one or more fields of an existing task.
+
+```bash
+cum task_update <task_id> [OPTIONS]
+
+# Examples:
+cum task_update 86c6e0xyz --name "Updated name"
+cum task_update current \
+  --description "Updated description" \
+  --status "testing" \
+  --priority 2
+cum task_update 86c6e0xyz --add-tags urgent reviewed
+cum task_update 86c6e0xyz --remove-tags needs-review
+```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+
+**Options**:
+- `--name TEXT` - New task name
+- `--description TEXT` - New description
+- `--status TEXT` - New status
+- `--priority INT` - New priority (1-4)
+- `--add-tags TAG [...]` - Tags to add
+- `--remove-tags TAG [...]` - Tags to remove
+
+**Note**: At least one option must be provided.
+
+---
+
+### `task_delete` - Delete Task
+Delete a task with optional confirmation prompt.
+
+```bash
+cum task_delete <task_id> [OPTIONS]
+
+# Examples:
+cum task_delete 86c6e0xyz
+cum task_delete current --force  # Skip confirmation
+```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+
+**Options**:
+- `--force`, `-f` - Skip confirmation prompt
+
+**Warning**: Deletion is permanent and cannot be undone. Subtasks are NOT deleted automatically.
+
+---
+
+### `task_assign` - Assign Task to User
+Assign one or more users to a task.
+
+```bash
+cum task_assign <task_id> <assignee_id> [assignee_id...]
+
+# Examples:
+cum task_assign 86c6e0xyz 68483025
+cum task_assign current 68483025 12345678
 ```
 
 ---
 
-### `task update` - Update Existing Task
-**Task ID**: [86c6e0q0d](https://app.clickup.com/t/86c6e0q0d)
+### `task_unassign` - Remove Assignee
+Remove one or more assignees from a task.
 
 ```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task update <task_id> [options]
+cum task_unassign <task_id> <assignee_id> [assignee_id...]
+
+# Example:
+cum task_unassign 86c6e0xyz 68483025
 ```
 
 ---
 
-### `task delete` - Delete Task
-**Task ID**: [86c6e0q0f](https://app.clickup.com/t/86c6e0q0f)
+### `task_set_status` - Change Task Status
+Set task status with subtask validation - supports multiple tasks.
 
 ```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task delete <task_id>
+cum task_set_status <task_id> [task_id...] <status>
+
+# Examples:
+cum task_set_status 86c6e0xyz "in development"
+cum task_set_status task1 task2 task3 "testing"
 ```
+
+**Features**:
+- Validates subtasks have matching status before allowing parent status change
+- Supports multiple tasks in one command
+- Shows detailed subtask status if validation fails
 
 ---
 
-### `task assign` - Assign Task to User
-**Task ID**: [86c6e0q0g](https://app.clickup.com/t/86c6e0q0g)
+### `task_set_priority` - Change Task Priority
+Set task priority.
 
 ```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task assign <task_id> <user_id>
+cum task_set_priority <task_id> <priority>
+
+# Examples:
+cum task_set_priority 86c6e0xyz 1
+cum task_set_priority current urgent
 ```
+
+**Priority Values**: 1 (Urgent), 2 (High), 3 (Normal), 4 (Low), or names: urgent, high, normal, low
 
 ---
 
-### `task unassign` - Remove Assignee
-**Task ID**: [86c6e0q0h](https://app.clickup.com/t/86c6e0q0h)
+### `task_set_tags` - Manage Task Tags
+Add, remove, or set tags on a task.
 
 ```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task unassign <task_id> <user_id>
+cum task_set_tags <task_id> [OPTIONS]
+
+# Examples:
+cum task_set_tags 86c6e0xyz --add urgent backend
+cum task_set_tags 86c6e0xyz --remove needs-review
+cum task_set_tags 86c6e0xyz --set urgent reviewed complete
 ```
 
----
-
-### `task set-status` - Change Task Status
-**Task ID**: [86c6e0q0j](https://app.clickup.com/t/86c6e0q0j)
-
-```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task set-status <task_id> <status>
-```
-
----
-
-### `task set-priority` - Change Task Priority
-**Task ID**: [86c6e0q0m](https://app.clickup.com/t/86c6e0q0m)
-
-```bash
-# NOT YET IMPLEMENTED
-python -m clickup_framework.cli task set-priority <task_id> <priority>
-```
+**Options** (mutually exclusive):
+- `--add TAG [...]` - Tags to add
+- `--remove TAG [...]` - Tags to remove
+- `--set TAG [...]` - Set tags (replace all)
 
 ---
 
@@ -333,7 +463,7 @@ python -m clickup_framework.cli task set-priority <task_id> <priority>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli comment add <task_id> --text "Comment text"
+cum comment add <task_id> --text "Comment text"
 ```
 
 ---
@@ -343,7 +473,7 @@ python -m clickup_framework.cli comment add <task_id> --text "Comment text"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli comment list <task_id>
+cum comment list <task_id>
 ```
 
 ---
@@ -353,7 +483,7 @@ python -m clickup_framework.cli comment list <task_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli comment update <comment_id> --text "New text"
+cum comment update <comment_id> --text "New text"
 ```
 
 ---
@@ -363,7 +493,7 @@ python -m clickup_framework.cli comment update <comment_id> --text "New text"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli comment delete <comment_id>
+cum comment delete <comment_id>
 ```
 
 ---
@@ -378,7 +508,7 @@ python -m clickup_framework.cli comment delete <comment_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli checklist create <task_id> --name "Checklist name"
+cum checklist create <task_id> --name "Checklist name"
 ```
 
 ---
@@ -388,7 +518,7 @@ python -m clickup_framework.cli checklist create <task_id> --name "Checklist nam
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli checklist delete <checklist_id>
+cum checklist delete <checklist_id>
 ```
 
 ---
@@ -398,7 +528,7 @@ python -m clickup_framework.cli checklist delete <checklist_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli checklist-item add <checklist_id> --name "Item name"
+cum checklist-item add <checklist_id> --name "Item name"
 ```
 
 ---
@@ -408,7 +538,7 @@ python -m clickup_framework.cli checklist-item add <checklist_id> --name "Item n
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli checklist-item update <item_id> [options]
+cum checklist-item update <item_id> [options]
 ```
 
 ---
@@ -418,7 +548,7 @@ python -m clickup_framework.cli checklist-item update <item_id> [options]
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli checklist-item delete <item_id>
+cum checklist-item delete <item_id>
 ```
 
 ---
@@ -437,8 +567,8 @@ python -m clickup_framework.cli checklist-item delete <item_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli task add-dependency <task_id> --waiting-on <depends_on_task_id>
-python -m clickup_framework.cli task add-dependency <task_id> --blocking <blocked_task_id>
+cum task add-dependency <task_id> --waiting-on <depends_on_task_id>
+cum task add-dependency <task_id> --blocking <blocked_task_id>
 ```
 
 ---
@@ -448,7 +578,7 @@ python -m clickup_framework.cli task add-dependency <task_id> --blocking <blocke
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli task remove-dependency <task_id> <dependency_id>
+cum task remove-dependency <task_id> <dependency_id>
 ```
 
 ---
@@ -462,7 +592,7 @@ python -m clickup_framework.cli task remove-dependency <task_id> <dependency_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli task add-link <task_id> <linked_task_id>
+cum task add-link <task_id> <linked_task_id>
 ```
 
 ---
@@ -472,7 +602,7 @@ python -m clickup_framework.cli task add-link <task_id> <linked_task_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli task remove-link <task_id> <link_id>
+cum task remove-link <task_id> <link_id>
 ```
 
 ---
@@ -487,7 +617,7 @@ python -m clickup_framework.cli task remove-link <task_id> <link_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli custom-field set <task_id> <field_id> <value>
+cum custom-field set <task_id> <field_id> <value>
 ```
 
 ---
@@ -497,7 +627,7 @@ python -m clickup_framework.cli custom-field set <task_id> <field_id> <value>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli custom-field remove <task_id> <field_id>
+cum custom-field remove <task_id> <field_id>
 ```
 
 ---
@@ -507,7 +637,7 @@ python -m clickup_framework.cli custom-field remove <task_id> <field_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli custom-field list <list_id>
+cum custom-field list <list_id>
 ```
 
 ---
@@ -522,7 +652,7 @@ python -m clickup_framework.cli custom-field list <list_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli list create <folder_id> --name "List name"
+cum list create <folder_id> --name "List name"
 ```
 
 ---
@@ -532,7 +662,7 @@ python -m clickup_framework.cli list create <folder_id> --name "List name"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli list update <list_id> [options]
+cum list update <list_id> [options]
 ```
 
 ---
@@ -542,7 +672,7 @@ python -m clickup_framework.cli list update <list_id> [options]
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli list delete <list_id>
+cum list delete <list_id>
 ```
 
 ---
@@ -552,7 +682,7 @@ python -m clickup_framework.cli list delete <list_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli list show <list_id>
+cum list show <list_id>
 ```
 
 ---
@@ -571,7 +701,7 @@ python -m clickup_framework.cli list show <list_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli workspace list
+cum workspace list
 ```
 
 ---
@@ -581,7 +711,7 @@ python -m clickup_framework.cli workspace list
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli workspace show <workspace_id>
+cum workspace show <workspace_id>
 ```
 
 ---
@@ -595,7 +725,7 @@ python -m clickup_framework.cli workspace show <workspace_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli space list <workspace_id>
+cum space list <workspace_id>
 ```
 
 ---
@@ -605,7 +735,7 @@ python -m clickup_framework.cli space list <workspace_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli space create <workspace_id> --name "Space name"
+cum space create <workspace_id> --name "Space name"
 ```
 
 ---
@@ -615,7 +745,7 @@ python -m clickup_framework.cli space create <workspace_id> --name "Space name"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli space show <space_id>
+cum space show <space_id>
 ```
 
 ---
@@ -629,7 +759,7 @@ python -m clickup_framework.cli space show <space_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli folder list <space_id>
+cum folder list <space_id>
 ```
 
 ---
@@ -639,7 +769,7 @@ python -m clickup_framework.cli folder list <space_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli folder create <space_id> --name "Folder name"
+cum folder create <space_id> --name "Folder name"
 ```
 
 ---
@@ -649,7 +779,7 @@ python -m clickup_framework.cli folder create <space_id> --name "Folder name"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli folder show <folder_id>
+cum folder show <folder_id>
 ```
 
 ---
@@ -664,7 +794,7 @@ python -m clickup_framework.cli folder show <folder_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli doc list <workspace_id>
+cum doc list <workspace_id>
 ```
 
 ---
@@ -674,7 +804,7 @@ python -m clickup_framework.cli doc list <workspace_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli doc create <workspace_id> --name "Doc name"
+cum doc create <workspace_id> --name "Doc name"
 ```
 
 ---
@@ -684,7 +814,7 @@ python -m clickup_framework.cli doc create <workspace_id> --name "Doc name"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli doc show <doc_id>
+cum doc show <doc_id>
 ```
 
 ---
@@ -698,7 +828,7 @@ python -m clickup_framework.cli doc show <doc_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli page list <doc_id>
+cum page list <doc_id>
 ```
 
 ---
@@ -708,7 +838,7 @@ python -m clickup_framework.cli page list <doc_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli page create <doc_id> --name "Page name"
+cum page create <doc_id> --name "Page name"
 ```
 
 ---
@@ -718,7 +848,7 @@ python -m clickup_framework.cli page create <doc_id> --name "Page name"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli page update <page_id> --content "Page content"
+cum page update <page_id> --content "Page content"
 ```
 
 ---
@@ -733,7 +863,7 @@ python -m clickup_framework.cli page update <page_id> --content "Page content"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli time start <task_id>
+cum time start <task_id>
 ```
 
 ---
@@ -743,7 +873,7 @@ python -m clickup_framework.cli time start <task_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli time stop <task_id>
+cum time stop <task_id>
 ```
 
 ---
@@ -753,7 +883,7 @@ python -m clickup_framework.cli time stop <task_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli time list <task_id>
+cum time list <task_id>
 ```
 
 ---
@@ -768,7 +898,7 @@ python -m clickup_framework.cli time list <task_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli view list <list_id>
+cum view list <list_id>
 ```
 
 ---
@@ -778,7 +908,7 @@ python -m clickup_framework.cli view list <list_id>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli view create <list_id> --name "View name"
+cum view create <list_id> --name "View name"
 ```
 
 ---
@@ -793,7 +923,7 @@ python -m clickup_framework.cli view create <list_id> --name "View name"
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli attachment upload <task_id> <file_path>
+cum attachment upload <task_id> <file_path>
 ```
 
 ---
@@ -803,7 +933,7 @@ python -m clickup_framework.cli attachment upload <task_id> <file_path>
 
 ```bash
 # NOT YET IMPLEMENTED
-python -m clickup_framework.cli attachment list <task_id>
+cum attachment list <task_id>
 ```
 
 ---
@@ -830,28 +960,28 @@ Presets provide quick formatting configurations:
 
 ### `minimal`
 ```bash
-python -m clickup_framework.cli hierarchy <list_id> --preset minimal
+cum hierarchy <list_id> --preset minimal
 ```
 - Shows: IDs, status, priority
 - Hides: Tags, descriptions, dates, emojis
 
 ### `summary`
 ```bash
-python -m clickup_framework.cli hierarchy <list_id> --preset summary
+cum hierarchy <list_id> --preset summary
 ```
 - Shows: Status, priority, tags
 - Hides: IDs, descriptions, dates
 
 ### `detailed`
 ```bash
-python -m clickup_framework.cli hierarchy <list_id> --preset detailed
+cum hierarchy <list_id> --preset detailed
 ```
 - Shows: Status, priority, tags, descriptions, dates
 - Hides: IDs
 
 ### `full`
 ```bash
-python -m clickup_framework.cli hierarchy <list_id> --preset full
+cum hierarchy <list_id> --preset full
 ```
 - Shows: Everything including IDs, tags, descriptions, dates, 5 comments
 
@@ -862,23 +992,26 @@ python -m clickup_framework.cli hierarchy <list_id> --preset full
 Track the overall implementation progress: [CLI Command Implementation](https://app.clickup.com/t/86c6e0q06)
 
 ### Phase 1: View & Context (✅ Complete)
-- ✅ Hierarchy view
+- ✅ Hierarchy view (defaults to full preset)
 - ✅ Container view
 - ✅ Flat view
 - ✅ Filter view
 - ✅ Detail view
 - ✅ Stats view
 - ✅ Demo mode
+- ✅ Assigned tasks view (dependency difficulty sorting)
 - ✅ Context management (set/show/clear)
 - ✅ Status display with caching
 - ✅ Animated ANSI output
+- ✅ Default assignee configuration
 
-### Phase 2: Task Management (🚧 Planned)
-- 🚧 Create tasks
-- 🚧 Update tasks
-- 🚧 Delete tasks
-- 🚧 Assign/unassign users
-- 🚧 Set status/priority
+### Phase 2: Task Management (✅ Complete)
+- ✅ Create tasks (task_create)
+- ✅ Update tasks (task_update)
+- ✅ Delete tasks (task_delete)
+- ✅ Assign/unassign users (task_assign, task_unassign)
+- ✅ Set status/priority (task_set_status, task_set_priority)
+- ✅ Manage tags (task_set_tags)
 
 ### Phase 3: Comments & Checklists (🚧 Planned)
 - 🚧 Add/list/update/delete comments
