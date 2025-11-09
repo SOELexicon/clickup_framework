@@ -19,6 +19,38 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from clickup_framework import ClickUpClient
 
 
+def contains_markdown(text):
+    """
+    Detect if text contains markdown formatting.
+
+    Checks for common markdown patterns:
+    - Headers (#, ##, ###)
+    - Code blocks (```)
+    - Tables (|---|)
+    - Links ([text](url))
+    - Bold (**text**)
+    - Lists (-, *, 1.)
+    """
+    if not text:
+        return False
+
+    markdown_patterns = [
+        r'#+\s',           # Headers
+        r'```',            # Code blocks
+        r'\|.*\|',         # Tables
+        r'\[.*\]\(.*\)',   # Links
+        r'\*\*.*\*\*',     # Bold
+        r'^[-*]\s',        # Unordered lists
+        r'^\d+\.\s',       # Ordered lists
+    ]
+
+    for pattern in markdown_patterns:
+        if re.search(pattern, text, re.MULTILINE):
+            return True
+
+    return False
+
+
 def get_pr_info():
     """Get PR information from GitHub environment."""
     pr_number = os.environ.get('PR_NUMBER')
@@ -83,13 +115,18 @@ Test results will be added as subtasks below.
     # Create the task with custom_type if supported
     task_data = {
         'name': task_name,
-        'markdown_description': description,
         'tags': [
             {'name': f'pr-{pr_number}'},
             {'name': 'pull-request'},
             {'name': 'automated'}
         ]
     }
+
+    # Use markdown_description if content has markdown, otherwise use description
+    if contains_markdown(description):
+        task_data['markdown_description'] = description
+    else:
+        task_data['description'] = description
 
     task = client.create_task(list_id, **task_data)
 
@@ -294,7 +331,6 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
     # Create the task
     task_data = {
         'name': task_name,
-        'markdown_description': description,
         'priority': {'priority': str(priority)},
         'status': 'complete',  # Set status to closed/complete
         'tags': [
@@ -303,6 +339,12 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
             {'name': f'coverage-{int(coverage_pct)}'}
         ]
     }
+
+    # Use markdown_description if content has markdown, otherwise use description
+    if contains_markdown(description):
+        task_data['markdown_description'] = description
+    else:
+        task_data['description'] = description
 
     if parent_task_id:
         task_data['parent'] = parent_task_id
@@ -370,17 +412,23 @@ def create_failed_test_tasks(client, list_id, test_results, parent_task_id):
                 description += f"\n\n**Crash Info:**\n```\n{call_info['crash']}\n```"
 
         # Create task
-        task = client.create_task(
-            list_id,
-            name=f"[Test Failure] {test_name}",
-            markdown_description=description,
-            parent=parent_task_id,
-            priority={'priority': '1'},
-            tags=[
+        task_data = {
+            'name': f"[Test Failure] {test_name}",
+            'parent': parent_task_id,
+            'priority': {'priority': '1'},
+            'tags': [
                 {'name': 'test-failure'},
                 {'name': 'automated'}
             ]
-        )
+        }
+
+        # Use markdown_description if content has markdown, otherwise use description
+        if contains_markdown(description):
+            task_data['markdown_description'] = description
+        else:
+            task_data['description'] = description
+
+        task = client.create_task(list_id, **task_data)
 
         created_tasks.append(task)
 
