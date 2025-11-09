@@ -193,3 +193,70 @@ class TimeAPI:
             end_date=end_date,
             **params
         )
+
+    def update_entry(
+        self,
+        task_id: str,
+        interval_id: str,
+        duration: Optional[int] = None,
+        description: Optional[str] = None,
+        start: Optional[int] = None,
+        end: Optional[int] = None,
+        billable: Optional[bool] = None,
+        **updates
+    ) -> Dict[str, Any]:
+        """
+        Update a time entry.
+
+        Args:
+            task_id: Task ID
+            interval_id: Time entry interval ID
+            duration: Duration in milliseconds
+            description: Entry description
+            start: Start time (Unix timestamp in milliseconds)
+            end: End time (Unix timestamp in milliseconds)
+            billable: Whether entry is billable
+            **updates: Additional fields to update
+
+        Returns:
+            Updated time entry (raw dict)
+
+        Example:
+            # Update duration and description
+            updated = time.update_entry(
+                task_id="task_id",
+                interval_id="interval_id",
+                duration=7200000,  # 2 hours
+                description="Updated work description"
+            )
+        """
+        data = {**updates}
+
+        if duration is not None:
+            data["duration"] = duration
+        if description is not None:
+            data["description"] = description
+        if start is not None:
+            data["start"] = start
+        if end is not None:
+            data["end"] = end
+        if billable is not None:
+            data["billable"] = billable
+
+        return self.client.update_time_entry(task_id, interval_id, **data)
+
+    def delete_entry(self, task_id: str, interval_id: str) -> Dict[str, Any]:
+        """
+        Delete a time entry.
+
+        Args:
+            task_id: Task ID
+            interval_id: Time entry interval ID
+
+        Returns:
+            Empty dict on success
+
+        Example:
+            time.delete_entry("task_id", "interval_id")
+        """
+        return self.client.delete_time_entry(task_id, interval_id)
