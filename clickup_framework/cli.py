@@ -1123,13 +1123,26 @@ def assigned_tasks_command(args):
 
 def show_command_tree():
     """Display available commands in a tree view."""
+    import time
     context = get_context_manager()
     use_color = context.get_ansi_output()
 
-    # Print header
-    header = ANSIAnimations.gradient_text("ClickUp Framework CLI - Available Commands", ANSIAnimations.GRADIENT_RAINBOW)
-    print(header)
-    print()
+    # Print header with animation
+    if use_color:
+        # Animated rainbow gradient header
+        header = ANSIAnimations.gradient_text("ClickUp Framework CLI - Available Commands", ANSIAnimations.GRADIENT_RAINBOW)
+        print(header)
+        print()
+
+        # Animated separator
+        separator = ANSIAnimations.rainbow_wave("─" * 60)
+        print(separator)
+        print()
+        time.sleep(0.05)
+    else:
+        print("ClickUp Framework CLI - Available Commands")
+        print("─" * 60)
+        print()
 
     commands = {
         "📊 View Commands": [
