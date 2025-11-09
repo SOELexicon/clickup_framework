@@ -26,6 +26,7 @@ from clickup_framework.components import (
 )
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands import discover_and_register_commands
 
 
 def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = True) -> str:
@@ -2440,87 +2441,8 @@ Examples:
         subparser.add_argument('--no-emoji', dest='show_emoji', action='store_false',
                              help='Hide task type emojis')
 
-    # Hierarchy command
-    hierarchy_parser = subparsers.add_parser('hierarchy', aliases=['h'], help='Display tasks in hierarchical view')
-    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
-    hierarchy_parser.add_argument('--header', help='Custom header text')
-    hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
-                                 help='Show all tasks from the entire workspace')
-    add_common_args(hierarchy_parser)
-    hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
-
-    # List command (alias for hierarchy)
-    list_parser = subparsers.add_parser('list', aliases=['ls', 'l'], help='Display tasks in hierarchical view (alias for hierarchy)')
-    list_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
-    list_parser.add_argument('--header', help='Custom header text')
-    list_parser.add_argument('--all', dest='show_all', action='store_true',
-                            help='Show all tasks from the entire workspace')
-    add_common_args(list_parser)
-    list_parser.set_defaults(func=hierarchy_command, preset='full')
-
-    # Container command
-    container_parser = subparsers.add_parser('container', aliases=['c'], help='Display tasks by container hierarchy')
-    container_parser.add_argument('list_id', help='ClickUp list ID')
-    add_common_args(container_parser)
-    container_parser.set_defaults(func=container_command)
-
-    # Flat command
-    flat_parser = subparsers.add_parser('flat', aliases=['f'], help='Display tasks in flat list')
-    flat_parser.add_argument('list_id', help='ClickUp list ID')
-    flat_parser.add_argument('--header', help='Custom header text')
-    add_common_args(flat_parser)
-    flat_parser.set_defaults(func=flat_command)
-
-    # Filter command
-    filter_parser = subparsers.add_parser('filter', aliases=['fil'], help='Display filtered tasks')
-    filter_parser.add_argument('list_id', help='ClickUp list ID')
-    filter_parser.add_argument('--status', help='Filter by status')
-    filter_parser.add_argument('--priority', type=int, help='Filter by priority')
-    filter_parser.add_argument('--tags', nargs='+', help='Filter by tags')
-    filter_parser.add_argument('--assignee', help='Filter by assignee ID')
-    filter_parser.add_argument('--view-mode', choices=['hierarchy', 'container', 'flat'],
-                             default='hierarchy', help='Display mode (default: hierarchy)')
-    add_common_args(filter_parser)
-    filter_parser.set_defaults(func=filter_command)
-
-    # Detail command
-    detail_parser = subparsers.add_parser('detail', aliases=['d'], help='Show comprehensive task details')
-    detail_parser.add_argument('task_id', help='ClickUp task ID')
-    detail_parser.add_argument('list_id', nargs='?', help='List ID for relationship context (optional)')
-    add_common_args(detail_parser)
-    detail_parser.set_defaults(func=detail_command, preset='full')
-
-    # Stats command
-    stats_parser = subparsers.add_parser('stats', aliases=['st'], help='Display task statistics')
-    stats_parser.add_argument('list_id', help='ClickUp list ID')
-    stats_parser.set_defaults(func=stats_command)
-
-    # Demo command
-    demo_parser = subparsers.add_parser('demo', help='Show demo with sample data (no API required)')
-    demo_parser.add_argument('--mode', choices=['hierarchy', 'container', 'flat', 'stats', 'detail'],
-                           default='hierarchy', help='View mode to demonstrate')
-    add_common_args(demo_parser)
-    demo_parser.set_defaults(func=demo_command)
-
-    # Context management commands
-    set_current_parser = subparsers.add_parser('set_current', aliases=['set'],
-                                                help='Set current resource context')
-    set_current_parser.add_argument('resource_type',
-                                     choices=['task', 'list', 'space', 'folder', 'workspace', 'team', 'assignee', 'token'],
-                                     help='Type of resource to set as current')
-    set_current_parser.add_argument('resource_id', help='ID/value of the resource (API token for token type)')
-    set_current_parser.set_defaults(func=set_current_command)
-
-    clear_current_parser = subparsers.add_parser('clear_current', aliases=['clear'],
-                                                  help='Clear current resource context')
-    clear_current_parser.add_argument('resource_type', nargs='?',
-                                       choices=['task', 'list', 'space', 'folder', 'workspace', 'team', 'assignee', 'token'],
-                                       help='Type of resource to clear (omit to clear all)')
-    clear_current_parser.set_defaults(func=clear_current_command)
-
-    show_current_parser = subparsers.add_parser('show_current', aliases=['show'],
-                                                 help='Show current resource context')
-    show_current_parser.set_defaults(func=show_current_command)
+    # Auto-discover and register all plugin commands
+    discover_and_register_commands(subparsers, add_common_args)
 
     # Task management commands
     task_create_parser = subparsers.add_parser('task_create', aliases=['tc'],
@@ -2656,14 +2578,6 @@ Examples:
                                    help='Create nested folder structure based on page names')
     doc_export_parser.set_defaults(func=doc_export_command)
 
-    # ANSI output configuration
-    ansi_parser = subparsers.add_parser('ansi',
-                                        help='Enable or disable ANSI color output')
-    ansi_parser.add_argument('action',
-                            choices=['enable', 'disable', 'status'],
-                            help='Action to perform (enable/disable/status)')
-    ansi_parser.set_defaults(func=ansi_command)
-
     # Assigned tasks command
     assigned_parser = subparsers.add_parser('assigned', aliases=['a'],
                                             help='Show tasks assigned to user, sorted by dependency difficulty')
@@ -2672,47 +2586,6 @@ Examples:
     assigned_parser.add_argument('--team-id', dest='team_id',
                                 help='Team/workspace ID (defaults to current workspace)')
     assigned_parser.set_defaults(func=assigned_tasks_command)
-
-    # Doc management commands
-    doc_list_parser = subparsers.add_parser('doc_list',
-                                            help='List all docs in a workspace')
-    doc_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
-    doc_list_parser.set_defaults(func=doc_list_command)
-
-    doc_get_parser = subparsers.add_parser('doc_get',
-                                           help='Get a specific doc and display its content')
-    doc_get_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
-    doc_get_parser.add_argument('doc_id', help='Doc ID')
-    doc_get_parser.add_argument('--show-content', action='store_true',
-                                help='Show content preview for each page')
-    doc_get_parser.set_defaults(func=doc_get_command)
-
-    doc_create_parser = subparsers.add_parser('doc_create',
-                                              help='Create a new doc')
-    doc_create_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
-    doc_create_parser.add_argument('name', help='Doc name')
-    doc_create_parser.add_argument('--parent', help='Parent doc ID (for nested docs)')
-    doc_create_parser.add_argument('--pages', nargs='+', help='Initial page names to create')
-    doc_create_parser.set_defaults(func=doc_create_command)
-
-    doc_update_parser = subparsers.add_parser('doc_update',
-                                              help='Update a page in a doc')
-    doc_update_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
-    doc_update_parser.add_argument('doc_id', help='Doc ID')
-    doc_update_parser.add_argument('page_id', help='Page ID to update')
-    doc_update_parser.add_argument('--name', help='New page name')
-    doc_update_parser.add_argument('--content', help='New page content (markdown)')
-    doc_update_parser.set_defaults(func=doc_update_command)
-
-    doc_export_parser = subparsers.add_parser('doc_export',
-                                              help='Export a doc and its pages to markdown files')
-    doc_export_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
-    doc_export_parser.add_argument('doc_id', help='Doc ID to export')
-    doc_export_parser.add_argument('--output-dir', dest='output_dir', default='.',
-                                   help='Output directory (default: current directory)')
-    doc_export_parser.add_argument('--nested', action='store_true',
-                                   help='Create nested folder structure for pages with "/" in name')
-    doc_export_parser.set_defaults(func=doc_export_command)
 
     # Update command
     update_parser = subparsers.add_parser('update',

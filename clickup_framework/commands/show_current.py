@@ -91,6 +91,7 @@ def register_command(subparsers, add_common_args=None):
     """Register the show_current command with argparse."""
     parser = subparsers.add_parser(
         'show_current',
+        aliases=['show'],
         help='Show current resource context',
         description='Display the current context configuration with all set resources'
     )

@@ -45,6 +45,7 @@ def register_command(subparsers, add_common_args):
     """Register the detail command with argparse."""
     parser = subparsers.add_parser(
         'detail',
+        aliases=['d'],
         help='Show comprehensive task details',
         description='Display comprehensive details of a single task with relationships'
     )

@@ -77,6 +77,7 @@ def register_command(subparsers, add_common_args):
     # Hierarchy command
     parser = subparsers.add_parser(
         'hierarchy',
+        aliases=['h'],
         help='Display tasks in hierarchical view',
         description='Display tasks in hierarchical parent-child view'
     )
@@ -90,6 +91,7 @@ def register_command(subparsers, add_common_args):
     # List command (alias for hierarchy)
     list_parser = subparsers.add_parser(
         'list',
+        aliases=['ls', 'l'],
         help='Display tasks in hierarchical view (alias for hierarchy)',
         description='Display tasks in hierarchical parent-child view'
     )
