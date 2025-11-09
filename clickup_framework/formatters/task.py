@@ -170,6 +170,18 @@ class TaskFormatter(BaseFormatter):
         if list_name:
             lines.append(f"List: {list_name}")
 
+        # Dependencies
+        dependencies = task.get("dependencies", [])
+        if dependencies:
+            dep_info = self._format_dependencies(dependencies)
+            if dep_info:
+                lines.append(f"Dependencies: {dep_info}")
+
+        # Linked Tasks
+        linked_tasks = task.get("linked_tasks", [])
+        if linked_tasks:
+            lines.append(f"Linked: {len(linked_tasks)} task(s)")
+
         # Description (truncated)
         description = task.get("text_content") or task.get("description", "")
         if description:
@@ -223,13 +235,39 @@ class TaskFormatter(BaseFormatter):
             lines.append("Custom Fields:")
             for field in custom_fields[:5]:  # Limit to 5 fields
                 field_name = field.get("name", "Unknown")
+                field_type = field.get("type", "")
                 value = self._format_custom_field_value(field)
-                lines.append(f"  - {field_name}: {value}")
+                # Highlight relationship fields
+                if field_type == "relationship":
+                    lines.append(f"  - {field_name} (Relationship): {value}")
+                else:
+                    lines.append(f"  - {field_name}: {value}")
 
-        # Dependencies
+        # Dependencies (detailed)
         dependencies = task.get("dependencies", [])
         if dependencies:
-            lines.append(f"Dependencies: {len(dependencies)} task(s)")
+            waiting_on = [d for d in dependencies if d.get("type") == 0]
+            blocking = [d for d in dependencies if d.get("type") == 1]
+
+            if waiting_on:
+                lines.append(f"⏳ Waiting On: {len(waiting_on)} task(s)")
+                for dep in waiting_on[:3]:  # Show first 3
+                    task_id = dep.get("task_id", "unknown")
+                    lines.append(f"    - {task_id}")
+
+            if blocking:
+                lines.append(f"🚫 Blocking: {len(blocking)} task(s)")
+                for dep in blocking[:3]:  # Show first 3
+                    task_id = dep.get("depends_on", "unknown")
+                    lines.append(f"    - {task_id}")
+
+        # Linked Tasks (detailed)
+        linked_tasks = task.get("linked_tasks", [])
+        if linked_tasks:
+            lines.append(f"🔗 Linked Tasks: {len(linked_tasks)} task(s)")
+            for link in linked_tasks[:5]:  # Show first 5
+                linked_task_id = link.get("task_id") or link.get("link_id", "unknown")
+                lines.append(f"    - {linked_task_id}")
 
         # URL
         url = task.get("url")
@@ -269,11 +307,39 @@ class TaskFormatter(BaseFormatter):
             return format_timestamp(value)
         elif field_type == "currency":
             return f"${value / 100:.2f}" if isinstance(value, (int, float)) else str(value)
+        elif field_type == "relationship":
+            # Handle relationship custom fields (array of task IDs)
+            if isinstance(value, list) and len(value) > 0:
+                return f"{len(value)} task(s)"
+            elif isinstance(value, list):
+                return "None"
+            return str(value)
         elif isinstance(value, dict):
             # Generic dict handling
             return value.get("name", str(value))
         else:
             return str(value)
+
+    def _format_dependencies(self, dependencies: list) -> str:
+        """
+        Format dependency list into concise summary.
+
+        Returns string like "2 waiting on, 1 blocking" or empty string if no dependencies.
+        """
+        if not dependencies:
+            return ""
+
+        # Type 0 = waiting on, Type 1 = blocking
+        waiting_on = sum(1 for d in dependencies if d.get("type") == 0)
+        blocking = sum(1 for d in dependencies if d.get("type") == 1)
+
+        parts = []
+        if waiting_on:
+            parts.append(f"{waiting_on} waiting on")
+        if blocking:
+            parts.append(f"{blocking} blocking")
+
+        return ", ".join(parts) if parts else f"{len(dependencies)} dependency(ies)"
 
 
 # Convenience function
