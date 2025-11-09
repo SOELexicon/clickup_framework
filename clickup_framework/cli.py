@@ -40,9 +40,14 @@ def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = Tru
         Formatted string showing available statuses
     """
     from clickup_framework.utils.colors import status_color as get_status_color
+    import sys
 
     try:
         context = get_context_manager()
+
+        # Use context setting if not explicitly specified
+        if use_color is None:
+            use_color = context.get_ansi_output()
 
         # Try to get from cache first
         cached_metadata = context.get_cached_list_metadata(list_id)
@@ -108,8 +113,12 @@ def create_format_options(args) -> FormatOptions:
         return options
 
     # Otherwise build from individual flags
+    colorize_val = getattr(args, 'colorize', None)
+    if colorize_val is None:
+        colorize_val = default_colorize
+
     return FormatOptions(
-        colorize_output=getattr(args, 'colorize', default_colorize),
+        colorize_output=colorize_val,
         show_ids=getattr(args, 'show_ids', False),
         show_tags=getattr(args, 'show_tags', True),
         show_descriptions=getattr(args, 'show_descriptions', False),
@@ -138,7 +147,8 @@ def hierarchy_command(args):
     options = create_format_options(args)
 
     # Show available statuses
-    colorize = getattr(args, 'colorize', True)
+    colorize_val = getattr(args, 'colorize', None)
+    colorize = colorize_val if colorize_val is not None else context.get_ansi_output()
     status_line = get_list_statuses(client, list_id, use_color=colorize)
     if status_line:
         print(status_line)
@@ -168,7 +178,8 @@ def container_command(args):
     options = create_format_options(args)
 
     # Show available statuses
-    colorize = getattr(args, 'colorize', True)
+    colorize_val = getattr(args, 'colorize', None)
+    colorize = colorize_val if colorize_val is not None else context.get_ansi_output()
     status_line = get_list_statuses(client, list_id, use_color=colorize)
     if status_line:
         print(status_line)
@@ -197,7 +208,8 @@ def flat_command(args):
     options = create_format_options(args)
 
     # Show available statuses
-    colorize = getattr(args, 'colorize', True)
+    colorize_val = getattr(args, 'colorize', None)
+    colorize = colorize_val if colorize_val is not None else context.get_ansi_output()
     status_line = get_list_statuses(client, list_id, use_color=colorize)
     if status_line:
         print(status_line)
@@ -227,7 +239,8 @@ def filter_command(args):
     options = create_format_options(args)
 
     # Show available statuses
-    colorize = getattr(args, 'colorize', True)
+    colorize_val = getattr(args, 'colorize', None)
+    colorize = colorize_val if colorize_val is not None else context.get_ansi_output()
     status_line = get_list_statuses(client, list_id, use_color=colorize)
     if status_line:
         print(status_line)
@@ -958,8 +971,10 @@ Examples:
         """Add common formatting arguments."""
         subparser.add_argument('--preset', choices=['minimal', 'summary', 'detailed', 'full'],
                              help='Use a preset format configuration')
-        subparser.add_argument('--no-colorize', dest='colorize', action='store_false',
-                             help='Disable color output')
+        subparser.add_argument('--no-colorize', dest='colorize', action='store_const', const=False, default=None,
+                             help='Disable color output (default: use config setting)')
+        subparser.add_argument('--colorize', dest='colorize', action='store_const', const=True,
+                             help='Enable color output')
         subparser.add_argument('--show-ids', action='store_true',
                              help='Show task IDs')
         subparser.add_argument('--show-tags', action='store_true', default=True,
