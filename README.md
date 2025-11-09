@@ -195,6 +195,103 @@ raw_task = tasks.get("task_id")  # Returns dict
 formatted_task = tasks.get("task_id", detail_level="summary")  # Returns formatted string
 ```
 
+### Display Components - Hierarchical Tree Views (Phase 3.5 - NEW! ✨)
+
+Beautiful, CLI-ready hierarchical tree displays similar to [ClickupCLI](https://github.com/SOELexicon/ClickupCLI) output:
+
+```python
+from clickup_framework import ClickUpClient
+from clickup_framework.components import DisplayManager, FormatOptions
+
+client = ClickUpClient()
+display = DisplayManager(client)
+
+# Display tasks in hierarchical tree view
+tasks = client.get_list_tasks("list_id")
+output = display.hierarchy_view(tasks)
+print(output)
+
+# Example output:
+# ├─Feature Development (0/7)
+# │ └─UI Improvements (0/7)
+# │   └─Hierarchy View (0/7)
+# │     └─📝 Enhance Task List Hierarchy View [in progress] (2)
+# │       │ 📝 Description:
+# │       │   Update the list command to provide a hierarchical tree view...
+# │       └─
+# │       ├─📝 Add Comprehensive Tests (3)
+# │       │ │ 📝 Description:
+# │       │ │   Create comprehensive test suite...
+# │       │ └─
+
+# Display with container hierarchy (workspace → space → folder → list)
+container_output = display.container_view(tasks)
+print(container_output)
+
+# Custom formatting options
+options = FormatOptions(
+    colorize_output=True,
+    show_ids=True,
+    show_tags=True,
+    show_descriptions=True,
+    show_dates=True,
+    show_comments=2
+)
+detailed_output = display.hierarchy_view(tasks, options)
+
+# Use preset detail levels
+minimal = display.hierarchy_view(tasks, FormatOptions.minimal())
+summary = display.hierarchy_view(tasks, FormatOptions.summary())
+detailed = display.hierarchy_view(tasks, FormatOptions.detailed())
+full = display.hierarchy_view(tasks, FormatOptions.full())
+
+# Filter and display
+filtered = display.filtered_view(
+    tasks,
+    status="in progress",
+    priority=1,
+    view_mode='hierarchy'
+)
+
+# Get statistics
+stats = display.summary_stats(tasks)
+print(stats)
+# Output:
+# Task Summary:
+#   Total: 22
+#   Completed: 5
+#   In Progress: 8
+#   Blocked: 1
+#   To Do: 8
+```
+
+**Display Components:**
+- **DisplayManager**: High-level interface for all display operations
+- **FormatOptions**: Dataclass for managing display settings (with presets: minimal, summary, detailed, full)
+- **RichTaskFormatter**: Enhanced task formatting with emojis, colors, and detailed information
+- **TaskHierarchyFormatter**: Organize tasks by parent-child relationships
+- **ContainerHierarchyFormatter**: Organize tasks by workspace/space/folder/list containers
+- **TreeFormatter**: Low-level tree rendering with box-drawing characters (├─, └─, │)
+- **TaskFilter**: Filter tasks by status, priority, tags, assignee, dates, and custom criteria
+
+**View Modes:**
+- `hierarchy_view`: Parent-child task relationships
+- `container_view`: Organized by workspace → space → folder → list
+- `flat_view`: Simple list display
+- `filtered_view`: Apply filters and display in any view mode
+
+**Features:**
+- Beautiful tree structures with Unicode box-drawing characters
+- ANSI color support for status, priority, and container types
+- Task type emojis (📝 task, 🐛 bug, 🚀 feature, etc.)
+- Completion statistics with color coding
+- Multi-line description and comment support
+- Relationship indicators (dependencies, links)
+- Orphaned task detection and display
+- Fully customizable formatting options
+
+See `examples/display_components_example.py` for complete usage examples.
+
 ## Features
 
 ### Phase 2: Token-Efficient Formatters ✨

@@ -1,0 +1,173 @@
+"""
+Tree Formatting Module
+
+Provides utilities for rendering hierarchical data as tree structures with box-drawing characters.
+"""
+
+from typing import List, Dict, Any, Callable, Optional
+
+
+class TreeFormatter:
+    """
+    Formats hierarchical data as tree structures with box-drawing characters.
+
+    Uses Unicode box-drawing characters for visual hierarchy:
+        ├─ Branch (not last item)
+        └─ Last branch
+        │  Vertical continuation
+           Empty space (for completed branches)
+    """
+
+    @staticmethod
+    def build_tree(
+        items: List[Dict[str, Any]],
+        format_fn: Callable[[Dict[str, Any]], str],
+        get_children_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
+        prefix: str = "",
+        is_last: bool = True
+    ) -> List[str]:
+        """
+        Recursively build a tree structure from hierarchical items.
+
+        Args:
+            items: List of items to display
+            format_fn: Function to format each item into a string
+            get_children_fn: Function to get children of an item
+            prefix: Current indentation prefix
+            is_last: Whether this is the last item in its level
+
+        Returns:
+            List of formatted lines
+        """
+        lines = []
+
+        for i, item in enumerate(items):
+            is_last_item = (i == len(items) - 1)
+
+            # Determine the branch character
+            branch = "└─" if is_last_item else "├─"
+
+            # Format the current item
+            formatted = format_fn(item)
+            lines.append(f"{prefix}{branch}{formatted}")
+
+            # Get children
+            children = get_children_fn(item)
+
+            if children:
+                # Calculate the prefix for children
+                if is_last_item:
+                    child_prefix = prefix + "  "  # No vertical line
+                else:
+                    child_prefix = prefix + "│ "  # Continue vertical line
+
+                # Recursively format children
+                child_lines = TreeFormatter.build_tree(
+                    children,
+                    format_fn,
+                    get_children_fn,
+                    child_prefix,
+                    False
+                )
+                lines.extend(child_lines)
+
+        return lines
+
+    @staticmethod
+    def render(
+        items: List[Dict[str, Any]],
+        format_fn: Callable[[Dict[str, Any]], str],
+        get_children_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
+        header: Optional[str] = None
+    ) -> str:
+        """
+        Render items as a tree structure.
+
+        Args:
+            items: List of root items
+            format_fn: Function to format each item
+            get_children_fn: Function to get children of an item
+            header: Optional header to display before the tree
+
+        Returns:
+            Complete tree as a string
+        """
+        lines = []
+
+        if header:
+            lines.append(header)
+            lines.append("")
+
+        tree_lines = TreeFormatter.build_tree(items, format_fn, get_children_fn)
+        lines.extend(tree_lines)
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_container_tree(
+        containers: List[Dict[str, Any]],
+        format_container_fn: Callable[[Dict[str, Any]], str],
+        format_item_fn: Callable[[Dict[str, Any]], str],
+        get_sub_containers_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
+        get_items_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
+        prefix: str = "",
+        is_last: bool = True
+    ) -> List[str]:
+        """
+        Build a tree with containers (e.g., folders) and items (e.g., tasks).
+
+        Args:
+            containers: List of containers to display
+            format_container_fn: Function to format container
+            format_item_fn: Function to format items
+            get_sub_containers_fn: Function to get sub-containers
+            get_items_fn: Function to get items in a container
+            prefix: Current indentation prefix
+            is_last: Whether this is the last container
+
+        Returns:
+            List of formatted lines
+        """
+        lines = []
+
+        for i, container in enumerate(containers):
+            is_last_container = (i == len(containers) - 1)
+
+            # Determine the branch character
+            branch = "└─" if is_last_container else "├─"
+
+            # Format the container
+            formatted_container = format_container_fn(container)
+            lines.append(f"{prefix}{branch}{formatted_container}")
+
+            # Calculate prefix for children
+            if is_last_container:
+                child_prefix = prefix + "  "
+            else:
+                child_prefix = prefix + "│ "
+
+            # Get sub-containers
+            sub_containers = get_sub_containers_fn(container)
+            if sub_containers:
+                sub_lines = TreeFormatter.format_container_tree(
+                    sub_containers,
+                    format_container_fn,
+                    format_item_fn,
+                    get_sub_containers_fn,
+                    get_items_fn,
+                    child_prefix,
+                    False
+                )
+                lines.extend(sub_lines)
+
+            # Get items in this container
+            items = get_items_fn(container)
+            if items:
+                for j, item in enumerate(items):
+                    is_last_item = (j == len(items) - 1) and not sub_containers
+
+                    item_branch = "└─" if is_last_item else "├─"
+                    formatted_item = format_item_fn(item)
+                    lines.append(f"{child_prefix}{item_branch}{formatted_item}")
+
+        return lines
