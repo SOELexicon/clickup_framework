@@ -1,0 +1,356 @@
+[01;34m.[0m
+├── README.md
+├── __init__.py
+├── [01;34mcli[0m
+│   ├── __init__.py
+│   ├── command.py
+│   ├── [01;34mcommands[0m
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── checklist.py
+│   │   ├── dashboard.py
+│   │   ├── folder.py
+│   │   ├── full_text_search_command.py
+│   │   ├── help.py
+│   │   ├── list.py
+│   │   ├── relationship.py
+│   │   ├── saved_search.py
+│   │   ├── saved_search_command.py
+│   │   ├── search.py
+│   │   ├── space.py
+│   │   └── task.py
+│   ├── error_handling.py
+│   ├── [01;34minterfaces[0m
+│   ├── middleware.py
+│   ├── [01;34moutput[0m
+│   │   ├── __init__.py
+│   │   └── formatter.py
+│   ├── registry.py
+│   ├── saved_search_commands.py
+│   ├── search_cache_commands.py
+│   └── task.py
+├── [01;34mcommon[0m
+│   ├── __init__.py
+│   ├── [01;34mconfig[0m
+│   │   ├── __init__.py
+│   │   └── config_manager.py
+│   ├── [01;34mdi[0m
+│   │   ├── __init__.py
+│   │   ├── container.py
+│   │   └── service_provider.py
+│   ├── exceptions.py
+│   ├── [01;34mi18n[0m
+│   │   ├── __init__.py
+│   │   ├── [01;34mlocales[0m
+│   │   │   ├── en.json
+│   │   │   └── es.json
+│   │   └── translator.py
+│   ├── json_utils.py
+│   ├── [01;34mlogging[0m
+│   │   ├── __init__.py
+│   │   └── logger.py
+│   └── [01;34mutils[0m
+│       ├── __init__.py
+│       ├── string_utils.py
+│       └── validation_utils.py
+├── [01;34mcore[0m
+│   ├── __init__.py
+│   ├── [01;34mentities[0m
+│   │   ├── __init__.py
+│   │   ├── base_entity.py
+│   │   ├── checklist_entity.py
+│   │   ├── folder_entity.py
+│   │   ├── list_entity.py
+│   │   ├── space_entity.py
+│   │   ├── task.py
+│   │   └── task_entity.py
+│   ├── [01;34mexceptions[0m
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── error_codes.py
+│   │   └── error_context.py
+│   ├── exceptions.py
+│   ├── [01;34minterfaces[0m
+│   │   ├── __init__.py
+│   │   └── core_manager.py
+│   ├── manager.py
+│   ├── mock_manager.py
+│   ├── [01;34mrepositories[0m
+│   │   ├── __init__.py
+│   │   ├── folder_json_repository.py
+│   │   ├── folder_repository.py
+│   │   ├── json_repository.py
+│   │   ├── list_json_repository.py
+│   │   ├── list_repository.py
+│   │   ├── repository.py
+│   │   ├── repository_interface.py
+│   │   ├── space_json_repository.py
+│   │   ├── space_repository.py
+│   │   ├── task_json_repository.py
+│   │   └── task_repository.py
+│   ├── [01;34mservices[0m
+│   │   ├── __init__.py
+│   │   ├── base_service.py
+│   │   ├── checklist_service.py
+│   │   ├── folder_service.py
+│   │   ├── list_service.py
+│   │   ├── plugin_service.py
+│   │   ├── query_service.py
+│   │   ├── relationship_service.py
+│   │   ├── search_service.py
+│   │   ├── space_service.py
+│   │   ├── status_service.py
+│   │   └── task_service.py
+│   ├── task_manager.py
+│   └── [01;34mutils[0m
+│       ├── __init__.py
+│       └── validation.py
+├── [01;32mcujmrefactor.sh[0m
+├── [01;34mdashboard[0m
+│   ├── README.md
+│   ├── __init__.py
+│   ├── components.py
+│   ├── dashboard_component.py
+│   ├── dashboard_manager.py
+│   ├── data_provider.py
+│   └── search_stats_dashboard.py
+├── [01;32mdebug_test.sh[0m
+├── [01;34mdocs[0m
+│   ├── saved_search_guide.md
+│   ├── [01;34mtesting[0m
+│   │   ├── README.md
+│   │   ├── [01;34mexamples[0m
+│   │   │   ├── test_error_handling.py
+│   │   │   └── test_task_repository.py
+│   │   └── test_template.md
+│   └── [01;34muser_guides[0m
+│       ├── README.md
+│       ├── saved_search_guide.md
+│       └── task_query_language_guide.md
+├── filetree.sh
+├── filetree.txt
+├── main.py
+├── [01;34mplugins[0m
+│   ├── __init__.py
+│   ├── base_plugin.py
+│   ├── [01;34mconfig[0m
+│   │   ├── __init__.py
+│   │   ├── config_manager.py
+│   │   └── config_ui.py
+│   ├── [01;34mcore_plugin[0m
+│   │   ├── __init__.py
+│   │   ├── example_plugin.py
+│   │   ├── hook_system.py
+│   │   ├── interface.py
+│   │   └── registry.py
+│   ├── [01;34mdocs[0m
+│   │   ├── notification_system.md
+│   │   └── plugin_api.md
+│   ├── [01;34mexamples[0m
+│   │   └── __init__.py
+│   ├── [01;34mhooks[0m
+│   │   ├── __init__.py
+│   │   ├── hook_system.py
+│   │   ├── notification_hooks.py
+│   │   └── task_hooks.py
+│   ├── [01;34mintegrations[0m
+│   │   ├── __init__.py
+│   │   └── task_notification_integration.py
+│   ├── [01;34mnotification[0m
+│   │   ├── __init__.py
+│   │   ├── cli_commands.py
+│   │   └── notification_manager.py
+│   ├── plugin_interface.py
+│   ├── plugin_manager.py
+│   ├── [01;34msample[0m
+│   │   ├── [01;34mcustom_field_validation[0m
+│   │   │   ├── __init__.py
+│   │   │   ├── manifest.json
+│   │   │   └── validation_plugin.py
+│   │   ├── [01;34memail_notification[0m
+│   │   │   ├── email_plugin.py
+│   │   │   └── manifest.json
+│   │   ├── [01;34mexport_format[0m
+│   │   │   ├── __init__.py
+│   │   │   ├── export_plugin.py
+│   │   │   └── manifest.json
+│   │   ├── [01;34mgithub_integration[0m
+│   │   │   ├── __init__.py
+│   │   │   ├── github_plugin.py
+│   │   │   └── manifest.json
+│   │   ├── [01;34mslack_notification[0m
+│   │   │   ├── manifest.json
+│   │   │   └── slack_plugin.py
+│   │   ├── [01;34mtime_tracking[0m
+│   │   │   ├── manifest.json
+│   │   │   └── time_tracking_plugin.py
+│   │   └── [01;34mvisualization[0m
+│   │       ├── README.md
+│   │       ├── example_usage.py
+│   │       ├── manifest.json
+│   │       ├── test_visualization_plugin.py
+│   │       └── visualization_plugin.py
+│   └── [01;34msandbox[0m
+│       └── plugin_sandbox.py
+├── project_structure.md
+├── [01;34mquery[0m
+│   ├── README.md
+│   ├── __init__.py
+│   ├── evaluator.py
+│   ├── operators.py
+│   ├── parser.py
+│   ├── test_tql.py
+│   └── tql.py
+├── [01;34mrefactor[0m
+│   └── [01;34mcommon[0m
+├── [01;32mrun_task_service_tests.py[0m
+├── [01;32mrun_tests.py[0m
+├── [01;32mrun_unit_tests.sh[0m
+├── [01;32mrun_unit_tests.sh.bak[0m
+├── [01;32mrun_unit_tests.sh.fixed[0m
+├── [01;34mstorage[0m
+│   ├── __init__.py
+│   ├── [01;34mcache[0m
+│   │   ├── __init__.py
+│   │   ├── cache_manager.py
+│   │   ├── caching_storage_provider.py
+│   │   ├── search_cache.py
+│   │   └── search_manager_cache_integration.py
+│   ├── exceptions.py
+│   ├── export_controller.py
+│   ├── full_text_search.py
+│   ├── [01;34mproviders[0m
+│   │   ├── __init__.py
+│   │   ├── json_storage_provider.py
+│   │   ├── memory_storage_provider.py
+│   │   ├── platform_abstraction.py
+│   │   ├── storage_provider.py
+│   │   └── storage_provider_interface.py
+│   ├── saved_searches.py
+│   ├── [00;90msaved_searches.py.bak[0m
+│   ├── search_manager_stats_integration.py
+│   ├── search_stats.py
+│   └── [01;34mserialization[0m
+│       ├── __init__.py
+│       ├── entity_serializer.py
+│       ├── json_serializer.py
+│       └── serializer_interface.py
+├── test_error_handling_simple.py
+├── test_repository_simple.py
+└── [01;34mtests[0m
+    ├── __init__.py
+    ├── conftest.py
+    ├── [01;34mfixtures[0m
+    │   ├── checklist_validation_fixtures.json
+    │   ├── combined_validation_fixtures.json
+    │   ├── hierarchy_validation_fixtures.json
+    │   ├── relationship_validation_fixtures.json
+    │   ├── test_collection.json
+    │   └── test_template.json
+    ├── [01;34mfunctional[0m
+    │   ├── __init__.py
+    │   ├── test_saved_search_history_command.py
+    │   ├── test_saved_search_registration.py
+    │   └── test_task_workflows.py
+    ├── [01;34mintegration[0m
+    │   ├── __init__.py
+    │   ├── test_checklist_validation.py
+    │   ├── test_cli_core.py
+    │   ├── test_cli_favorites_batch.py
+    │   ├── test_combined_validation.py
+    │   ├── test_core_storage.py
+    │   ├── test_dashboard_core.py
+    │   ├── test_dashboard_workflow.py
+    │   ├── test_error_handling.py
+    │   ├── test_error_propagation.py
+    │   ├── test_hierarchy_validation.py
+    │   ├── test_plugin_system.py
+    │   ├── test_relationship_validation.py
+    │   ├── test_task_management_workflow.py
+    │   └── test_task_validation.py
+    ├── [01;34mperformance[0m
+    ├── requirements-test.txt
+    ├── [01;34mresources[0m
+    │   └── README.md
+    ├── [01;32mrun_cli_tests.sh[0m
+    ├── [01;32mrun_tests.py[0m
+    ├── test_error_handling.py
+    ├── test_plan.md
+    ├── [01;34munit[0m
+    │   ├── __init__.py
+    │   ├── [01;34mcli[0m
+    │   │   ├── __init__.py
+    │   │   ├── test_checklist_commands.py
+    │   │   ├── test_cli_commands.py
+    │   │   ├── test_cli_integration.py
+    │   │   ├── test_cli_module.py
+    │   │   ├── test_relationship_commands.py
+    │   │   ├── test_saved_search_commands.py
+    │   │   ├── test_saved_search_history.py
+    │   │   └── test_task_commands.py
+    │   ├── [01;34mcommon[0m
+    │   │   ├── __init__.py
+    │   │   ├── [01;34mconfig[0m
+    │   │   │   ├── __init__.py
+    │   │   │   └── test_config_manager.py
+    │   │   ├── [01;34mdi[0m
+    │   │   │   ├── __init__.py
+    │   │   │   ├── test_container.py
+    │   │   │   └── test_service_provider.py
+    │   │   ├── [01;34mi18n[0m
+    │   │   │   ├── __init__.py
+    │   │   │   └── test_translator.py
+    │   │   ├── [01;34mlogging[0m
+    │   │   │   ├── __init__.py
+    │   │   │   └── test_logger.py
+    │   │   ├── test_cross_cutting_concerns.py
+    │   │   ├── test_exceptions.py
+    │   │   └── [01;34mutils[0m
+    │   │       ├── __init__.py
+    │   │       ├── test_string_utils.py
+    │   │       └── test_validation_utils.py
+    │   ├── [01;34mcore[0m
+    │   │   ├── [01;34mentities[0m
+    │   │   │   ├── __init__.py
+    │   │   │   ├── [01;32mrun_entity_tests.py[0m
+    │   │   │   ├── test_base_entity.py
+    │   │   │   ├── test_task_entity.py
+    │   │   │   └── test_task_list_entity.py
+    │   │   ├── [01;34mexceptions[0m
+    │   │   │   └── test_error_context.py
+    │   │   ├── [01;34mrepositories[0m
+    │   │   │   ├── __init__.py
+    │   │   │   ├── test_folder_json_repository.py
+    │   │   │   ├── test_json_repository.py
+    │   │   │   ├── test_list_json_repository.py
+    │   │   │   ├── test_repository_interface.py
+    │   │   │   ├── test_space_json_repository.py
+    │   │   │   ├── test_task_json_repository.py
+    │   │   │   └── test_task_repository.py
+    │   │   ├── [01;34mservices[0m
+    │   │   │   ├── __init__.py
+    │   │   │   └── test_task_service.py
+    │   │   ├── test_error_codes.py
+    │   │   ├── test_error_context.py
+    │   │   ├── test_error_handling.py
+    │   │   ├── test_exceptions.py
+    │   │   ├── test_serialization.py
+    │   │   └── test_task_collection.py
+    │   ├── [01;34mstorage[0m
+    │   │   ├── test_full_text_search.py
+    │   │   ├── test_search_batch_operations.py
+    │   │   ├── test_search_export.py
+    │   │   ├── test_search_favorites.py
+    │   │   ├── test_search_history.py
+    │   │   ├── test_search_mock.py
+    │   │   └── test_search_templates.py
+    │   ├── test_mock_repository_factory.py
+    │   ├── test_repository.py
+    │   ├── test_task_entity.py
+    │   └── test_task_service.py
+    └── [01;34mutils[0m
+        ├── __init__.py
+        ├── mock_repository.py
+        └── test_helpers.py
+
+69 directories, 285 files

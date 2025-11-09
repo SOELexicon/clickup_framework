@@ -1,0 +1,401 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "name": "Combined Workflow Validation Test Fixtures",
+    "description": "Test fixtures for validating combinations of workflow constraints",
+    "created_at": "2023-04-06T12:00:00Z",
+    "updated_at": "2023-04-06T12:00:00Z"
+  },
+  "fixtures": {
+    "hierarchy_with_relationships": {
+      "description": "Tasks with hierarchical structure and relationship dependencies",
+      "tasks": [
+        {
+          "id": "tsk_combined_001",
+          "name": "Parent Task",
+          "description": "Parent task with child tasks and relationships",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "combined", "hierarchy", "relationships"],
+          "type": "Task",
+          "subtasks": [
+            {
+              "id": "stk_combined_101",
+              "name": "Child Task 1",
+              "description": "First child task with relationship",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_combined_001",
+              "tags": ["test", "combined"],
+              "type": "Task"
+            },
+            {
+              "id": "stk_combined_102",
+              "name": "Child Task 2",
+              "description": "Second child task",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_combined_001",
+              "tags": ["test", "combined"],
+              "type": "Task"
+            }
+          ]
+        },
+        {
+          "id": "tsk_combined_002",
+          "name": "Dependent Task",
+          "description": "Task that's a dependency for a child task",
+          "status": "to do",
+          "priority": 2,
+          "tags": ["test", "combined", "dependency"],
+          "type": "Task"
+        }
+      ],
+      "relationships": [
+        {
+          "source_id": "stk_combined_101",
+          "target_id": "tsk_combined_002",
+          "type": "depends_on"
+        }
+      ]
+    },
+    "hierarchy_with_checklists": {
+      "description": "Tasks with hierarchical structure and checklists",
+      "tasks": [
+        {
+          "id": "tsk_combined_003",
+          "name": "Parent with Checklist",
+          "description": "Parent task with both checklist and subtasks",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "combined", "hierarchy", "checklist"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_combined_001",
+              "name": "Parent Requirements",
+              "items": [
+                {
+                  "id": "itm_combined_001",
+                  "name": "Parent checklist item 1",
+                  "checked": false
+                },
+                {
+                  "id": "itm_combined_002",
+                  "name": "Parent checklist item 2",
+                  "checked": false
+                }
+              ]
+            }
+          ],
+          "subtasks": [
+            {
+              "id": "stk_combined_201",
+              "name": "Child with Checklist",
+              "description": "Child task that also has checklist",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_combined_003",
+              "tags": ["test", "combined"],
+              "type": "Task",
+              "checklists": [
+                {
+                  "id": "chk_combined_002",
+                  "name": "Child Requirements",
+                  "items": [
+                    {
+                      "id": "itm_combined_003",
+                      "name": "Child checklist item 1",
+                      "checked": false
+                    },
+                    {
+                      "id": "itm_combined_004",
+                      "name": "Child checklist item 2",
+                      "checked": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "checklist_with_relationships": {
+      "description": "Tasks with checklists and relationship dependencies",
+      "tasks": [
+        {
+          "id": "tsk_combined_004",
+          "name": "Checklist Task",
+          "description": "Task with checklist and relationship",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "combined", "checklist", "relationship"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_combined_003",
+              "name": "Requirements Checklist",
+              "items": [
+                {
+                  "id": "itm_combined_005",
+                  "name": "Checklist item 1",
+                  "checked": false
+                },
+                {
+                  "id": "itm_combined_006",
+                  "name": "Checklist item 2",
+                  "checked": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tsk_combined_005",
+          "name": "Dependency for Checklist Task",
+          "description": "Task that's a dependency for the checklist task",
+          "status": "to do",
+          "priority": 2,
+          "tags": ["test", "combined", "dependency"],
+          "type": "Task"
+        }
+      ],
+      "relationships": [
+        {
+          "source_id": "tsk_combined_004",
+          "target_id": "tsk_combined_005",
+          "type": "depends_on"
+        }
+      ]
+    },
+    "complex_combined_constraints": {
+      "description": "Complex combination of all constraint types",
+      "tasks": [
+        {
+          "id": "tsk_complex_001",
+          "name": "Complex Parent Task",
+          "description": "Parent task with multiple constraints combined",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "combined", "complex"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_complex_001",
+              "name": "Parent Requirements",
+              "items": [
+                {
+                  "id": "itm_complex_001",
+                  "name": "Parent checklist item",
+                  "checked": false
+                }
+              ]
+            }
+          ],
+          "subtasks": [
+            {
+              "id": "stk_complex_101",
+              "name": "Complex Child Task 1",
+              "description": "Child task with relationship dependency",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_complex_001",
+              "tags": ["test", "combined", "complex"],
+              "type": "Task"
+            },
+            {
+              "id": "stk_complex_102",
+              "name": "Complex Child Task 2",
+              "description": "Child task with checklist",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_complex_001",
+              "tags": ["test", "combined", "complex"],
+              "type": "Task",
+              "checklists": [
+                {
+                  "id": "chk_complex_002",
+                  "name": "Child Requirements",
+                  "items": [
+                    {
+                      "id": "itm_complex_002",
+                      "name": "Child checklist item",
+                      "checked": false
+                    }
+                  ]
+                }
+              ],
+              "subtasks": [
+                {
+                  "id": "stk_complex_201",
+                  "name": "Complex Grandchild Task",
+                  "description": "Grandchild task with relationship and checklist",
+                  "status": "to do",
+                  "priority": 3,
+                  "parent_id": "stk_complex_102",
+                  "tags": ["test", "combined", "complex"],
+                  "type": "Task",
+                  "checklists": [
+                    {
+                      "id": "chk_complex_003",
+                      "name": "Grandchild Requirements",
+                      "items": [
+                        {
+                          "id": "itm_complex_003",
+                          "name": "Grandchild checklist item",
+                          "checked": false
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tsk_complex_002",
+          "name": "Complex Dependency Task",
+          "description": "Task that's a dependency for a child task",
+          "status": "to do",
+          "priority": 2,
+          "tags": ["test", "combined", "complex", "dependency"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_complex_004",
+              "name": "Dependency Requirements",
+              "items": [
+                {
+                  "id": "itm_complex_004",
+                  "name": "Dependency checklist item",
+                  "checked": false
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "source_id": "stk_complex_101",
+          "target_id": "tsk_complex_002",
+          "type": "depends_on"
+        },
+        {
+          "source_id": "stk_complex_201",
+          "target_id": "tsk_complex_002",
+          "type": "depends_on"
+        }
+      ]
+    },
+    "blocking_with_hierarchy": {
+      "description": "Tasks with blocking relationships in a hierarchical structure",
+      "tasks": [
+        {
+          "id": "tsk_blocking_001",
+          "name": "Hierarchical Parent",
+          "description": "Parent task with children and blocking relationship",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "combined", "blocking", "hierarchy"],
+          "type": "Task",
+          "subtasks": [
+            {
+              "id": "stk_blocking_101",
+              "name": "Blocked Child",
+              "description": "Child task that is blocked by another task",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_blocking_001",
+              "tags": ["test", "combined", "blocked"],
+              "type": "Task"
+            },
+            {
+              "id": "stk_blocking_102",
+              "name": "Regular Child",
+              "description": "Child task with no special constraints",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_blocking_001",
+              "tags": ["test", "combined"],
+              "type": "Task"
+            }
+          ]
+        },
+        {
+          "id": "tsk_blocking_002",
+          "name": "Blocking Task",
+          "description": "Task that blocks a child in hierarchy",
+          "status": "to do",
+          "priority": 2,
+          "tags": ["test", "combined", "blocking"],
+          "type": "Task"
+        }
+      ],
+      "relationships": [
+        {
+          "source_id": "tsk_blocking_002",
+          "target_id": "stk_blocking_101",
+          "type": "blocks"
+        }
+      ]
+    },
+    "mixed_validation_priorities": {
+      "description": "Tasks with multiple constraint types to test validation priority",
+      "tasks": [
+        {
+          "id": "tsk_priority_001",
+          "name": "Multi-Constraint Task",
+          "description": "Task with multiple constraint types to test validation priority",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "combined", "priority"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_priority_001",
+              "name": "Requirements",
+              "items": [
+                {
+                  "id": "itm_priority_001",
+                  "name": "Checklist item",
+                  "checked": false
+                }
+              ]
+            }
+          ],
+          "subtasks": [
+            {
+              "id": "stk_priority_101",
+              "name": "Child Task",
+              "description": "Child task for hierarchy constraint",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_priority_001",
+              "tags": ["test", "combined", "priority"],
+              "type": "Task"
+            }
+          ]
+        },
+        {
+          "id": "tsk_priority_002",
+          "name": "Dependency Task",
+          "description": "Task that's a dependency",
+          "status": "to do",
+          "priority": 2,
+          "tags": ["test", "combined", "priority", "dependency"],
+          "type": "Task"
+        }
+      ],
+      "relationships": [
+        {
+          "source_id": "tsk_priority_001",
+          "target_id": "tsk_priority_002",
+          "type": "depends_on"
+        }
+      ]
+    }
+  }
+} 

@@ -1,0 +1,37 @@
+{
+  "tasks": [
+    {
+      "id": "tsk_test2001",
+      "name": "Task A",
+      "description": "Task A for testing relationships",
+      "status": "in progress",
+      "priority": 1,
+      "tags": ["test", "relationship"],
+      "blocks": [],
+      "depends_on": []
+    },
+    {
+      "id": "tsk_test2002",
+      "name": "Task B",
+      "description": "Task B for testing relationships",
+      "status": "to do",
+      "priority": 2,
+      "tags": ["test"],
+      "blocks": [],
+      "depends_on": []
+    },
+    {
+      "id": "tsk_test2003",
+      "name": "Task C",
+      "description": "Task C for testing relationships",
+      "status": "to do",
+      "priority": 3,
+      "tags": ["test"],
+      "blocks": [],
+      "depends_on": []
+    }
+  ],
+  "spaces": [],
+  "folders": [],
+  "lists": []
+} 
