@@ -185,7 +185,7 @@ CREATE INDEX [idx_name] ON [table]([columns]);
 ### Before/After Comparison
 
 | Metric | Before | After | Improvement |
-| ---| ---| ---| --- |
+| --- | --- | --- | --- |
 | Response Time | \[X ms\] | \[Y ms\] | \[Z%\] |
 | Throughput | \[X rps\] | \[Y rps\] | \[Z%\] |
 | CPU Usage | \[X%\] | \[Y%\] | \[Z%\] |
