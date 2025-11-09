@@ -217,13 +217,47 @@ class ContextManager:
             self._context['last_updated'] = datetime.now().isoformat()
             self._save()
 
-    def set_api_token(self, token: str) -> None:
+    def set_api_token(self, token: str, validate: bool = True) -> None:
         """
         Set the ClickUp API token.
 
         Args:
             token: ClickUp API token to store
+            validate: Whether to validate the token by making a test API call (default: True)
+
+        Raises:
+            ValueError: If validation is enabled and the token is invalid
         """
+        # Validate token format
+        if not token or not isinstance(token, str):
+            raise ValueError("API token must be a non-empty string")
+
+        # Strip any whitespace
+        token = token.strip()
+
+        # Validate token by making a test API call if requested
+        if validate:
+            import requests
+            try:
+                response = requests.get(
+                    "https://api.clickup.com/api/v2/user",
+                    headers={"Authorization": token},
+                    timeout=10
+                )
+                if response.status_code == 401:
+                    raise ValueError(
+                        "Invalid or expired API token. Please check your token and try again.\n"
+                        "You can generate a new token at: https://app.clickup.com/settings/apps"
+                    )
+                elif response.status_code != 200:
+                    raise ValueError(
+                        f"Token validation failed with status {response.status_code}. "
+                        "Please check your token and try again."
+                    )
+                # Token is valid, continue
+            except requests.exceptions.RequestException as e:
+                raise ValueError(f"Failed to validate token: {str(e)}")
+
         self._context['api_token'] = token
         self._context['last_updated'] = datetime.now().isoformat()
         self._save()
