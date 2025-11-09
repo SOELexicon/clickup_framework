@@ -46,7 +46,7 @@ class FormatOptions:
     show_relationships: bool = False
     include_completed: bool = False
     hide_orphaned: bool = False
-    description_length: int = 100
+    description_length: int = 500
     show_container_diff: bool = True
     trace: bool = False
 
