@@ -1,0 +1,16 @@
+# ClickUp Framework Requirements
+# Token-Efficient Modular Skill Framework for ClickUp API
+
+# Core dependencies
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Optional: Code quality tools
+# Uncomment if you want to use these tools
+# black>=23.0.0
+# mypy>=1.5.0
+# flake8>=6.0.0

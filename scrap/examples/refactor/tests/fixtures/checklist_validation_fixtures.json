@@ -1,0 +1,269 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "name": "Checklist Validation Test Fixtures",
+    "description": "Test fixtures for validating checklist completion requirements",
+    "created_at": "2023-04-05T12:00:00Z",
+    "updated_at": "2023-04-05T12:00:00Z"
+  },
+  "fixtures": {
+    "single_checklist": {
+      "description": "Task with a single checklist",
+      "tasks": [
+        {
+          "id": "tsk_checklist_001",
+          "name": "Single Checklist Task",
+          "description": "Task with one checklist",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "checklist"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_single_001",
+              "name": "Test Checklist",
+              "items": [
+                {
+                  "id": "itm_single_001",
+                  "name": "Checklist Item 1",
+                  "checked": false
+                },
+                {
+                  "id": "itm_single_002",
+                  "name": "Checklist Item 2",
+                  "checked": false
+                },
+                {
+                  "id": "itm_single_003",
+                  "name": "Checklist Item 3",
+                  "checked": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "multiple_checklists": {
+      "description": "Task with multiple checklists",
+      "tasks": [
+        {
+          "id": "tsk_checklist_002",
+          "name": "Multiple Checklists Task",
+          "description": "Task with multiple checklists",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "checklist", "multiple"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_multi_001",
+              "name": "Implementation Checklist",
+              "items": [
+                {
+                  "id": "itm_multi_001",
+                  "name": "Design component",
+                  "checked": false
+                },
+                {
+                  "id": "itm_multi_002",
+                  "name": "Implement component",
+                  "checked": false
+                }
+              ]
+            },
+            {
+              "id": "chk_multi_002",
+              "name": "Testing Checklist",
+              "items": [
+                {
+                  "id": "itm_multi_003",
+                  "name": "Write unit tests",
+                  "checked": false
+                },
+                {
+                  "id": "itm_multi_004",
+                  "name": "Run integration tests",
+                  "checked": false
+                }
+              ]
+            },
+            {
+              "id": "chk_multi_003",
+              "name": "Documentation Checklist",
+              "items": [
+                {
+                  "id": "itm_multi_005",
+                  "name": "Update documentation",
+                  "checked": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "partially_completed_checklist": {
+      "description": "Task with partially completed checklist items",
+      "tasks": [
+        {
+          "id": "tsk_checklist_003",
+          "name": "Partially Completed Checklist Task",
+          "description": "Task with some checklist items already completed",
+          "status": "in progress",
+          "priority": 2,
+          "tags": ["test", "checklist", "partial"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_partial_001",
+              "name": "Implementation Steps",
+              "items": [
+                {
+                  "id": "itm_partial_001",
+                  "name": "Design interface",
+                  "checked": true
+                },
+                {
+                  "id": "itm_partial_002",
+                  "name": "Implement core functionality",
+                  "checked": true
+                },
+                {
+                  "id": "itm_partial_003",
+                  "name": "Add error handling",
+                  "checked": false
+                },
+                {
+                  "id": "itm_partial_004",
+                  "name": "Optimize performance",
+                  "checked": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "checklist_with_subtasks": {
+      "description": "Task with both checklists and subtasks",
+      "tasks": [
+        {
+          "id": "tsk_checklist_004",
+          "name": "Combined Validation Task",
+          "description": "Task with both checklist and subtask validation requirements",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "checklist", "subtasks", "combined"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_combined_001",
+              "name": "Parent Task Checklist",
+              "items": [
+                {
+                  "id": "itm_combined_001",
+                  "name": "Parent checklist item 1",
+                  "checked": false
+                },
+                {
+                  "id": "itm_combined_002",
+                  "name": "Parent checklist item 2",
+                  "checked": false
+                }
+              ]
+            }
+          ],
+          "subtasks": [
+            {
+              "id": "stk_checklist_001",
+              "name": "Subtask with Checklist",
+              "description": "Subtask that also has a checklist",
+              "status": "to do",
+              "priority": 2,
+              "parent_id": "tsk_checklist_004",
+              "tags": ["test", "checklist", "subtask"],
+              "type": "Task",
+              "checklists": [
+                {
+                  "id": "chk_subtask_001",
+                  "name": "Subtask Checklist",
+                  "items": [
+                    {
+                      "id": "itm_subtask_001",
+                      "name": "Subtask checklist item 1",
+                      "checked": false
+                    },
+                    {
+                      "id": "itm_subtask_002",
+                      "name": "Subtask checklist item 2",
+                      "checked": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "empty_checklist": {
+      "description": "Task with an empty checklist (should be considered complete)",
+      "tasks": [
+        {
+          "id": "tsk_checklist_005",
+          "name": "Empty Checklist Task",
+          "description": "Task with an empty checklist",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "checklist", "empty"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_empty_001",
+              "name": "Empty Checklist",
+              "items": []
+            }
+          ]
+        }
+      ]
+    },
+    "large_checklist": {
+      "description": "Task with a large checklist for performance testing",
+      "tasks": [
+        {
+          "id": "tsk_checklist_006",
+          "name": "Large Checklist Task",
+          "description": "Task with many checklist items",
+          "status": "to do",
+          "priority": 1,
+          "tags": ["test", "checklist", "large"],
+          "type": "Task",
+          "checklists": [
+            {
+              "id": "chk_large_001",
+              "name": "Large Checklist",
+              "items": [
+                {"id": "itm_large_001", "name": "Item 1", "checked": false},
+                {"id": "itm_large_002", "name": "Item 2", "checked": false},
+                {"id": "itm_large_003", "name": "Item 3", "checked": false},
+                {"id": "itm_large_004", "name": "Item 4", "checked": false},
+                {"id": "itm_large_005", "name": "Item 5", "checked": false},
+                {"id": "itm_large_006", "name": "Item 6", "checked": false},
+                {"id": "itm_large_007", "name": "Item 7", "checked": false},
+                {"id": "itm_large_008", "name": "Item 8", "checked": false},
+                {"id": "itm_large_009", "name": "Item 9", "checked": false},
+                {"id": "itm_large_010", "name": "Item 10", "checked": false},
+                {"id": "itm_large_011", "name": "Item 11", "checked": false},
+                {"id": "itm_large_012", "name": "Item 12", "checked": false},
+                {"id": "itm_large_013", "name": "Item 13", "checked": false},
+                {"id": "itm_large_014", "name": "Item 14", "checked": false},
+                {"id": "itm_large_015", "name": "Item 15", "checked": false}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+} 

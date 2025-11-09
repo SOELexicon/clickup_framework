@@ -1,0 +1,1 @@
+tree -I '__pycache__|*.pyc' -L 5 -o filetree.txt
