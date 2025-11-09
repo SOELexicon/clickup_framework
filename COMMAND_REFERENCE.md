@@ -52,7 +52,8 @@ pip install -e .
 ### Task Create Options
 
 ```bash
---description TEXT          # Task description
+--description TEXT          # Task description (text)
+--description-file PATH     # Task description (from file)
 --status STATUS            # Initial status
 --priority {1|2|3|4|urgent|high|normal|low}
 --tags TAG [...]           # Tags to add
@@ -60,23 +61,38 @@ pip install -e .
 --parent TASK_ID           # Create as subtask
 ```
 
+**Note**: `--description` and `--description-file` are mutually exclusive.
+
 ### Task Update Options
 
 ```bash
 --name TEXT                # Update name
---description TEXT         # Update description
+--description TEXT         # Update description (text)
+--description-file PATH    # Update description (from file)
 --status STATUS           # Update status
 --priority PRIORITY       # Update priority
 ```
+
+**Note**: `--description` and `--description-file` are mutually exclusive.
 
 ## Comment Management
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `comment_add` | `cum comment_add <task_id> --text "comment"` | Add comment |
+| `comment_add` | `cum comment_add <task_id> "text" \| --comment-file FILE` | Add comment |
 | `comment_list` | `cum comment_list <task_id>` | List task comments |
-| `comment_update` | `cum comment_update <comment_id> --text "new"` | Update comment |
+| `comment_update` | `cum comment_update <comment_id> "text" \| --comment-file FILE` | Update comment |
 | `comment_delete` | `cum comment_delete <comment_id>` | Delete comment |
+
+### Comment Options
+
+```bash
+# Add/Update comments with text or file
+comment_text               # Direct text input
+--comment-file PATH        # Read comment text from file
+```
+
+**Note**: Comment text and `--comment-file` are mutually exclusive.
 
 ## Docs & Pages
 
@@ -155,8 +171,13 @@ cum a                                            # Your assigned tasks
 
 # Create and manage tasks
 cum task_create current "New feature"            # Auto-assigned to default assignee
+cum task_create current "Feature" --description-file spec.md  # With description from file
+cum task_update current --description-file updated_spec.md    # Update from file
 cum task_set_status current "in progress"
 cum task_set_tags current --add bug critical
+
+# Add comments from files
+cum comment_add current --comment-file notes.txt              # Comment from file
 
 # Filter tasks
 cum filter current --status "in progress"
@@ -182,6 +203,7 @@ Settings stored in `~/.clickup_context.json`:
 - Default assignee auto-assigns new tasks
 - `assigned` command sorts by dependency difficulty
 - `demo` mode works without API token
+- Use `--description-file` and `--comment-file` for longer content
 - Most commands support `--help` for details
 
 ## Tab Completion

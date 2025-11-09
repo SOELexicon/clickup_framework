@@ -17,12 +17,15 @@ clickup task_create <list_id> "<task_name>" [OPTIONS]
 - `task_name` - The name/title of the task
 
 ### Optional
-- `--description TEXT` - Detailed description of the task
+- `--description TEXT` - Detailed description of the task (text)
+- `--description-file PATH` - Detailed description of the task (from file)
 - `--status TEXT` - Initial status (must be valid for the list)
 - `--priority INT` - Priority level (1=Urgent, 2=High, 3=Normal, 4=Low)
 - `--tags TAG [TAG ...]` - One or more tags to add to the task
 - `--assignees ID [ID ...]` - User IDs to assign to the task
 - `--parent ID` - Parent task ID (creates this as a subtask)
+
+**Note**: `--description` and `--description-file` are mutually exclusive.
 
 ## Examples
 
@@ -63,6 +66,24 @@ clickup set_current list 901517404274
 clickup task_create current "New Feature Request"
 ```
 
+### Using File Input for Descriptions
+```bash
+# Create task with description from markdown file
+clickup task_create 901517404274 "Feature: OAuth Integration" \
+  --description-file oauth_spec.md \
+  --priority 1 \
+  --tags "feature" "security"
+
+# Useful for longer descriptions or specifications
+echo "## Requirements
+- Implement OAuth 2.0 flow
+- Support Google and GitHub providers
+- Add token refresh mechanism" > requirements.md
+
+clickup task_create current "OAuth Implementation" \
+  --description-file requirements.md
+```
+
 ## Output
 
 ### Success
@@ -99,6 +120,9 @@ Error creating task: ClickUp API Error 400: Status does not exist
 - Priority values: 1 (Urgent), 2 (High), 3 (Normal), 4 (Low)
 - Assignees must be valid user IDs with access to the workspace
 - When using `--parent`, the parent task must exist in the same list
+- Use `--description-file` to read descriptions from files (supports markdown, text, etc.)
+- File paths can be absolute or relative to current working directory
+- Files must be readable text files (UTF-8 encoding)
 
 ## Validation
 
