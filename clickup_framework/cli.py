@@ -1319,7 +1319,7 @@ Examples:
     detail_parser.add_argument('task_id', help='ClickUp task ID')
     detail_parser.add_argument('list_id', nargs='?', help='List ID for relationship context (optional)')
     add_common_args(detail_parser)
-    detail_parser.set_defaults(func=detail_command)
+    detail_parser.set_defaults(func=detail_command, preset='full')
 
     # Stats command
     stats_parser = subparsers.add_parser('stats', help='Display task statistics')
