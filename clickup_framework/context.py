@@ -244,6 +244,26 @@ class ContextManager:
             self._context['last_updated'] = datetime.now().isoformat()
             self._save()
 
+    def set_ansi_output(self, enabled: bool) -> None:
+        """
+        Set whether ANSI color output is enabled.
+
+        Args:
+            enabled: True to enable ANSI colors, False to disable
+        """
+        self._context['ansi_output'] = enabled
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_ansi_output(self) -> bool:
+        """
+        Get whether ANSI color output is enabled.
+
+        Returns:
+            True if ANSI output is enabled, False otherwise (default: False)
+        """
+        return self._context.get('ansi_output', False)
+
     def clear_all(self) -> None:
         """Clear all context."""
         self._context = {}
