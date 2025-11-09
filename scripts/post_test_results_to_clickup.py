@@ -83,7 +83,7 @@ Test results will be added as subtasks below.
     # Create the task with custom_type if supported
     task_data = {
         'name': task_name,
-        'description': description,
+        'markdown_description': description,
         'tags': [
             {'name': f'pr-{pr_number}'},
             {'name': 'pull-request'},
@@ -294,7 +294,7 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
     # Create the task
     task_data = {
         'name': task_name,
-        'description': description,
+        'markdown_description': description,
         'priority': {'priority': str(priority)},
         'status': 'complete',  # Set status to closed/complete
         'tags': [
@@ -373,7 +373,7 @@ def create_failed_test_tasks(client, list_id, test_results, parent_task_id):
         task = client.create_task(
             list_id,
             name=f"[Test Failure] {test_name}",
-            description=description,
+            markdown_description=description,
             parent=parent_task_id,
             priority={'priority': '1'},
             tags=[
