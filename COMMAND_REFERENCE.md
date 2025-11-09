@@ -9,45 +9,84 @@ export CLICKUP_API_TOKEN="your_token"
 pip install -e .
 ```
 
+## Quick Reference: All Short Codes
+
+**View:** `h` `ls` `l` `c` `f` `fil` `d` `st` `a`
+**Context:** `set` `show` `clear`
+**Tasks:** `tc` `tu` `td` `ta` `tua` `tss` `tsp` `tst` `tad` `trd` `tal` `trl`
+**Comments:** `ca` `cl` `cu` `cd`
+**Docs:** `dl` `dg` `dc` `du` `de` `di` `pl` `pc` `pu`
+
+<details>
+<summary>Examples (click to expand)</summary>
+
+```bash
+# View commands
+cum h current          # hierarchy
+cum c current          # container view
+cum fil current --status "in progress"
+cum st current         # stats
+
+# Task management
+cum tc current "New task"     # create
+cum tu <task_id> --name "Updated"  # update
+cum td <task_id>              # delete
+cum tss <task_id> "done"      # set status
+cum tsp <task_id> urgent      # set priority
+
+# Comments
+cum ca <task_id> "Great work!"   # add comment
+cum cl <task_id>                 # list comments
+
+# Docs
+cum dl <workspace_id>         # list docs
+cum dc <workspace_id> "Title" # create doc
+cum de <workspace_id> --output-dir ./out  # export
+```
+</details>
+
+---
+
 ## View Commands
 
-| Command | Usage | Description |
-|---------|-------|-------------|
-| `hierarchy` `h` | `cum h <list_id>` | Hierarchical parent-child tree view |
-| `container` `c` | `cum c <list_id>` | Container hierarchy (Space→Folder→List) |
-| `flat` `f` | `cum f <list_id>` | Flat list view |
-| `filter` | `cum filter <list_id> [--status\|--priority\|--tags\|--assignee]` | Filtered task view |
-| `detail` `d` | `cum d <task_id> [list_id]` | Detailed single task view |
-| `stats` | `cum stats <list_id>` | Task statistics & distribution |
-| `assigned` `a` | `cum a [--user-id UID]` | Your assigned tasks, sorted by difficulty |
-| `demo` | `cum demo [--mode MODE]` | Demo mode (no API token required) |
+| Command | Short Codes | Usage | Description |
+|---------|-------------|-------|-------------|
+| `hierarchy` | `h` `list` `ls` `l` | `cum h <list_id>` | Hierarchical parent-child tree view |
+| `container` | `c` `clist` | `cum c <list_id>` | Container hierarchy (Space→Folder→List) |
+| `flat` | `f` | `cum f <list_id>` | Flat list view |
+| `filter` | `fil` | `cum fil <list_id> [--status\|--priority\|--tags\|--assignee]` | Filtered task view |
+| `detail` | `d` | `cum d <task_id> [list_id]` | Detailed single task view |
+| `stats` | `st` | `cum st <list_id>` | Task statistics & distribution |
+| `assigned` | `a` | `cum a [--user-id UID]` | Your assigned tasks, sorted by difficulty |
+| `demo` | | `cum demo [--mode MODE]` | Demo mode (no API token required) |
 
 ## Context Management
 
-| Command | Usage | Description |
-|---------|-------|-------------|
-| `set_current` | `cum set_current <type> <id>` | Set current workspace/list/task/assignee |
-| `show_current` | `cum show_current` | Display current context |
-| `clear_current` | `cum clear_current [type]` | Clear context (all or specific type) |
-| `ansi` | `cum ansi <enable\|disable\|status>` | Configure color output |
+| Command | Short Codes | Usage | Description |
+|---------|-------------|-------|-------------|
+| `set_current` | `set` | `cum set <type> <id>` | Set current workspace/list/task/assignee |
+| `show_current` | `show` | `cum show` | Display current context |
+| `clear_current` | `clear` | `cum clear [type]` | Clear context (all or specific type) |
+| `ansi` | | `cum ansi <enable\|disable\|status>` | Configure color output |
 
 **Context Types**: `workspace`, `space`, `folder`, `list`, `task`, `assignee`
 
 ## Task Management
 
-| Command | Usage | Description |
-|---------|-------|-------------|
-| `task_create` | `cum task_create <list_id> "name" [options]` | Create new task |
-| `task_update` | `cum task_update <task_id> [options]` | Update task properties |
-| `task_assign` | `cum task_assign <task_id> <user_id> [...]` | Assign users to task |
-| `task_unassign` | `cum task_unassign <task_id> <user_id> [...]` | Remove assignees |
-| `task_set_status` | `cum task_set_status <task_id> [...] <status>` | Change task status (validates subtasks) |
-| `task_set_priority` | `cum task_set_priority <task_id> <priority>` | Set priority (1-4 or name) |
-| `task_set_tags` | `cum task_set_tags <task_id> <--add\|--remove\|--set> <tags...>` | Manage task tags |
-| `task_add_dependency` | `cum task_add_dependency <task_id> <depends_on_id>` | Add dependency |
-| `task_remove_dependency` | `cum task_remove_dependency <task_id> <dependency_id>` | Remove dependency |
-| `task_add_link` | `cum task_add_link <task_id> <linked_task_id>` | Link tasks |
-| `task_remove_link` | `cum task_remove_link <task_id> <link_id>` | Unlink tasks |
+| Command | Short Codes | Usage | Description |
+|---------|-------------|-------|-------------|
+| `task_create` | `tc` | `cum tc <list_id> "name" [options]` | Create new task |
+| `task_update` | `tu` | `cum tu <task_id> [options]` | Update task properties |
+| `task_delete` | `td` | `cum td <task_id>` | Delete task |
+| `task_assign` | `ta` | `cum ta <task_id> <user_id> [...]` | Assign users to task |
+| `task_unassign` | `tua` | `cum tua <task_id> <user_id> [...]` | Remove assignees |
+| `task_set_status` | `tss` | `cum tss <task_id> [...] <status>` | Change task status (validates subtasks) |
+| `task_set_priority` | `tsp` | `cum tsp <task_id> <priority>` | Set priority (1-4 or name) |
+| `task_set_tags` | `tst` | `cum tst <task_id> <--add\|--remove\|--set> <tags...>` | Manage task tags |
+| `task_add_dependency` | `tad` | `cum tad <task_id> <depends_on_id>` | Add dependency |
+| `task_remove_dependency` | `trd` | `cum trd <task_id> <dependency_id>` | Remove dependency |
+| `task_add_link` | `tal` | `cum tal <task_id> <linked_task_id>` | Link tasks |
+| `task_remove_link` | `trl` | `cum trl <task_id> <link_id>` | Unlink tasks |
 
 ### Task Create Options
 
@@ -77,12 +116,12 @@ pip install -e .
 
 ## Comment Management
 
-| Command | Usage | Description |
-|---------|-------|-------------|
-| `comment_add` | `cum comment_add <task_id> "text" \| --comment-file FILE` | Add comment |
-| `comment_list` | `cum comment_list <task_id>` | List task comments |
-| `comment_update` | `cum comment_update <comment_id> "text" \| --comment-file FILE` | Update comment |
-| `comment_delete` | `cum comment_delete <comment_id>` | Delete comment |
+| Command | Short Codes | Usage | Description |
+|---------|-------------|-------|-------------|
+| `comment_add` | `ca` | `cum ca <task_id> "text" \| --comment-file FILE` | Add comment |
+| `comment_list` | `cl` | `cum cl <task_id>` | List task comments |
+| `comment_update` | `cu` | `cum cu <comment_id> "text" \| --comment-file FILE` | Update comment |
+| `comment_delete` | `cd` | `cum cd <comment_id>` | Delete comment |
 
 ### Comment Options
 
@@ -96,17 +135,17 @@ comment_text               # Direct text input
 
 ## Docs & Pages
 
-| Command | Usage | Description |
-|---------|-------|-------------|
-| `dlist` `dl` | `cum dl <workspace_id>` | List all docs |
-| `doc_get` `dg` | `cum dg <workspace_id> <doc_id>` | Show doc details |
-| `doc_create` `dc` | `cum dc <workspace_id> "name" [--pages "name:content" ...]` | Create doc |
-| `doc_update` | `cum doc_update <workspace_id> <doc_id> [options]` | Update doc |
-| `doc_export` | `cum doc_export <workspace_id> [--doc-id ID] --output-dir ./out` | Export to markdown |
-| `doc_import` | `cum doc_import <workspace_id> ./input_dir [--nested]` | Import markdown files |
-| `page_list` `pl` | `cum pl <workspace_id> <doc_id>` | List pages in doc |
-| `page_create` `pc` | `cum pc <workspace_id> <doc_id> --name "name" [--content "..."]` | Create page |
-| `page_update` `pu` | `cum pu <workspace_id> <doc_id> <page_id> [--name\|--content]` | Update page |
+| Command | Short Codes | Usage | Description |
+|---------|-------------|-------|-------------|
+| `dlist` | `dl` `doc_list` | `cum dl <workspace_id>` | List all docs |
+| `doc_get` | `dg` | `cum dg <workspace_id> <doc_id>` | Show doc details |
+| `doc_create` | `dc` | `cum dc <workspace_id> "name" [--pages "name:content" ...]` | Create doc |
+| `doc_update` | `du` | `cum du <workspace_id> <doc_id> [options]` | Update doc |
+| `doc_export` | `de` | `cum de <workspace_id> [--doc-id ID] --output-dir ./out` | Export to markdown |
+| `doc_import` | `di` | `cum di <workspace_id> ./input_dir [--nested]` | Import markdown files |
+| `page_list` | `pl` | `cum pl <workspace_id> <doc_id>` | List pages in doc |
+| `page_create` | `pc` | `cum pc <workspace_id> <doc_id> --name "name" [--content "..."]` | Create page |
+| `page_update` | `pu` | `cum pu <workspace_id> <doc_id> <page_id> [--name\|--content]` | Update page |
 
 ## Global Format Options
 
@@ -160,33 +199,38 @@ Tasks display with color-coded 3-letter status codes:
 ## Common Workflows
 
 ```bash
-# Set up context
-cum set_current workspace 90151898946
-cum set_current list 901517404278
-cum set_current assignee 68483025
+# Set up context (using short codes!)
+cum set workspace 90151898946
+cum set list 901517404278
+cum set assignee 68483025
 
 # Quick task view
 cum h current                                    # Hierarchy view
 cum a                                            # Your assigned tasks
+cum st current                                   # Task statistics
 
-# Create and manage tasks
-cum task_create current "New feature"            # Auto-assigned to default assignee
-cum task_create current "Feature" --description-file spec.md  # With description from file
-cum task_update current --description-file updated_spec.md    # Update from file
-cum task_set_status current "in progress"
-cum task_set_tags current --add bug critical
+# Create and manage tasks (using short codes!)
+cum tc current "New feature"                     # Auto-assigned to default assignee
+cum tc current "Feature" --description-file spec.md  # With description from file
+cum tu current --description-file updated_spec.md    # Update from file
+cum tss current "in progress"                    # Set status
+cum tst current --add bug critical               # Add tags
+cum td <task_id>                                 # Delete task
 
-# Add comments from files
-cum comment_add current --comment-file notes.txt              # Comment from file
+# Add comments (using short codes!)
+cum ca current "Initial thoughts"                # Add comment directly
+cum ca current --comment-file notes.txt          # Comment from file
+cum cl current                                   # List comments
 
 # Filter tasks
-cum filter current --status "in progress"
-cum filter current --priority urgent --view-mode flat
+cum fil current --status "in progress"
+cum fil current --priority urgent --view-mode flat
 
-# Work with docs
+# Work with docs (using short codes!)
 cum dl 90151898946                               # List docs
 cum dc 90151898946 "API Docs"                    # Create doc
 cum pc 90151898946 <doc_id> --name "Overview"    # Add page
+cum de 90151898946 --output-dir ./docs           # Export all docs
 ```
 
 ## Configuration
@@ -198,12 +242,13 @@ Settings stored in `~/.clickup_context.json`:
 
 ## Tips
 
-- Use short aliases: `cum h` instead of `cum hierarchy`
-- Set context once, use `current` everywhere
+- **Use short codes everywhere!** `cum tc` instead of `cum task_create`, `cum h` instead of `cum hierarchy`
+- Set context once with `cum set`, use `current` everywhere
 - Default assignee auto-assigns new tasks
-- `assigned` command sorts by dependency difficulty
-- `demo` mode works without API token
+- `assigned` (`cum a`) command sorts by dependency difficulty
+- `demo` mode works without API token for testing
 - Use `--description-file` and `--comment-file` for longer content
+- Tab complete works with both full commands and short codes
 - Most commands support `--help` for details
 
 ## Tab Completion
