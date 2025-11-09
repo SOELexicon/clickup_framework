@@ -589,10 +589,7 @@ def get_existing_subtasks(client, parent_task_id, list_id):
 
     Returns a dictionary mapping task names to task objects.
     """
-    result = client._request('GET', f'list/{list_id}/task', params={
-        'subtasks': 'true',
-        'include_closed': 'true'
-    })
+    result = client.get_list_tasks(list_id, subtasks='true', include_closed='true')
 
     tasks = result.get('tasks', [])
     subtasks = [t for t in tasks if t.get('parent') == parent_task_id]
