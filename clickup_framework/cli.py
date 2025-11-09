@@ -1189,7 +1189,7 @@ def assigned_tasks_command(args):
     except ValueError:
         # No workspace configured - show list and let user select
         try:
-            workspaces = client.get_workspaces()
+            workspaces = client.get_authorized_workspaces()
             teams = workspaces.get('teams', [])
 
             if not teams:
