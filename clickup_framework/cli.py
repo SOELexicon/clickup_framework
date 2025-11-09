@@ -52,7 +52,7 @@ def show_command_tree():
         "📊 View Commands": [
             ("hierarchy [h]", "<list_id|--all> [options]", "Display tasks in hierarchical parent-child view (default: full preset)"),
             ("list [ls, l]", "<list_id|--all> [options]", "Display tasks in hierarchical view (alias for hierarchy)"),
-            ("container [c]", "<list_id> [options]", "Display tasks by container hierarchy (Space → Folder → List)"),
+            ("clist [c]", "<list_id> [options]", "Display tasks by container hierarchy (Space → Folder → List)"),
             ("flat [f]", "<list_id> [options]", "Display all tasks in flat list format"),
             ("filter [fil]", "<list_id> [filter_options]", "Display filtered tasks by status/priority/tags/assignee"),
             ("detail [d]", "<task_id> [list_id]", "Show comprehensive details for a single task"),
@@ -82,7 +82,7 @@ def show_command_tree():
             ("comment_delete [cd]", "<comment_id> [--force]", "Delete a comment"),
         ],
         "📄 Docs Management": [
-            ("doc_list [dl]", "<workspace_id>", "List all docs in a workspace"),
+            ("dlist [dl]", "<workspace_id>", "List all docs in a workspace"),
             ("doc_get [dg]", "<workspace_id> <doc_id> [--show-content]", "Get doc and display pages"),
             ("doc_create [dc]", "<workspace_id> <name> [OPTIONS]", "Create new doc with optional pages"),
             ("doc_update [du]", "<workspace_id> <doc_id> <page_id> [OPTIONS]", "Update a page in a doc"),
@@ -176,7 +176,7 @@ Examples:
   cum hierarchy --all
 
   # Show container view
-  cum container <list_id>
+  cum clist <list_id>
 
   # Show task details
   cum detail <task_id> <list_id>
