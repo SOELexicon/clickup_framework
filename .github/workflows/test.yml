@@ -94,18 +94,3 @@ jobs:
           test-results/
           *.log
         retention-days: 30
-
-    - name: Comment PR with Coverage
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          // Read coverage report and post as comment
-          // (This would need the coverage output to be saved to a file)
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '## Test Results\n\nSee artifacts for detailed test results and API coverage report.'
-          });
