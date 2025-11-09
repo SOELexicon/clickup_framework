@@ -3,7 +3,7 @@
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args
+from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_list_id
 
 
 def hierarchy_command(args):
@@ -36,9 +36,9 @@ def hierarchy_command(args):
         tasks = result.get('tasks', [])
         list_id = None
     else:
-        # Resolve "current" to actual list ID
+        # Resolve list ID from either list ID, task ID, or "current" keyword
         try:
-            list_id = context.resolve_id('list', args.list_id)
+            list_id = resolve_list_id(client, args.list_id, context)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -70,7 +70,7 @@ def register_command(subparsers):
     """Register the hierarchy command and its aliases 'list', 'h', 'ls', 'l'."""
     # Hierarchy command
     hierarchy_parser = subparsers.add_parser('hierarchy', help='Display tasks in hierarchical view')
-    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
     hierarchy_parser.add_argument('--header', help='Custom header text')
     hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
                                  help='Show all tasks from the entire workspace')
@@ -79,7 +79,7 @@ def register_command(subparsers):
 
     # Short alias: h
     h_parser = subparsers.add_parser('h', help='Display tasks in hierarchical view (alias for hierarchy)')
-    h_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    h_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
     h_parser.add_argument('--header', help='Custom header text')
     h_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
@@ -88,7 +88,7 @@ def register_command(subparsers):
 
     # List command (alias for hierarchy)
     list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
-    list_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    list_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
     list_parser.add_argument('--header', help='Custom header text')
     list_parser.add_argument('--all', dest='show_all', action='store_true',
                             help='Show all tasks from the entire workspace')
@@ -97,7 +97,7 @@ def register_command(subparsers):
 
     # Short alias: ls
     ls_parser = subparsers.add_parser('ls', help='Display tasks in hierarchical view (alias for hierarchy)')
-    ls_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    ls_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
     ls_parser.add_argument('--header', help='Custom header text')
     ls_parser.add_argument('--all', dest='show_all', action='store_true',
                           help='Show all tasks from the entire workspace')
@@ -106,7 +106,7 @@ def register_command(subparsers):
 
     # Short alias: l
     l_parser = subparsers.add_parser('l', help='Display tasks in hierarchical view (alias for hierarchy)')
-    l_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    l_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
     l_parser.add_argument('--header', help='Custom header text')
     l_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
