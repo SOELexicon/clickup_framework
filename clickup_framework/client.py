@@ -18,6 +18,7 @@ from .exceptions import (
     ClickUpTimeoutError,
 )
 from .rate_limiter import RateLimiter
+from .context import get_context_manager
 
 
 logger = logging.getLogger(__name__)
@@ -49,14 +50,18 @@ class ClickUpClient:
         Initialize ClickUp client.
 
         Args:
-            api_token: ClickUp API token (defaults to CLICKUP_API_TOKEN env var)
+            api_token: ClickUp API token (defaults to CLICKUP_API_TOKEN env var or stored context)
             rate_limit: Requests per minute (default: 100)
             timeout: Request timeout in seconds (default: 30)
             max_retries: Maximum retry attempts (default: 3)
         """
+        # Check for token in: 1) parameter, 2) environment variable, 3) stored context
         self.api_token = api_token or os.environ.get("CLICKUP_API_TOKEN")
         if not self.api_token:
-            raise ClickUpAuthError("API token not provided")
+            context = get_context_manager()
+            self.api_token = context.get_api_token()
+        if not self.api_token:
+            raise ClickUpAuthError("API token not provided. Set via parameter, CLICKUP_API_TOKEN env var, or use 'set_current token <token>'")
 
         self.rate_limiter = RateLimiter(requests_per_minute=rate_limit)
         self.timeout = timeout
