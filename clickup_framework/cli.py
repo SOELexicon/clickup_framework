@@ -1160,6 +1160,7 @@ def show_command_tree():
     commands = {
         "📊 View Commands": [
             ("hierarchy", "<list_id> [options]", "Display tasks in hierarchical parent-child view (default: full preset)"),
+            ("list", "<list_id> [options]", "Display tasks in hierarchical view (alias for hierarchy)"),
             ("container", "<list_id> [options]", "Display tasks by container hierarchy (Space → Folder → List)"),
             ("flat", "<list_id> [options]", "Display all tasks in flat list format"),
             ("filter", "<list_id> [filter_options]", "Display filtered tasks by status/priority/tags/assignee"),
@@ -1227,7 +1228,7 @@ def show_command_tree():
         print("Quick Examples:")
 
     examples = [
-        ("cum hierarchy 901517404278", "Show tasks in hierarchy view"),
+        ("cum list 901517404278", "Show tasks in hierarchy view"),
         ("cum assigned", "Show your assigned tasks"),
         ("cum task_create current \"New Task\"", "Create a task in current list"),
         ("cum set_current assignee 68483025", "Set default assignee"),
@@ -1262,6 +1263,7 @@ def main():
         epilog="""
 Examples:
   # Show hierarchy view
+  cum list <list_id>
   cum hierarchy <list_id>
 
   # Show container view
@@ -1274,10 +1276,10 @@ Examples:
   cum filter <list_id> --status "in progress"
 
   # Show with custom options
-  cum hierarchy <list_id> --show-ids --show-descriptions
+  cum list <list_id> --show-ids --show-descriptions
 
   # Use preset formats
-  cum hierarchy <list_id> --preset detailed
+  cum list <list_id> --preset detailed
 
   # Demo mode (no API required)
   cum demo --mode hierarchy
@@ -1316,6 +1318,13 @@ Examples:
     hierarchy_parser.add_argument('--header', help='Custom header text')
     add_common_args(hierarchy_parser)
     hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
+
+    # List command (alias for hierarchy)
+    list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
+    list_parser.add_argument('list_id', help='ClickUp list ID')
+    list_parser.add_argument('--header', help='Custom header text')
+    add_common_args(list_parser)
+    list_parser.set_defaults(func=hierarchy_command, preset='full')
 
     # Container command
     container_parser = subparsers.add_parser('container', help='Display tasks by container hierarchy')
