@@ -204,9 +204,25 @@ class TaskHierarchyFormatter:
     def _get_priority_value(task: Dict[str, Any]) -> int:
         """Get numeric priority value (1=urgent, 4=low)."""
         priority = task.get('priority', {})
+
+        # Extract priority value from dict or use direct value
         if isinstance(priority, dict):
-            return int(priority.get('priority', 4))
+            priority_val = priority.get('priority', 4)
+        else:
+            priority_val = priority
+
+        # Handle string priority names
+        if isinstance(priority_val, str):
+            priority_map = {
+                'urgent': 1,
+                'high': 2,
+                'normal': 3,
+                'low': 4
+            }
+            return priority_map.get(priority_val.lower(), 4)
+
+        # Try to convert to int
         try:
-            return int(priority)
+            return int(priority_val)
         except (ValueError, TypeError):
             return 4
