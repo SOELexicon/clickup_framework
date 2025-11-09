@@ -80,6 +80,47 @@ def colorize(
     return f"{''.join(codes)}{text}{reset}"
 
 
+def status_to_code(status: str) -> str:
+    """
+    Convert task status to a 3-letter code.
+
+    Args:
+        status: Task status string
+
+    Returns:
+        3-letter status code (uppercase)
+    """
+    if not status:
+        return "UNK"
+
+    status_lower = str(status).lower().strip()
+
+    # Common status mappings
+    status_map = {
+        "to do": "TDO",
+        "todo": "TDO",
+        "open": "OPN",
+        "in progress": "PRG",
+        "in review": "REV",
+        "complete": "CMP",
+        "completed": "CMP",
+        "done": "DON",
+        "closed": "CLS",
+        "blocked": "BLK",
+        "block": "BLK",
+        "testing": "TST",
+        "backlog": "BLG",
+        "ready": "RDY",
+    }
+
+    # Check if we have a mapping
+    if status_lower in status_map:
+        return status_map[status_lower]
+
+    # Otherwise, take first 3 letters and uppercase
+    return status[:3].upper()
+
+
 def status_color(status: str) -> TextColor:
     """
     Get the appropriate color for a task status.
