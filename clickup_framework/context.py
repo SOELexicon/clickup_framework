@@ -32,8 +32,8 @@ class ContextManager:
     at ~/.clickup_context.json for easy access across CLI commands.
 
     Security:
-    - Does NOT store API tokens or sensitive credentials
-    - Only stores resource IDs for convenience
+    - Can optionally store API token for convenience
+    - Stores resource IDs for convenience
     - File permissions are set to user-only (0600)
     """
 
@@ -214,6 +214,33 @@ class ContextManager:
         """Clear the current workspace ID."""
         if 'current_workspace' in self._context:
             del self._context['current_workspace']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
+    def set_api_token(self, token: str) -> None:
+        """
+        Set the ClickUp API token.
+
+        Args:
+            token: ClickUp API token to store
+        """
+        self._context['api_token'] = token
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_api_token(self) -> Optional[str]:
+        """
+        Get the stored ClickUp API token.
+
+        Returns:
+            Stored API token or None if not set
+        """
+        return self._context.get('api_token')
+
+    def clear_api_token(self) -> None:
+        """Clear the stored API token."""
+        if 'api_token' in self._context:
+            del self._context['api_token']
             self._context['last_updated'] = datetime.now().isoformat()
             self._save()
 
