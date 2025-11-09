@@ -11,6 +11,8 @@ Components:
     - ContainerHierarchyFormatter: Organizes tasks by workspace/space/folder/list containers
     - TaskFilter: Filters tasks by various criteria
     - RichTaskFormatter: Enhanced task formatting with emojis, colors, and styling
+    - RichDocFormatter: Enhanced doc and page formatting with emojis, colors, and styling
+    - DocHierarchyFormatter: Organizes docs and pages in hierarchical structures
     - DisplayManager: High-level component combining filtering, organizing, and rendering
 
 Example Usage:
@@ -41,6 +43,8 @@ from clickup_framework.components.hierarchy import TaskHierarchyFormatter
 from clickup_framework.components.container import ContainerHierarchyFormatter
 from clickup_framework.components.filters import TaskFilter
 from clickup_framework.components.task_formatter import RichTaskFormatter
+from clickup_framework.components.doc_formatter import RichDocFormatter
+from clickup_framework.components.doc_hierarchy import DocHierarchyFormatter
 from clickup_framework.components.detail_view import TaskDetailFormatter
 from clickup_framework.components.display import DisplayManager
 
@@ -51,6 +55,8 @@ __all__ = [
     'ContainerHierarchyFormatter',
     'TaskFilter',
     'RichTaskFormatter',
+    'RichDocFormatter',
+    'DocHierarchyFormatter',
     'TaskDetailFormatter',
     'DisplayManager',
 ]
