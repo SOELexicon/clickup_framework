@@ -1180,7 +1180,7 @@ Examples:
     hierarchy_parser.add_argument('list_id', help='ClickUp list ID')
     hierarchy_parser.add_argument('--header', help='Custom header text')
     add_common_args(hierarchy_parser)
-    hierarchy_parser.set_defaults(func=hierarchy_command)
+    hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
 
     # Container command
     container_parser = subparsers.add_parser('container', help='Display tasks by container hierarchy')
