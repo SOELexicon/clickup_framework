@@ -193,7 +193,7 @@ def create_commit_task(client, list_id, commit_info, repo_name, branch_name):
 def main():
     """Main entry point."""
     # Configuration
-    LIST_ID = "901517404274"  # Development Tasks list
+    LIST_ID = "901517412318"  # Development Tasks list
     REPO_NAME = os.environ.get('GITHUB_REPOSITORY', 'clickup_framework')
     BRANCH_NAME = os.environ.get('GITHUB_REF_NAME', 'unknown')
     COMMIT_COUNT = int(os.environ.get('COMMIT_COUNT', '5'))
