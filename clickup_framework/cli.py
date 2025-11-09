@@ -83,10 +83,14 @@ def show_command_tree():
         ],
         "📄 Docs Management": [
             ("dlist [dl]", "<workspace_id>", "List all docs in a workspace"),
-            ("doc_get [dg]", "<workspace_id> <doc_id> [--show-content]", "Get doc and display pages"),
-            ("doc_create [dc]", "<workspace_id> <name> [OPTIONS]", "Create new doc with optional pages"),
+            ("doc_get [dg]", "<workspace_id> <doc_id> [--preview]", "Get doc and display pages"),
+            ("doc_create [dc]", "<workspace_id> <name> [--pages ...]", "Create new doc with optional pages"),
             ("doc_update [du]", "<workspace_id> <doc_id> <page_id> [OPTIONS]", "Update a page in a doc"),
-            ("doc_export [de]", "<workspace_id> <doc_id> [--output-dir DIR] [--nested]", "Export doc to markdown files"),
+            ("doc_export [de]", "<workspace_id> [--doc-id ID] [--output-dir DIR] [--nested]", "Export docs to markdown files"),
+            ("doc_import [di]", "<workspace_id> <input_dir> [--doc-name NAME] [--nested]", "Import markdown files to create docs"),
+            ("page_list [pl]", "<workspace_id> <doc_id>", "List all pages in a doc"),
+            ("page_create [pc]", "<workspace_id> <doc_id> --name NAME [--content TEXT]", "Create a new page in a doc"),
+            ("page_update [pu]", "<workspace_id> <doc_id> <page_id> [--name NAME] [--content TEXT]", "Update a page in a doc"),
         ],
         "🎨 Configuration": [
             ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
