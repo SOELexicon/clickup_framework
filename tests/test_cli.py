@@ -283,11 +283,24 @@ class TestDemoCommand(unittest.TestCase):
 class TestContextCommands(unittest.TestCase):
     """Test context management commands."""
 
+    @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    def test_set_current_task(self, mock_context):
-        """Test set_current command for task."""
+    def test_set_current_task(self, mock_context, mock_client_class):
+        """Test set_current command for task with auto-hierarchy detection."""
         mock_context_inst = Mock()
         mock_context.return_value = mock_context_inst
+
+        # Mock the task data returned by the API
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_task.return_value = {
+            'id': 'task_123',
+            'name': 'Test Task',
+            'list': {'id': 'list_456', 'name': 'Test List'},
+            'folder': {'id': 'folder_789', 'name': 'Test Folder'},
+            'space': {'id': 'space_012', 'name': 'Test Space'},
+            'status': {'status': 'in progress'}
+        }
 
         args = argparse.Namespace(
             resource_type='task',
@@ -301,8 +314,19 @@ class TestContextCommands(unittest.TestCase):
 
         sys.stdout = sys.__stdout__
 
+        # Verify all context setters were called
         mock_context_inst.set_current_task.assert_called_once_with('task_123')
-        self.assertIn("Set current task", captured_output.getvalue())
+        mock_context_inst.set_current_list.assert_called_once_with('list_456')
+        mock_context_inst.set_current_folder.assert_called_once_with('folder_789')
+        mock_context_inst.set_current_space.assert_called_once_with('space_012')
+
+        # Verify output includes all resources
+        output = captured_output.getvalue()
+        self.assertIn("Set current task", output)
+        self.assertIn("Set current list", output)
+        self.assertIn("Set current folder", output)
+        self.assertIn("Set current space", output)
+        self.assertIn("Context updated successfully", output)
 
     @patch('clickup_framework.cli.get_context_manager')
     def test_set_current_list(self, mock_context):
