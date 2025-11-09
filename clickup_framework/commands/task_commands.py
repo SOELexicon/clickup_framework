@@ -424,6 +424,162 @@ def task_set_tags_command(args):
         sys.exit(1)
 
 
+def task_add_dependency_command(args):
+    """Add a dependency relationship between tasks."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate that exactly one relationship type is provided
+    if not args.waiting_on and not args.blocking:
+        print("Error: Must provide either --waiting-on or --blocking", file=sys.stderr)
+        sys.exit(1)
+
+    if args.waiting_on and args.blocking:
+        print("Error: Cannot provide both --waiting-on and --blocking", file=sys.stderr)
+        sys.exit(1)
+
+    # Resolve dependency task IDs
+    try:
+        if args.waiting_on:
+            depends_on_id = context.resolve_id('task', args.waiting_on)
+            result = client.add_task_dependency(task_id, depends_on=depends_on_id)
+            relationship_type = "waiting on"
+            other_task = depends_on_id
+        else:
+            dependency_of_id = context.resolve_id('task', args.blocking)
+            result = client.add_task_dependency(task_id, dependency_of=dependency_of_id)
+            relationship_type = "blocking"
+            other_task = dependency_of_id
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error adding dependency: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Show success message
+    success_msg = ANSIAnimations.success_message(
+        f"Task {task_id} now {relationship_type} {other_task}"
+    )
+    print(success_msg)
+
+
+def task_remove_dependency_command(args):
+    """Remove a dependency relationship between tasks."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate that exactly one relationship type is provided
+    if not args.waiting_on and not args.blocking:
+        print("Error: Must provide either --waiting-on or --blocking", file=sys.stderr)
+        sys.exit(1)
+
+    if args.waiting_on and args.blocking:
+        print("Error: Cannot provide both --waiting-on and --blocking", file=sys.stderr)
+        sys.exit(1)
+
+    # Resolve dependency task IDs
+    try:
+        if args.waiting_on:
+            depends_on_id = context.resolve_id('task', args.waiting_on)
+            result = client.delete_task_dependency(task_id, depends_on=depends_on_id)
+            relationship_type = "waiting on"
+            other_task = depends_on_id
+        else:
+            dependency_of_id = context.resolve_id('task', args.blocking)
+            result = client.delete_task_dependency(task_id, dependency_of=dependency_of_id)
+            relationship_type = "blocking"
+            other_task = dependency_of_id
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error removing dependency: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Show success message
+    success_msg = ANSIAnimations.success_message(
+        f"Dependency removed: {task_id} no longer {relationship_type} {other_task}"
+    )
+    print(success_msg)
+
+
+def task_add_link_command(args):
+    """Link two tasks together."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task IDs
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+        links_to_id = context.resolve_id('task', args.linked_task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Add link
+    try:
+        result = client.add_task_link(task_id, links_to_id)
+
+        # Show success message
+        success_msg = ANSIAnimations.success_message(
+            f"Tasks linked: {task_id} ↔ {links_to_id}"
+        )
+        print(success_msg)
+
+        # Optionally show updated task info
+        if hasattr(args, 'verbose') and args.verbose:
+            task = client.get_task(task_id)
+            linked_count = len(task.get('linked_tasks', []))
+            print(f"  Total links for {task_id}: {linked_count}")
+
+    except Exception as e:
+        print(f"Error linking tasks: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_remove_link_command(args):
+    """Remove a link between two tasks."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task IDs
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+        links_to_id = context.resolve_id('task', args.linked_task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Remove link
+    try:
+        result = client.delete_task_link(task_id, links_to_id)
+
+        # Show success message
+        success_msg = ANSIAnimations.success_message(
+            f"Link removed: {task_id} ↔ {links_to_id}"
+        )
+        print(success_msg)
+
+    except Exception as e:
+        print(f"Error removing link: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def register_command(subparsers):
     """Register task management commands."""
     # Task create
@@ -496,3 +652,39 @@ def register_command(subparsers):
     task_set_tags_group.add_argument('--remove', nargs='+', help='Tags to remove')
     task_set_tags_group.add_argument('--set', nargs='+', help='Set tags (replace all)')
     task_set_tags_parser.set_defaults(func=task_set_tags_command)
+
+    # Task add dependency
+    task_add_dep_parser = subparsers.add_parser('task_add_dependency', aliases=['tad'],
+                                                 help='Add dependency relationship between tasks')
+    task_add_dep_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_add_dep_parser.add_argument('--waiting-on', dest='waiting_on',
+                                      help='Task ID that this task depends on (waiting-on relationship)')
+    task_add_dep_parser.add_argument('--blocking',
+                                      help='Task ID that depends on this task (blocking relationship)')
+    task_add_dep_parser.set_defaults(func=task_add_dependency_command)
+
+    # Task remove dependency
+    task_rm_dep_parser = subparsers.add_parser('task_remove_dependency', aliases=['trd'],
+                                                help='Remove dependency relationship between tasks')
+    task_rm_dep_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_rm_dep_parser.add_argument('--waiting-on', dest='waiting_on',
+                                     help='Task ID to remove from "waiting on" list')
+    task_rm_dep_parser.add_argument('--blocking',
+                                     help='Task ID to remove from "blocking" list')
+    task_rm_dep_parser.set_defaults(func=task_remove_dependency_command)
+
+    # Task add link
+    task_link_parser = subparsers.add_parser('task_add_link', aliases=['tal'],
+                                              help='Link two tasks together')
+    task_link_parser.add_argument('task_id', help='Task ID to link from (or "current")')
+    task_link_parser.add_argument('linked_task_id', help='Task ID to link to')
+    task_link_parser.add_argument('--verbose', '-v', action='store_true',
+                                   help='Show additional information about the link')
+    task_link_parser.set_defaults(func=task_add_link_command)
+
+    # Task remove link
+    task_unlink_parser = subparsers.add_parser('task_remove_link', aliases=['trl'],
+                                                help='Remove link between two tasks')
+    task_unlink_parser.add_argument('task_id', help='Task ID to unlink from (or "current")')
+    task_unlink_parser.add_argument('linked_task_id', help='Task ID to unlink')
+    task_unlink_parser.set_defaults(func=task_remove_link_command)
