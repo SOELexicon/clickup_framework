@@ -1404,6 +1404,339 @@ def assigned_tasks_command(args):
     print(f"  Blocked: {blocked_tasks} task(s)")
 
 
+def doc_list_command(args):
+    """List all docs in a workspace."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Get all docs
+        result = docs_api.get_workspace_docs(workspace_id)
+        docs = result.get('docs', [])
+
+        if not docs:
+            print("No docs found in workspace")
+            return
+
+        # Display header
+        use_color = context.get_ansi_output()
+        if use_color:
+            header = colorize(f"Docs in Workspace {workspace_id}", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+        else:
+            header = f"Docs in Workspace {workspace_id}"
+
+        print(f"\n{header}")
+        print(colorize("─" * 80, TextColor.BRIGHT_BLACK) if use_color else "─" * 80)
+        print()
+
+        # Display each doc
+        for i, doc in enumerate(docs, 1):
+            doc_id = doc.get('id', 'Unknown')
+            doc_name = doc.get('name', 'Unnamed')
+            date_created = doc.get('date_created', '')
+            creator = doc.get('creator', {})
+            creator_name = creator.get('username', 'Unknown') if isinstance(creator, dict) else 'Unknown'
+
+            if use_color:
+                print(f"{i}. {colorize(doc_name, TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                print(f"   ID: {colorize(doc_id, TextColor.BRIGHT_BLACK)}")
+                print(f"   Created: {colorize(date_created, TextColor.BRIGHT_YELLOW)} by {colorize(creator_name, TextColor.BRIGHT_CYAN)}")
+            else:
+                print(f"{i}. {doc_name}")
+                print(f"   ID: {doc_id}")
+                print(f"   Created: {date_created} by {creator_name}")
+            print()
+
+        print(f"Total: {len(docs)} doc(s)")
+
+    except Exception as e:
+        print(f"Error listing docs: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def doc_get_command(args):
+    """Get a specific doc and display its content."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Get doc
+        doc = docs_api.get_doc(workspace_id, args.doc_id)
+
+        # Get pages
+        pages = docs_api.get_doc_pages(workspace_id, args.doc_id)
+
+        # Display doc info
+        use_color = context.get_ansi_output()
+
+        if use_color:
+            print(f"\n{colorize('📄 Doc:', TextColor.BRIGHT_CYAN, TextStyle.BOLD)} {colorize(doc.get('name', 'Unnamed'), TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+        else:
+            print(f"\n📄 Doc: {doc.get('name', 'Unnamed')}")
+
+        print(colorize("─" * 80, TextColor.BRIGHT_BLACK) if use_color else "─" * 80)
+        print()
+
+        # Show doc metadata
+        print(f"ID: {colorize(doc.get('id', 'Unknown'), TextColor.BRIGHT_BLACK) if use_color else doc.get('id', 'Unknown')}")
+
+        creator = doc.get('creator', {})
+        creator_name = creator.get('username', 'Unknown') if isinstance(creator, dict) else 'Unknown'
+        print(f"Creator: {colorize(creator_name, TextColor.BRIGHT_CYAN) if use_color else creator_name}")
+
+        date_created = doc.get('date_created', 'Unknown')
+        print(f"Created: {colorize(date_created, TextColor.BRIGHT_YELLOW) if use_color else date_created}")
+
+        # Show pages
+        print()
+        if use_color:
+            print(colorize(f"📑 Pages ({len(pages)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+        else:
+            print(f"📑 Pages ({len(pages)}):")
+
+        print()
+
+        if not pages:
+            print(colorize("  No pages found", TextColor.BRIGHT_BLACK) if use_color else "  No pages found")
+        else:
+            for i, page in enumerate(pages, 1):
+                page_name = page.get('name', 'Unnamed')
+                page_id = page.get('id', 'Unknown')
+
+                if use_color:
+                    print(f"  {i}. {colorize(page_name, TextColor.BRIGHT_WHITE)}")
+                    print(f"     ID: {colorize(page_id, TextColor.BRIGHT_BLACK)}")
+                else:
+                    print(f"  {i}. {page_name}")
+                    print(f"     ID: {page_id}")
+
+                # Show content preview if requested
+                if args.show_content:
+                    content = page.get('content', '')
+                    if content:
+                        # Show first 200 chars of content
+                        preview = content[:200].replace('\n', ' ')
+                        if len(content) > 200:
+                            preview += '...'
+                        print(f"     Preview: {preview}")
+
+                print()
+
+    except Exception as e:
+        print(f"Error getting doc: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def doc_create_command(args):
+    """Create a new doc."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Create doc
+        doc = docs_api.create_doc(
+            workspace_id=workspace_id,
+            name=args.name,
+            parent_id=args.parent if hasattr(args, 'parent') and args.parent else None
+        )
+
+        # Show success message
+        use_color = context.get_ansi_output()
+        success_msg = ANSIAnimations.success_message(f"Doc created: {doc['name']}")
+        print(success_msg)
+        print(f"\nDoc ID: {colorize(doc['id'], TextColor.BRIGHT_GREEN) if use_color else doc['id']}")
+
+        # Create initial pages if specified
+        if hasattr(args, 'pages') and args.pages:
+            print(f"\nCreating {len(args.pages)} page(s)...")
+            for page_name in args.pages:
+                page = docs_api.create_page(
+                    workspace_id=workspace_id,
+                    doc_id=doc['id'],
+                    name=page_name
+                )
+                print(f"  ✓ Created page: {page_name}")
+
+    except Exception as e:
+        print(f"Error creating doc: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def doc_update_command(args):
+    """Update a page in a doc."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Update page
+        updated = docs_api.update_page(
+            workspace_id=workspace_id,
+            doc_id=args.doc_id,
+            page_id=args.page_id,
+            name=args.name if hasattr(args, 'name') and args.name else None,
+            content=args.content if hasattr(args, 'content') and args.content else None
+        )
+
+        # Show success message
+        success_msg = ANSIAnimations.success_message(f"Page updated: {updated.get('name', 'Unknown')}")
+        print(success_msg)
+
+    except Exception as e:
+        print(f"Error updating page: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def doc_export_command(args):
+    """Export a doc and its pages to markdown files."""
+    import os
+    import re
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Get doc
+        doc = docs_api.get_doc(workspace_id, args.doc_id)
+        doc_name = doc.get('name', 'Unnamed')
+
+        # Get pages
+        pages = docs_api.get_doc_pages(workspace_id, args.doc_id)
+
+        # Create output directory
+        output_dir = args.output_dir if hasattr(args, 'output_dir') and args.output_dir else '.'
+
+        # Sanitize doc name for folder name
+        safe_doc_name = re.sub(r'[^\w\-_\. ]', '_', doc_name)
+        doc_dir = os.path.join(output_dir, safe_doc_name)
+
+        # Create directory if it doesn't exist
+        os.makedirs(doc_dir, exist_ok=True)
+
+        use_color = context.get_ansi_output()
+
+        if use_color:
+            print(f"\n{colorize('📤 Exporting doc:', TextColor.BRIGHT_CYAN, TextStyle.BOLD)} {colorize(doc_name, TextColor.BRIGHT_WHITE)}")
+        else:
+            print(f"\n📤 Exporting doc: {doc_name}")
+
+        print(f"Output directory: {doc_dir}")
+        print()
+
+        # Export doc metadata as main README
+        readme_path = os.path.join(doc_dir, f"{safe_doc_name}.md")
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {doc_name}\n\n")
+            f.write(f"**Doc ID:** {doc.get('id', 'Unknown')}\n\n")
+
+            creator = doc.get('creator', {})
+            creator_name = creator.get('username', 'Unknown') if isinstance(creator, dict) else 'Unknown'
+            f.write(f"**Creator:** {creator_name}\n\n")
+            f.write(f"**Created:** {doc.get('date_created', 'Unknown')}\n\n")
+
+            if pages:
+                f.write("## Pages\n\n")
+                for page in pages:
+                    safe_page_name = re.sub(r'[^\w\-_\. ]', '_', page.get('name', 'Unnamed'))
+                    f.write(f"- [{page.get('name', 'Unnamed')}]({safe_page_name}.md)\n")
+
+        print(f"✓ Created: {readme_path}")
+
+        # Export each page
+        for i, page in enumerate(pages, 1):
+            page_name = page.get('name', f'page_{i}')
+            safe_page_name = re.sub(r'[^\w\-_\. ]', '_', page_name)
+
+            # Get full page content
+            full_page = docs_api.get_page(workspace_id, args.doc_id, page['id'])
+            content = full_page.get('content', '')
+
+            # Determine output path
+            if args.nested and '/' in page_name:
+                # Create nested folder structure based on page name
+                parts = page_name.split('/')
+                folder_parts = parts[:-1]
+                file_name = parts[-1]
+
+                page_dir = os.path.join(doc_dir, *[re.sub(r'[^\w\-_\. ]', '_', p) for p in folder_parts])
+                os.makedirs(page_dir, exist_ok=True)
+
+                safe_file_name = re.sub(r'[^\w\-_\. ]', '_', file_name)
+                page_path = os.path.join(page_dir, f"{safe_file_name}.md")
+            else:
+                page_path = os.path.join(doc_dir, f"{safe_page_name}.md")
+
+            # Write page content
+            with open(page_path, 'w', encoding='utf-8') as f:
+                f.write(f"# {page_name}\n\n")
+                if content:
+                    f.write(content)
+                else:
+                    f.write("*No content*\n")
+
+            print(f"✓ Exported: {page_path}")
+
+        print()
+        if use_color:
+            print(colorize(f"✓ Successfully exported {len(pages)} page(s) to {doc_dir}", TextColor.BRIGHT_GREEN))
+        else:
+            print(f"✓ Successfully exported {len(pages)} page(s) to {doc_dir}")
+
+    except Exception as e:
+        print(f"Error exporting doc: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 def update_cum_command(args):
     """Update the cum tool from git and reinstall."""
     import subprocess
@@ -1609,6 +1942,13 @@ def show_command_tree():
             ("task_set_status", "<task_id> [...] <status>", "Set task status with subtask validation"),
             ("task_set_priority", "<task_id> <priority>", "Set task priority (1-4 or urgent/high/normal/low)"),
             ("task_set_tags", "<task_id> [--add|--remove|--set]", "Manage task tags"),
+        ],
+        "📄 Docs Management": [
+            ("doc_list", "<workspace_id>", "List all docs in a workspace"),
+            ("doc_get", "<workspace_id> <doc_id> [--show-content]", "Get doc and display pages"),
+            ("doc_create", "<workspace_id> <name> [OPTIONS]", "Create new doc with optional pages"),
+            ("doc_update", "<workspace_id> <doc_id> <page_id> [OPTIONS]", "Update a page in a doc"),
+            ("doc_export", "<workspace_id> <doc_id> [--output-dir DIR] [--nested]", "Export doc to markdown files"),
         ],
         "🎨 Configuration": [
             ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
@@ -1935,6 +2275,47 @@ Examples:
     assigned_parser.add_argument('--team-id', dest='team_id',
                                 help='Team/workspace ID (defaults to current workspace)')
     assigned_parser.set_defaults(func=assigned_tasks_command)
+
+    # Doc management commands
+    doc_list_parser = subparsers.add_parser('doc_list',
+                                            help='List all docs in a workspace')
+    doc_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    doc_list_parser.set_defaults(func=doc_list_command)
+
+    doc_get_parser = subparsers.add_parser('doc_get',
+                                           help='Get a specific doc and display its content')
+    doc_get_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    doc_get_parser.add_argument('doc_id', help='Doc ID')
+    doc_get_parser.add_argument('--show-content', action='store_true',
+                                help='Show content preview for each page')
+    doc_get_parser.set_defaults(func=doc_get_command)
+
+    doc_create_parser = subparsers.add_parser('doc_create',
+                                              help='Create a new doc')
+    doc_create_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    doc_create_parser.add_argument('name', help='Doc name')
+    doc_create_parser.add_argument('--parent', help='Parent doc ID (for nested docs)')
+    doc_create_parser.add_argument('--pages', nargs='+', help='Initial page names to create')
+    doc_create_parser.set_defaults(func=doc_create_command)
+
+    doc_update_parser = subparsers.add_parser('doc_update',
+                                              help='Update a page in a doc')
+    doc_update_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    doc_update_parser.add_argument('doc_id', help='Doc ID')
+    doc_update_parser.add_argument('page_id', help='Page ID to update')
+    doc_update_parser.add_argument('--name', help='New page name')
+    doc_update_parser.add_argument('--content', help='New page content (markdown)')
+    doc_update_parser.set_defaults(func=doc_update_command)
+
+    doc_export_parser = subparsers.add_parser('doc_export',
+                                              help='Export a doc and its pages to markdown files')
+    doc_export_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    doc_export_parser.add_argument('doc_id', help='Doc ID to export')
+    doc_export_parser.add_argument('--output-dir', dest='output_dir', default='.',
+                                   help='Output directory (default: current directory)')
+    doc_export_parser.add_argument('--nested', action='store_true',
+                                   help='Create nested folder structure for pages with "/" in name')
+    doc_export_parser.set_defaults(func=doc_export_command)
 
     # Update command
     update_parser = subparsers.add_parser('update',
