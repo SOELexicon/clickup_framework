@@ -1187,8 +1187,47 @@ def assigned_tasks_command(args):
     try:
         team_id = context.resolve_id('workspace', args.team_id if hasattr(args, 'team_id') and args.team_id else 'current')
     except ValueError:
-        print("Error: No team/workspace ID specified. Use --team-id or set_current workspace <team_id>", file=sys.stderr)
-        sys.exit(1)
+        # No workspace configured - show list and let user select
+        try:
+            workspaces = client.get_workspaces()
+            teams = workspaces.get('teams', [])
+
+            if not teams:
+                print("Error: No workspaces found in your account.", file=sys.stderr)
+                sys.exit(1)
+
+            # Display workspaces
+            print(colorize("\nAvailable Workspaces:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+            for i, team in enumerate(teams, 1):
+                team_name = team.get('name', 'Unnamed')
+                team_id_val = team.get('id', 'Unknown')
+                print(f"  {colorize(str(i), TextColor.BRIGHT_YELLOW)}. {team_name} {colorize(f'[{team_id_val}]', TextColor.BRIGHT_BLACK)}")
+
+            print()
+            selection = input(colorize("Select workspace number (or press any letter to cancel): ", TextColor.BRIGHT_WHITE))
+
+            # Check if input is a letter (cancel)
+            if selection.isalpha():
+                print("Cancelled.")
+                sys.exit(0)
+
+            # Try to parse as number
+            try:
+                workspace_num = int(selection)
+                if 1 <= workspace_num <= len(teams):
+                    team_id = teams[workspace_num - 1]['id']
+                    print(colorize(f"✓ Using workspace: {teams[workspace_num - 1]['name']}", TextColor.BRIGHT_GREEN))
+                    print()
+                else:
+                    print(f"Error: Invalid selection. Please choose 1-{len(teams)}", file=sys.stderr)
+                    sys.exit(1)
+            except ValueError:
+                print("Error: Invalid input. Please enter a number or letter to cancel.", file=sys.stderr)
+                sys.exit(1)
+
+        except Exception as e:
+            print(f"Error fetching workspaces: {e}", file=sys.stderr)
+            sys.exit(1)
 
     # Fetch tasks assigned to user
     try:
