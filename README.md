@@ -263,6 +263,20 @@ print(stats)
 #   In Progress: 8
 #   Blocked: 1
 #   To Do: 8
+
+# Detail View - Show task with full relationship context
+task = client.get_task("task_id")
+all_tasks = client.get_list_tasks("list_id")
+detail_output = display.detail_view(task, all_tasks, FormatOptions.detailed())
+print(detail_output)
+
+# Example output shows:
+# - Parent chain (grandparent > parent)
+# - Current task (highlighted with full details)
+# - Sibling tasks (same parent)
+# - Child tasks/subtasks (in tree view)
+# - Dependencies
+# - Full task details (description, tags, dates, assignees, etc.)
 ```
 
 **Display Components:**
@@ -271,6 +285,7 @@ print(stats)
 - **RichTaskFormatter**: Enhanced task formatting with emojis, colors, and detailed information
 - **TaskHierarchyFormatter**: Organize tasks by parent-child relationships
 - **ContainerHierarchyFormatter**: Organize tasks by workspace/space/folder/list containers
+- **TaskDetailFormatter**: Comprehensive single-task view with relationship tree
 - **TreeFormatter**: Low-level tree rendering with box-drawing characters (├─, └─, │)
 - **TaskFilter**: Filter tasks by status, priority, tags, assignee, dates, and custom criteria
 
@@ -279,6 +294,7 @@ print(stats)
 - `container_view`: Organized by workspace → space → folder → list
 - `flat_view`: Simple list display
 - `filtered_view`: Apply filters and display in any view mode
+- `detail_view`: Comprehensive single task with relationship context
 
 **Features:**
 - Beautiful tree structures with Unicode box-drawing characters
@@ -308,7 +324,30 @@ Visual examples of the display components in action:
 ![Detailed View](screenshots/03_detailed_view.jpg)
 *Comprehensive task information including descriptions and relationships*
 
-#### All View Modes
+#### Task Detail View with Relationship Tree (NEW! ✨)
+
+The detail view shows a single task with its complete hierarchical context:
+
+![Detail View - Child Task](screenshots/09_detail_view_child.jpg)
+*Child task showing parent chain, siblings, and subtasks with full details*
+
+**What's shown in detail view:**
+- 📊 **Parent Chain**: Full ancestry from root to current task
+- 👉 **Current Task**: Highlighted with complete details (description, tags, dates, assignees)
+- 👥 **Siblings**: Other tasks with the same parent
+- 📂 **Subtasks**: Child tasks in recursive tree view (up to 3 levels deep)
+- 🔗 **Dependencies**: Blocking/waiting tasks
+- ☑️ **Checklists**: With completion status
+- 💬 **Comments**: User discussions
+- 📎 **Attachments**: Files and links
+- ⏱️ **Time Tracking**: Estimates and actual time spent
+
+| Deep Hierarchy | Parent View |
+|----------------|-------------|
+| ![Grandchild](screenshots/10_detail_view_grandchild.jpg) | ![Parent](screenshots/11_detail_view_parent.jpg) |
+| Task deep in hierarchy showing full context | Parent task with all children displayed |
+
+#### Other View Modes
 
 | Minimal View | Filtered View | Statistics |
 |--------------|---------------|------------|

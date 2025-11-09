@@ -46,6 +46,38 @@ Generated on: 2025-11-09
 - **Features**: Simple list without hierarchy
 - **Use Case**: Linear task list
 
+### 09_detail_view_child.jpg (NEW! ✨)
+- **View Mode**: Task Detail View
+- **Context**: Child task in middle of hierarchy
+- **Features**:
+  - Parent chain showing ancestry
+  - Current task highlighted with full details
+  - Sibling tasks list
+  - Subtasks in recursive tree view
+  - Dependencies display
+  - Complete task metadata (description, tags, dates, assignees)
+- **Use Case**: Comprehensive single-task view with relationship context
+
+### 10_detail_view_grandchild.jpg (NEW! ✨)
+- **View Mode**: Task Detail View
+- **Context**: Deep task in 3-level hierarchy
+- **Features**:
+  - Full parent chain (grandparent → parent)
+  - Current task details
+  - All ancestors shown with status
+  - Perfect for understanding task position in complex hierarchies
+- **Use Case**: Deep hierarchy navigation and context understanding
+
+### 11_detail_view_parent.jpg (NEW! ✨)
+- **View Mode**: Task Detail View
+- **Context**: Parent task with multiple children
+- **Features**:
+  - All subtasks displayed in tree view
+  - Recursive child tree (up to 3 levels)
+  - Task completion overview
+  - Project-level task view
+- **Use Case**: Parent task overview with all subtasks visible
+
 ## Features Demonstrated
 
 All screenshots show:

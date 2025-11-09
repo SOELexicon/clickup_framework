@@ -32,7 +32,8 @@ SAMPLE_HIERARCHICAL_TASKS = [
         'tags': [{'name': 'backend'}, {'name': 'api'}],
         'description': 'Develop new API endpoints for user management',
         'date_created': '2024-01-01T10:00:00Z',
-        'due_date': '2024-01-31T23:59:59Z'
+        'due_date': '2024-01-31T23:59:59Z',
+        'assignees': [{'username': 'alice'}]
     },
     {
         'id': 'child_1',
@@ -42,7 +43,11 @@ SAMPLE_HIERARCHICAL_TASKS = [
         'parent': 'parent_1',
         'custom_type': 'feature',
         'tags': [{'name': 'authentication'}, {'name': 'security'}],
-        'description': 'Implement JWT-based authentication endpoint with refresh tokens'
+        'description': 'Implement JWT-based authentication endpoint with refresh tokens',
+        'date_created': '2024-01-05T10:00:00Z',
+        'due_date': '2024-01-20T23:59:59Z',
+        'assignees': [{'username': 'alice'}, {'username': 'bob'}],
+        'dependencies': [{'depends_on': 'docs_1'}]
     },
     {
         'id': 'child_2',
@@ -51,7 +56,9 @@ SAMPLE_HIERARCHICAL_TASKS = [
         'priority': {'priority': '2'},
         'parent': 'parent_1',
         'custom_type': 'feature',
-        'tags': [{'name': 'profile'}, {'name': 'api'}]
+        'tags': [{'name': 'profile'}, {'name': 'api'}],
+        'description': 'Create endpoint for user profile management',
+        'assignees': [{'username': 'charlie'}]
     },
     {
         'id': 'grandchild_1',
@@ -59,7 +66,9 @@ SAMPLE_HIERARCHICAL_TASKS = [
         'status': {'status': 'to do'},
         'priority': {'priority': '2'},
         'parent': 'child_1',
-        'custom_type': 'test'
+        'custom_type': 'test',
+        'description': 'Comprehensive test suite for authentication endpoints',
+        'assignees': [{'username': 'bob'}]
     },
     {
         'id': 'bug_1',
@@ -77,7 +86,8 @@ SAMPLE_HIERARCHICAL_TASKS = [
         'status': {'status': 'complete'},
         'priority': {'priority': '3'},
         'parent': None,
-        'custom_type': 'documentation'
+        'custom_type': 'documentation',
+        'date_closed': '2024-01-03T15:30:00Z'
     }
 ]
 
@@ -212,6 +222,21 @@ def main():
         header="Flat View - Simple List"
     )
     save_output('08_flat_view.txt', output)
+
+    # 9. Detail View - Child Task with Full Context
+    child_task = next(t for t in SAMPLE_HIERARCHICAL_TASKS if t['id'] == 'child_1')
+    output = display.detail_view(child_task, SAMPLE_HIERARCHICAL_TASKS, FormatOptions.detailed())
+    save_output('09_detail_view_child.txt', output)
+
+    # 10. Detail View - Grandchild Task (Deep Hierarchy)
+    grandchild_task = next(t for t in SAMPLE_HIERARCHICAL_TASKS if t['id'] == 'grandchild_1')
+    output = display.detail_view(grandchild_task, SAMPLE_HIERARCHICAL_TASKS, FormatOptions.detailed())
+    save_output('10_detail_view_grandchild.txt', output)
+
+    # 11. Detail View - Parent Task with Children
+    parent_task = next(t for t in SAMPLE_HIERARCHICAL_TASKS if t['id'] == 'parent_1')
+    output = display.detail_view(parent_task, SAMPLE_HIERARCHICAL_TASKS, FormatOptions.detailed())
+    save_output('11_detail_view_parent.txt', output)
 
     print("\n✅ All examples generated in 'outputs/' directory")
 
