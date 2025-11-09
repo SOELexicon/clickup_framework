@@ -241,3 +241,68 @@ class WorkspacesAPI:
             Search results (raw dict)
         """
         return self.client.search(team_id, query, **filters)
+
+    # Workspace info and management
+    def get_all_authorized(self) -> Dict[str, Any]:
+        """
+        Get all authorized workspaces/teams for the current user.
+
+        Returns:
+            Workspaces list (raw dict)
+
+        Example:
+            workspaces_list = workspaces.get_all_authorized()
+            for workspace in workspaces_list.get('teams', []):
+                print(f"{workspace['name']} (ID: {workspace['id']})")
+        """
+        return self.client.get_authorized_workspaces()
+
+    def get_seats(self, team_id: str) -> Dict[str, Any]:
+        """
+        Get workspace seat information.
+
+        Args:
+            team_id: Team/workspace ID
+
+        Returns:
+            Seat information (raw dict)
+
+        Example:
+            seats = workspaces.get_seats("team_id")
+            print(f"Seats: {seats['seats']['total']} total, {seats['seats']['used']} used")
+        """
+        return self.client.get_workspace_seats(team_id)
+
+    def get_plan(self, team_id: str) -> Dict[str, Any]:
+        """
+        Get workspace plan details.
+
+        Args:
+            team_id: Team/workspace ID
+
+        Returns:
+            Plan information (raw dict)
+
+        Example:
+            plan = workspaces.get_plan("team_id")
+            print(f"Plan: {plan['plan']['name']}")
+        """
+        return self.client.get_workspace_plan(team_id)
+
+    # Custom Task Types
+    def get_custom_task_types(self, team_id: str) -> Dict[str, Any]:
+        """
+        Get custom task types for a workspace.
+
+        Args:
+            team_id: Team/workspace ID
+
+        Returns:
+            Custom task types list (raw dict)
+
+        Example:
+            types = workspaces.get_custom_task_types("team_id")
+            for task_type in types.get('custom_items', []):
+                print(f"{task_type['name']}: {task_type['id']}")
+        """
+        return self.client.get_custom_task_types(team_id)
