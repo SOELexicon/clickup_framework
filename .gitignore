@@ -145,3 +145,8 @@ outputs/
 
 # Screenshots HTML files (keep JPGs for documentation)
 screenshots/*.html
+cleanup_git_branches.ps1
+Projects.lnk
+docs/DOC_LINKING_STATUS.md
+docs/RELATIONSHIP_COMMANDS_IMPLEMENTATION_PLAN.md
+docs/TEMPLATE_ENDPOINTS.md
