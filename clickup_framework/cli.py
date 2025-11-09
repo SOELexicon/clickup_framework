@@ -74,6 +74,10 @@ def show_command_tree():
             ("task_set_status [tss]", "<task_id> [...] <status>", "Set task status with subtask validation"),
             ("task_set_priority [tsp]", "<task_id> <priority>", "Set task priority (1-4 or urgent/high/normal/low)"),
             ("task_set_tags [tst]", "<task_id> [--add|--remove|--set]", "Manage task tags"),
+            ("task_add_dependency [tad]", "<task_id> [--waiting-on|--blocking] <task_id>", "Add task dependency relationship"),
+            ("task_remove_dependency [trd]", "<task_id> [--waiting-on|--blocking] <task_id>", "Remove task dependency relationship"),
+            ("task_add_link [tal]", "<task_id> <linked_task_id>", "Link two tasks together"),
+            ("task_remove_link [trl]", "<task_id> <linked_task_id>", "Remove link between two tasks"),
         ],
         "💬 Comment Management": [
             ("comment_add [ca]", "<task_id> <text>", "Add a comment to a task"),
