@@ -8,7 +8,7 @@ import unittest
 import time
 from typing import Optional, Dict, List
 from clickup_framework import ClickUpClient
-from .test_config import (
+from tests.test_config import (
     TEST_SPACE_ID,
     TEST_TEAM_ID,
     TEST_FOLDER_NAME,

@@ -6,7 +6,7 @@ Tests for core ClickUp client API operations.
 
 import unittest
 import time
-from .base_test import ClickUpTestCase
+from tests.base_test import ClickUpTestCase
 
 
 class TestTaskOperations(ClickUpTestCase):
@@ -247,7 +247,7 @@ class TestSpaceOperations(ClickUpTestCase):
 
     def test_01_get_space(self):
         """Test getting a space by ID."""
-        from .test_config import TEST_SPACE_ID
+        from tests.test_config import TEST_SPACE_ID
 
         space = self.client.get_space(TEST_SPACE_ID)
 
@@ -257,7 +257,7 @@ class TestSpaceOperations(ClickUpTestCase):
 
     def test_02_get_space_tags(self):
         """Test getting tags from a space."""
-        from .test_config import TEST_SPACE_ID
+        from tests.test_config import TEST_SPACE_ID
 
         result = self.client.get_space_tags(TEST_SPACE_ID)
 
@@ -271,7 +271,7 @@ class TestSearchOperations(ClickUpTestCase):
 
     def test_01_search_workspace(self):
         """Test searching the workspace."""
-        from .test_config import TEST_TEAM_ID
+        from tests.test_config import TEST_TEAM_ID
 
         # Create a task with unique content to search for
         unique_name = f"[TEST] Searchable Task {int(time.time())}"
