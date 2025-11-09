@@ -153,6 +153,75 @@ class TestHierarchyCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
+    @patch('clickup_framework.cli.get_list_statuses', return_value="")
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.cli.DisplayManager')
+    def test_hierarchy_command_with_all_flag(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
+        """Test hierarchy command with --all flag."""
+        # Setup mocks
+        mock_context_inst = Mock()
+        mock_context_inst.resolve_id.return_value = 'team_123'
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client_inst.get_team_tasks.return_value = {'tasks': []}
+        mock_client.return_value = mock_client_inst
+
+        mock_display_inst = Mock()
+        mock_display_inst.hierarchy_view.return_value = "All Workspace Tasks"
+        mock_display_mgr.return_value = mock_display_inst
+
+        args = argparse.Namespace(
+            list_id=None,
+            show_all=True,
+            header=None,
+            preset=None,
+            colorize=True,
+            show_ids=False,
+            show_tags=True,
+            show_descriptions=False,
+            show_dates=False,
+            show_comments=0,
+            include_completed=False,
+            show_emoji=True
+        )
+
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        hierarchy_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        # Verify
+        mock_context_inst.resolve_id.assert_called_once_with('workspace', 'current')
+        mock_client_inst.get_team_tasks.assert_called_once()
+        mock_display_inst.hierarchy_view.assert_called_once()
+        self.assertIn("All Workspace Tasks", captured_output.getvalue())
+
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_hierarchy_command_no_list_id_no_all(self, mock_context):
+        """Test hierarchy command with no list_id and no --all flag."""
+        args = argparse.Namespace(list_id=None, show_all=False)
+
+        with self.assertRaises(SystemExit) as cm:
+            hierarchy_command(args)
+
+        self.assertEqual(cm.exception.code, 1)
+
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_hierarchy_command_both_list_id_and_all(self, mock_context):
+        """Test hierarchy command with both list_id and --all flag."""
+        args = argparse.Namespace(list_id='list_123', show_all=True)
+
+        with self.assertRaises(SystemExit) as cm:
+            hierarchy_command(args)
+
+        self.assertEqual(cm.exception.code, 1)
+
 
 class TestDemoCommand(unittest.TestCase):
     """Test demo_command function."""
