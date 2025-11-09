@@ -34,6 +34,14 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 pip install -e .
 ```
 
+After installation, the CLI is available as both `clickup` and `cum` (ClickUp Manager):
+
+```bash
+# Both commands work identically
+clickup hierarchy <list_id>
+cum hierarchy <list_id>
+```
+
 ## Authentication
 
 Set your ClickUp API token as an environment variable:
@@ -57,6 +65,48 @@ cum set_current list <list_id>
 # Show current context
 cum show_current
 ```
+
+---
+
+## Display Features
+
+### 3-Letter Status Codes
+All task views now display color-coded 3-letter status codes before task names:
+
+- `[CLS]` - Closed/Complete
+- `[OPN]` - Open
+- `[PRG]` - In Progress
+- `[REV]` - In Review
+- `[BLK]` - Blocked
+- `[TDO]` - To Do
+- Custom statuses use first 3 letters (e.g., `[IN ]` for "in development")
+
+Example output:
+```
+├─📝 [CLS] Task Management Commands
+├─📝 [OPN] task create - Create new tasks
+└─📝 [PRG] CLI Command Implementation (P1)
+```
+
+### Configurable ANSI Colors
+Control color output globally or per-command:
+
+```bash
+# Enable colors globally (default: disabled)
+cum ansi enable
+
+# Disable colors globally
+cum ansi disable
+
+# Check current setting
+cum ansi status
+
+# Override per command
+cum hierarchy <list_id> --colorize       # Force colors on
+cum hierarchy <list_id> --no-colorize    # Force colors off
+```
+
+Setting persists in `~/.clickup_context.json`.
 
 ---
 
@@ -238,12 +288,12 @@ cum set_current <resource_type> <resource_id>
 cum set_current workspace 90151898946
 cum set_current list 901517404278
 cum set_current task 86c6e0q06
-cum set_current assignee 68483025  # Set default assignee
+cum set_current assignee 68483025  # Set default assignee for task creation
 ```
 
 **Resource Types**: `task`, `list`, `space`, `folder`, `workspace`, `team`, `assignee`
 
-**Note**: Setting a default assignee automatically applies it to new tasks created with `task_create` and is used by the `assigned` command.
+**Default Assignee**: When set, all newly created tasks will be automatically assigned to this user (defaults to 68483025).
 
 ---
 
@@ -260,12 +310,30 @@ Shows:
 - Current folder (if set)
 - Current list (if set)
 - Current task (if set)
+- Default assignee (if set)
+- ANSI output setting
 - Last updated timestamp
 
 Features:
 - Rainbow gradient title
 - Color-coded IDs by type
 - Animated Unicode box borders
+
+---
+
+### `ansi` - Configure ANSI Color Output
+Enable or disable colored terminal output globally.
+
+```bash
+cum ansi <action>
+
+# Actions:
+cum ansi enable   # Enable ANSI colors (default: disabled)
+cum ansi disable  # Disable ANSI colors
+cum ansi status   # Show current setting
+```
+
+The setting persists across sessions in `~/.clickup_context.json`. You can override per-command with `--colorize` or `--no-colorize` flags.
 
 ---
 
@@ -286,84 +354,66 @@ cum clear_current  # Clears everything
 
 ---
 
-## Task Management Commands (Implemented) ✅
+## Task Management Commands ✅
 
-> **Status**: ✅ Implemented
+> **Status**: Partially implemented (4/7 commands complete)
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q0a)
 
-### `task_create` - Create New Task
-Create a new task with comprehensive configuration options.
+### `task_create` - Create New Task ✅
+**Task ID**: [86c6e0q0b](https://app.clickup.com/t/86c6e0q0b) | **Status**: 🚧 Planned
+
+Create a new task with full options support.
 
 ```bash
-cum task_create <list_id> <name> [OPTIONS]
+cum task_create <list_id> "Task name" [options]
 
 # Examples:
-cum task_create 901517404278 "Fix login bug"
-cum task_create current "API Development" \
-  --description "Create RESTful endpoints" \
-  --status "in development" \
-  --priority 1 \
-  --tags backend api \
-  --assignees 68483025 \
-  --parent 86c6e0xyz
+cum task_create current "Implement feature X"
+cum task_create 901517404278 "Bug fix" --description "Fix login issue" --priority urgent
+cum task_create current "New task" --status "in progress" --tags bug critical
+cum task_create current "Subtask" --parent 86c6e0q06
 ```
-
-**Arguments**:
-- `list_id` - List ID or "current" from context
-- `name` - Task name/title
 
 **Options**:
 - `--description TEXT` - Task description
-- `--status TEXT` - Initial status
-- `--priority INT` - Priority (1=Urgent, 2=High, 3=Normal, 4=Low)
-- `--tags TAG [...]` - One or more tags
-- `--assignees ID [...]` - User IDs to assign
-- `--parent ID` - Parent task ID (creates subtask)
+- `--status STATUS` - Initial status
+- `--priority {1|2|3|4|urgent|high|normal|low}` - Priority level
+- `--tags TAG [TAG...]` - Tags to add
+- `--assignees USER_ID [USER_ID...]` - User IDs to assign (defaults to configured default assignee)
+- `--parent TASK_ID` - Parent task ID (creates subtask)
 
-**Note**: Automatically uses default assignee from config if no assignees specified.
+**Default Assignee**: Tasks are automatically assigned to the default assignee (68483025) unless `--assignees` is specified.
 
 ---
 
-### `task_update` - Update Existing Task
-Update one or more fields of an existing task.
+### `task_update` - Update Existing Task ✅
+**Task ID**: [86c6e0q0d](https://app.clickup.com/t/86c6e0q0d) | **Status**: 🚧 Planned
+
+Update an existing task's properties.
 
 ```bash
-cum task_update <task_id> [OPTIONS]
+cum task_update <task_id> [options]
 
 # Examples:
-cum task_update 86c6e0xyz --name "Updated name"
-cum task_update current \
-  --description "Updated description" \
-  --status "testing" \
-  --priority 2
-cum task_update 86c6e0xyz --add-tags urgent reviewed
-cum task_update 86c6e0xyz --remove-tags needs-review
+cum task_update current --name "Updated name"
+cum task_update 86c6e0q06 --description "New description"
+cum task_update current --status "complete" --priority high
 ```
 
-**Arguments**:
-- `task_id` - Task ID or "current" from context
-
 **Options**:
-- `--name TEXT` - New task name
-- `--description TEXT` - New description
-- `--status TEXT` - New status
-- `--priority INT` - New priority (1-4)
-- `--add-tags TAG [...]` - Tags to add
-- `--remove-tags TAG [...]` - Tags to remove
-
-**Note**: At least one option must be provided.
+- `--name TEXT` - Update task name
+- `--description TEXT` - Update description
+- `--status STATUS` - Update status
+- `--priority {1|2|3|4|urgent|high|normal|low}` - Update priority
 
 ---
 
-### `task_delete` - Delete Task
-Delete a task with optional confirmation prompt.
+### `task_delete` - Delete Task 🚧
+**Task ID**: [86c6e0q0f](https://app.clickup.com/t/86c6e0q0f) | **Status**: 🚧 Planned
 
 ```bash
-cum task_delete <task_id> [OPTIONS]
-
-# Examples:
-cum task_delete 86c6e0xyz
-cum task_delete current --force  # Skip confirmation
+# NOT YET IMPLEMENTED
+cum task_delete <task_id>
 ```
 
 **Arguments**:
@@ -376,40 +426,64 @@ cum task_delete current --force  # Skip confirmation
 
 ---
 
-### `task_assign` - Assign Task to User
+### `task_assign` - Assign Task to User ✅
+**Task ID**: [86c6e0q0g](https://app.clickup.com/t/86c6e0q0g) | **Status**: ✅ Closed
+
 Assign one or more users to a task.
 
 ```bash
-cum task_assign <task_id> <assignee_id> [assignee_id...]
+cum task_assign <task_id> <user_id> [user_id...]
 
 # Examples:
-cum task_assign 86c6e0xyz 68483025
-cum task_assign current 68483025 12345678
+cum task_assign current 68483025
+cum task_assign 86c6e0q06 68483025 12345678
 ```
 
 ---
 
-### `task_unassign` - Remove Assignee
-Remove one or more assignees from a task.
+### `task_unassign` - Remove Assignee ✅
+**Task ID**: [86c6e0q0h](https://app.clickup.com/t/86c6e0q0h) | **Status**: ✅ Closed
+
+Remove one or more users from a task.
 
 ```bash
-cum task_unassign <task_id> <assignee_id> [assignee_id...]
+cum task_unassign <task_id> <user_id> [user_id...]
 
-# Example:
-cum task_unassign 86c6e0xyz 68483025
+# Examples:
+cum task_unassign current 68483025
+cum task_unassign 86c6e0q06 68483025 12345678
 ```
 
 ---
 
-### `task_set_status` - Change Task Status
-Set task status with subtask validation - supports multiple tasks.
+### `task_set_status` - Change Task Status ✅
+**Task ID**: [86c6e0q0j](https://app.clickup.com/t/86c6e0q0j) | **Status**: ✅ Closed
+
+Set task status with subtask validation and multi-task support.
 
 ```bash
 cum task_set_status <task_id> [task_id...] <status>
 
 # Examples:
-cum task_set_status 86c6e0xyz "in development"
-cum task_set_status task1 task2 task3 "testing"
+cum task_set_status current "in progress"
+cum task_set_status 86c6e0q06 86c6e0q0a "complete"
+```
+
+**Features**:
+- **Subtask Validation**: Prevents parent status change unless all subtasks have the same status
+- **Multi-Task Support**: Update multiple tasks in one command
+- **Error Display**: Shows which subtasks need updating with formatted output
+
+**Example Error**:
+```
+⚠ Cannot set status for [86c6e0q06] Task Management Commands
+
+Mismatched Subtasks (3):
+├─📝 [OPN] task create - Create new tasks
+├─📝 [OPN] task delete - Delete tasks
+└─📝 [PRG] task update - Update existing tasks
+
+Update these subtasks first, then retry the parent status change.
 ```
 
 **Features**:
@@ -419,37 +493,46 @@ cum task_set_status task1 task2 task3 "testing"
 
 ---
 
-### `task_set_priority` - Change Task Priority
-Set task priority.
+### `task_set_priority` - Change Task Priority ✅
+**Task ID**: [86c6e0q0m](https://app.clickup.com/t/86c6e0q0m) | **Status**: ✅ Closed
+
+Set task priority using numbers or names.
 
 ```bash
 cum task_set_priority <task_id> <priority>
 
 # Examples:
-cum task_set_priority 86c6e0xyz 1
 cum task_set_priority current urgent
+cum task_set_priority 86c6e0q06 1
+cum task_set_priority current high
 ```
 
-**Priority Values**: 1 (Urgent), 2 (High), 3 (Normal), 4 (Low), or names: urgent, high, normal, low
+**Priority Values**:
+- `1` or `urgent` - Urgent priority
+- `2` or `high` - High priority
+- `3` or `normal` - Normal priority
+- `4` or `low` - Low priority
 
 ---
 
-### `task_set_tags` - Manage Task Tags
-Add, remove, or set tags on a task.
+### `task_set_tags` - Manage Task Tags ✅
+**Task ID**: [86c6e0q0k](https://app.clickup.com/t/86c6e0q0k) | **Status**: ✅ Closed
+
+Add, remove, or set task tags.
 
 ```bash
-cum task_set_tags <task_id> [OPTIONS]
+cum task_set_tags <task_id> {--add|--remove|--set} TAG [TAG...]
 
 # Examples:
-cum task_set_tags 86c6e0xyz --add urgent backend
-cum task_set_tags 86c6e0xyz --remove needs-review
-cum task_set_tags 86c6e0xyz --set urgent reviewed complete
+cum task_set_tags current --add bug critical
+cum task_set_tags 86c6e0q06 --remove outdated
+cum task_set_tags current --set feature ui high-priority
 ```
 
-**Options** (mutually exclusive):
-- `--add TAG [...]` - Tags to add
-- `--remove TAG [...]` - Tags to remove
-- `--set TAG [...]` - Set tags (replace all)
+**Actions**:
+- `--add TAG [TAG...]` - Add tags to existing tags
+- `--remove TAG [TAG...]` - Remove specific tags
+- `--set TAG [TAG...]` - Replace all tags (clears existing)
 
 ---
 
@@ -945,7 +1028,8 @@ All view commands support these formatting options:
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--preset {minimal\|summary\|detailed\|full}` | Use a preset format configuration | None |
-| `--no-colorize` | Disable color output | Colors enabled |
+| `--colorize` | Force enable color output | Use config setting |
+| `--no-colorize` | Force disable color output | Use config setting |
 | `--show-ids` | Show task IDs | Hidden |
 | `--show-tags` | Show task tags | Enabled |
 | `--show-descriptions` | Show task descriptions | Hidden |
@@ -953,6 +1037,8 @@ All view commands support these formatting options:
 | `--show-comments N` | Show N comments per task | 0 |
 | `--include-completed` | Include completed tasks | Hidden |
 | `--no-emoji` | Hide task type emojis | Enabled |
+
+**Note**: Color output is controlled by the global `ansi` setting (default: disabled). Use `cum ansi enable` to enable colors globally, or use `--colorize`/`--no-colorize` flags to override per command.
 
 ## Presets
 
@@ -1003,15 +1089,19 @@ Track the overall implementation progress: [CLI Command Implementation](https://
 - ✅ Context management (set/show/clear)
 - ✅ Status display with caching
 - ✅ Animated ANSI output
+- ✅ 3-letter status codes
+- ✅ Configurable ANSI colors
 - ✅ Default assignee configuration
+- ✅ CLI alias (`cum`)
 
-### Phase 2: Task Management (✅ Complete)
-- ✅ Create tasks (task_create)
-- ✅ Update tasks (task_update)
-- ✅ Delete tasks (task_delete)
-- ✅ Assign/unassign users (task_assign, task_unassign)
-- ✅ Set status/priority (task_set_status, task_set_priority)
-- ✅ Manage tags (task_set_tags)
+### Phase 2: Task Management (⚡ In Progress - 57% Complete)
+- ✅ Create tasks (with default assignee)
+- ✅ Update tasks
+- 🚧 Delete tasks
+- ✅ Assign/unassign users
+- ✅ Set status (with subtask validation & multi-task support)
+- ✅ Set priority (supports names & numbers)
+- ✅ Manage tags (add/remove/set)
 
 ### Phase 3: Comments & Checklists (🚧 Planned)
 - 🚧 Add/list/update/delete comments
