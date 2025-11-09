@@ -217,6 +217,33 @@ class ContextManager:
             self._context['last_updated'] = datetime.now().isoformat()
             self._save()
 
+    def set_default_assignee(self, user_id: int) -> None:
+        """
+        Set the default assignee user ID for task creation.
+
+        Args:
+            user_id: User ID to set as default assignee
+        """
+        self._context['default_assignee'] = user_id
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_default_assignee(self) -> Optional[int]:
+        """
+        Get the default assignee user ID.
+
+        Returns:
+            Default assignee user ID or 68483025 if not set
+        """
+        return self._context.get('default_assignee', 68483025)
+
+    def clear_default_assignee(self) -> None:
+        """Clear the default assignee."""
+        if 'default_assignee' in self._context:
+            del self._context['default_assignee']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
     def clear_all(self) -> None:
         """Clear all context."""
         self._context = {}

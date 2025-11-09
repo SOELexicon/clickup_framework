@@ -383,6 +383,7 @@ def set_current_command(args):
         'folder': context.set_current_folder,
         'workspace': context.set_current_workspace,
         'team': context.set_current_workspace,  # Alias
+        'assignee': lambda aid: context.set_default_assignee(int(aid)),
     }
 
     setter = setters.get(resource_type)
@@ -572,6 +573,11 @@ def task_create_command(args):
 
     if args.assignees:
         task_data['assignees'] = [{'id': aid} for aid in args.assignees]
+    else:
+        # Use default assignee if none specified
+        default_assignee = context.get_default_assignee()
+        if default_assignee:
+            task_data['assignees'] = [{'id': default_assignee}]
 
     if args.parent:
         task_data['parent'] = args.parent
