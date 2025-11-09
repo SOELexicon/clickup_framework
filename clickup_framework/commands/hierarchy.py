@@ -67,7 +67,7 @@ def hierarchy_command(args):
 
 
 def register_command(subparsers):
-    """Register the hierarchy command and its alias 'list'."""
+    """Register the hierarchy command and its aliases 'list', 'h', 'ls', 'l'."""
     # Hierarchy command
     hierarchy_parser = subparsers.add_parser('hierarchy', help='Display tasks in hierarchical view')
     hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
@@ -77,6 +77,15 @@ def register_command(subparsers):
     add_common_args(hierarchy_parser)
     hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
 
+    # Short alias: h
+    h_parser = subparsers.add_parser('h', help='Display tasks in hierarchical view (alias for hierarchy)')
+    h_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    h_parser.add_argument('--header', help='Custom header text')
+    h_parser.add_argument('--all', dest='show_all', action='store_true',
+                         help='Show all tasks from the entire workspace')
+    add_common_args(h_parser)
+    h_parser.set_defaults(func=hierarchy_command, preset='full')
+
     # List command (alias for hierarchy)
     list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
     list_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
@@ -85,3 +94,21 @@ def register_command(subparsers):
                             help='Show all tasks from the entire workspace')
     add_common_args(list_parser)
     list_parser.set_defaults(func=hierarchy_command, preset='full')
+
+    # Short alias: ls
+    ls_parser = subparsers.add_parser('ls', help='Display tasks in hierarchical view (alias for hierarchy)')
+    ls_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    ls_parser.add_argument('--header', help='Custom header text')
+    ls_parser.add_argument('--all', dest='show_all', action='store_true',
+                          help='Show all tasks from the entire workspace')
+    add_common_args(ls_parser)
+    ls_parser.set_defaults(func=hierarchy_command, preset='full')
+
+    # Short alias: l
+    l_parser = subparsers.add_parser('l', help='Display tasks in hierarchical view (alias for hierarchy)')
+    l_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    l_parser.add_argument('--header', help='Custom header text')
+    l_parser.add_argument('--all', dest='show_all', action='store_true',
+                         help='Show all tasks from the entire workspace')
+    add_common_args(l_parser)
+    l_parser.set_defaults(func=hierarchy_command, preset='full')
