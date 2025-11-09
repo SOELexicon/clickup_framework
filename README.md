@@ -43,9 +43,65 @@ A modular, token-efficient framework for ClickUp API interactions achieving **90
 ## Installation
 
 ```bash
-# Add framework to Python path
+# Install the package
+pip install -e .
+
+# Or add framework to Python path
 export PYTHONPATH="/home/user/Skills:$PYTHONPATH"
 ```
+
+## Quick Start
+
+### Command-Line Interface (NEW! ✨)
+
+The framework includes a powerful CLI for all display operations:
+
+```bash
+# View available commands
+./clickup --help
+python -m clickup_framework --help
+
+# Try demo mode (no API key required)
+./clickup demo --mode hierarchy
+./clickup demo --mode detail --preset detailed
+
+# Fetch and display tasks from ClickUp
+./clickup hierarchy <list_id>
+./clickup container <list_id>
+./clickup detail <task_id> <list_id>
+
+# Filter tasks
+./clickup filter <list_id> --status "in progress"
+./clickup filter <list_id> --priority 1 --tags backend api
+
+# Customize output
+./clickup hierarchy <list_id> --show-ids --show-descriptions --preset detailed
+./clickup container <list_id> --no-colorize --include-completed
+
+# View statistics
+./clickup stats <list_id>
+```
+
+**CLI Commands:**
+- `hierarchy` - Display tasks in hierarchical parent-child view
+- `container` - Display tasks by workspace → space → folder → list
+- `flat` - Display tasks in simple flat list
+- `filter` - Display filtered tasks with custom criteria
+- `detail` - Show comprehensive single-task view with relationships
+- `stats` - Display task statistics and counts
+- `demo` - Show examples with sample data (no API required)
+
+**Common Options:**
+- `--preset <level>` - Use preset format: minimal, summary, detailed, full
+- `--show-ids` - Display task IDs
+- `--show-descriptions` - Include task descriptions
+- `--show-dates` - Show created/due dates
+- `--show-comments N` - Show N comments per task
+- `--include-completed` - Include completed tasks
+- `--no-colorize` - Disable color output
+- `--no-emoji` - Hide task type emojis
+
+See `./clickup <command> --help` for command-specific options.
 
 ## Quick Start
 
@@ -194,6 +250,176 @@ time.create_entry(
 raw_task = tasks.get("task_id")  # Returns dict
 formatted_task = tasks.get("task_id", detail_level="summary")  # Returns formatted string
 ```
+
+### Display Components - Hierarchical Tree Views (Phase 3.5 - NEW! ✨)
+
+Beautiful, CLI-ready hierarchical tree displays similar to [ClickupCLI](https://github.com/SOELexicon/ClickupCLI) output:
+
+```python
+from clickup_framework import ClickUpClient
+from clickup_framework.components import DisplayManager, FormatOptions
+
+client = ClickUpClient()
+display = DisplayManager(client)
+
+# Display tasks in hierarchical tree view
+tasks = client.get_list_tasks("list_id")
+output = display.hierarchy_view(tasks)
+print(output)
+
+# Example output:
+# ├─Feature Development (0/7)
+# │ └─UI Improvements (0/7)
+# │   └─Hierarchy View (0/7)
+# │     └─📝 Enhance Task List Hierarchy View [in progress] (2)
+# │       │ 📝 Description:
+# │       │   Update the list command to provide a hierarchical tree view...
+# │       └─
+# │       ├─📝 Add Comprehensive Tests (3)
+# │       │ │ 📝 Description:
+# │       │ │   Create comprehensive test suite...
+# │       │ └─
+
+# Display with container hierarchy (workspace → space → folder → list)
+container_output = display.container_view(tasks)
+print(container_output)
+
+# Custom formatting options
+options = FormatOptions(
+    colorize_output=True,
+    show_ids=True,
+    show_tags=True,
+    show_descriptions=True,
+    show_dates=True,
+    show_comments=2
+)
+detailed_output = display.hierarchy_view(tasks, options)
+
+# Use preset detail levels
+minimal = display.hierarchy_view(tasks, FormatOptions.minimal())
+summary = display.hierarchy_view(tasks, FormatOptions.summary())
+detailed = display.hierarchy_view(tasks, FormatOptions.detailed())
+full = display.hierarchy_view(tasks, FormatOptions.full())
+
+# Filter and display
+filtered = display.filtered_view(
+    tasks,
+    status="in progress",
+    priority=1,
+    view_mode='hierarchy'
+)
+
+# Get statistics
+stats = display.summary_stats(tasks)
+print(stats)
+# Output:
+# Task Summary:
+#   Total: 22
+#   Completed: 5
+#   In Progress: 8
+#   Blocked: 1
+#   To Do: 8
+
+# Detail View - Show task with full relationship context
+task = client.get_task("task_id")
+all_tasks = client.get_list_tasks("list_id")
+detail_output = display.detail_view(task, all_tasks, FormatOptions.detailed())
+print(detail_output)
+
+# Example output shows:
+# - Parent chain (grandparent > parent)
+# - Current task (highlighted with full details)
+# - Sibling tasks (same parent)
+# - Child tasks/subtasks (in tree view)
+# - Dependencies
+# - Full task details (description, tags, dates, assignees, etc.)
+```
+
+**Display Components:**
+- **DisplayManager**: High-level interface for all display operations
+- **FormatOptions**: Dataclass for managing display settings (with presets: minimal, summary, detailed, full)
+- **RichTaskFormatter**: Enhanced task formatting with emojis, colors, and detailed information
+- **TaskHierarchyFormatter**: Organize tasks by parent-child relationships
+- **ContainerHierarchyFormatter**: Organize tasks by workspace/space/folder/list containers
+- **TaskDetailFormatter**: Comprehensive single-task view with relationship tree
+- **TreeFormatter**: Low-level tree rendering with box-drawing characters (├─, └─, │)
+- **TaskFilter**: Filter tasks by status, priority, tags, assignee, dates, and custom criteria
+
+**View Modes:**
+- `hierarchy_view`: Parent-child task relationships
+- `container_view`: Organized by workspace → space → folder → list
+- `flat_view`: Simple list display
+- `filtered_view`: Apply filters and display in any view mode
+- `detail_view`: Comprehensive single task with relationship context
+
+**Features:**
+- Beautiful tree structures with Unicode box-drawing characters
+- ANSI color support for status, priority, and container types
+- Task type emojis (📝 task, 🐛 bug, 🚀 feature, etc.)
+- Completion statistics with color coding
+- Multi-line description and comment support
+- Relationship indicators (dependencies, links)
+- Orphaned task detection and display
+- Fully customizable formatting options
+
+See `examples/display_components_example.py` for complete usage examples.
+
+### Screenshots
+
+Visual examples of the display components in action:
+
+#### Summary View - Task Hierarchy
+![Summary View](screenshots/02_summary_view.jpg)
+*Hierarchical task display with IDs, emojis, tags, and dates*
+
+#### Container Hierarchy View
+![Container Hierarchy](screenshots/04_container_hierarchy.jpg)
+*Tasks organized by workspace → space → folder → list structure*
+
+#### Detailed View with Descriptions
+![Detailed View](screenshots/03_detailed_view.jpg)
+*Comprehensive task information including descriptions and relationships*
+
+#### Task Detail View with Relationship Tree (NEW! ✨)
+
+The detail view shows a single task with its complete hierarchical context:
+
+![Detail View - Child Task](screenshots/09_detail_view_child.jpg)
+*Child task showing parent chain, siblings, and subtasks with full details*
+
+**What's shown in detail view:**
+- 📊 **Parent Chain**: Full ancestry from root to current task
+- 👉 **Current Task**: Highlighted with complete details (description, tags, dates, assignees)
+- 👥 **Siblings**: Other tasks with the same parent
+- 📂 **Subtasks**: Child tasks in recursive tree view (up to 3 levels deep)
+- 🔗 **Dependencies**: Blocking/waiting tasks
+- ☑️ **Checklists**: With completion status
+- 💬 **Comments**: User discussions
+- 📎 **Attachments**: Files and links
+- ⏱️ **Time Tracking**: Estimates and actual time spent
+
+| Deep Hierarchy | Parent View |
+|----------------|-------------|
+| ![Grandchild](screenshots/10_detail_view_grandchild.jpg) | ![Parent](screenshots/11_detail_view_parent.jpg) |
+| Task deep in hierarchy showing full context | Parent task with all children displayed |
+
+#### Other View Modes
+
+| Minimal View | Filtered View | Statistics |
+|--------------|---------------|------------|
+| ![Minimal](screenshots/01_minimal_view.jpg) | ![Filtered](screenshots/05_filtered_in_progress.jpg) | ![Stats](screenshots/07_statistics.jpg) |
+| Simple task list | Active tasks only | Project metrics |
+
+**To generate screenshots locally:**
+```bash
+# Generate display examples
+FORCE_COLOR=1 python scripts/generate_display_examples.py
+
+# Create screenshots (requires aha and wkhtmltopdf)
+./scripts/generate_screenshots.sh
+```
+
+See `screenshots/README.md` for details on all available screenshots.
 
 ## Features
 

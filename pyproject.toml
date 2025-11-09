@@ -43,6 +43,9 @@ Documentation = "https://github.com/SOELexicon/clickup_framework/tree/main/docs"
 Source = "https://github.com/SOELexicon/clickup_framework"
 Issues = "https://github.com/SOELexicon/clickup_framework/issues"
 
+[project.scripts]
+clickup = "clickup_framework.cli:main"
+
 [tool.setuptools.packages.find]
 # Standard package layout with clickup_framework/ directory
 exclude = ["scripts*", "tests*"]
