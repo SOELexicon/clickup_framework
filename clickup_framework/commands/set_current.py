@@ -46,6 +46,7 @@ def register_command(subparsers, add_common_args=None):
     """Register the set_current command with argparse."""
     parser = subparsers.add_parser(
         'set_current',
+        aliases=['set'],
         help='Set current resource context',
         description='Set current resource context for use with "current" keyword'
     )

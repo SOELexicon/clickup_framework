@@ -40,6 +40,7 @@ def register_command(subparsers, add_common_args=None):
     """Register the clear_current command with argparse."""
     parser = subparsers.add_parser(
         'clear_current',
+        aliases=['clear'],
         help='Clear current resource context',
         description='Clear current resource context or all context'
     )

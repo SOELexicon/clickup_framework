@@ -40,6 +40,7 @@ def register_command(subparsers, add_common_args):
     """Register the container command with argparse."""
     parser = subparsers.add_parser(
         'container',
+        aliases=['c'],
         help='Display tasks by container hierarchy',
         description='Display tasks organized by container hierarchy'
     )

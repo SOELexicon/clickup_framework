@@ -38,6 +38,7 @@ def register_command(subparsers, add_common_args=None):
     """Register the stats command with argparse."""
     parser = subparsers.add_parser(
         'stats',
+        aliases=['st'],
         help='Display task statistics',
         description='Display statistical summary of tasks in a list'
     )
