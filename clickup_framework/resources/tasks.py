@@ -329,3 +329,178 @@ class TasksAPI:
             Updated task (raw dict)
         """
         return self.client.remove_custom_field_value(task_id, field_id)
+
+    # Task Relationship operations - Dependencies
+    def add_dependency_waiting_on(
+        self,
+        task_id: str,
+        depends_on_task_id: str,
+        **params
+    ) -> Dict[str, Any]:
+        """
+        Make this task wait on another task (dependency relationship).
+
+        This creates a "waiting on" relationship where task_id cannot be completed
+        until depends_on_task_id is completed.
+
+        Args:
+            task_id: The task that will wait
+            depends_on_task_id: The task that must be completed first
+            **params: Additional query parameters (custom_task_ids, team_id)
+
+        Returns:
+            Empty dict on success
+
+        Example:
+            # Task B waits for Task A to be completed first
+            tasks.add_dependency_waiting_on("task_b_id", "task_a_id")
+        """
+        return self.client.add_task_dependency(
+            task_id,
+            depends_on=depends_on_task_id,
+            **params
+        )
+
+    def add_dependency_blocking(
+        self,
+        task_id: str,
+        blocked_task_id: str,
+        **params
+    ) -> Dict[str, Any]:
+        """
+        Make this task block another task (dependency relationship).
+
+        This creates a "blocking" relationship where blocked_task_id cannot be
+        completed until task_id is completed.
+
+        Args:
+            task_id: The task that blocks
+            blocked_task_id: The task that is blocked
+            **params: Additional query parameters (custom_task_ids, team_id)
+
+        Returns:
+            Empty dict on success
+
+        Example:
+            # Task A blocks Task B from being completed
+            tasks.add_dependency_blocking("task_a_id", "task_b_id")
+        """
+        return self.client.add_task_dependency(
+            task_id,
+            dependency_of=blocked_task_id,
+            **params
+        )
+
+    def remove_dependency(
+        self,
+        task_id: str,
+        depends_on: Optional[str] = None,
+        dependency_of: Optional[str] = None,
+        **params
+    ) -> Dict[str, Any]:
+        """
+        Remove a dependency relationship.
+
+        Args:
+            task_id: Task ID
+            depends_on: Task ID to remove from "waiting on" list
+            dependency_of: Task ID to remove from "blocking" list
+            **params: Additional query parameters (custom_task_ids, team_id)
+
+        Returns:
+            Empty dict on success
+
+        Note:
+            Provide either depends_on or dependency_of, not both.
+        """
+        return self.client.delete_task_dependency(
+            task_id,
+            depends_on=depends_on,
+            dependency_of=dependency_of,
+            **params
+        )
+
+    # Task Relationship operations - Links
+    def add_link(
+        self,
+        task_id: str,
+        links_to: str,
+        **params
+    ) -> Dict[str, Any]:
+        """
+        Link two tasks together (simple relationship).
+
+        This creates a simple, bidirectional link between two tasks for quick
+        reference without enforcing any dependency rules.
+
+        Args:
+            task_id: The task to link from
+            links_to: The task to link to
+            **params: Additional query parameters (custom_task_ids, team_id)
+
+        Returns:
+            Updated task object with linked_tasks field
+
+        Example:
+            # Link related tasks together
+            tasks.add_link("task_a_id", "task_b_id")
+        """
+        return self.client.add_task_link(task_id, links_to, **params)
+
+    def remove_link(
+        self,
+        task_id: str,
+        links_to: str,
+        **params
+    ) -> Dict[str, Any]:
+        """
+        Remove a link between two tasks.
+
+        Args:
+            task_id: The task to unlink from
+            links_to: The task to unlink
+            **params: Additional query parameters (custom_task_ids, team_id)
+
+        Returns:
+            Updated task object with linked_tasks field
+        """
+        return self.client.delete_task_link(task_id, links_to, **params)
+
+    # Custom Relationship operations
+    def set_relationship_field(
+        self,
+        task_id: str,
+        field_id: str,
+        add_task_ids: Optional[List[str]] = None,
+        remove_task_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Set a custom relationship field value.
+
+        Custom relationship fields allow you to link tasks from one list to tasks
+        in another list, creating structured relationships (e.g., Projects -> Clients).
+
+        Args:
+            task_id: Task ID
+            field_id: Custom relationship field ID
+            add_task_ids: List of task IDs to add to the relationship
+            remove_task_ids: List of task IDs to remove from the relationship
+
+        Returns:
+            Updated task (raw dict)
+
+        Example:
+            # Link a project to a client
+            tasks.set_relationship_field(
+                "project_task_id",
+                "client_field_id",
+                add_task_ids=["client_task_id"]
+            )
+        """
+        value = {}
+        if add_task_ids:
+            value["add"] = add_task_ids
+        if remove_task_ids:
+            value["rem"] = remove_task_ids
+
+        return self.client.set_custom_field_value(task_id, field_id, value)

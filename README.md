@@ -28,6 +28,7 @@ A modular, token-efficient framework for ClickUp API interactions achieving **90
 
 - [x] **Phase 3:** Resource APIs (Week 3) - COMPLETE ✅
   - [x] TasksAPI: Task CRUD, comments, checklists, custom fields
+  - [x] TasksAPI: Task relationships (dependencies, links, custom relationships)
   - [x] ListsAPI: List management and task queries
   - [x] WorkspacesAPI: Workspace, space, folder, search operations
   - [x] TimeAPI: Time tracking with automatic formatting
@@ -149,6 +150,23 @@ tasks.assign(new_task['id'], [user_id])
 tasks.add_comment(task_id, "Status update")
 comments = tasks.get_comments(task_id, detail_level="summary")
 
+# TasksAPI - Task Relationships (Dependencies, Links, Custom Relationships)
+# 1. Dependencies: Create "blocking" and "waiting on" relationships
+tasks.add_dependency_waiting_on("task_b", "task_a")  # Task B waits for Task A
+tasks.add_dependency_blocking("task_a", "task_b")     # Task A blocks Task B
+tasks.remove_dependency("task_b", depends_on="task_a")
+
+# 2. Simple Task Links: Connect related tasks
+tasks.add_link("task_1", "task_2")  # Bidirectional link
+tasks.remove_link("task_1", "task_2")
+
+# 3. Custom Relationships: Link tasks across lists (e.g., Projects -> Clients)
+tasks.set_relationship_field(
+    "project_task_id",
+    "client_field_id",
+    add_task_ids=["client_task_123"]  # Link project to client
+)
+
 # ListsAPI - List management
 list_data = lists.get("list_id")
 new_list = lists.create(folder_id="folder_id", name="My List")
@@ -227,6 +245,10 @@ Convenient, high-level interfaces for ClickUp operations with automatic formatti
 - Comments (add_comment, get_comments with formatting)
 - Checklists (add_checklist, add_checklist_item)
 - Custom fields (set_custom_field, remove_custom_field)
+- **Task Relationships:**
+  - Dependencies (add_dependency_waiting_on, add_dependency_blocking, remove_dependency)
+  - Simple Links (add_link, remove_link)
+  - Custom Relationships (set_relationship_field)
 - Automatic formatting via `detail_level` parameter
 
 **ListsAPI:**
