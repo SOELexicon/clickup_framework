@@ -408,6 +408,7 @@ def set_current_command(args):
         'workspace': context.set_current_workspace,
         'team': context.set_current_workspace,  # Alias
         'assignee': lambda aid: context.set_default_assignee(int(aid)),
+        'token': context.set_api_token,
     }
 
     setter = setters.get(resource_type)
@@ -435,6 +436,7 @@ def clear_current_command(args):
             'folder': context.clear_current_folder,
             'workspace': context.clear_current_workspace,
             'team': context.clear_current_workspace,  # Alias
+            'token': context.clear_api_token,
         }
 
         clearer = clearers.get(resource_type)
@@ -461,7 +463,9 @@ def show_current_command(args):
         context.get_current_list(),
         context.get_current_space(),
         context.get_current_folder(),
-        context.get_current_workspace()
+        context.get_current_workspace(),
+        context.get_api_token(),
+        context.get_default_assignee()
     ]):
         print(ANSIAnimations.warning_message("No context set"))
         return
@@ -481,6 +485,20 @@ def show_current_command(args):
     for label, value, color in items:
         if value:
             content_lines.append(ANSIAnimations.highlight_id(label, value, id_color=color))
+
+    # Show API token status (without revealing the token)
+    api_token = context.get_api_token()
+    if api_token:
+        content_lines.append(
+            colorize("API Token: ", TextColor.BRIGHT_WHITE) +
+            colorize("********", TextColor.BRIGHT_GREEN) +
+            colorize(" (set)", TextColor.BRIGHT_BLACK)
+        )
+
+    # Show default assignee
+    default_assignee = context.get_default_assignee()
+    if default_assignee:
+        content_lines.append(ANSIAnimations.highlight_id("Default Assignee", str(default_assignee), id_color=TextColor.BRIGHT_CYAN))
 
     # Show last updated with gradient
     if 'last_updated' in all_context:
@@ -1365,15 +1383,15 @@ Examples:
     set_current_parser = subparsers.add_parser('set_current',
                                                 help='Set current resource context')
     set_current_parser.add_argument('resource_type',
-                                     choices=['task', 'list', 'space', 'folder', 'workspace', 'team'],
+                                     choices=['task', 'list', 'space', 'folder', 'workspace', 'team', 'assignee', 'token'],
                                      help='Type of resource to set as current')
-    set_current_parser.add_argument('resource_id', help='ID of the resource')
+    set_current_parser.add_argument('resource_id', help='ID/value of the resource (API token for token type)')
     set_current_parser.set_defaults(func=set_current_command)
 
     clear_current_parser = subparsers.add_parser('clear_current',
                                                   help='Clear current resource context')
     clear_current_parser.add_argument('resource_type', nargs='?',
-                                       choices=['task', 'list', 'space', 'folder', 'workspace', 'team'],
+                                       choices=['task', 'list', 'space', 'folder', 'workspace', 'team', 'assignee', 'token'],
                                        help='Type of resource to clear (omit to clear all)')
     clear_current_parser.set_defaults(func=clear_current_command)
 
