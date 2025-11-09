@@ -1,0 +1,3 @@
+"""
+Component tests module.
+"""

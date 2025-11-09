@@ -1,237 +1,105 @@
-# ClickUp Framework Scripts
+# Display Component Scripts
 
-Command-line utilities for managing ClickUp tasks using the Token-Efficient ClickUp Framework.
+Scripts for generating visual examples and screenshots of the display components.
 
-## Available Scripts
+## Scripts
 
-### update_tasks.py
+### `generate_display_examples.py`
 
-Bulk update ClickUp tasks with status changes and comments using JSON configuration.
-
-**Features:**
-- Update task statuses
-- Add comments to tasks
-- Add tags to tasks
-- Dry-run mode for preview
-- No Python coding needed - just edit JSON
+Generates example outputs from the display components using sample task data.
 
 **Usage:**
-
 ```bash
-# From repository root
-python clickup_framework/scripts/update_tasks.py --dry-run config.json
-python clickup_framework/scripts/update_tasks.py config.json
-
-# If framework is installed
-python -m clickup_framework.scripts.update_tasks config.json
-```
-
-**JSON Configuration Format:**
-
-```json
-{
-  "description": "Batch update description",
-  "tasks": [
-    {
-      "id": "task_id",
-      "name": "Task Name (for reference)",
-      "status": "comitted",
-      "comment": "Comment text",
-      "add_tags": ["tag1", "tag2"]
-    }
-  ]
-}
-```
-
-See `task_updates_example.json` for a complete example.
-
----
-
-### analyze_task_dependencies.py
-
-Analyze task dependencies to show blockers, dependents, and execution order.
-
-**Features:**
-- Show what blocks each task (dependencies)
-- Show what each task blocks (dependents)
-- Sort tasks in completion order (topological sort)
-- Identify critical path
-- Calculate project completion percentage
-
-**Usage:**
-
-```bash
-# Analyze single task
-python clickup_framework/scripts/analyze_task_dependencies.py 86c6chc8q
-
-# Analyze multiple specific tasks
-python clickup_framework/scripts/analyze_task_dependencies.py \
-  --tasks task_id_1 task_id_2 task_id_3
-
-# Analyze all tasks in a list
-python clickup_framework/scripts/analyze_task_dependencies.py --all list_id
-
-# Analyze project tasks
-python clickup_framework/scripts/analyze_task_dependencies.py --project project_task_id
+python scripts/generate_display_examples.py
 ```
 
 **Output:**
+- Creates `outputs/` directory with `.txt` files containing ANSI-colored output
+- Generates 8 different examples:
+  1. Minimal view
+  2. Summary view
+  3. Detailed view with descriptions
+  4. Container hierarchy
+  5. Filtered view (in progress tasks)
+  6. Full view with all options
+  7. Task statistics
+  8. Flat view
 
-For single task:
-- Lists all blocking tasks (what this task waits for)
-- Lists all dependent tasks (what waits for this task)
-- Shows task status for each relationship
+**Environment:**
+- Set `FORCE_COLOR=1` to ensure colors are rendered even when not in a TTY
 
-For multiple tasks:
-- Execution order (what must be completed first)
-- Tasks grouped by dependency level (parallelization opportunities)
-- Critical path (longest dependency chain)
-- Summary statistics
+### `generate_screenshots.sh`
 
-**Example Output:**
+Converts ANSI-colored text outputs to JPG screenshots.
 
-```
-EXECUTION ORDER (What Must Be Completed First)
-
-Level 1 - Can start in parallel:
-  [✓] 86c6chcfe: Space Management Endpoints [comitted]
-  [✓] 86c6chcfg: Custom Fields Endpoints [comitted]
-  [ ] 86c6chcfj: Checklist Endpoints [Open]
-
-Level 2 - Can start in parallel:
-  [✓] 86c6chc8q: List Formatter [comitted]
-  [ ] 86c6chc90: Workspace Formatter [Open]
-
-CRITICAL PATH (Longest Dependency Chain)
-
-Length: 5 tasks
-
-1. [✓] 86c6chcfe: Space Management [comitted]  ↓
-2. [✓] 86c6chc8q: List Formatter [comitted]  ↓
-3. [ ] 86c6chcd6: ListAPI Resource [Open]  ↓
-4. [ ] 86c6chchr: Migration Docs [Open]  ↓
-5. [ ] 86c6chctb: README Update [Open]
-
-SUMMARY
-Total tasks: 17
-Completed: 9 (52.9%)
-Remaining: 8
-Critical path length: 5 tasks
-Parallel opportunities: 3 tasks can start now
+**Usage:**
+```bash
+./scripts/generate_screenshots.sh
 ```
 
----
+**Requirements:**
+- `aha` - ANSI HTML Adapter for converting ANSI to HTML
+  ```bash
+  sudo apt-get install aha
+  ```
+- `wkhtmltoimage` - Convert HTML to images
+  ```bash
+  sudo apt-get install wkhtmltopdf
+  ```
 
-## Requirements
+**Output:**
+- Creates `screenshots/` directory with `.jpg` images
+- Also creates intermediate `.html` files for debugging
 
-Both scripts require:
-- Python 3.9+
-- ClickUp Framework installed (`pip install -e /path/to/clickup_framework`)
-- `CLICKUP_API_TOKEN` environment variable set
+## Workflow Integration
 
-## Installation
+These scripts are automatically run by the GitHub Actions workflow:
+
+`.github/workflows/test-and-screenshot.yml`
+
+The workflow:
+1. Runs all component tests
+2. Generates display examples
+3. Converts to screenshots
+4. Uploads as artifacts
+5. Comments on PRs with screenshot previews
+
+## Local Usage
+
+To generate screenshots locally:
 
 ```bash
-# Install framework in development mode
-pip install -e /path/to/clickup_framework
+# Install dependencies
+pip install -e .
 
-# Or install from package
-pip install clickup-framework
+# Install system tools
+sudo apt-get install aha wkhtmltopdf
+
+# Generate examples
+FORCE_COLOR=1 python scripts/generate_display_examples.py
+
+# Generate screenshots
+./scripts/generate_screenshots.sh
+
+# View results
+ls -l screenshots/
 ```
 
-## Common Workflows
+## Customization
 
-### 1. Update Task Status After Completion
+To add new examples:
 
-```bash
-# Create config file
-cat > my_updates.json << 'EOF'
-{
-  "tasks": [
-    {
-      "id": "86c6chcfe",
-      "status": "comitted",
-      "comment": "Implementation complete. Added 5 new endpoints."
-    }
-  ]
-}
-EOF
+1. Edit `generate_display_examples.py`
+2. Add new sample data or formatting options
+3. Call `save_output()` with a new filename
+4. Run the script to generate the output
+5. Run `generate_screenshots.sh` to create the image
 
-# Preview changes
-python clickup_framework/scripts/update_tasks.py --dry-run my_updates.json
+## Output Format
 
-# Apply updates
-python clickup_framework/scripts/update_tasks.py my_updates.json
-```
-
-### 2. Analyze Project Dependencies
-
-```bash
-# Get list of task IDs from your project
-TASK_IDS="86c6chcfe 86c6chcfg 86c6chcfj 86c6chc8q"
-
-# Analyze dependencies
-python clickup_framework/scripts/analyze_task_dependencies.py --tasks $TASK_IDS
-```
-
-### 3. Find Next Tasks to Work On
-
-```bash
-# Analyze all tasks to see execution order
-python clickup_framework/scripts/analyze_task_dependencies.py --all <list_id>
-
-# Look for "Level N - Can start in parallel" with uncompleted tasks
-# These are the next tasks you can work on
-```
-
-## Tips
-
-### Task Updates
-
-- Always use `--dry-run` first to preview changes
-- Keep JSON configs in version control for audit trail
-- Use descriptive comment text to document what was done
-- Prefer `comitted` status over `Closed` for completed work
-
-### Dependency Analysis
-
-- Run analysis regularly to track progress
-- Use critical path to identify bottlenecks
-- Look for parallel opportunities to speed up work
-- Check blockers before starting new tasks
-
-## Troubleshooting
-
-**Import errors:**
-```bash
-# Ensure framework is installed
-pip install -e /path/to/clickup_framework
-
-# Or add to PYTHONPATH
-export PYTHONPATH="/path/to/repository:$PYTHONPATH"
-```
-
-**API errors:**
-```bash
-# Check API token is set
-echo $CLICKUP_API_TOKEN
-
-# Set if missing
-export CLICKUP_API_TOKEN="your_token_here"
-```
-
-**Task not found errors:**
-- Verify task ID is correct
-- Check you have access to the task
-- Ensure task exists in ClickUp
-
-## Examples
-
-See `task_updates_example.json` for a complete update configuration example.
-
----
-
-**Related Documentation:**
-- [ClickUp Framework README](../README.md)
-- [API Reference](../../docs/api_reference.md)
-- [Quickstart Guide](../../docs/quickstart.md)
+Screenshots are generated at 1200px width with:
+- Black background
+- White text
+- Monospace font
+- High quality JPG (quality 100)
+- ANSI colors preserved via HTML conversion

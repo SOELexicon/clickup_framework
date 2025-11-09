@@ -138,3 +138,9 @@ Thumbs.db
 .env.local
 .env.*.local
 .claude/settings.local.json
+
+# Generated outputs (intermediate files)
+outputs/
+
+# Screenshots HTML files (keep JPGs for documentation)
+screenshots/*.html
