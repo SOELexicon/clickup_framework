@@ -1121,33 +1121,140 @@ def assigned_tasks_command(args):
     print(f"  Blocked: {blocked_tasks} task(s)")
 
 
+def show_command_tree():
+    """Display available commands in a tree view."""
+    context = get_context_manager()
+    use_color = context.get_ansi_output()
+
+    # Print header
+    header = ANSIAnimations.gradient_text("ClickUp Framework CLI - Available Commands", ANSIAnimations.GRADIENT_RAINBOW)
+    print(header)
+    print()
+
+    commands = {
+        "📊 View Commands": [
+            ("hierarchy", "<list_id> [options]", "Display tasks in hierarchical parent-child view (default: full preset)"),
+            ("container", "<list_id> [options]", "Display tasks by container hierarchy (Space → Folder → List)"),
+            ("flat", "<list_id> [options]", "Display all tasks in flat list format"),
+            ("filter", "<list_id> [filter_options]", "Display filtered tasks by status/priority/tags/assignee"),
+            ("detail", "<task_id> [list_id]", "Show comprehensive details for a single task"),
+            ("stats", "<list_id>", "Display aggregate statistics for tasks in a list"),
+            ("demo", "[--mode MODE] [options]", "View demo output with sample data (no API required)"),
+            ("assigned", "[--user-id ID] [--team-id ID]", "Show tasks assigned to user, sorted by difficulty"),
+        ],
+        "🎯 Context Management": [
+            ("set_current", "<type> <id>", "Set current task/list/workspace/assignee"),
+            ("show_current", "", "Display current context with animated box"),
+            ("clear_current", "[type]", "Clear one or all context resources"),
+        ],
+        "✅ Task Management": [
+            ("task_create", "<list_id> <name> [OPTIONS]", "Create new task with optional description/tags/assignees"),
+            ("task_update", "<task_id> [OPTIONS]", "Update task name/description/status/priority/tags"),
+            ("task_delete", "<task_id> [--force]", "Delete task with confirmation prompt"),
+            ("task_assign", "<task_id> <user_id> [...]", "Assign one or more users to task"),
+            ("task_unassign", "<task_id> <user_id> [...]", "Remove assignees from task"),
+            ("task_set_status", "<task_id> [...] <status>", "Set task status with subtask validation"),
+            ("task_set_priority", "<task_id> <priority>", "Set task priority (1-4 or urgent/high/normal/low)"),
+            ("task_set_tags", "<task_id> [--add|--remove|--set]", "Manage task tags"),
+        ],
+        "🎨 Configuration": [
+            ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
+        ],
+    }
+
+    for category, cmds in commands.items():
+        # Print category
+        if use_color:
+            print(colorize(category, TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        else:
+            print(category)
+
+        # Print commands in this category
+        for i, (cmd, args, desc) in enumerate(cmds):
+            is_last = i == len(cmds) - 1
+            prefix = "└─ " if is_last else "├─ "
+
+            if use_color:
+                cmd_colored = colorize(cmd, TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+                args_colored = colorize(args, TextColor.BRIGHT_YELLOW) if args else ""
+                desc_colored = colorize(desc, TextColor.BRIGHT_BLACK)
+            else:
+                cmd_colored = cmd
+                args_colored = args
+                desc_colored = desc
+
+            cmd_line = f"{prefix}{cmd_colored}"
+            if args_colored:
+                cmd_line += f" {args_colored}"
+            print(cmd_line)
+
+            # Print description indented
+            indent = "   " if is_last else "│  "
+            print(f"{indent}{desc_colored}")
+
+        print()  # Blank line between categories
+
+    # Print footer with examples
+    if use_color:
+        print(colorize("Quick Examples:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+    else:
+        print("Quick Examples:")
+
+    examples = [
+        ("cum hierarchy 901517404278", "Show tasks in hierarchy view"),
+        ("cum assigned", "Show your assigned tasks"),
+        ("cum task_create current \"New Task\"", "Create a task in current list"),
+        ("cum set_current assignee 68483025", "Set default assignee"),
+        ("cum demo --mode hierarchy", "Try demo mode (no API needed)"),
+    ]
+
+    for cmd, desc in examples:
+        if use_color:
+            cmd_colored = colorize(cmd, TextColor.BRIGHT_GREEN)
+            desc_colored = colorize(f"  # {desc}", TextColor.BRIGHT_BLACK)
+        else:
+            cmd_colored = cmd
+            desc_colored = f"  # {desc}"
+        print(f"  {cmd_colored}{desc_colored}")
+
+    print()
+    if use_color:
+        help_text = colorize("For detailed help on any command:", TextColor.BRIGHT_WHITE)
+        example = colorize("cum <command> --help", TextColor.BRIGHT_GREEN)
+    else:
+        help_text = "For detailed help on any command:"
+        example = "cum <command> --help"
+    print(f"{help_text} {example}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description='ClickUp Framework CLI - Beautiful hierarchical task displays',
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,  # Disable default help to use custom tree view
         epilog="""
 Examples:
   # Show hierarchy view
-  python -m clickup_framework.cli hierarchy <list_id>
+  cum hierarchy <list_id>
 
   # Show container view
-  python -m clickup_framework.cli container <list_id>
+  cum container <list_id>
 
   # Show task details
-  python -m clickup_framework.cli detail <task_id> <list_id>
+  cum detail <task_id> <list_id>
 
   # Filter tasks
-  python -m clickup_framework.cli filter <list_id> --status "in progress"
+  cum filter <list_id> --status "in progress"
 
   # Show with custom options
-  python -m clickup_framework.cli hierarchy <list_id> --show-ids --show-descriptions
+  cum hierarchy <list_id> --show-ids --show-descriptions
 
   # Use preset formats
-  python -m clickup_framework.cli hierarchy <list_id> --preset detailed
+  cum hierarchy <list_id> --preset detailed
 
   # Demo mode (no API required)
-  python -m clickup_framework.cli demo --mode hierarchy
+  cum demo --mode hierarchy
         """
     )
 
@@ -1332,8 +1439,8 @@ Examples:
 
     # Show help if no command specified
     if not args.command:
-        parser.print_help()
-        sys.exit(1)
+        show_command_tree()
+        sys.exit(0)
 
     # Execute command
     try:
