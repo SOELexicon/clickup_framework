@@ -292,6 +292,40 @@ print(stats)
 
 See `examples/display_components_example.py` for complete usage examples.
 
+### Screenshots
+
+Visual examples of the display components in action:
+
+#### Summary View - Task Hierarchy
+![Summary View](screenshots/02_summary_view.jpg)
+*Hierarchical task display with IDs, emojis, tags, and dates*
+
+#### Container Hierarchy View
+![Container Hierarchy](screenshots/04_container_hierarchy.jpg)
+*Tasks organized by workspace → space → folder → list structure*
+
+#### Detailed View with Descriptions
+![Detailed View](screenshots/03_detailed_view.jpg)
+*Comprehensive task information including descriptions and relationships*
+
+#### All View Modes
+
+| Minimal View | Filtered View | Statistics |
+|--------------|---------------|------------|
+| ![Minimal](screenshots/01_minimal_view.jpg) | ![Filtered](screenshots/05_filtered_in_progress.jpg) | ![Stats](screenshots/07_statistics.jpg) |
+| Simple task list | Active tasks only | Project metrics |
+
+**To generate screenshots locally:**
+```bash
+# Generate display examples
+FORCE_COLOR=1 python scripts/generate_display_examples.py
+
+# Create screenshots (requires aha and wkhtmltopdf)
+./scripts/generate_screenshots.sh
+```
+
+See `screenshots/README.md` for details on all available screenshots.
+
 ## Features
 
 ### Phase 2: Token-Efficient Formatters ✨
