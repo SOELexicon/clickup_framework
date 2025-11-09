@@ -87,15 +87,67 @@ def get_recent_commits(count=5):
         return []
 
 
+def detect_commit_type(subject, body, changed_files):
+    """
+    Detect the type of commit based on commit message and changed files.
+
+    Returns: (task_type, emoji)
+    """
+    subject_lower = subject.lower()
+    body_lower = body.lower() if body else ""
+    combined = f"{subject_lower} {body_lower}"
+
+    # Check for keywords in commit message
+    if any(word in combined for word in ['fix', 'bug', 'bugfix', 'patch', 'repair', 'resolve']):
+        return ('Bug', '🐛')
+    elif any(word in combined for word in ['feat', 'feature', 'add', 'implement', 'new']):
+        return ('Feature', '🚀')
+    elif any(word in combined for word in ['refactor', 'restructure', 'rewrite', 'cleanup']):
+        return ('Refactor', '♻️')
+    elif any(word in combined for word in ['doc', 'docs', 'documentation', 'readme']):
+        return ('Documentation', '📚')
+    elif any(word in combined for word in ['test', 'testing', 'spec']):
+        return ('Test', '🧪')
+    elif any(word in combined for word in ['chore', 'maintain', 'deps', 'dependency', 'dependencies']):
+        return ('Chore', '🧹')
+    elif any(word in combined for word in ['security', 'vuln', 'vulnerability', 'cve']):
+        return ('Security', '🛡️')
+    elif any(word in combined for word in ['perf', 'performance', 'optimize', 'speed']):
+        return ('Enhancement', '✨')
+    elif any(word in combined for word in ['merge', 'pull request', 'pr']):
+        return ('Merge', '🔀')
+
+    # Check file extensions if no keyword match
+    if changed_files:
+        has_test = any('test' in f.lower() for f in changed_files)
+        has_docs = any(f.endswith(('.md', '.rst', '.txt')) for f in changed_files)
+
+        if has_test:
+            return ('Test', '🧪')
+        elif has_docs:
+            return ('Documentation', '📚')
+
+    # Default to generic task
+    return ('Task', '📝')
+
+
 def create_commit_task(client, list_id, commit_info, repo_name, branch_name):
     """Create a ClickUp task for a commit."""
 
-    # Build task name
-    task_name = f"[Commit {commit_info['hash']}] {commit_info['subject']}"
+    # Detect commit type
+    task_type, emoji = detect_commit_type(
+        commit_info['subject'],
+        commit_info['body'],
+        commit_info['changed_files']
+    )
+
+    # Build task name with emoji
+    task_name = f"{emoji} [Commit {commit_info['hash']}] {commit_info['subject']}"
 
     # Build task description with detailed commit info
     description = f"""# Commit Details
 
+**Type:** {emoji} {task_type}
 **Commit:** `{commit_info['full_hash']}`
 **Author:** {commit_info['author_name']} <{commit_info['author_email']}>
 **Date:** {commit_info['date']}
@@ -121,12 +173,18 @@ def create_commit_task(client, list_id, commit_info, repo_name, branch_name):
     if commit_info['stats']:
         description += f"\n## Statistics\n\n```\n{commit_info['stats']}\n```"
 
-    # Create the task
+    # Create the task with custom type
     task = client.create_task(
         list_id,
         name=task_name,
         description=description,
-        tags=[{'name': 'commit'}, {'name': 'automated'}]
+        custom_type=task_type,
+        tags=[
+            {'name': 'commit'},
+            {'name': 'automated'},
+            {'name': task_type.lower()},
+            {'name': branch_name}
+        ]
     )
 
     return task
