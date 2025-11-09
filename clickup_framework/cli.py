@@ -688,28 +688,115 @@ def task_unassign_command(args):
 
 
 def task_set_status_command(args):
-    """Set task status."""
+    """Set task status with subtask validation - supports multiple tasks."""
     context = get_context_manager()
     client = ClickUpClient()
 
-    # Resolve "current" to actual task ID
-    try:
-        task_id = context.resolve_id('task', args.task_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    # Resolve all task IDs
+    task_ids = []
+    for tid in args.task_ids:
+        try:
+            resolved_id = context.resolve_id('task', tid)
+            task_ids.append(resolved_id)
+        except ValueError as e:
+            print(f"Error resolving '{tid}': {e}", file=sys.stderr)
+            sys.exit(1)
 
-    # Update status
-    try:
-        updated_task = client.update_task(task_id, status=args.status)
+    # Process each task
+    success_count = 0
+    failed_count = 0
 
-        success_msg = ANSIAnimations.success_message(f"Status updated")
-        print(success_msg)
-        print(f"\nTask: {updated_task['name']}")
-        print(f"New status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}")
+    for task_id in task_ids:
+        # Get task details to check for subtasks
+        try:
+            task = client.get_task(task_id)
+            list_id = task['list']['id']
 
-    except Exception as e:
-        print(f"Error setting status: {e}", file=sys.stderr)
+            # Get all tasks in the list to find subtasks
+            result = client._request('GET', f'list/{list_id}/task', params={
+                'subtasks': 'true'
+            })
+            all_tasks = result.get('tasks', [])
+
+            # Find subtasks of this task
+            subtasks = [t for t in all_tasks if t.get('parent') == task_id]
+
+            # Check if any subtasks have different status
+            mismatched_subtasks = []
+            for subtask in subtasks:
+                subtask_status = subtask.get('status', {})
+                if isinstance(subtask_status, dict):
+                    subtask_status = subtask_status.get('status', '')
+                if subtask_status.lower() != args.status.lower():
+                    mismatched_subtasks.append(subtask)
+
+            # If there are mismatched subtasks, show them and skip this task
+            if mismatched_subtasks:
+                print(ANSIAnimations.warning_message(
+                    f"Cannot set status to '{args.status}' for task '{task['name']}' - {len(mismatched_subtasks)} subtask(s) have different status"
+                ))
+                print(f"\nTask: {colorize(task['name'], TextColor.BRIGHT_CYAN)} [{task_id}]")
+                print(f"Target status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}\n")
+
+                # Display subtasks in formatted tree view
+                print(colorize("Subtasks requiring status update:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+                print()
+
+                for i, subtask in enumerate(mismatched_subtasks, 1):
+                    subtask_status = subtask.get('status', {})
+                    if isinstance(subtask_status, dict):
+                        current_status = subtask_status.get('status', 'Unknown')
+                        status_color = subtask_status.get('color', '#87909e')
+                    else:
+                        current_status = subtask_status
+                        status_color = '#87909e'
+
+                    # Format status with color
+                    from clickup_framework.utils.colors import status_color as get_status_color
+                    status_colored = colorize(current_status, get_status_color(current_status), TextStyle.BOLD)
+
+                    # Show task info
+                    task_name = colorize(subtask['name'], TextColor.BRIGHT_WHITE)
+                    task_id_colored = colorize(f"[{subtask['id']}]", TextColor.BRIGHT_BLACK)
+
+                    print(f"  {i}. {task_id_colored} {task_name}")
+                    print(f"     Current status: {status_colored}")
+                    print()
+
+                print(colorize("Update these subtasks first, then retry.", TextColor.BRIGHT_BLUE))
+                print()
+                failed_count += 1
+                continue
+
+            # No mismatched subtasks, proceed with update
+            updated_task = client.update_task(task_id, status=args.status)
+
+            success_msg = ANSIAnimations.success_message(f"Status updated")
+            print(success_msg)
+            print(f"\nTask: {updated_task['name']} [{task_id}]")
+            print(f"New status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}")
+
+            if subtasks:
+                print(f"Subtasks: {len(subtasks)} subtask(s) also have status '{args.status}'")
+
+            if len(task_ids) > 1:
+                print()  # Extra spacing between tasks
+
+            success_count += 1
+
+        except Exception as e:
+            print(f"Error setting status for {task_id}: {e}", file=sys.stderr)
+            failed_count += 1
+            continue
+
+    # Summary for multiple tasks
+    if len(task_ids) > 1:
+        print(f"\n{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+        print(f"  Updated: {success_count}/{len(task_ids)} tasks")
+        if failed_count > 0:
+            print(f"  Failed: {failed_count}/{len(task_ids)} tasks")
+
+    if failed_count > 0:
         sys.exit(1)
 
 
@@ -734,8 +821,14 @@ def task_set_priority_command(args):
     }
 
     priority = args.priority
-    if isinstance(priority, str):
-        priority = priority_map.get(priority.lower(), priority)
+    if isinstance(priority, str) and priority.lower() in priority_map:
+        priority = priority_map[priority.lower()]
+    elif isinstance(priority, str):
+        try:
+            priority = int(priority)
+        except ValueError:
+            print(f"Error: Invalid priority '{priority}'. Use 1-4 or urgent/high/normal/low", file=sys.stderr)
+            sys.exit(1)
 
     # Update priority
     try:
@@ -968,7 +1061,7 @@ Examples:
 
     task_set_status_parser = subparsers.add_parser('task_set_status',
                                                     help='Set task status')
-    task_set_status_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_set_status_parser.add_argument('task_ids', nargs='+', help='Task ID(s) (or "current")')
     task_set_status_parser.add_argument('status', help='New status')
     task_set_status_parser.set_defaults(func=task_set_status_command)
 
