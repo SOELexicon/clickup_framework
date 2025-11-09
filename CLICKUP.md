@@ -868,37 +868,77 @@ cum folder show <folder_id>
 
 ---
 
-## Docs Commands (Planned) 🚧
+## Docs Commands ✅
 
-> **Status**: Not yet implemented
+> **Status**: Implemented
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q2q)
 
-### `doc list` - List Docs
+### `dlist` / `doc_list` - List Docs
 **Task ID**: [86c6e0q2t](https://app.clickup.com/t/86c6e0q2t)
 
 ```bash
-# NOT YET IMPLEMENTED
-cum doc list <workspace_id>
+# List all docs in a workspace
+cum dlist <workspace_id>
+cum dl <workspace_id>          # Short alias
+cum doc_list <workspace_id>    # Long alias
 ```
 
 ---
 
-### `doc create` - Create Doc
+### `doc_create` - Create Doc
 **Task ID**: [86c6e0q2u](https://app.clickup.com/t/86c6e0q2u)
 
 ```bash
-# NOT YET IMPLEMENTED
-cum doc create <workspace_id> --name "Doc name"
+# Create a new doc
+cum doc_create <workspace_id> "Doc name"
+cum dc <workspace_id> "Doc name"  # Short alias
+
+# Create doc with initial pages
+cum doc_create <workspace_id> "My Doc" --pages "Intro:Welcome!" "Setup"
 ```
 
 ---
 
-### `doc show` - Show Doc Details
+### `doc_get` - Show Doc Details
 **Task ID**: [86c6e0q2v](https://app.clickup.com/t/86c6e0q2v)
 
 ```bash
-# NOT YET IMPLEMENTED
-cum doc show <doc_id>
+# Get doc and display pages
+cum doc_get <workspace_id> <doc_id>
+cum dg <workspace_id> <doc_id>  # Short alias
+
+# Show content preview for each page
+cum doc_get <workspace_id> <doc_id> --preview
+```
+
+---
+
+### `doc_export` - Export Docs to Markdown
+
+```bash
+# Export all docs in workspace
+cum doc_export <workspace_id> --output-dir ./output
+
+# Export specific doc
+cum doc_export <workspace_id> --doc-id <doc_id> --output-dir ./output
+
+# Export with nested folder structure
+cum doc_export <workspace_id> --nested --output-dir ./output
+```
+
+---
+
+### `doc_import` - Import Markdown Files
+
+```bash
+# Import markdown files from directory to create docs
+cum doc_import <workspace_id> ./input_dir
+
+# Import single doc from directory
+cum doc_import <workspace_id> ./input_dir --doc-name "My Doc"
+
+# Import with nested structure preserved
+cum doc_import <workspace_id> ./input_dir --nested --recursive
 ```
 
 ---
@@ -907,32 +947,44 @@ cum doc show <doc_id>
 
 **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q2w)
 
-#### `page list` - List Pages
+#### `page_list` - List Pages
 **Task ID**: [86c6e0q2x](https://app.clickup.com/t/86c6e0q2x)
 
 ```bash
-# NOT YET IMPLEMENTED
-cum page list <doc_id>
+# List all pages in a doc
+cum page_list <workspace_id> <doc_id>
+cum pl <workspace_id> <doc_id>  # Short alias
 ```
 
 ---
 
-#### `page create` - Create Page
+#### `page_create` - Create Page
 **Task ID**: [86c6e0q2z](https://app.clickup.com/t/86c6e0q2z)
 
 ```bash
-# NOT YET IMPLEMENTED
-cum page create <doc_id> --name "Page name"
+# Create a new page in a doc
+cum page_create <workspace_id> <doc_id> --name "Page name"
+cum pc <workspace_id> <doc_id> --name "Page name"  # Short alias
+
+# Create page with content
+cum page_create <workspace_id> <doc_id> --name "Getting Started" --content "# Welcome"
 ```
 
 ---
 
-#### `page update` - Update Page Content
+#### `page_update` - Update Page Content
 **Task ID**: [86c6e0q31](https://app.clickup.com/t/86c6e0q31)
 
 ```bash
-# NOT YET IMPLEMENTED
-cum page update <page_id> --content "Page content"
+# Update page content
+cum page_update <workspace_id> <doc_id> <page_id> --content "New content"
+cum pu <workspace_id> <doc_id> <page_id> --content "New content"  # Short alias
+
+# Update page name
+cum page_update <workspace_id> <doc_id> <page_id> --name "New Page Name"
+
+# Update both name and content
+cum page_update <workspace_id> <doc_id> <page_id> --name "Updated" --content "# Updated Content"
 ```
 
 ---
