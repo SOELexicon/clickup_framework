@@ -185,3 +185,87 @@ def sample_tasks_mixed_status():
         {'id': 'task_s4', 'name': 'Blocked Task', 'status': {'status': 'blocked'}, 'priority': {'priority': '1'}},
         {'id': 'task_s5', 'name': 'Another To Do', 'status': {'status': 'to do'}, 'priority': {'priority': '4'}},
     ]
+
+
+@pytest.fixture
+def sample_doc():
+    """Single doc with basic information."""
+    return {
+        'id': 'doc_123',
+        'name': 'Project Documentation',
+        'date_created': '2024-01-01T10:00:00Z',
+        'date_updated': '2024-01-05T15:30:00Z',
+        'creator': {
+            'id': 'user_1',
+            'username': 'john_doe',
+            'email': 'john@example.com'
+        }
+    }
+
+
+@pytest.fixture
+def sample_page():
+    """Single page with basic information."""
+    return {
+        'id': 'page_456',
+        'name': 'Getting Started',
+        'content': '# Getting Started\n\nWelcome to our documentation. This guide will help you get started.',
+        'date_created': '2024-01-02T10:00:00Z',
+        'date_updated': '2024-01-03T12:00:00Z',
+        'creator': {
+            'id': 'user_1',
+            'username': 'john_doe',
+            'email': 'john@example.com'
+        }
+    }
+
+
+@pytest.fixture
+def sample_docs_with_pages():
+    """Docs with pages for hierarchy testing."""
+    return {
+        'docs': [
+            {
+                'id': 'doc_1',
+                'name': 'API Documentation',
+                'date_created': '2024-01-01T10:00:00Z',
+                'date_updated': '2024-01-05T15:30:00Z',
+                'creator': {'id': 'user_1', 'username': 'john_doe'}
+            },
+            {
+                'id': 'doc_2',
+                'name': 'User Guide',
+                'parent_id': 'doc_1',
+                'date_created': '2024-01-02T10:00:00Z',
+                'date_updated': '2024-01-04T12:00:00Z',
+                'creator': {'id': 'user_2', 'username': 'jane_smith'}
+            }
+        ],
+        'pages': {
+            'doc_1': [
+                {
+                    'id': 'page_1',
+                    'name': 'Introduction',
+                    'content': '# Introduction\n\nAPI documentation intro.',
+                    'date_created': '2024-01-01T11:00:00Z',
+                    'creator': {'id': 'user_1', 'username': 'john_doe'}
+                },
+                {
+                    'id': 'page_2',
+                    'name': 'Authentication',
+                    'content': '# Authentication\n\nHow to authenticate.',
+                    'date_created': '2024-01-01T12:00:00Z',
+                    'creator': {'id': 'user_1', 'username': 'john_doe'}
+                }
+            ],
+            'doc_2': [
+                {
+                    'id': 'page_3',
+                    'name': 'Quick Start',
+                    'content': '# Quick Start\n\nGet started quickly.',
+                    'date_created': '2024-01-02T11:00:00Z',
+                    'creator': {'id': 'user_2', 'username': 'jane_smith'}
+                }
+            ]
+        }
+    }

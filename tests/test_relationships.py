@@ -5,7 +5,7 @@ Tests for task dependency, link, and custom relationship functionality.
 """
 
 import unittest
-from .base_test import ClickUpTestCase
+from tests.base_test import ClickUpTestCase
 
 
 class TestTaskRelationships(ClickUpTestCase):
