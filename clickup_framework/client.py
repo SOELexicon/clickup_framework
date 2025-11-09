@@ -55,13 +55,29 @@ class ClickUpClient:
             timeout: Request timeout in seconds (default: 30)
             max_retries: Maximum retry attempts (default: 3)
         """
-        # Check for token in: 1) parameter, 2) environment variable, 3) stored context
-        self.api_token = api_token or os.environ.get("CLICKUP_API_TOKEN")
+        # Store token sources for fallback functionality
+        self.param_token = api_token
+        self.env_token = os.environ.get("CLICKUP_API_TOKEN")
+        context = get_context_manager()
+        self.context_token = context.get_api_token()
+
+        # Check for token in priority order: 1) parameter, 2) environment variable, 3) stored context
+        self.api_token = self.param_token or self.env_token
         if not self.api_token:
-            context = get_context_manager()
-            self.api_token = context.get_api_token()
+            self.api_token = self.context_token
         if not self.api_token:
             raise ClickUpAuthError("API token not provided. Set via parameter, CLICKUP_API_TOKEN env var, or use 'set_current token <token>'")
+
+        # Track which token source is currently active
+        if self.param_token:
+            self.token_source = "parameter"
+        elif self.env_token and self.api_token == self.env_token:
+            self.token_source = "environment"
+        else:
+            self.token_source = "context"
+
+        # Track which token sources have been tried (for preventing infinite fallback loops)
+        self._tried_sources = {self.token_source}
 
         self.rate_limiter = RateLimiter(requests_per_minute=rate_limit)
         self.timeout = timeout
@@ -75,6 +91,45 @@ class ClickUpClient:
                 "Content-Type": "application/json",
             }
         )
+
+    def _switch_to_fallback_token(self) -> bool:
+        """
+        Attempt to switch to a fallback token source on authentication failure.
+
+        Returns:
+            True if a fallback token was found and switched to, False otherwise
+        """
+        fallback_token = None
+        fallback_source = None
+
+        # Determine fallback based on current source, skipping already-tried sources
+        if self.token_source == "environment" and "context" not in self._tried_sources:
+            if self.context_token and self.context_token != self.env_token:
+                fallback_token = self.context_token
+                fallback_source = "context"
+        elif self.token_source == "context" and "environment" not in self._tried_sources:
+            if self.env_token and self.env_token != self.context_token:
+                fallback_token = self.env_token
+                fallback_source = "environment"
+        elif self.token_source == "parameter":
+            # Try environment first, then context (skip already-tried sources)
+            if "environment" not in self._tried_sources and self.env_token and self.env_token != self.param_token:
+                fallback_token = self.env_token
+                fallback_source = "environment"
+            elif "context" not in self._tried_sources and self.context_token and self.context_token != self.param_token:
+                fallback_token = self.context_token
+                fallback_source = "context"
+
+        if fallback_token:
+            logger.info(f"Switching from {self.token_source} token to {fallback_source} token due to 401 error")
+            self.api_token = fallback_token
+            self.token_source = fallback_source
+            self._tried_sources.add(fallback_source)
+            # Update session headers with new token
+            self.session.headers.update({"Authorization": self.api_token})
+            return True
+
+        return False
 
     def _request(
         self,
@@ -126,6 +181,9 @@ class ClickUpClient:
         # Acquire rate limit token
         self.rate_limiter.acquire()
 
+        # Track if we've already tried fallback to prevent infinite loop
+        fallback_attempted = False
+
         # Retry loop with exponential backoff
         for attempt in range(self.max_retries):
             try:
@@ -150,6 +208,12 @@ class ClickUpClient:
                     return response.json()
 
                 elif response.status_code == 401:
+                    # Try fallback token if available and not already attempted
+                    if not fallback_attempted and self._switch_to_fallback_token():
+                        fallback_attempted = True
+                        logger.info("Retrying request with fallback token...")
+                        # Retry immediately with new token (don't count as an attempt)
+                        continue
                     raise ClickUpAuthError("Invalid or expired API token")
 
                 elif response.status_code == 404:
@@ -913,9 +977,18 @@ class ClickUpClient:
         """Get workspace plan details."""
         return self._request("GET", f"team/{team_id}/plan")
 
+    def get_token_source(self) -> str:
+        """
+        Get the currently active token source.
+
+        Returns:
+            String indicating the token source: "parameter", "environment", or "context"
+        """
+        return self.token_source
+
     def __repr__(self) -> str:
         token_preview = self.api_token[:20] if self.api_token else "None"
-        return f"ClickUpClient(token={token_preview}...)"
+        return f"ClickUpClient(token={token_preview}..., source={self.token_source})"
 
     def __enter__(self):
         """Context manager support."""
