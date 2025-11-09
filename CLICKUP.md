@@ -106,7 +106,7 @@ cum hierarchy <list_id> --colorize       # Force colors on
 cum hierarchy <list_id> --no-colorize    # Force colors off
 ```
 
-Setting persists in `~/.cum/clickup_context.json`.
+Setting persists in `~/.clickup_context.json`.
 
 ---
 
@@ -333,7 +333,7 @@ cum ansi disable  # Disable ANSI colors
 cum ansi status   # Show current setting
 ```
 
-The setting persists across sessions in `~/.cum/clickup_context.json`. You can override per-command with `--colorize` or `--no-colorize` flags.
+The setting persists across sessions in `~/.clickup_context.json`. You can override per-command with `--colorize` or `--no-colorize` flags.
 
 ---
 
