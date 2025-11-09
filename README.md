@@ -43,9 +43,65 @@ A modular, token-efficient framework for ClickUp API interactions achieving **90
 ## Installation
 
 ```bash
-# Add framework to Python path
+# Install the package
+pip install -e .
+
+# Or add framework to Python path
 export PYTHONPATH="/home/user/Skills:$PYTHONPATH"
 ```
+
+## Quick Start
+
+### Command-Line Interface (NEW! ✨)
+
+The framework includes a powerful CLI for all display operations:
+
+```bash
+# View available commands
+./clickup --help
+python -m clickup_framework --help
+
+# Try demo mode (no API key required)
+./clickup demo --mode hierarchy
+./clickup demo --mode detail --preset detailed
+
+# Fetch and display tasks from ClickUp
+./clickup hierarchy <list_id>
+./clickup container <list_id>
+./clickup detail <task_id> <list_id>
+
+# Filter tasks
+./clickup filter <list_id> --status "in progress"
+./clickup filter <list_id> --priority 1 --tags backend api
+
+# Customize output
+./clickup hierarchy <list_id> --show-ids --show-descriptions --preset detailed
+./clickup container <list_id> --no-colorize --include-completed
+
+# View statistics
+./clickup stats <list_id>
+```
+
+**CLI Commands:**
+- `hierarchy` - Display tasks in hierarchical parent-child view
+- `container` - Display tasks by workspace → space → folder → list
+- `flat` - Display tasks in simple flat list
+- `filter` - Display filtered tasks with custom criteria
+- `detail` - Show comprehensive single-task view with relationships
+- `stats` - Display task statistics and counts
+- `demo` - Show examples with sample data (no API required)
+
+**Common Options:**
+- `--preset <level>` - Use preset format: minimal, summary, detailed, full
+- `--show-ids` - Display task IDs
+- `--show-descriptions` - Include task descriptions
+- `--show-dates` - Show created/due dates
+- `--show-comments N` - Show N comments per task
+- `--include-completed` - Include completed tasks
+- `--no-colorize` - Disable color output
+- `--no-emoji` - Hide task type emojis
+
+See `./clickup <command> --help` for command-specific options.
 
 ## Quick Start
 
