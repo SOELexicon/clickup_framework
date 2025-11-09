@@ -350,6 +350,297 @@ def doc_export_command(args):
         sys.exit(1)
 
 
+def doc_import_command(args):
+    """Import markdown files from a directory structure to create docs and pages."""
+    from clickup_framework.resources import DocsAPI
+    import glob
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+    use_color = context.get_ansi_output()
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Get input directory
+    input_dir = Path(args.input_dir)
+    if not input_dir.exists():
+        print(f"Error: Directory {input_dir} does not exist", file=sys.stderr)
+        sys.exit(1)
+
+    # Import docs
+    try:
+        if hasattr(args, 'doc_name') and args.doc_name:
+            # Import single doc from directory
+            doc_folder = input_dir
+            if not doc_folder.is_dir():
+                print(f"Error: {doc_folder} is not a directory", file=sys.stderr)
+                sys.exit(1)
+
+            # Find all markdown files
+            md_files = list(doc_folder.glob('*.md'))
+            if hasattr(args, 'recursive') and args.recursive:
+                md_files = list(doc_folder.glob('**/*.md'))
+
+            if not md_files:
+                print(f"No markdown files found in {doc_folder}")
+                return
+
+            # Create doc
+            doc_name = args.doc_name
+            print(f"Creating doc: {doc_name}...")
+            doc = docs_api.create_doc(workspace_id, doc_name)
+            doc_id = doc['id']
+
+            # Import pages
+            pages_created = 0
+            for md_file in md_files:
+                # Read markdown file
+                with open(md_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                # Extract page name from filename or first heading
+                page_name = md_file.stem
+
+                # If content starts with a heading, use that as the name
+                lines = content.split('\n')
+                if lines and lines[0].startswith('# '):
+                    page_name = lines[0][2:].strip()
+                    # Remove the heading from content if it matches the filename
+                    if page_name == md_file.stem:
+                        content = '\n'.join(lines[1:]).lstrip()
+
+                # Get relative path for nested structure
+                if hasattr(args, 'nested') and args.nested:
+                    rel_path = md_file.relative_to(doc_folder)
+                    page_name = str(rel_path.with_suffix('')).replace(os.sep, '/')
+
+                # Create page
+                page = docs_api.create_page(
+                    workspace_id=workspace_id,
+                    doc_id=doc_id,
+                    name=page_name,
+                    content=content
+                )
+                pages_created += 1
+                print(f"  Created page: {page_name} [{page['id']}]")
+
+            success_msg = ANSIAnimations.success_message(f"Imported doc with {pages_created} page(s)")
+            print(f"\n{success_msg}")
+            print(f"Doc ID: {colorize(doc_id, TextColor.BRIGHT_GREEN) if use_color else doc_id}")
+
+        else:
+            # Import multiple docs from directory structure
+            # Each subdirectory becomes a doc
+            doc_folders = [d for d in input_dir.iterdir() if d.is_dir()]
+
+            if not doc_folders:
+                print(f"No subdirectories found in {input_dir}")
+                return
+
+            total_docs = 0
+            total_pages = 0
+
+            for doc_folder in doc_folders:
+                # Find markdown files in this folder
+                md_files = list(doc_folder.glob('*.md'))
+                if hasattr(args, 'recursive') and args.recursive:
+                    md_files = list(doc_folder.glob('**/*.md'))
+
+                if not md_files:
+                    continue
+
+                # Create doc
+                doc_name = doc_folder.name
+                print(f"\nCreating doc: {doc_name}...")
+                doc = docs_api.create_doc(workspace_id, doc_name)
+                doc_id = doc['id']
+                total_docs += 1
+
+                # Import pages
+                pages_created = 0
+                for md_file in md_files:
+                    # Read markdown file
+                    with open(md_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    # Extract page name from filename or first heading
+                    page_name = md_file.stem
+
+                    # If content starts with a heading, use that as the name
+                    lines = content.split('\n')
+                    if lines and lines[0].startswith('# '):
+                        page_name = lines[0][2:].strip()
+                        # Remove the heading from content
+                        content = '\n'.join(lines[1:]).lstrip()
+
+                    # Get relative path for nested structure
+                    if hasattr(args, 'nested') and args.nested:
+                        rel_path = md_file.relative_to(doc_folder)
+                        page_name = str(rel_path.with_suffix('')).replace(os.sep, '/')
+
+                    # Create page
+                    page = docs_api.create_page(
+                        workspace_id=workspace_id,
+                        doc_id=doc_id,
+                        name=page_name,
+                        content=content
+                    )
+                    pages_created += 1
+                    total_pages += 1
+                    print(f"  Created page: {page_name}")
+
+                print(colorize(f"  ✓ Created {pages_created} page(s) in doc", TextColor.BRIGHT_GREEN) if use_color else f"  ✓ Created {pages_created} page(s) in doc")
+
+            success_msg = ANSIAnimations.success_message(f"Imported {total_docs} doc(s) with {total_pages} total page(s)")
+            print(f"\n{success_msg}")
+
+    except Exception as e:
+        print(f"Error importing docs: {e}", file=sys.stderr)
+        if os.getenv('DEBUG'):
+            raise
+        sys.exit(1)
+
+
+def page_list_command(args):
+    """List all pages in a doc."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+    use_color = context.get_ansi_output()
+
+    # Resolve workspace and doc IDs
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+        doc_id = args.doc_id
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Get pages
+    try:
+        pages = docs_api.get_doc_pages(workspace_id, doc_id)
+
+        if not pages:
+            print("No pages found in this doc")
+            return
+
+        # Get doc info first for display
+        doc = docs_api.get_doc(workspace_id, doc_id)
+
+        # Display header
+        if use_color:
+            header = colorize(f"Pages in Doc: {doc.get('name', 'Unknown')}", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+        else:
+            header = f"Pages in Doc: {doc.get('name', 'Unknown')}"
+        print(f"\n{header}")
+        print(colorize("─" * 60, TextColor.BRIGHT_BLACK) if use_color else "─" * 60)
+        print()
+
+        # Display pages
+        for i, page in enumerate(pages, 1):
+            page_name = page.get('name', 'Unnamed')
+            page_id = page.get('id', 'Unknown')
+
+            if use_color:
+                name_colored = colorize(page_name, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+                id_colored = colorize(f"[{page_id}]", TextColor.BRIGHT_BLACK)
+            else:
+                name_colored = page_name
+                id_colored = f"[{page_id}]"
+
+            print(f"{i}. {name_colored} {id_colored}")
+
+        print()
+        print(colorize(f"Total: {len(pages)} page(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(pages)} page(s)")
+
+    except Exception as e:
+        print(f"Error listing pages: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def page_create_command(args):
+    """Create a new page in a doc."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+    use_color = context.get_ansi_output()
+
+    # Resolve workspace and doc IDs
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+        doc_id = args.doc_id
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Create page
+    try:
+        content = args.content if hasattr(args, 'content') and args.content else ""
+        page = docs_api.create_page(
+            workspace_id=workspace_id,
+            doc_id=doc_id,
+            name=args.name,
+            content=content
+        )
+
+        success_msg = ANSIAnimations.success_message("Page created")
+        print(success_msg)
+        print(f"\nPage Name: {colorize(page['name'], TextColor.BRIGHT_CYAN) if use_color else page['name']}")
+        print(f"Page ID: {colorize(page['id'], TextColor.BRIGHT_GREEN) if use_color else page['id']}")
+
+    except Exception as e:
+        print(f"Error creating page: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def page_update_command(args):
+    """Update a page in a doc."""
+    from clickup_framework.resources import DocsAPI
+
+    context = get_context_manager()
+    client = ClickUpClient()
+    docs_api = DocsAPI(client)
+    use_color = context.get_ansi_output()
+
+    # Resolve workspace ID
+    try:
+        workspace_id = context.resolve_id('workspace', args.workspace_id)
+        doc_id = args.doc_id
+        page_id = args.page_id
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Update page
+    try:
+        updated_page = docs_api.update_page(
+            workspace_id=workspace_id,
+            doc_id=doc_id,
+            page_id=page_id,
+            name=args.name if hasattr(args, 'name') and args.name else None,
+            content=args.content if hasattr(args, 'content') and args.content else None
+        )
+
+        success_msg = ANSIAnimations.success_message("Page updated")
+        print(success_msg)
+        print(f"\nPage: {colorize(updated_page['name'], TextColor.BRIGHT_CYAN) if use_color else updated_page['name']}")
+        print(f"ID: {colorize(updated_page['id'], TextColor.BRIGHT_BLACK) if use_color else updated_page['id']}")
+
+    except Exception as e:
+        print(f"Error updating page: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def register_command(subparsers):
     """Register doc management commands."""
     # Doc list
@@ -397,3 +688,42 @@ def register_command(subparsers):
     doc_export_parser.add_argument('--nested', action='store_true',
                                    help='Create nested folder structure based on page names')
     doc_export_parser.set_defaults(func=doc_export_command)
+
+    # Doc import
+    doc_import_parser = subparsers.add_parser('doc_import', aliases=['di'],
+                                              help='Import markdown files to create docs')
+    doc_import_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    doc_import_parser.add_argument('input_dir', help='Input directory containing markdown files')
+    doc_import_parser.add_argument('--doc-name', dest='doc_name',
+                                   help='Doc name (for importing single doc from directory)')
+    doc_import_parser.add_argument('--nested', action='store_true',
+                                   help='Preserve nested folder structure in page names')
+    doc_import_parser.add_argument('--recursive', action='store_true',
+                                   help='Recursively find markdown files in subdirectories')
+    doc_import_parser.set_defaults(func=doc_import_command)
+
+    # Page list
+    page_list_parser = subparsers.add_parser('page_list', aliases=['pl'],
+                                             help='List all pages in a doc')
+    page_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    page_list_parser.add_argument('doc_id', help='Doc ID')
+    page_list_parser.set_defaults(func=page_list_command)
+
+    # Page create
+    page_create_parser = subparsers.add_parser('page_create', aliases=['pc'],
+                                               help='Create a new page in a doc')
+    page_create_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    page_create_parser.add_argument('doc_id', help='Doc ID')
+    page_create_parser.add_argument('--name', required=True, help='Page name')
+    page_create_parser.add_argument('--content', help='Page content (markdown)')
+    page_create_parser.set_defaults(func=page_create_command)
+
+    # Page update
+    page_update_parser = subparsers.add_parser('page_update', aliases=['pu'],
+                                               help='Update a page in a doc')
+    page_update_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    page_update_parser.add_argument('doc_id', help='Doc ID')
+    page_update_parser.add_argument('page_id', help='Page ID')
+    page_update_parser.add_argument('--name', help='New page name')
+    page_update_parser.add_argument('--content', help='New page content (markdown)')
+    page_update_parser.set_defaults(func=page_update_command)
