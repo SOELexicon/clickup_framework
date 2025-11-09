@@ -24,6 +24,13 @@ from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
+# Import argcomplete for tab completion
+try:
+    import argcomplete
+    ARGCOMPLETE_AVAILABLE = True
+except ImportError:
+    ARGCOMPLETE_AVAILABLE = False
+
 
 def show_command_tree():
     """Display available commands in a tree view."""
@@ -208,6 +215,10 @@ Examples:
     # Automatically discover and register all commands from the commands/ directory
     from clickup_framework.commands import register_all_commands
     register_all_commands(subparsers)
+
+    # Enable tab completion if argcomplete is available
+    if ARGCOMPLETE_AVAILABLE:
+        argcomplete.autocomplete(parser)
 
     # Parse arguments
     args = parser.parse_args()
