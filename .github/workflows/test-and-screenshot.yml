@@ -1,0 +1,88 @@
+name: Test and Generate Display Screenshots
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  test-and-screenshot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wkhtmltopdf aha
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov
+
+    - name: Run tests with coverage
+      run: |
+        python -m pytest tests/components/ -v --cov=clickup_framework.components --cov-report=term --cov-report=html
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: htmlcov/
+
+    - name: Generate display examples
+      run: |
+        python scripts/generate_display_examples.py
+      env:
+        FORCE_COLOR: '1'
+
+    - name: Convert ANSI outputs to screenshots
+      run: |
+        chmod +x scripts/generate_screenshots.sh
+        ./scripts/generate_screenshots.sh
+
+    - name: Upload screenshots
+      uses: actions/upload-artifact@v3
+      with:
+        name: display-screenshots
+        path: screenshots/*.jpg
+
+    - name: Comment PR with screenshots
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+
+          const screenshotDir = 'screenshots';
+          const screenshots = fs.readdirSync(screenshotDir)
+            .filter(f => f.endsWith('.jpg'))
+            .map(f => path.join(screenshotDir, f));
+
+          let comment = '## 📸 Display Component Screenshots\n\n';
+          comment += 'The following screenshots show the output of the display components:\n\n';
+
+          for (const screenshot of screenshots) {
+            const name = path.basename(screenshot, '.jpg');
+            comment += `### ${name.replace(/_/g, ' ')}\n`;
+            comment += `![${name}](${screenshot})\n\n`;
+          }
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
