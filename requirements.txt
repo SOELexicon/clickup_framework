@@ -4,6 +4,7 @@
 # Core dependencies
 requests>=2.31.0
 python-dotenv>=1.0.0
+setuptools_scm[toml]>=6.2
 
 # Development dependencies
 pytest>=7.4.0
