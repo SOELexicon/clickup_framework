@@ -2,10 +2,8 @@ name: Test and Generate Display Screenshots
 
 on:
   pull_request:
-    branches: [ main, master ]
+    branches: [ master ]
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
 
 jobs:
   test-and-screenshot:
