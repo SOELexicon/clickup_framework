@@ -29,13 +29,20 @@ from clickup_framework.cli import (
 from clickup_framework.components import FormatOptions
 
 
+# Helper function to mock get_list_statuses
+def mock_get_list_statuses_empty(*args, **kwargs):
+    """Mock get_list_statuses to return empty string."""
+    return ""
+
+
 class TestContainerCommand(unittest.TestCase):
     """Test container_command function with comprehensive coverage."""
 
+    @patch('clickup_framework.cli.get_list_statuses', side_effect=mock_get_list_statuses_empty)
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     @patch('clickup_framework.cli.DisplayManager')
-    def test_container_command_success(self, mock_display_mgr, mock_context, mock_client):
+    def test_container_command_success(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
         """Test container command with valid input."""
         # Setup mocks
         mock_context_inst = Mock()
