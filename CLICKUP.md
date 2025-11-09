@@ -10,16 +10,17 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 - [Authentication](#authentication)
 - [Quick Start](#quick-start)
 - [Task Workflow Guide](docs/TASK_WORKFLOW_GUIDE.md) 📖
+- [File Input Support](#file-input-support)
 - [View Commands (Implemented)](#view-commands-implemented-)
 - [Context Management (Implemented)](#context-management-implemented-)
 - [Task Management Commands (Implemented)](#task-management-commands-implemented-)
-- [Comment Commands (Planned)](#comment-commands-planned-)
+- [Comment Commands (Implemented)](#comment-commands-)
 - [Checklist Commands (Planned)](#checklist-commands-planned-)
-- [Relationship Commands (Planned)](#relationship-commands-planned-)
+- [Relationship Commands (Implemented)](#relationship-commands-)
 - [Custom Field Commands (Planned)](#custom-field-commands-planned-)
 - [List Commands (Planned)](#list-commands-planned-)
 - [Workspace/Space/Folder Commands (Planned)](#workspacespacefolders-commands-planned-)
-- [Docs Commands (Planned)](#docs-commands-planned-)
+- [Docs Commands (Implemented)](#docs-commands-)
 - [Time Tracking Commands (Planned)](#time-tracking-commands-planned-)
 - [View Management Commands (Planned)](#view-management-commands-planned-)
 - [Attachment Commands (Planned)](#attachment-commands-planned-)
@@ -66,6 +67,44 @@ cum set_current list <list_id>
 # Show current context
 cum show_current
 ```
+
+---
+
+## File Input Support
+
+The CLI supports reading longer content from files for task descriptions and comments, making it easy to work with markdown documentation and formatted text.
+
+### Supported Commands
+
+**Task Management**:
+- `task_create --description-file PATH` - Create task with description from file
+- `task_update --description-file PATH` - Update task description from file
+
+**Comment Management**:
+- `comment_add --comment-file PATH` - Add comment from file
+- `comment_update --comment-file PATH` - Update comment from file
+
+### Examples
+
+```bash
+# Create task with description from markdown file
+cum task_create current "Implement feature" --description-file spec.md
+
+# Update task description from file
+cum task_update current --description-file updated_spec.md
+
+# Add comment from file
+cum comment_add current --comment-file feedback.md
+
+# Update comment from file
+cum comment_update abc123 --comment-file revised_notes.md
+```
+
+**Notes**:
+- File input options (`--description-file`, `--comment-file`) are mutually exclusive with their text counterparts (`--description`, `comment_text`)
+- Files can contain any text format, including markdown
+- Files are read with UTF-8 encoding
+- Useful for maintaining task specifications and documentation in version control
 
 ---
 
@@ -338,6 +377,22 @@ The setting persists across sessions in `~/.clickup_context.json`. You can overr
 
 ---
 
+### `update cum` - Update CLI Tool
+Update the ClickUp CLI tool from the git repository and reinstall.
+
+```bash
+cum update cum
+
+# This command will:
+# 1. Pull latest changes from git
+# 2. Reinstall the package
+# 3. Show the updated version
+```
+
+**Note**: Requires git repository access and write permissions to the installation directory.
+
+---
+
 ### `clear_current` - Clear Context
 Clear one or all current resources from your context.
 
@@ -357,11 +412,11 @@ cum clear_current  # Clears everything
 
 ## Task Management Commands ✅
 
-> **Status**: Partially implemented (4/7 commands complete)
+> **Status**: Fully implemented (all core commands complete)
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q0a)
 
 ### `task_create` - Create New Task ✅
-**Task ID**: [86c6e0q0b](https://app.clickup.com/t/86c6e0q0b) | **Status**: 🚧 Planned
+**Task ID**: [86c6e0q0b](https://app.clickup.com/t/86c6e0q0b) | **Status**: ✅ Closed
 
 Create a new task with full options support.
 
@@ -373,22 +428,26 @@ cum task_create current "Implement feature X"
 cum task_create 901517404278 "Bug fix" --description "Fix login issue" --priority urgent
 cum task_create current "New task" --status "in progress" --tags bug critical
 cum task_create current "Subtask" --parent 86c6e0q06
+cum task_create current "Feature" --description-file spec.md  # Load description from file
 ```
 
 **Options**:
-- `--description TEXT` - Task description
+- `--description TEXT` - Task description (plain text)
+- `--description-file PATH` - Load task description from file (supports markdown)
 - `--status STATUS` - Initial status
 - `--priority {1|2|3|4|urgent|high|normal|low}` - Priority level
 - `--tags TAG [TAG...]` - Tags to add
 - `--assignees USER_ID [USER_ID...]` - User IDs to assign (defaults to configured default assignee)
 - `--parent TASK_ID` - Parent task ID (creates subtask)
 
-**Default Assignee**: Tasks are automatically assigned to the default assignee (68483025) unless `--assignees` is specified.
+**Note**: `--description` and `--description-file` are mutually exclusive.
+
+**Default Assignee**: Tasks are automatically assigned to the default assignee unless `--assignees` is specified.
 
 ---
 
 ### `task_update` - Update Existing Task ✅
-**Task ID**: [86c6e0q0d](https://app.clickup.com/t/86c6e0q0d) | **Status**: 🚧 Planned
+**Task ID**: [86c6e0q0d](https://app.clickup.com/t/86c6e0q0d) | **Status**: ✅ Closed
 
 Update an existing task's properties.
 
@@ -399,22 +458,33 @@ cum task_update <task_id> [options]
 cum task_update current --name "Updated name"
 cum task_update 86c6e0q06 --description "New description"
 cum task_update current --status "complete" --priority high
+cum task_update current --description-file updated_spec.md  # Update from file
 ```
 
 **Options**:
 - `--name TEXT` - Update task name
-- `--description TEXT` - Update description
+- `--description TEXT` - Update description (plain text)
+- `--description-file PATH` - Load description from file (supports markdown)
 - `--status STATUS` - Update status
 - `--priority {1|2|3|4|urgent|high|normal|low}` - Update priority
+- `--add-tags TAG [TAG...]` - Add tags to existing tags
+- `--remove-tags TAG [TAG...]` - Remove specific tags
+
+**Note**: `--description` and `--description-file` are mutually exclusive.
 
 ---
 
-### `task_delete` - Delete Task 🚧
-**Task ID**: [86c6e0q0f](https://app.clickup.com/t/86c6e0q0f) | **Status**: 🚧 Planned
+### `task_delete` - Delete Task ✅
+**Task ID**: [86c6e0q0f](https://app.clickup.com/t/86c6e0q0f) | **Status**: ✅ Closed
+
+Delete a task with optional confirmation prompt.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum task_delete <task_id>
+cum task_delete <task_id> [--force]
+
+# Examples:
+cum task_delete 86c6e0q06      # Prompts for confirmation
+cum task_delete current -f     # Skip confirmation prompt
 ```
 
 **Arguments**:
@@ -537,48 +607,102 @@ cum task_set_tags current --set feature ui high-priority
 
 ---
 
-## Comment Commands (Planned) 🚧
+## Comment Commands ✅
 
-> **Status**: Not yet implemented
+> **Status**: Fully implemented
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q0n)
 
-### `comment add` - Add Comment to Task
-**Task ID**: [86c6e0q0p](https://app.clickup.com/t/86c6e0q0p)
+### `comment_add` - Add Comment to Task ✅
+**Task ID**: [86c6e0q0p](https://app.clickup.com/t/86c6e0q0p) | **Status**: ✅ Closed
+
+Add a comment to a task with text or from a file.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum comment add <task_id> --text "Comment text"
+cum comment_add <task_id> "Comment text"
+cum comment_add <task_id> --comment-file notes.txt
+
+# Examples:
+cum comment_add current "Great work on this feature!"
+cum comment_add 86c6e0q06 --comment-file feedback.md
 ```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+- `comment_text` - Direct comment text (optional if using --comment-file)
+
+**Options**:
+- `--comment-file PATH` - Read comment text from file (supports markdown)
+
+**Note**: `comment_text` and `--comment-file` are mutually exclusive.
 
 ---
 
-### `comment list` - List Task Comments
-**Task ID**: [86c6e0q0r](https://app.clickup.com/t/86c6e0q0r)
+### `comment_list` - List Task Comments ✅
+**Task ID**: [86c6e0q0r](https://app.clickup.com/t/86c6e0q0r) | **Status**: ✅ Closed
+
+List all comments on a task with configurable detail level.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum comment list <task_id>
+cum comment_list <task_id> [options]
+
+# Examples:
+cum comment_list current
+cum comment_list 86c6e0q06 --limit 5
+cum comment_list current --detail full
 ```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+
+**Options**:
+- `--limit N` - Limit number of comments shown
+- `--detail {minimal|summary|detailed|full}` - Detail level (default: summary)
 
 ---
 
-### `comment update` - Update Comment
-**Task ID**: [86c6e0q0t](https://app.clickup.com/t/86c6e0q0t)
+### `comment_update` - Update Comment ✅
+**Task ID**: [86c6e0q0t](https://app.clickup.com/t/86c6e0q0t) | **Status**: ✅ Closed
+
+Update an existing comment's text.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum comment update <comment_id> --text "New text"
+cum comment_update <comment_id> "New text"
+cum comment_update <comment_id> --comment-file updated.txt
+
+# Examples:
+cum comment_update abc123 "Updated feedback"
+cum comment_update abc123 --comment-file revised_notes.md
 ```
+
+**Arguments**:
+- `comment_id` - Comment ID to update
+- `comment_text` - New comment text (optional if using --comment-file)
+
+**Options**:
+- `--comment-file PATH` - Read new comment text from file
+
+**Note**: `comment_text` and `--comment-file` are mutually exclusive.
 
 ---
 
-### `comment delete` - Delete Comment
-**Task ID**: [86c6e0q0u](https://app.clickup.com/t/86c6e0q0u)
+### `comment_delete` - Delete Comment ✅
+**Task ID**: [86c6e0q0u](https://app.clickup.com/t/86c6e0q0u) | **Status**: ✅ Closed
+
+Delete a comment with optional confirmation prompt.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum comment delete <comment_id>
+cum comment_delete <comment_id> [--force]
+
+# Examples:
+cum comment_delete abc123      # Prompts for confirmation
+cum comment_delete abc123 -f   # Skip confirmation
 ```
+
+**Arguments**:
+- `comment_id` - Comment ID to delete
+
+**Options**:
+- `--force`, `-f` - Skip confirmation prompt
 
 ---
 
@@ -637,33 +761,62 @@ cum checklist-item delete <item_id>
 
 ---
 
-## Relationship Commands (Planned) 🚧
+## Relationship Commands ✅
 
-> **Status**: Not yet implemented
+> **Status**: Fully implemented
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q12)
 
 ### Dependency Commands
 
 **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q14)
 
-#### `task add-dependency` - Add Task Dependency
-**Task ID**: [86c6e0q16](https://app.clickup.com/t/86c6e0q16)
+#### `task_add_dependency` - Add Task Dependency ✅
+**Task ID**: [86c6e0q16](https://app.clickup.com/t/86c6e0q16) | **Status**: ✅ Closed
+
+Add a dependency relationship between tasks (waiting-on or blocking).
 
 ```bash
-# NOT YET IMPLEMENTED
-cum task add-dependency <task_id> --waiting-on <depends_on_task_id>
-cum task add-dependency <task_id> --blocking <blocked_task_id>
+cum task_add_dependency <task_id> --waiting-on <depends_on_task_id>
+cum task_add_dependency <task_id> --blocking <blocked_task_id>
+
+# Examples:
+cum task_add_dependency current --waiting-on 86c6e0q06
+cum task_add_dependency 86c6e0q0a --blocking 86c6e0q0b
 ```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+
+**Options** (one required):
+- `--waiting-on TASK_ID` - Mark this task as waiting on another task (depends on)
+- `--blocking TASK_ID` - Mark this task as blocking another task
+
+**Relationship Types**:
+- **Waiting On**: This task cannot start until the specified task is complete
+- **Blocking**: This task must be completed before the specified task can start
 
 ---
 
-#### `task remove-dependency` - Remove Dependency
-**Task ID**: [86c6e0q19](https://app.clickup.com/t/86c6e0q19)
+#### `task_remove_dependency` - Remove Dependency ✅
+**Task ID**: [86c6e0q19](https://app.clickup.com/t/86c6e0q19) | **Status**: ✅ Closed
+
+Remove a dependency relationship between tasks.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum task remove-dependency <task_id> <dependency_id>
+cum task_remove_dependency <task_id> --waiting-on <dependency_task_id>
+cum task_remove_dependency <task_id> --blocking <blocked_task_id>
+
+# Examples:
+cum task_remove_dependency current --waiting-on 86c6e0q06
+cum task_remove_dependency 86c6e0q0a --blocking 86c6e0q0b
 ```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+
+**Options** (one required):
+- `--waiting-on TASK_ID` - Remove "waiting on" dependency
+- `--blocking TASK_ID` - Remove "blocking" dependency
 
 ---
 
@@ -671,23 +824,43 @@ cum task remove-dependency <task_id> <dependency_id>
 
 **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q1a)
 
-#### `task add-link` - Link Two Tasks
-**Task ID**: [86c6e0q1c](https://app.clickup.com/t/86c6e0q1c)
+#### `task_add_link` - Link Two Tasks ✅
+**Task ID**: [86c6e0q1c](https://app.clickup.com/t/86c6e0q1c) | **Status**: ✅ Closed
+
+Create a general link between two tasks (non-dependency relationship).
 
 ```bash
-# NOT YET IMPLEMENTED
-cum task add-link <task_id> <linked_task_id>
+cum task_add_link <task_id> <linked_task_id>
+
+# Examples:
+cum task_add_link current 86c6e0q06
+cum task_add_link 86c6e0q0a 86c6e0q0b
 ```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+- `linked_task_id` - Task ID to link to
+
+**Note**: Links are bidirectional - both tasks will show the relationship.
 
 ---
 
-#### `task remove-link` - Unlink Tasks
-**Task ID**: [86c6e0q1d](https://app.clickup.com/t/86c6e0q1d)
+#### `task_remove_link` - Unlink Tasks ✅
+**Task ID**: [86c6e0q1d](https://app.clickup.com/t/86c6e0q1d) | **Status**: ✅ Closed
+
+Remove a link between two tasks.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum task remove-link <task_id> <link_id>
+cum task_remove_link <task_id> <linked_task_id>
+
+# Examples:
+cum task_remove_link current 86c6e0q06
+cum task_remove_link 86c6e0q0a 86c6e0q0b
 ```
+
+**Arguments**:
+- `task_id` - Task ID or "current" from context
+- `linked_task_id` - Task ID to unlink from
 
 ---
 
@@ -1147,34 +1320,68 @@ Track the overall implementation progress: [CLI Command Implementation](https://
 - ✅ Default assignee configuration
 - ✅ CLI alias (`cum`)
 
-### Phase 2: Task Management (⚡ In Progress - 57% Complete)
-- ✅ Create tasks (with default assignee)
-- ✅ Update tasks
-- 🚧 Delete tasks
+### Phase 2: Task Management (✅ Complete)
+- ✅ Create tasks (with default assignee & file input support)
+- ✅ Update tasks (with file input support)
+- ✅ Delete tasks (with confirmation prompt)
 - ✅ Assign/unassign users
 - ✅ Set status (with subtask validation & multi-task support)
 - ✅ Set priority (supports names & numbers)
 - ✅ Manage tags (add/remove/set)
 
-### Phase 3: Comments & Checklists (🚧 Planned)
-- 🚧 Add/list/update/delete comments
-- 🚧 Create/delete checklists
-- 🚧 Manage checklist items
+### Phase 3: Comments & Relationships (✅ Complete)
+- ✅ Add/list/update/delete comments (with file input support)
+- ✅ Task dependencies (waiting-on and blocking relationships)
+- ✅ Task links (general task relationships)
+- 🚧 Create/delete checklists (planned)
+- 🚧 Manage checklist items (planned)
 
-### Phase 4: Relationships & Fields (🚧 Planned)
-- 🚧 Task dependencies
-- 🚧 Task links
-- 🚧 Custom fields
+### Phase 4: Docs & Pages (✅ Complete)
+- ✅ List/create/get docs
+- ✅ Create/list/update pages
+- ✅ Export docs to markdown (with nested structure support)
+- ✅ Import markdown files to create docs (with nested structure support)
 
 ### Phase 5: Lists & Hierarchy (🚧 Planned)
 - 🚧 List operations
 - 🚧 Workspace/space/folder management
 
 ### Phase 6: Advanced Features (🚧 Planned)
-- 🚧 Docs & pages
+- 🚧 Custom fields
 - 🚧 Time tracking
 - 🚧 View management
 - 🚧 Attachments
+- 🚧 Checklists
+
+---
+
+## Tab Completion
+
+The CLI supports tab completion for bash and zsh shells when `argcomplete` is installed.
+
+### Installation
+
+```bash
+# Install argcomplete
+pip install argcomplete
+
+# Enable for bash
+eval "$(register-python-argcomplete cum)"
+
+# For persistent bash completion, add to ~/.bashrc:
+echo 'eval "$(register-python-argcomplete cum)"' >> ~/.bashrc
+
+# For zsh, add to ~/.zshrc:
+autoload -U bashcompinit
+bashcompinit
+eval "$(register-python-argcomplete cum)"
+```
+
+### Features
+
+- Complete command names (both full names and short aliases)
+- Complete arguments and options
+- Works with both `cum` and `clickup` commands
 
 ---
 
