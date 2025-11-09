@@ -417,8 +417,17 @@ def set_current_command(args):
         print(f"Valid types: {', '.join(setters.keys())}", file=sys.stderr)
         sys.exit(1)
 
-    setter(resource_id)
-    print(f"✓ Set current {resource_type} to: {resource_id}")
+    try:
+        setter(resource_id)
+        # Mask token in output for security
+        if resource_type == 'token':
+            masked_token = f"{resource_id[:15]}...{resource_id[-4:]}" if len(resource_id) > 20 else "********"
+            print(f"✓ API token validated and saved successfully: {masked_token}")
+        else:
+            print(f"✓ Set current {resource_type} to: {resource_id}")
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def clear_current_command(args):
