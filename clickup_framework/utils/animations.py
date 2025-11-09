@@ -146,10 +146,12 @@ class ANSIAnimations:
         Returns:
             Formatted box string
         """
-        # Calculate width
+        from .colors import strip_ansi
+
+        # Calculate width (strip ANSI codes for accurate measurement)
         if width is None:
-            max_content_len = max(len(line) for line in content) if content else 20
-            title_len = len(title)
+            max_content_len = max(len(strip_ansi(line)) for line in content) if content else 20
+            title_len = len(strip_ansi(title))
             width = max(max_content_len, title_len) + 4
 
         # Box drawing characters
@@ -163,17 +165,18 @@ class ANSIAnimations:
         lines = []
 
         # Top border with title
-        title_padding = (width - len(title) - 4) // 2
+        title_len_visible = len(strip_ansi(title))
         top_line = (
             colorize(top_left + horizontal * 2, color) +
-            " " + colorize(title, color, TextStyle.BOLD) + " " +
-            colorize(horizontal * (width - len(title) - 5) + top_right, color)
+            " " + title + " " +
+            colorize(horizontal * (width - title_len_visible - 5) + top_right, color)
         )
         lines.append(top_line)
 
         # Content lines
         for line in content:
-            padding = width - len(line) - 4
+            line_len_visible = len(strip_ansi(line))
+            padding = width - line_len_visible - 4
             content_line = (
                 colorize(vertical, color) +
                 " " + line + " " * padding + " " +
