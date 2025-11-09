@@ -21,7 +21,7 @@ import json
 import os
 from typing import Dict, Any, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class ContextManager:
@@ -38,15 +38,18 @@ class ContextManager:
     """
 
     DEFAULT_CONTEXT_PATH = os.path.expanduser("~/.clickup_context.json")
+    DEFAULT_CACHE_TTL = 3600  # 1 hour in seconds
 
-    def __init__(self, context_path: Optional[str] = None):
+    def __init__(self, context_path: Optional[str] = None, cache_ttl: int = DEFAULT_CACHE_TTL):
         """
         Initialize ContextManager.
 
         Args:
             context_path: Path to context file (defaults to ~/.clickup_context.json)
+            cache_ttl: Cache time-to-live in seconds (default: 3600 = 1 hour)
         """
         self.context_path = context_path or self.DEFAULT_CONTEXT_PATH
+        self.cache_ttl = cache_ttl
         self._context: Dict[str, Any] = {}
         self._load()
 
@@ -267,6 +270,70 @@ class ContextManager:
             )
 
         return current_id
+
+    def cache_list_metadata(self, list_id: str, metadata: Dict[str, Any]) -> None:
+        """
+        Cache list metadata including statuses.
+
+        Args:
+            list_id: List ID
+            metadata: List metadata from API (should include 'statuses' field)
+        """
+        if 'list_cache' not in self._context:
+            self._context['list_cache'] = {}
+
+        self._context['list_cache'][list_id] = {
+            'metadata': metadata,
+            'cached_at': datetime.now().isoformat()
+        }
+        self._save()
+
+    def get_cached_list_metadata(self, list_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get cached list metadata if still valid.
+
+        Args:
+            list_id: List ID
+
+        Returns:
+            Cached metadata dict or None if not cached or expired
+        """
+        if 'list_cache' not in self._context:
+            return None
+
+        cached_data = self._context['list_cache'].get(list_id)
+        if not cached_data:
+            return None
+
+        # Check if cache is still valid
+        cached_at = datetime.fromisoformat(cached_data['cached_at'])
+        age = datetime.now() - cached_at
+
+        if age.total_seconds() > self.cache_ttl:
+            # Cache expired, remove it
+            del self._context['list_cache'][list_id]
+            self._save()
+            return None
+
+        return cached_data['metadata']
+
+    def clear_list_cache(self, list_id: Optional[str] = None) -> None:
+        """
+        Clear cached list metadata.
+
+        Args:
+            list_id: Specific list ID to clear, or None to clear all
+        """
+        if 'list_cache' not in self._context:
+            return
+
+        if list_id:
+            if list_id in self._context['list_cache']:
+                del self._context['list_cache'][list_id]
+        else:
+            self._context['list_cache'] = {}
+
+        self._save()
 
 
 def get_context_manager() -> ContextManager:
