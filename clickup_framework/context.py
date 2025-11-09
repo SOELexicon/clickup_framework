@@ -1,0 +1,281 @@
+"""
+Context Management for ClickUp Framework
+
+Provides persistent context storage for remembering current task, list, space, etc.
+This allows users to work with "current" items without repeatedly specifying IDs.
+
+Example:
+    # Set current task
+    context = ContextManager()
+    context.set_current_task("task_123")
+
+    # Get current task
+    task_id = context.get_current_task()
+
+    # Use via CLI
+    ./clickup set_current task task_123
+    ./clickup detail current
+"""
+
+import json
+import os
+from typing import Dict, Any, Optional
+from pathlib import Path
+from datetime import datetime
+
+
+class ContextManager:
+    """
+    Manages persistent context for ClickUp operations.
+
+    Stores current task, list, space, folder, and workspace IDs in a JSON file
+    at ~/.clickup_context.json for easy access across CLI commands.
+
+    Security:
+    - Does NOT store API tokens or sensitive credentials
+    - Only stores resource IDs for convenience
+    - File permissions are set to user-only (0600)
+    """
+
+    DEFAULT_CONTEXT_PATH = os.path.expanduser("~/.clickup_context.json")
+
+    def __init__(self, context_path: Optional[str] = None):
+        """
+        Initialize ContextManager.
+
+        Args:
+            context_path: Path to context file (defaults to ~/.clickup_context.json)
+        """
+        self.context_path = context_path or self.DEFAULT_CONTEXT_PATH
+        self._context: Dict[str, Any] = {}
+        self._load()
+
+    def _load(self) -> None:
+        """Load context from JSON file."""
+        if os.path.exists(self.context_path):
+            try:
+                with open(self.context_path, 'r') as f:
+                    self._context = json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                # If file is corrupted, start fresh
+                self._context = {}
+                print(f"Warning: Could not load context file: {e}")
+        else:
+            self._context = {}
+
+    def _save(self) -> None:
+        """Save context to JSON file with secure permissions."""
+        # Ensure parent directory exists
+        Path(self.context_path).parent.mkdir(parents=True, exist_ok=True)
+
+        # Write context file
+        with open(self.context_path, 'w') as f:
+            json.dump(self._context, f, indent=2)
+
+        # Set file permissions to user-only (0600)
+        try:
+            os.chmod(self.context_path, 0o600)
+        except OSError:
+            # On Windows, chmod may not work as expected
+            pass
+
+    def set_current_task(self, task_id: str) -> None:
+        """
+        Set the current task ID.
+
+        Args:
+            task_id: Task ID to set as current
+        """
+        self._context['current_task'] = task_id
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_current_task(self) -> Optional[str]:
+        """
+        Get the current task ID.
+
+        Returns:
+            Current task ID or None if not set
+        """
+        return self._context.get('current_task')
+
+    def set_current_list(self, list_id: str) -> None:
+        """
+        Set the current list ID.
+
+        Args:
+            list_id: List ID to set as current
+        """
+        self._context['current_list'] = list_id
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_current_list(self) -> Optional[str]:
+        """
+        Get the current list ID.
+
+        Returns:
+            Current list ID or None if not set
+        """
+        return self._context.get('current_list')
+
+    def set_current_space(self, space_id: str) -> None:
+        """
+        Set the current space ID.
+
+        Args:
+            space_id: Space ID to set as current
+        """
+        self._context['current_space'] = space_id
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_current_space(self) -> Optional[str]:
+        """
+        Get the current space ID.
+
+        Returns:
+            Current space ID or None if not set
+        """
+        return self._context.get('current_space')
+
+    def set_current_folder(self, folder_id: str) -> None:
+        """
+        Set the current folder ID.
+
+        Args:
+            folder_id: Folder ID to set as current
+        """
+        self._context['current_folder'] = folder_id
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_current_folder(self) -> Optional[str]:
+        """
+        Get the current folder ID.
+
+        Returns:
+            Current folder ID or None if not set
+        """
+        return self._context.get('current_folder')
+
+    def set_current_workspace(self, workspace_id: str) -> None:
+        """
+        Set the current workspace/team ID.
+
+        Args:
+            workspace_id: Workspace/team ID to set as current
+        """
+        self._context['current_workspace'] = workspace_id
+        self._context['last_updated'] = datetime.now().isoformat()
+        self._save()
+
+    def get_current_workspace(self) -> Optional[str]:
+        """
+        Get the current workspace/team ID.
+
+        Returns:
+            Current workspace/team ID or None if not set
+        """
+        return self._context.get('current_workspace')
+
+    def clear_current_task(self) -> None:
+        """Clear the current task ID."""
+        if 'current_task' in self._context:
+            del self._context['current_task']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
+    def clear_current_list(self) -> None:
+        """Clear the current list ID."""
+        if 'current_list' in self._context:
+            del self._context['current_list']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
+    def clear_current_space(self) -> None:
+        """Clear the current space ID."""
+        if 'current_space' in self._context:
+            del self._context['current_space']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
+    def clear_current_folder(self) -> None:
+        """Clear the current folder ID."""
+        if 'current_folder' in self._context:
+            del self._context['current_folder']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
+    def clear_current_workspace(self) -> None:
+        """Clear the current workspace ID."""
+        if 'current_workspace' in self._context:
+            del self._context['current_workspace']
+            self._context['last_updated'] = datetime.now().isoformat()
+            self._save()
+
+    def clear_all(self) -> None:
+        """Clear all context."""
+        self._context = {}
+        self._save()
+
+    def get_all(self) -> Dict[str, Any]:
+        """
+        Get all context data.
+
+        Returns:
+            Dictionary of all context data
+        """
+        return self._context.copy()
+
+    def resolve_id(self, resource_type: str, id_or_current: str) -> str:
+        """
+        Resolve an ID or "current" keyword to an actual ID.
+
+        Args:
+            resource_type: Type of resource (task, list, space, folder, workspace)
+            id_or_current: Either an ID or the keyword "current"
+
+        Returns:
+            Resolved ID
+
+        Raises:
+            ValueError: If "current" is used but no current ID is set
+        """
+        if id_or_current.lower() != "current":
+            return id_or_current
+
+        # Map resource types to getter methods
+        getters = {
+            'task': self.get_current_task,
+            'list': self.get_current_list,
+            'space': self.get_current_space,
+            'folder': self.get_current_folder,
+            'workspace': self.get_current_workspace,
+            'team': self.get_current_workspace,  # Alias for workspace
+        }
+
+        getter = getters.get(resource_type.lower())
+        if not getter:
+            raise ValueError(f"Unknown resource type: {resource_type}")
+
+        current_id = getter()
+        if not current_id:
+            raise ValueError(
+                f"No current {resource_type} set. "
+                f"Use 'set_current {resource_type} <id>' first."
+            )
+
+        return current_id
+
+
+def get_context_manager() -> ContextManager:
+    """
+    Get a ContextManager instance (singleton pattern).
+
+    Returns:
+        ContextManager instance
+    """
+    if not hasattr(get_context_manager, '_instance'):
+        get_context_manager._instance = ContextManager()
+    return get_context_manager._instance

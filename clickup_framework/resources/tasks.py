@@ -5,6 +5,7 @@ Provides convenient methods for task operations with automatic formatting suppor
 """
 
 from typing import Dict, Any, Optional, List
+from difflib import SequenceMatcher
 from ..formatters import format_task, format_task_list
 
 
@@ -31,14 +32,82 @@ class TasksAPI:
         tasks.update_status("task_id", "in progress")
     """
 
-    def __init__(self, client):
+    def __init__(self, client, duplicate_threshold: float = 0.95):
         """
         Initialize TasksAPI.
 
         Args:
             client: ClickUpClient instance
+            duplicate_threshold: Similarity threshold for duplicate detection (0.0-1.0)
+                                Default is 0.95 (95% similar)
         """
         self.client = client
+        self.duplicate_threshold = duplicate_threshold
+
+    def _calculate_similarity(self, str1: str, str2: str) -> float:
+        """
+        Calculate similarity between two strings using SequenceMatcher.
+
+        Args:
+            str1: First string
+            str2: Second string
+
+        Returns:
+            Similarity ratio between 0.0 and 1.0
+        """
+        if not str1 or not str2:
+            return 0.0
+        return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
+
+    def _check_duplicate_task(
+        self,
+        list_id: str,
+        name: str,
+        description: Optional[str] = None,
+        parent: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if a similar task already exists in the list.
+
+        Args:
+            list_id: List ID to search in
+            name: Task name to check
+            description: Task description to check (optional)
+            parent: Parent task ID (optional)
+
+        Returns:
+            Matching task dict if found, None otherwise
+        """
+        # Get all tasks in the list
+        result = self.client.get_list_tasks(list_id, include_closed=False)
+        existing_tasks = result.get('tasks', [])
+
+        # Check each task for similarity
+        for task in existing_tasks:
+            # Check if parent matches (if specified)
+            if parent is not None:
+                task_parent = task.get('parent')
+                if task_parent != parent:
+                    continue
+
+            # Check name similarity
+            task_name = task.get('name', '')
+            name_similarity = self._calculate_similarity(name, task_name)
+
+            if name_similarity >= self.duplicate_threshold:
+                # If description provided, check description similarity too
+                if description:
+                    task_description = task.get('description', '')
+                    desc_similarity = self._calculate_similarity(description, task_description)
+
+                    # Both name and description must be similar
+                    if desc_similarity >= self.duplicate_threshold:
+                        return task
+                else:
+                    # Only name needs to match if no description provided
+                    return task
+
+        return None
 
     def get(self, task_id: str, detail_level: Optional[str] = None, **params) -> Any:
         """
@@ -115,10 +184,14 @@ class TasksAPI:
         assignees: Optional[List[int]] = None,
         priority: Optional[int] = None,
         status: Optional[str] = None,
+        skip_duplicate_check: bool = False,
         **task_data
     ) -> Dict[str, Any]:
         """
-        Create a new task.
+        Create a new task with automatic duplicate detection.
+
+        Before creating, checks for existing tasks with similar name and description
+        to prevent accidental duplicates.
 
         Args:
             list_id: List ID to create task in
@@ -127,11 +200,34 @@ class TasksAPI:
             assignees: List of user IDs to assign
             priority: Priority (1=urgent, 2=high, 3=normal, 4=low)
             status: Initial status
-            **task_data: Additional task fields
+            skip_duplicate_check: Skip duplicate detection (default: False)
+            **task_data: Additional task fields (including 'parent' for subtasks)
 
         Returns:
             Created task (raw dict)
+
+        Raises:
+            ValueError: If a similar task already exists
         """
+        # Check for duplicates unless explicitly skipped
+        if not skip_duplicate_check:
+            parent_id = task_data.get('parent')
+            duplicate = self._check_duplicate_task(
+                list_id=list_id,
+                name=name,
+                description=description,
+                parent=parent_id
+            )
+
+            if duplicate:
+                task_id = duplicate.get('id')
+                task_name = duplicate.get('name')
+                raise ValueError(
+                    f"Task already exists with similar name, description, and parent. "
+                    f"Please review existing task [{task_id}]: \"{task_name}\". "
+                    f"Use skip_duplicate_check=True to force creation."
+                )
+
         data = {"name": name, **task_data}
 
         if description:
@@ -145,81 +241,141 @@ class TasksAPI:
 
         return self.client.create_task(list_id, **data)
 
-    def update(self, task_id: str, **updates) -> Dict[str, Any]:
+    def update(self, task: Dict[str, Any], **updates) -> Dict[str, Any]:
         """
-        Update a task.
+        Update a task (requires task to be viewed/fetched first).
+
+        This method requires the task object (fetched via get() or get_task())
+        to ensure you're aware of the current state before making modifications.
 
         Args:
-            task_id: Task ID
+            task: Task object (dict) fetched via get() or client.get_task()
             **updates: Fields to update (name, description, status, priority, etc.)
 
         Returns:
             Updated task (raw dict)
+
+        Raises:
+            ValueError: If task is not a valid task object
+
+        Example:
+            # Correct usage - view task first
+            task = tasks.get("task_id")
+            updated = tasks.update(task, status="in progress")
+
+            # Incorrect usage - will raise ValueError
+            tasks.update("task_id", status="done")  # ❌ Wrong!
         """
+        # Validate that task is a dict with an 'id' field
+        if not isinstance(task, dict) or 'id' not in task:
+            raise ValueError(
+                "Task must be viewed/fetched before updating. "
+                "Use tasks.get(task_id) to fetch the task first, then pass the task object to update()."
+            )
+
+        task_id = task['id']
         return self.client.update_task(task_id, **updates)
 
-    def update_status(self, task_id: str, status: str) -> Dict[str, Any]:
+    def update_status(self, task: Dict[str, Any], status: str) -> Dict[str, Any]:
         """
-        Update task status (convenience method).
+        Update task status (convenience method, requires task to be viewed first).
 
         Args:
-            task_id: Task ID
+            task: Task object (dict) fetched via get() or client.get_task()
             status: New status
 
         Returns:
             Updated task (raw dict)
-        """
-        return self.update(task_id, status=status)
 
-    def update_priority(self, task_id: str, priority: int) -> Dict[str, Any]:
+        Example:
+            task = tasks.get("task_id")
+            tasks.update_status(task, "in progress")
         """
-        Update task priority (convenience method).
+        return self.update(task, status=status)
+
+    def update_priority(self, task: Dict[str, Any], priority: int) -> Dict[str, Any]:
+        """
+        Update task priority (convenience method, requires task to be viewed first).
 
         Args:
-            task_id: Task ID
+            task: Task object (dict) fetched via get() or client.get_task()
             priority: Priority (1=urgent, 2=high, 3=normal, 4=low)
 
         Returns:
             Updated task (raw dict)
-        """
-        return self.update(task_id, priority=priority)
 
-    def assign(self, task_id: str, user_ids: List[int]) -> Dict[str, Any]:
+        Example:
+            task = tasks.get("task_id")
+            tasks.update_priority(task, 1)
         """
-        Assign task to users (convenience method).
+        return self.update(task, priority=priority)
+
+    def assign(self, task: Dict[str, Any], user_ids: List[int]) -> Dict[str, Any]:
+        """
+        Assign task to users (convenience method, requires task to be viewed first).
 
         Args:
-            task_id: Task ID
+            task: Task object (dict) fetched via get() or client.get_task()
             user_ids: List of user IDs to assign
 
         Returns:
             Updated task (raw dict)
-        """
-        return self.update(task_id, assignees={"add": user_ids})
 
-    def unassign(self, task_id: str, user_ids: List[int]) -> Dict[str, Any]:
+        Example:
+            task = tasks.get("task_id")
+            tasks.assign(task, [123456])
         """
-        Unassign task from users (convenience method).
+        return self.update(task, assignees={"add": user_ids})
+
+    def unassign(self, task: Dict[str, Any], user_ids: List[int]) -> Dict[str, Any]:
+        """
+        Unassign task from users (convenience method, requires task to be viewed first).
 
         Args:
-            task_id: Task ID
+            task: Task object (dict) fetched via get() or client.get_task()
             user_ids: List of user IDs to unassign
 
         Returns:
             Updated task (raw dict)
-        """
-        return self.update(task_id, assignees={"rem": user_ids})
 
-    def delete(self, task_id: str) -> Dict[str, Any]:
+        Example:
+            task = tasks.get("task_id")
+            tasks.unassign(task, [123456])
         """
-        Delete a task.
+        return self.update(task, assignees={"rem": user_ids})
+
+    def delete(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Delete a task (requires task to be viewed/fetched first).
+
+        This method requires the task object (fetched via get() or get_task())
+        to ensure you're aware of what you're deleting.
 
         Args:
-            task_id: Task ID
+            task: Task object (dict) fetched via get() or client.get_task()
 
         Returns:
             Empty dict on success
+
+        Raises:
+            ValueError: If task is not a valid task object
+
+        Example:
+            # Correct usage - view task first
+            task = tasks.get("task_id")
+            tasks.delete(task)
+
+            # Incorrect usage - will raise ValueError
+            tasks.delete("task_id")  # ❌ Wrong!
         """
+        # Validate that task is a dict with an 'id' field
+        if not isinstance(task, dict) or 'id' not in task:
+            raise ValueError(
+                "Task must be viewed/fetched before deleting. "
+                "Use tasks.get(task_id) to fetch the task first, then pass the task object to delete()."
+            )
+
+        task_id = task['id']
         return self.client.delete_task(task_id)
 
     # Comment operations
