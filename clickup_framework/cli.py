@@ -498,11 +498,26 @@ def show_current_command(args):
     # Show API token status (without revealing the token)
     api_token = context.get_api_token()
     if api_token:
+        # Mask token but show first 15 and last 4 chars for verification
+        masked = f"{api_token[:15]}...{api_token[-4:]}" if len(api_token) > 20 else "********"
         content_lines.append(
             colorize("API Token: ", TextColor.BRIGHT_WHITE) +
-            colorize("********", TextColor.BRIGHT_GREEN) +
+            colorize(masked, TextColor.BRIGHT_GREEN) +
             colorize(" (set)", TextColor.BRIGHT_BLACK)
         )
+
+        # Warn if environment variable might override
+        env_token = os.environ.get('CLICKUP_API_TOKEN')
+        if env_token and env_token != api_token:
+            content_lines.append(
+                colorize("⚠ Warning: CLICKUP_API_TOKEN env var is set and differs from stored token!",
+                        TextColor.BRIGHT_RED, TextStyle.BOLD)
+            )
+            env_masked = f"{env_token[:15]}...{env_token[-4:]}" if len(env_token) > 20 else "********"
+            content_lines.append(
+                colorize(f"  Env token: {env_masked} (this will be used instead)",
+                        TextColor.BRIGHT_YELLOW)
+            )
 
     # Show default assignee
     default_assignee = context.get_default_assignee()
