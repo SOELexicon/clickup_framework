@@ -3,7 +3,7 @@
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options
+from clickup_framework.commands.utils import create_format_options, add_common_args
 
 
 def detail_command(args):
@@ -41,7 +41,7 @@ def detail_command(args):
     print(output)
 
 
-def register_command(subparsers, add_common_args):
+def register_command(subparsers):
     """Register the detail command with argparse."""
     parser = subparsers.add_parser(
         'detail',
