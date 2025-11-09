@@ -87,11 +87,11 @@ def get_recent_commits(count=5):
         return []
 
 
-def detect_commit_type(subject, body, changed_files):
+def detect_commit_emoji(subject, body, changed_files):
     """
-    Detect the type of commit based on commit message and changed files.
+    Detect the appropriate emoji for a commit based on commit message and changed files.
 
-    Returns: (task_type, emoji)
+    Returns: emoji string
     """
     subject_lower = subject.lower()
     body_lower = body.lower() if body else ""
@@ -99,23 +99,23 @@ def detect_commit_type(subject, body, changed_files):
 
     # Check for keywords in commit message
     if any(word in combined for word in ['fix', 'bug', 'bugfix', 'patch', 'repair', 'resolve']):
-        return ('Bug', '🐛')
+        return '🐛'
     elif any(word in combined for word in ['feat', 'feature', 'add', 'implement', 'new']):
-        return ('Feature', '🚀')
+        return '🚀'
     elif any(word in combined for word in ['refactor', 'restructure', 'rewrite', 'cleanup']):
-        return ('Refactor', '♻️')
+        return '♻️'
     elif any(word in combined for word in ['doc', 'docs', 'documentation', 'readme']):
-        return ('Documentation', '📚')
+        return '📚'
     elif any(word in combined for word in ['test', 'testing', 'spec']):
-        return ('Test', '🧪')
+        return '🧪'
     elif any(word in combined for word in ['chore', 'maintain', 'deps', 'dependency', 'dependencies']):
-        return ('Chore', '🧹')
+        return '🧹'
     elif any(word in combined for word in ['security', 'vuln', 'vulnerability', 'cve']):
-        return ('Security', '🛡️')
+        return '🛡️'
     elif any(word in combined for word in ['perf', 'performance', 'optimize', 'speed']):
-        return ('Enhancement', '✨')
+        return '✨'
     elif any(word in combined for word in ['merge', 'pull request', 'pr']):
-        return ('Merge', '🔀')
+        return '🔀'
 
     # Check file extensions if no keyword match
     if changed_files:
@@ -123,19 +123,19 @@ def detect_commit_type(subject, body, changed_files):
         has_docs = any(f.endswith(('.md', '.rst', '.txt')) for f in changed_files)
 
         if has_test:
-            return ('Test', '🧪')
+            return '🧪'
         elif has_docs:
-            return ('Documentation', '📚')
+            return '📚'
 
-    # Default to generic task
-    return ('Task', '📝')
+    # Default to commit emoji
+    return '💾'
 
 
-def create_commit_task(client, list_id, commit_info, repo_name, branch_name):
+def create_commit_task(client, list_id, commit_info, repo_name, branch_name, parent_task_id=None):
     """Create a ClickUp task for a commit."""
 
-    # Detect commit type
-    task_type, emoji = detect_commit_type(
+    # Detect appropriate emoji for commit
+    emoji = detect_commit_emoji(
         commit_info['subject'],
         commit_info['body'],
         commit_info['changed_files']
@@ -147,7 +147,7 @@ def create_commit_task(client, list_id, commit_info, repo_name, branch_name):
     # Build task description with detailed commit info
     description = f"""# Commit Details
 
-**Type:** {emoji} {task_type}
+**Type:** {emoji} Commit
 **Commit:** `{commit_info['full_hash']}`
 **Author:** {commit_info['author_name']} <{commit_info['author_email']}>
 **Date:** {commit_info['date']}
@@ -173,27 +173,91 @@ def create_commit_task(client, list_id, commit_info, repo_name, branch_name):
     if commit_info['stats']:
         description += f"\n## Statistics\n\n```\n{commit_info['stats']}\n```"
 
-    # Create the task with custom type
-    task = client.create_task(
-        list_id,
-        name=task_name,
-        description=description,
-        custom_type=task_type,
-        tags=[
+    # Create the task with Commit type
+    task_data = {
+        'name': task_name,
+        'description': description,
+        'custom_type': 'Commit',
+        'tags': [
             {'name': 'commit'},
             {'name': 'automated'},
-            {'name': task_type.lower()},
             {'name': branch_name}
         ]
-    )
+    }
+
+    # Add parent if provided (make it a subtask)
+    if parent_task_id:
+        task_data['parent'] = parent_task_id
+
+    task = client.create_task(list_id, **task_data)
 
     return task
+
+
+def find_or_create_branch_task(client, list_id, branch_name, repo_name):
+    """
+    Find or create a branch container task.
+
+    Args:
+        client: ClickUpClient instance
+        list_id: List ID to search/create in
+        branch_name: Branch name
+        repo_name: Repository name
+
+    Returns:
+        Branch task dictionary
+    """
+    try:
+        # Search for existing branch task
+        print(f"  Searching for existing branch task: {branch_name}...")
+        response = client.get_list_tasks(list_id, include_closed=False)
+        tasks = response.get('tasks', [])
+
+        # Look for a branch task with matching name
+        branch_task_name = f"🌿 [Branch] {branch_name}"
+        for task in tasks:
+            if task.get('name') == branch_task_name and task.get('custom_type') == 'Branch':
+                print(f"  ✓ Found existing branch task: {task['id']}")
+                return task
+
+        # If not found, create new branch task
+        print(f"  Creating new branch task for: {branch_name}")
+        description = f"""# Branch: {branch_name}
+
+**Repository:** {repo_name}
+**Branch:** {branch_name}
+
+This task contains all commits pushed to the `{branch_name}` branch.
+
+---
+
+*Automatically created to organize commits*
+"""
+
+        task_data = {
+            'name': branch_task_name,
+            'description': description,
+            'custom_type': 'Branch',
+            'tags': [
+                {'name': 'branch'},
+                {'name': 'automated'},
+                {'name': branch_name}
+            ]
+        }
+
+        branch_task = client.create_task(list_id, **task_data)
+        print(f"  ✓ Branch task created: {branch_task['id']}")
+        return branch_task
+
+    except Exception as e:
+        print(f"  ✗ Error finding/creating branch task: {e}")
+        return None
 
 
 def main():
     """Main entry point."""
     # Configuration
-    LIST_ID = "901517404274"  # Development Tasks list
+    LIST_ID = "901517412318"  # Development Tasks list
     REPO_NAME = os.environ.get('GITHUB_REPOSITORY', 'clickup_framework')
     BRANCH_NAME = os.environ.get('GITHUB_REF_NAME', 'unknown')
     COMMIT_COUNT = int(os.environ.get('COMMIT_COUNT', '5'))
@@ -213,6 +277,18 @@ def main():
         print(f"✗ Error initializing ClickUp client: {e}", file=sys.stderr)
         print("Make sure CLICKUP_API_TOKEN environment variable is set.", file=sys.stderr)
         return 1
+
+    # Find or create branch container task
+    print(f"Finding or creating branch task for: {BRANCH_NAME}")
+    branch_task = find_or_create_branch_task(client, LIST_ID, BRANCH_NAME, REPO_NAME)
+
+    if not branch_task:
+        print("✗ Could not create/find branch task. Commits will be created without parent.")
+        branch_task_id = None
+    else:
+        branch_task_id = branch_task['id']
+        print(f"✓ Branch task ready: {branch_task_id}")
+    print()
 
     # Get recent commits
     commit_hashes = get_recent_commits(COMMIT_COUNT)
@@ -241,13 +317,14 @@ def main():
         print(f"  Files changed: {commit_info['changed_files_count']}")
 
         try:
-            # Create task in ClickUp
+            # Create task in ClickUp as subtask of branch
             task = create_commit_task(
                 client,
                 LIST_ID,
                 commit_info,
                 REPO_NAME,
-                BRANCH_NAME
+                BRANCH_NAME,
+                parent_task_id=branch_task_id
             )
             created_tasks.append(task)
             print(f"  ✓ Task created: {task['id']}")
@@ -261,12 +338,19 @@ def main():
     print("=" * 80)
     print("SUMMARY")
     print("=" * 80)
+
+    if branch_task:
+        print(f"Branch Container: {branch_task['name']}")
+        print(f"  ID: {branch_task['id']}")
+        print(f"  URL: {branch_task.get('url', 'N/A')}")
+        print()
+
     print(f"Commits processed: {len(commit_hashes)}")
-    print(f"Tasks created: {len(created_tasks)}")
+    print(f"Commit tasks created: {len(created_tasks)}")
     print()
 
     if created_tasks:
-        print("Created tasks:")
+        print("Created commit tasks (under branch container):")
         for task in created_tasks:
             print(f"  - {task['name']}")
             print(f"    ID: {task['id']}")
