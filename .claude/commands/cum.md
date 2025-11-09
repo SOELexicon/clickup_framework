@@ -4,11 +4,10 @@ description: Complete command reference for the ClickUp Framework CLI (`cum`) wi
 
 Quick reference for the ClickUp Framework CLI (`cum` / `clickup`)
 
-## Setup
+if cum isnt available ensure you install it by doing 
 
 ```bash
-export CLICKUP_API_TOKEN="your_token"
-pip install -e .
+pip install --upgrade --force-reinstall git+https://github.com/SOELexicon/clickup_framework.git
 ```
 
 ## Quick Reference: All Short Codes
