@@ -69,7 +69,21 @@ class ContextManager:
     def _save(self) -> None:
         """Save context to JSON file with secure permissions."""
         # Ensure parent directory exists
-        Path(self.context_path).parent.mkdir(parents=True, exist_ok=True)
+        parent_dir = Path(self.context_path).parent
+        try:
+            parent_dir.mkdir(parents=True, exist_ok=True)
+        except FileExistsError:
+            # Parent path exists but is a file, not a directory
+            # This can happen if ~/.cum is a file instead of a directory
+            raise RuntimeError(
+                f"Cannot create config directory: {parent_dir} exists but is not a directory. "
+                f"Please remove the file or choose a different config location."
+            )
+        except OSError as e:
+            # Permission denied or other OS error
+            raise RuntimeError(
+                f"Cannot create config directory {parent_dir}: {e}"
+            )
 
         # Write context file
         with open(self.context_path, 'w') as f:
