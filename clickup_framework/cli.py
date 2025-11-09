@@ -24,6 +24,7 @@ from clickup_framework.components import (
     TaskDetailFormatter
 )
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.utils.animations import ANSIAnimations
 
 
 def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = True) -> str:
@@ -420,33 +421,53 @@ def clear_current_command(args):
 
 
 def show_current_command(args):
-    """Show current resource context."""
+    """Show current resource context with animated display."""
     context = get_context_manager()
     all_context = context.get_all()
 
-    if not all_context:
-        print("No context set.")
+    if not all_context or all(v is None for v in [
+        context.get_current_task(),
+        context.get_current_list(),
+        context.get_current_space(),
+        context.get_current_folder(),
+        context.get_current_workspace()
+    ]):
+        print(ANSIAnimations.warning_message("No context set"))
         return
 
-    print("Current Context:")
-    print("=" * 50)
+    # Build content lines for the box
+    content_lines = []
 
-    # Show current values
+    # Show current values with highlighted IDs
     items = [
-        ('Task', context.get_current_task()),
-        ('List', context.get_current_list()),
-        ('Space', context.get_current_space()),
-        ('Folder', context.get_current_folder()),
-        ('Workspace', context.get_current_workspace()),
+        ('Workspace', context.get_current_workspace(), TextColor.BRIGHT_MAGENTA),
+        ('Space', context.get_current_space(), TextColor.BRIGHT_BLUE),
+        ('Folder', context.get_current_folder(), TextColor.BRIGHT_CYAN),
+        ('List', context.get_current_list(), TextColor.BRIGHT_YELLOW),
+        ('Task', context.get_current_task(), TextColor.BRIGHT_GREEN),
     ]
 
-    for label, value in items:
+    for label, value, color in items:
         if value:
-            print(f"  {label:12} {value}")
+            content_lines.append(ANSIAnimations.highlight_id(label, value, id_color=color))
 
-    # Show last updated
+    # Show last updated with gradient
     if 'last_updated' in all_context:
-        print(f"\nLast Updated: {all_context['last_updated']}")
+        last_updated = all_context['last_updated']
+        content_lines.append("")  # Empty line for spacing
+        content_lines.append(
+            colorize("Last Updated: ", TextColor.BRIGHT_BLACK) +
+            colorize(last_updated, TextColor.BRIGHT_WHITE)
+        )
+
+    # Create animated box
+    box = ANSIAnimations.animated_box(
+        ANSIAnimations.gradient_text("Current Context", ANSIAnimations.GRADIENT_RAINBOW),
+        content_lines,
+        color=TextColor.BRIGHT_CYAN
+    )
+
+    print("\n" + box + "\n")
 
 
 def main():
