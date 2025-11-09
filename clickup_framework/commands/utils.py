@@ -111,3 +111,29 @@ def create_format_options(args) -> FormatOptions:
         show_type_emoji=getattr(args, 'show_emoji', True),
         description_length=description_length
     )
+
+
+def add_common_args(subparser):
+    """Add common formatting arguments to a command parser."""
+    subparser.add_argument('--preset', choices=['minimal', 'summary', 'detailed', 'full'],
+                         help='Use a preset format configuration')
+    subparser.add_argument('--no-colorize', dest='colorize', action='store_const', const=False, default=None,
+                         help='Disable color output (default: use config setting)')
+    subparser.add_argument('--colorize', dest='colorize', action='store_const', const=True,
+                         help='Enable color output')
+    subparser.add_argument('--show-ids', action='store_true',
+                         help='Show task IDs')
+    subparser.add_argument('--show-tags', action='store_true', default=True,
+                         help='Show task tags (default: true)')
+    subparser.add_argument('--show-descriptions', action='store_true',
+                         help='Show task descriptions')
+    subparser.add_argument('-d', '--full-descriptions', dest='full_descriptions', action='store_true',
+                         help='Show full descriptions without truncation (implies --show-descriptions)')
+    subparser.add_argument('--show-dates', action='store_true',
+                         help='Show task dates')
+    subparser.add_argument('--show-comments', type=int, default=0, metavar='N',
+                         help='Show N comments per task')
+    subparser.add_argument('--include-completed', action='store_true',
+                         help='Include completed tasks')
+    subparser.add_argument('--no-emoji', dest='show_emoji', action='store_false',
+                         help='Hide task type emojis')
