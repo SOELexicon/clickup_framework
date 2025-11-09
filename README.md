@@ -6,8 +6,9 @@ A modular, token-efficient framework for ClickUp API interactions achieving **90
 
 **Version:** 1.0.0-alpha
 **Phase:** 3 (Resource APIs) - Complete ✅
-
+[![Test and Generate Display Screenshots](https://github.com/SOELexicon/clickup_framework/actions/workflows/test-and-screenshot.yml/badge.svg?branch=master)](https://github.com/SOELexicon/clickup_framework/actions/workflows/test-and-screenshot.yml)
 ### Implementation Progress
+
 
 - [x] **Phase 1:** Core Client Library (Week 1) - COMPLETE ✅
   - [x] Core client class with authentication
