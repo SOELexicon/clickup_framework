@@ -9,6 +9,7 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 - [Installation](#installation)
 - [Authentication](#authentication)
 - [Quick Start](#quick-start)
+- [Task Workflow Guide](docs/TASK_WORKFLOW_GUIDE.md) 📖
 - [View Commands (Implemented)](#view-commands-implemented-)
 - [Context Management (Implemented)](#context-management-implemented-)
 - [Task Management Commands (Implemented)](#task-management-commands-implemented-)
