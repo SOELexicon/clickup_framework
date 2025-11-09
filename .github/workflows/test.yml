@@ -62,12 +62,27 @@ jobs:
       run: |
         python tests/run_tests.py --coverage-only
 
+    - name: Install test reporting dependencies
+      run: |
+        pip install pytest-json-report pytest-cov
+
     - name: Run Tests
       env:
         CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
       run: |
         python tests/run_tests.py --verbose --coverage
       continue-on-error: true  # Don't fail workflow if tests fail
+
+    - name: Post Test Results to ClickUp
+      if: always()
+      env:
+        CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_REF_NAME: ${{ github.ref_name }}
+        GITHUB_SHA: ${{ github.sha }}
+      run: |
+        python scripts/post_test_results_to_clickup.py
+      continue-on-error: true
 
     - name: Upload Test Results
       if: always()
