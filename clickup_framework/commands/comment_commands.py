@@ -4,6 +4,7 @@ import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import read_text_from_file
 
 
 def comment_add_command(args):
@@ -22,9 +23,15 @@ def comment_add_command(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # Get comment text from argument or file
+    if args.comment_file:
+        comment_text = read_text_from_file(args.comment_file)
+    else:
+        comment_text = args.comment_text
+
     try:
         # Create the comment
-        comment = comments_api.create_task_comment(task_id, args.comment_text)
+        comment = comments_api.create_task_comment(task_id, comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment added")
@@ -109,9 +116,15 @@ def comment_update_command(args):
     client = ClickUpClient()
     comments_api = CommentsAPI(client)
 
+    # Get comment text from argument or file
+    if args.comment_file:
+        comment_text = read_text_from_file(args.comment_file)
+    else:
+        comment_text = args.comment_text
+
     try:
         # Update the comment
-        updated = comments_api.update(args.comment_id, args.comment_text)
+        updated = comments_api.update(args.comment_id, comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment updated")
@@ -166,7 +179,9 @@ def register_command(subparsers):
     comment_add_parser = subparsers.add_parser('comment_add', aliases=['ca'],
                                                 help='Add a comment to a task')
     comment_add_parser.add_argument('task_id', help='Task ID (or "current")')
-    comment_add_parser.add_argument('comment_text', help='Comment text')
+    comment_text_group = comment_add_parser.add_mutually_exclusive_group(required=True)
+    comment_text_group.add_argument('comment_text', nargs='?', help='Comment text')
+    comment_text_group.add_argument('--comment-file', help='Read comment text from file')
     comment_add_parser.set_defaults(func=comment_add_command)
 
     # Comment list
@@ -182,7 +197,9 @@ def register_command(subparsers):
     comment_update_parser = subparsers.add_parser('comment_update', aliases=['cu'],
                                                    help='Update an existing comment')
     comment_update_parser.add_argument('comment_id', help='Comment ID')
-    comment_update_parser.add_argument('comment_text', help='New comment text')
+    comment_update_text_group = comment_update_parser.add_mutually_exclusive_group(required=True)
+    comment_update_text_group.add_argument('comment_text', nargs='?', help='New comment text')
+    comment_update_text_group.add_argument('--comment-file', help='Read new comment text from file')
     comment_update_parser.set_defaults(func=comment_update_command)
 
     # Comment delete

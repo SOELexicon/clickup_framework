@@ -6,6 +6,7 @@ from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
+from clickup_framework.commands.utils import read_text_from_file
 
 
 def task_create_command(args):
@@ -23,7 +24,10 @@ def task_create_command(args):
     # Build task data
     task_data = {'name': args.name}
 
-    if args.description:
+    # Handle description from argument or file
+    if args.description_file:
+        task_data['description'] = read_text_from_file(args.description_file)
+    elif args.description:
         task_data['description'] = args.description
 
     if args.status:
@@ -79,7 +83,10 @@ def task_update_command(args):
     if args.name:
         updates['name'] = args.name
 
-    if args.description:
+    # Handle description from argument or file
+    if args.description_file:
+        updates['description'] = read_text_from_file(args.description_file)
+    elif args.description:
         updates['description'] = args.description
 
     if args.status:
@@ -611,7 +618,9 @@ def register_command(subparsers):
                                                 help='Create a new task')
     task_create_parser.add_argument('list_id', help='List ID to create task in (or "current")')
     task_create_parser.add_argument('name', help='Task name')
-    task_create_parser.add_argument('--description', help='Task description')
+    description_group = task_create_parser.add_mutually_exclusive_group()
+    description_group.add_argument('--description', help='Task description')
+    description_group.add_argument('--description-file', help='Read task description from file')
     task_create_parser.add_argument('--status', help='Task status')
     task_create_parser.add_argument('--priority', type=int, help='Task priority (1-4)')
     task_create_parser.add_argument('--tags', nargs='+', help='Tags to add')
@@ -624,7 +633,9 @@ def register_command(subparsers):
                                                 help='Update a task')
     task_update_parser.add_argument('task_id', help='Task ID to update (or "current")')
     task_update_parser.add_argument('--name', help='New task name')
-    task_update_parser.add_argument('--description', help='New task description')
+    description_update_group = task_update_parser.add_mutually_exclusive_group()
+    description_update_group.add_argument('--description', help='New task description')
+    description_update_group.add_argument('--description-file', help='Read new task description from file')
     task_update_parser.add_argument('--status', help='New task status')
     task_update_parser.add_argument('--priority', type=int, help='New task priority (1-4)')
     task_update_parser.add_argument('--add-tags', nargs='+', help='Tags to add')
