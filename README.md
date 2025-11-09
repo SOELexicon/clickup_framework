@@ -208,6 +208,11 @@ python -m clickup_framework --help
 
 See `./clickup <command> --help` for command-specific options.
 
+### Documentation & Guides
+
+- **[Task Workflow Guide](docs/TASK_WORKFLOW_GUIDE.md)** - Comprehensive guide on managing tasks from start to finish, including when to update statuses, leave comments, and handle subtasks
+- **[API Command Reference](CLICKUP.md)** - Complete CLI command reference with examples
+
 ## Quick Start
 
 ### Basic Usage (Phase 1 - Client)
