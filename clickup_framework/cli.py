@@ -1148,7 +1148,7 @@ def show_command_tree():
         print()
 
         # Animated separator
-        separator = ANSIAnimations.rainbow_wave("─" * 60)
+        separator = ANSIAnimations.gradient_text("─" * 60, ANSIAnimations.GRADIENT_RAINBOW)
         print(separator)
         print()
         time.sleep(0.05)
