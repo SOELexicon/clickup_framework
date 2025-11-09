@@ -174,10 +174,13 @@ def find_existing_commit_task(client, list_id, commit_hash):
         tasks = response.get('tasks', [])
 
         # Look for a commit task with matching hash in the name
+        # We search by name pattern only, not custom_type, since custom_type field
+        # may not be reliably set or retrieved via the API
         for task in tasks:
             task_name = task.get('name', '')
-            # Check if task name contains the commit hash
-            if f'[Commit {commit_hash}]' in task_name and task.get('custom_type') == 'Commit':
+            # Check if task name contains the commit hash pattern
+            # Match patterns like: "[Commit abcd1234]" or "🚀 [Commit abcd1234]"
+            if f'[Commit {commit_hash}]' in task_name:
                 return task
 
         return None
@@ -274,9 +277,11 @@ def find_or_create_branch_task(client, list_id, branch_name, repo_name):
         tasks = response.get('tasks', [])
 
         # Look for a branch task with matching name
+        # We search by name pattern only, not custom_type, since custom_type field
+        # may not be reliably set or retrieved via the API
         branch_task_name = f"🌿 [Branch] {branch_name}"
         for task in tasks:
-            if task.get('name') == branch_task_name and task.get('custom_type') == 'Branch':
+            if task.get('name') == branch_task_name:
                 print(f"  ✓ Found existing branch task: {task['id']}")
                 return task
 
