@@ -17,11 +17,14 @@ clickup task_update <task_id> [OPTIONS]
 
 ### Optional
 - `--name TEXT` - New task name
-- `--description TEXT` - New task description
+- `--description TEXT` - New task description (text)
+- `--description-file PATH` - New task description (from file)
 - `--status TEXT` - New status (must be valid for the list)
 - `--priority INT` - New priority (1-4)
 - `--add-tags TAG [TAG ...]` - Tags to add to existing tags
 - `--remove-tags TAG [TAG ...]` - Tags to remove from existing tags
+
+**Note**: `--description` and `--description-file` are mutually exclusive.
 
 ## Examples
 
@@ -59,6 +62,22 @@ clickup set_current task 86c6e0xyz
 
 # Update current task
 clickup task_update current --status "testing"
+```
+
+### Using File Input for Descriptions
+```bash
+# Update task description from file
+clickup task_update 86c6e0xyz --description-file updated_spec.md
+
+# Update multiple fields including description from file
+clickup task_update 86c6e0xyz \
+  --name "Refactored Authentication System" \
+  --description-file detailed_implementation.md \
+  --status "completed" \
+  --priority 1
+
+# Useful for iterative updates to specifications
+clickup task_update current --description-file revised_requirements.txt
 ```
 
 ## Output
@@ -101,6 +120,9 @@ Error updating task: ClickUp API Error 404: Task not found
 - Status must exist in the task's list workflow
 - Priority values: 1 (Urgent), 2 (High), 3 (Normal), 4 (Low)
 - All updates are atomic - either all succeed or none apply
+- Use `--description-file` to read descriptions from files (supports markdown, text, etc.)
+- File paths can be absolute or relative to current working directory
+- Files must be readable text files (UTF-8 encoding)
 
 ## Validation
 
