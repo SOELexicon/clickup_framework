@@ -41,26 +41,42 @@ def show_current_command(args):
 
     # Show API token status (without revealing the token)
     api_token = context.get_api_token()
-    if api_token:
+    env_token = os.environ.get('CLICKUP_API_TOKEN')
+
+    if api_token or env_token:
+        # Determine which token will be used (priority: env > context)
+        active_token = env_token if env_token else api_token
+        active_source = "environment" if env_token else "context"
+
         # Mask token but show first 15 and last 4 chars for verification
-        masked = f"{api_token[:15]}...{api_token[-4:]}" if len(api_token) > 20 else "********"
+        masked = f"{active_token[:15]}...{active_token[-4:]}" if len(active_token) > 20 else "********"
         content_lines.append(
             colorize("API Token: ", TextColor.BRIGHT_WHITE) +
             colorize(masked, TextColor.BRIGHT_GREEN) +
-            colorize(" (set)", TextColor.BRIGHT_BLACK)
+            colorize(f" (active: {active_source})", TextColor.BRIGHT_BLACK)
         )
 
-        # Warn if environment variable might override
-        env_token = os.environ.get('CLICKUP_API_TOKEN')
-        if env_token and env_token != api_token:
+        # Show both tokens if they differ (fallback available)
+        if env_token and api_token and env_token != api_token:
             content_lines.append(
-                colorize("⚠ Warning: CLICKUP_API_TOKEN env var is set and differs from stored token!",
-                        TextColor.BRIGHT_RED, TextStyle.BOLD)
+                colorize("  Primary: ", TextColor.BRIGHT_WHITE) +
+                colorize("environment", TextColor.BRIGHT_CYAN)
             )
             env_masked = f"{env_token[:15]}...{env_token[-4:]}" if len(env_token) > 20 else "********"
             content_lines.append(
-                colorize(f"  Env token: {env_masked} (this will be used instead)",
-                        TextColor.BRIGHT_YELLOW)
+                colorize(f"    {env_masked}", TextColor.BRIGHT_BLACK)
+            )
+            content_lines.append(
+                colorize("  Fallback: ", TextColor.BRIGHT_WHITE) +
+                colorize("context", TextColor.BRIGHT_YELLOW)
+            )
+            ctx_masked = f"{api_token[:15]}...{api_token[-4:]}" if len(api_token) > 20 else "********"
+            content_lines.append(
+                colorize(f"    {ctx_masked}", TextColor.BRIGHT_BLACK)
+            )
+            content_lines.append(
+                colorize("  ℹ Will auto-switch to fallback if primary fails with 401",
+                        TextColor.BRIGHT_BLACK)
             )
 
     # Show default assignee
