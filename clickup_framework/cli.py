@@ -713,9 +713,7 @@ def task_set_status_command(args):
             list_id = task['list']['id']
 
             # Get all tasks in the list to find subtasks
-            result = client._request('GET', f'list/{list_id}/task', params={
-                'subtasks': 'true'
-            })
+            result = client.get_list_tasks(list_id, subtasks='true')
             all_tasks = result.get('tasks', [])
 
             # Find subtasks of this task
