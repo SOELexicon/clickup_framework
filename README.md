@@ -1,12 +1,13 @@
 # ClickUp Framework
 
 A modular, token-efficient framework for ClickUp API interactions achieving **90-95% token reduction** through intelligent formatting and progressive disclosure.
+[![ClickUp Framework Tests](https://github.com/SOELexicon/clickup_framework/actions/workflows/test.yml/badge.svg)](https://github.com/SOELexicon/clickup_framework/actions/workflows/test.yml)
 
 ## Status
 
 **Version:** 1.0.0-alpha
 **Phase:** 3 (Resource APIs) - Complete ✅
-[![Test and Generate Display Screenshots](https://github.com/SOELexicon/clickup_framework/actions/workflows/test-and-screenshot.yml/badge.svg?branch=master)](https://github.com/SOELexicon/clickup_framework/actions/workflows/test-and-screenshot.yml)
+[![Test and Generate Display Screenshots](https://github.com/SOELexicon/clickup_framework/actions/workflows/test-and-screenshot.yml/badge.svg)](https://github.com/SOELexicon/clickup_framework/actions/workflows/test-and-screenshot.yml)
 ### Implementation Progress
 
 
