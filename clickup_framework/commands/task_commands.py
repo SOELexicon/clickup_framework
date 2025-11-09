@@ -1,0 +1,498 @@
+"""Task management commands for ClickUp Framework CLI."""
+
+import sys
+from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.utils.animations import ANSIAnimations
+
+
+def task_create_command(args):
+    """Create a new task."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual list ID
+    try:
+        list_id = context.resolve_id('list', args.list_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Build task data
+    task_data = {'name': args.name}
+
+    if args.description:
+        task_data['description'] = args.description
+
+    if args.status:
+        task_data['status'] = args.status
+
+    if args.priority is not None:
+        task_data['priority'] = args.priority
+
+    if args.tags:
+        task_data['tags'] = args.tags
+
+    if args.assignees:
+        task_data['assignees'] = [{'id': aid} for aid in args.assignees]
+    else:
+        # Use default assignee if none specified
+        default_assignee = context.get_default_assignee()
+        if default_assignee:
+            task_data['assignees'] = [{'id': default_assignee}]
+
+    if args.parent:
+        task_data['parent'] = args.parent
+
+    # Create the task
+    try:
+        task = client.create_task(list_id, **task_data)
+
+        # Show success message
+        success_msg = ANSIAnimations.success_message(f"Task created: {task['name']}")
+        print(success_msg)
+        print(f"\nTask ID: {colorize(task['id'], TextColor.BRIGHT_GREEN)}")
+        print(f"URL: {task['url']}")
+
+    except Exception as e:
+        print(f"Error creating task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_update_command(args):
+    """Update a task with specified fields."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Build update dictionary from provided arguments
+    updates = {}
+
+    if args.name:
+        updates['name'] = args.name
+
+    if args.description:
+        updates['description'] = args.description
+
+    if args.status:
+        updates['status'] = args.status
+
+    if args.priority is not None:
+        updates['priority'] = args.priority
+
+    if args.add_tags:
+        # Get current task to append tags
+        task = client.get_task(task_id)
+        existing_tags = [tag['name'] for tag in task.get('tags', [])]
+        all_tags = list(set(existing_tags + args.add_tags))
+        updates['tags'] = all_tags
+
+    if args.remove_tags:
+        # Get current task to remove tags
+        task = client.get_task(task_id)
+        existing_tags = [tag['name'] for tag in task.get('tags', [])]
+        remaining_tags = [tag for tag in existing_tags if tag not in args.remove_tags]
+        updates['tags'] = remaining_tags
+
+    if not updates:
+        print("Error: No updates specified. Use --name, --description, --status, --priority, or tag options.", file=sys.stderr)
+        sys.exit(1)
+
+    # Perform the update
+    try:
+        updated_task = client.update_task(task_id, **updates)
+
+        # Show success message with gradient
+        success_msg = ANSIAnimations.success_message(f"Task updated: {updated_task.get('name', task_id)}")
+        print(success_msg)
+
+        # Show what was updated
+        print("\nUpdated fields:")
+        for key, value in updates.items():
+            if key == 'tags' and isinstance(value, list):
+                value_str = ', '.join(value)
+            else:
+                value_str = str(value)
+            print(f"  {colorize(key, TextColor.BRIGHT_CYAN)}: {value_str}")
+
+    except Exception as e:
+        print(f"Error updating task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_delete_command(args):
+    """Delete a task."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Get task name for confirmation
+    try:
+        task = client.get_task(task_id)
+        task_name = task['name']
+    except Exception as e:
+        print(f"Error fetching task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Confirmation prompt unless force flag is set
+    if not args.force:
+        response = input(f"Delete task '{task_name}' [{task_id}]? (y/N): ")
+        if response.lower() not in ['y', 'yes']:
+            print("Cancelled.")
+            return
+
+    # Delete the task
+    try:
+        client.delete_task(task_id)
+        success_msg = ANSIAnimations.success_message(f"Task deleted: {task_name}")
+        print(success_msg)
+
+    except Exception as e:
+        print(f"Error deleting task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_assign_command(args):
+    """Assign users to a task."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Get current task to append assignees
+    try:
+        task = client.get_task(task_id)
+        current_assignees = [a['id'] for a in task.get('assignees', [])]
+
+        # Add new assignees
+        all_assignees = list(set(current_assignees + args.assignee_ids))
+
+        # Update task with new assignees
+        updated_task = client.update_task(task_id, assignees={'add': args.assignee_ids})
+
+        success_msg = ANSIAnimations.success_message(f"Assigned {len(args.assignee_ids)} user(s) to task")
+        print(success_msg)
+        print(f"\nTask: {updated_task['name']}")
+        print(f"Assignees: {', '.join(args.assignee_ids)}")
+
+    except Exception as e:
+        print(f"Error assigning task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_unassign_command(args):
+    """Remove assignees from a task."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Remove assignees
+    try:
+        updated_task = client.update_task(task_id, assignees={'rem': args.assignee_ids})
+
+        success_msg = ANSIAnimations.success_message(f"Removed {len(args.assignee_ids)} user(s) from task")
+        print(success_msg)
+        print(f"\nTask: {updated_task['name']}")
+
+    except Exception as e:
+        print(f"Error unassigning task: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_set_status_command(args):
+    """Set task status with subtask validation - supports multiple tasks."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve all task IDs
+    task_ids = []
+    for tid in args.task_ids:
+        try:
+            resolved_id = context.resolve_id('task', tid)
+            task_ids.append(resolved_id)
+        except ValueError as e:
+            print(f"Error resolving '{tid}': {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Process each task
+    success_count = 0
+    failed_count = 0
+
+    for task_id in task_ids:
+        # Get task details to check for subtasks
+        try:
+            task = client.get_task(task_id)
+            list_id = task['list']['id']
+
+            # Get all tasks in the list to find subtasks
+            result = client.get_list_tasks(list_id, subtasks='true')
+            all_tasks = result.get('tasks', [])
+
+            # Find subtasks of this task
+            subtasks = [t for t in all_tasks if t.get('parent') == task_id]
+
+            # Check if any subtasks have different status
+            mismatched_subtasks = []
+            for subtask in subtasks:
+                subtask_status = subtask.get('status', {})
+                if isinstance(subtask_status, dict):
+                    subtask_status = subtask_status.get('status', '')
+                if subtask_status.lower() != args.status.lower():
+                    mismatched_subtasks.append(subtask)
+
+            # If there are mismatched subtasks, show them and skip this task
+            if mismatched_subtasks:
+                print(ANSIAnimations.warning_message(
+                    f"Cannot set status to '{args.status}' for task '{task['name']}' - {len(mismatched_subtasks)} subtask(s) have different status"
+                ))
+                print(f"\nTask: {colorize(task['name'], TextColor.BRIGHT_CYAN)} [{task_id}]")
+                print(f"Target status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}\n")
+
+                # Display subtasks in formatted tree view
+                print(colorize("Subtasks requiring status update:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+                print()
+
+                for i, subtask in enumerate(mismatched_subtasks, 1):
+                    subtask_status = subtask.get('status', {})
+                    if isinstance(subtask_status, dict):
+                        current_status = subtask_status.get('status', 'Unknown')
+                        status_color = subtask_status.get('color', '#87909e')
+                    else:
+                        current_status = subtask_status
+                        status_color = '#87909e'
+
+                    # Format status with color
+                    from clickup_framework.utils.colors import status_color as get_status_color
+                    status_colored = colorize(current_status, get_status_color(current_status), TextStyle.BOLD)
+
+                    # Show task info
+                    task_name = colorize(subtask['name'], TextColor.BRIGHT_WHITE)
+                    task_id_colored = colorize(f"[{subtask['id']}]", TextColor.BRIGHT_BLACK)
+
+                    print(f"  {i}. {task_id_colored} {task_name}")
+                    print(f"     Current status: {status_colored}")
+                    print()
+
+                print(colorize("Update these subtasks first, then retry.", TextColor.BRIGHT_BLUE))
+                print()
+                failed_count += 1
+                continue
+
+            # No mismatched subtasks, proceed with update
+            updated_task = client.update_task(task_id, status=args.status)
+
+            success_msg = ANSIAnimations.success_message(f"Status updated")
+            print(success_msg)
+            print(f"\nTask: {updated_task['name']} [{task_id}]")
+            print(f"New status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}")
+
+            if subtasks:
+                print(f"Subtasks: {len(subtasks)} subtask(s) also have status '{args.status}'")
+
+            if len(task_ids) > 1:
+                print()  # Extra spacing between tasks
+
+            success_count += 1
+
+        except Exception as e:
+            print(f"Error setting status for {task_id}: {e}", file=sys.stderr)
+            failed_count += 1
+            continue
+
+    # Summary for multiple tasks
+    if len(task_ids) > 1:
+        print(f"\n{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+        print(f"  Updated: {success_count}/{len(task_ids)} tasks")
+        if failed_count > 0:
+            print(f"  Failed: {failed_count}/{len(task_ids)} tasks")
+
+    if failed_count > 0:
+        sys.exit(1)
+
+
+def task_set_priority_command(args):
+    """Set task priority."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Map priority names to numbers if needed
+    priority_map = {
+        'urgent': 1,
+        'high': 2,
+        'normal': 3,
+        'low': 4
+    }
+
+    priority = args.priority
+    if isinstance(priority, str) and priority.lower() in priority_map:
+        priority = priority_map[priority.lower()]
+    elif isinstance(priority, str):
+        try:
+            priority = int(priority)
+        except ValueError:
+            print(f"Error: Invalid priority '{priority}'. Use 1-4 or urgent/high/normal/low", file=sys.stderr)
+            sys.exit(1)
+
+    # Update priority
+    try:
+        updated_task = client.update_task(task_id, priority=priority)
+
+        success_msg = ANSIAnimations.success_message(f"Priority updated")
+        print(success_msg)
+        print(f"\nTask: {updated_task['name']}")
+        print(f"New priority: {colorize(str(priority), TextColor.BRIGHT_RED)}")
+
+    except Exception as e:
+        print(f"Error setting priority: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def task_set_tags_command(args):
+    """Set/manage task tags."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Get current task
+    try:
+        task = client.get_task(task_id)
+        existing_tags = [tag['name'] for tag in task.get('tags', [])]
+
+        new_tags = existing_tags.copy()
+
+        # Handle different tag operations
+        if args.add:
+            new_tags.extend(args.add)
+            new_tags = list(set(new_tags))  # Remove duplicates
+            action = f"Added {len(args.add)} tag(s)"
+        elif args.remove:
+            new_tags = [t for t in new_tags if t not in args.remove]
+            action = f"Removed {len(args.remove)} tag(s)"
+        elif args.set:
+            new_tags = args.set
+            action = "Set tags"
+        else:
+            print("Error: Use --add, --remove, or --set to modify tags", file=sys.stderr)
+            sys.exit(1)
+
+        # Update task with new tags
+        updated_task = client.update_task(task_id, tags=new_tags)
+
+        success_msg = ANSIAnimations.success_message(action)
+        print(success_msg)
+        print(f"\nTask: {updated_task['name']}")
+        print(f"Tags: {colorize(', '.join(new_tags) if new_tags else '(none)', TextColor.BRIGHT_MAGENTA)}")
+
+    except Exception as e:
+        print(f"Error setting tags: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def register_command(subparsers):
+    """Register task management commands."""
+    # Task create
+    task_create_parser = subparsers.add_parser('task_create', aliases=['tc'],
+                                                help='Create a new task')
+    task_create_parser.add_argument('list_id', help='List ID to create task in (or "current")')
+    task_create_parser.add_argument('name', help='Task name')
+    task_create_parser.add_argument('--description', help='Task description')
+    task_create_parser.add_argument('--status', help='Task status')
+    task_create_parser.add_argument('--priority', type=int, help='Task priority (1-4)')
+    task_create_parser.add_argument('--tags', nargs='+', help='Tags to add')
+    task_create_parser.add_argument('--assignees', nargs='+', help='Assignee IDs')
+    task_create_parser.add_argument('--parent', help='Parent task ID')
+    task_create_parser.set_defaults(func=task_create_command)
+
+    # Task update
+    task_update_parser = subparsers.add_parser('task_update', aliases=['tu'],
+                                                help='Update a task')
+    task_update_parser.add_argument('task_id', help='Task ID to update (or "current")')
+    task_update_parser.add_argument('--name', help='New task name')
+    task_update_parser.add_argument('--description', help='New task description')
+    task_update_parser.add_argument('--status', help='New task status')
+    task_update_parser.add_argument('--priority', type=int, help='New task priority (1-4)')
+    task_update_parser.add_argument('--add-tags', nargs='+', help='Tags to add')
+    task_update_parser.add_argument('--remove-tags', nargs='+', help='Tags to remove')
+    task_update_parser.set_defaults(func=task_update_command)
+
+    # Task delete
+    task_delete_parser = subparsers.add_parser('task_delete', aliases=['td'],
+                                                help='Delete a task')
+    task_delete_parser.add_argument('task_id', help='Task ID to delete (or "current")')
+    task_delete_parser.add_argument('--force', '-f', action='store_true',
+                                    help='Skip confirmation prompt')
+    task_delete_parser.set_defaults(func=task_delete_command)
+
+    # Task assign
+    task_assign_parser = subparsers.add_parser('task_assign', aliases=['ta'],
+                                                help='Assign users to a task')
+    task_assign_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_assign_parser.add_argument('assignee_ids', nargs='+', help='User IDs to assign')
+    task_assign_parser.set_defaults(func=task_assign_command)
+
+    # Task unassign
+    task_unassign_parser = subparsers.add_parser('task_unassign', aliases=['tua'],
+                                                  help='Remove assignees from a task')
+    task_unassign_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_unassign_parser.add_argument('assignee_ids', nargs='+', help='User IDs to remove')
+    task_unassign_parser.set_defaults(func=task_unassign_command)
+
+    # Task set status
+    task_set_status_parser = subparsers.add_parser('task_set_status', aliases=['tss'],
+                                                    help='Set task status')
+    task_set_status_parser.add_argument('task_ids', nargs='+', help='Task ID(s) (or "current")')
+    task_set_status_parser.add_argument('status', help='New status')
+    task_set_status_parser.set_defaults(func=task_set_status_command)
+
+    # Task set priority
+    task_set_priority_parser = subparsers.add_parser('task_set_priority', aliases=['tsp'],
+                                                      help='Set task priority')
+    task_set_priority_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_set_priority_parser.add_argument('priority', help='Priority (1-4 or urgent/high/normal/low)')
+    task_set_priority_parser.set_defaults(func=task_set_priority_command)
+
+    # Task set tags
+    task_set_tags_parser = subparsers.add_parser('task_set_tags', aliases=['tst'],
+                                                  help='Manage task tags')
+    task_set_tags_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_set_tags_group = task_set_tags_parser.add_mutually_exclusive_group(required=True)
+    task_set_tags_group.add_argument('--add', nargs='+', help='Tags to add')
+    task_set_tags_group.add_argument('--remove', nargs='+', help='Tags to remove')
+    task_set_tags_group.add_argument('--set', nargs='+', help='Set tags (replace all)')
+    task_set_tags_parser.set_defaults(func=task_set_tags_command)
