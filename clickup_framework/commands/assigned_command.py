@@ -175,6 +175,7 @@ def assigned_tasks_command(args):
     # Separate parent tasks from subtasks
     parent_tasks = []
     subtasks_by_parent = defaultdict(list)
+    orphaned_subtasks = []  # Subtasks whose parent is not in the assigned list
 
     for task in tasks:
         task_id = task['id']
@@ -187,9 +188,21 @@ def assigned_tasks_command(args):
             # This is a parent task
             parent_tasks.append(task_id)
 
+    # Identify orphaned subtasks (parent not in our task list)
+    for parent_id, subtask_ids in subtasks_by_parent.items():
+        if parent_id not in task_map:
+            # Parent is not assigned to user, these subtasks are "orphaned" in this view
+            orphaned_subtasks.extend(subtask_ids)
+
     # Sort tasks by difficulty (ascending) then by depth (ascending)
     sorted_task_ids = sorted(
         parent_tasks,
+        key=lambda tid: (task_info[tid]['difficulty'], task_info[tid]['depth'])
+    )
+
+    # Sort orphaned subtasks the same way
+    sorted_orphaned = sorted(
+        orphaned_subtasks,
         key=lambda tid: (task_info[tid]['difficulty'], task_info[tid]['depth'])
     )
 
@@ -256,11 +269,13 @@ def assigned_tasks_command(args):
         print()  # Blank line between tasks
 
     # Display parent tasks with their subtasks
-    for i, task_id in enumerate(sorted_task_ids, 1):
-        print(f"{i}.", end=" ")
+    task_number = 1
+    for task_id in sorted_task_ids:
+        print(f"{task_number}.", end=" ")
         display_task(task_id, indent_level=0)
+        task_number += 1
 
-        # Display subtasks for this parent
+        # Display subtasks for this parent (only those assigned to user)
         if task_id in subtasks_by_parent:
             # Sort subtasks by difficulty and depth
             sorted_subtasks = sorted(
@@ -270,11 +285,23 @@ def assigned_tasks_command(args):
             for subtask_id in sorted_subtasks:
                 display_task(subtask_id, indent_level=1)
 
+    # Display orphaned subtasks (assigned to user but parent not assigned)
+    if sorted_orphaned:
+        print(colorize("\n━━━ Subtasks (parent not assigned to you) ━━━\n", TextColor.BRIGHT_CYAN, TextStyle.BOLD) if use_color else "\n━━━ Subtasks (parent not assigned to you) ━━━\n")
+        for task_id in sorted_orphaned:
+            print(f"{task_number}.", end=" ")
+            display_task(task_id, indent_level=0)
+            task_number += 1
+
     # Summary stats
     ready_tasks = sum(1 for info in task_info.values() if info['difficulty'] == 0)
     blocked_tasks = sum(1 for info in task_info.values() if info['difficulty'] > 0)
 
     print(f"{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD) if use_color else 'Summary:'}")
+    print(f"  Parent tasks: {len(parent_tasks)}")
+    print(f"  Subtasks (under assigned parents): {sum(len(v) for k, v in subtasks_by_parent.items() if k in task_map)}")
+    if orphaned_subtasks:
+        print(f"  Subtasks (parent not assigned): {len(orphaned_subtasks)}")
     print(f"  Ready to start: {ready_tasks} task(s)")
     print(f"  Blocked: {blocked_tasks} task(s)")
 
