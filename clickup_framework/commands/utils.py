@@ -1,0 +1,113 @@
+"""Utility functions for CLI commands."""
+
+from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.components import FormatOptions
+from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+
+
+def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = True) -> str:
+    """
+    Get and format available statuses for a list with caching.
+
+    Args:
+        client: ClickUpClient instance
+        list_id: List ID
+        use_color: Whether to colorize output
+
+    Returns:
+        Formatted string showing available statuses
+    """
+    from clickup_framework.utils.colors import status_color as get_status_color
+    import sys
+
+    try:
+        context = get_context_manager()
+
+        # Use context setting if not explicitly specified
+        if use_color is None:
+            use_color = context.get_ansi_output()
+
+        # Try to get from cache first
+        cached_metadata = context.get_cached_list_metadata(list_id)
+
+        if cached_metadata:
+            list_data = cached_metadata
+        else:
+            # Fetch from API and cache
+            list_data = client.get_list(list_id)
+            context.cache_list_metadata(list_id, list_data)
+
+        statuses = list_data.get('statuses', [])
+
+        if not statuses:
+            return ""
+
+        # Format status display
+        status_parts = []
+        for status in statuses:
+            status_name = status.get('status', 'Unknown')
+
+            if use_color:
+                # Use our status color mapping
+                color = get_status_color(status_name)
+                status_parts.append(colorize(status_name, color, TextStyle.BOLD))
+            else:
+                status_parts.append(status_name)
+
+        status_line = " → ".join(status_parts)
+
+        if use_color:
+            header = colorize("Available Statuses:", TextColor.BRIGHT_BLUE, TextStyle.BOLD) + f" {status_line}"
+        else:
+            header = f"Available Statuses: {status_line}"
+
+        return header
+    except Exception:
+        # If anything fails (e.g., in tests or network issues), silently return empty string
+        return ""
+
+
+def create_format_options(args) -> FormatOptions:
+    """Create FormatOptions from command-line arguments."""
+    # Check context for ANSI output setting
+    context = get_context_manager()
+    default_colorize = context.get_ansi_output()
+
+    # Use preset if specified
+    if hasattr(args, 'preset') and args.preset:
+        if args.preset == 'minimal':
+            options = FormatOptions.minimal()
+        elif args.preset == 'summary':
+            options = FormatOptions.summary()
+        elif args.preset == 'detailed':
+            options = FormatOptions.detailed()
+        elif args.preset == 'full':
+            options = FormatOptions.full()
+        else:
+            options = FormatOptions()
+
+        # Override colorize based on context setting
+        options.colorize_output = default_colorize
+        return options
+
+    # Otherwise build from individual flags
+    colorize_val = getattr(args, 'colorize', None)
+    if colorize_val is None:
+        colorize_val = default_colorize
+
+    # Handle full descriptions flag
+    full_descriptions = getattr(args, 'full_descriptions', False)
+    show_descriptions = getattr(args, 'show_descriptions', False) or full_descriptions
+    description_length = 10000 if full_descriptions else 500
+
+    return FormatOptions(
+        colorize_output=colorize_val,
+        show_ids=getattr(args, 'show_ids', False),
+        show_tags=getattr(args, 'show_tags', True),
+        show_descriptions=show_descriptions,
+        show_dates=getattr(args, 'show_dates', False),
+        show_comments=getattr(args, 'show_comments', 0),
+        include_completed=getattr(args, 'include_completed', False),
+        show_type_emoji=getattr(args, 'show_emoji', True),
+        description_length=description_length
+    )
