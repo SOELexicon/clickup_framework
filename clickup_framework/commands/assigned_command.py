@@ -172,9 +172,24 @@ def assigned_tasks_command(args):
     for task_id in task_info:
         task_info[task_id]['depth'] = depths.get(task_id, 0)
 
+    # Separate parent tasks from subtasks
+    parent_tasks = []
+    subtasks_by_parent = defaultdict(list)
+
+    for task in tasks:
+        task_id = task['id']
+        parent_id = task.get('parent')
+
+        if parent_id:
+            # This is a subtask
+            subtasks_by_parent[parent_id].append(task_id)
+        else:
+            # This is a parent task
+            parent_tasks.append(task_id)
+
     # Sort tasks by difficulty (ascending) then by depth (ascending)
     sorted_task_ids = sorted(
-        task_info.keys(),
+        parent_tasks,
         key=lambda tid: (task_info[tid]['difficulty'], task_info[tid]['depth'])
     )
 
@@ -188,9 +203,12 @@ def assigned_tasks_command(args):
     # Display tasks
     from clickup_framework.utils.colors import status_color as get_status_color
 
-    for i, task_id in enumerate(sorted_task_ids, 1):
+    def display_task(task_id, indent_level=0):
+        """Display a task with optional indentation for subtasks."""
         info = task_info[task_id]
         task = info['task']
+
+        indent = "   " * indent_level
 
         # Task name and ID
         task_name = task.get('name', 'Unnamed')
@@ -217,22 +235,40 @@ def assigned_tasks_command(args):
         else:
             difficulty_indicator = colorize(f"🚫 {difficulty} blocker(s)", TextColor.BRIGHT_RED) if use_color else f"🚫 {difficulty} blocker(s)"
 
-        print(f"{i}. {task_name_colored}")
-        print(f"   Status: {status_colored}")
-        print(f"   Difficulty: {difficulty_indicator}")
-        print(f"   Depth: {info['depth']} | Relationships: {len(info['blockers'])} blockers, {len(info['dependents'])} dependents")
-        print(f"   ID: {colorize(task_id, TextColor.BRIGHT_BLACK) if use_color else task_id}")
+        # Add subtask indicator if this is a subtask
+        prefix = f"{indent}   ↳ " if indent_level > 0 else ""
+
+        print(f"{prefix}{task_name_colored}")
+        print(f"{indent}   Status: {status_colored}")
+        print(f"{indent}   Difficulty: {difficulty_indicator}")
+        print(f"{indent}   Depth: {info['depth']} | Relationships: {len(info['blockers'])} blockers, {len(info['dependents'])} dependents")
+        print(f"{indent}   ID: {colorize(task_id, TextColor.BRIGHT_BLACK) if use_color else task_id}")
 
         # Show blocker details if any
         if info['open_blockers']:
-            print(f"   Blocked by:")
+            print(f"{indent}   Blocked by:")
             for blocker_id in info['open_blockers'][:3]:  # Show first 3
                 if blocker_id in task_map:
                     blocker_task = task_map[blocker_id]
                     blocker_name = blocker_task.get('name', 'Unknown')
-                    print(f"     - {blocker_name} [{blocker_id}]")
+                    print(f"{indent}     - {blocker_name} [{blocker_id}]")
 
         print()  # Blank line between tasks
+
+    # Display parent tasks with their subtasks
+    for i, task_id in enumerate(sorted_task_ids, 1):
+        print(f"{i}.", end=" ")
+        display_task(task_id, indent_level=0)
+
+        # Display subtasks for this parent
+        if task_id in subtasks_by_parent:
+            # Sort subtasks by difficulty and depth
+            sorted_subtasks = sorted(
+                subtasks_by_parent[task_id],
+                key=lambda tid: (task_info[tid]['difficulty'], task_info[tid]['depth'])
+            )
+            for subtask_id in sorted_subtasks:
+                display_task(subtask_id, indent_level=1)
 
     # Summary stats
     ready_tasks = sum(1 for info in task_info.values() if info['difficulty'] == 0)
