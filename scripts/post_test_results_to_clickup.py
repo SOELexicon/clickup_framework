@@ -199,7 +199,8 @@ def load_coverage_report():
 
 
 def create_test_results_task(client, list_id, test_results, coverage_data,
-                             repo_name, branch_name, commit_hash, parent_task_id=None):
+                             repo_name, branch_name, commit_hash, parent_task_id=None,
+                             run_number=None):
     """Create a test results task."""
 
     # Extract summary from test report
@@ -228,9 +229,12 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
     if coverage_data and 'totals' in coverage_data:
         coverage_pct = coverage_data['totals'].get('percent_covered', 0)
 
-    # Build task name
+    # Build task name with run number
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
-    task_name = f'[Test Results {timestamp}] {test_summary} | {coverage_pct:.1f}% coverage'
+    if run_number:
+        task_name = f'[Run #{run_number}] Test Results - {test_summary} | {coverage_pct:.1f}% coverage'
+    else:
+        task_name = f'[Test Results {timestamp}] {test_summary} | {coverage_pct:.1f}% coverage'
 
     # Build comprehensive markdown test report description
     description = f"""# Test Run Results Report
@@ -336,12 +340,16 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
         'name': task_name,
         'priority': {'priority': str(priority)},
         'status': status,  # Use 'passed' or 'failed' based on test results
+        'custom_type': 'Test Result',  # Custom task type
         'tags': [
             {'name': 'automated'},
             {'name': 'test-results'},
             {'name': f'coverage-{int(coverage_pct)}'}
         ]
     }
+
+    if run_number:
+        task_data['tags'].append({'name': f'run-{run_number}'})
 
     # Use markdown_description if content has markdown, otherwise use description
     if contains_markdown(description):
@@ -357,28 +365,6 @@ def create_test_results_task(client, list_id, test_results, coverage_data,
     return task
 
 
-def upload_attachments(client, task_id):
-    """Upload test report files as attachments to the task."""
-    attachments = []
-
-    files_to_attach = [
-        'test_report.json',
-        'coverage.json'
-    ]
-
-    for filename in files_to_attach:
-        if os.path.exists(filename):
-            try:
-                print(f"  Uploading {filename}...")
-                # Note: ClickUp API attachment upload requires special handling
-                # For now, we'll note that the files exist
-                # In production, you'd use client.upload_attachment(task_id, filename)
-                print(f"  ✓ {filename} available for upload")
-                attachments.append(filename)
-            except Exception as e:
-                print(f"  ✗ Error uploading {filename}: {e}")
-
-    return attachments
 
 
 def create_failed_test_tasks(client, list_id, test_results, parent_task_id):
@@ -439,6 +425,104 @@ def create_failed_test_tasks(client, list_id, test_results, parent_task_id):
     return created_tasks
 
 
+def create_actions_run_task(client, list_id, run_number, repo_name, branch_name,
+                           commit_hash, workflow_name, run_url):
+    """
+    Create an Actions Run parent task.
+
+    Args:
+        client: ClickUpClient instance
+        list_id: List ID to create task in
+        run_number: GitHub Actions run number
+        repo_name: Repository name
+        branch_name: Branch name
+        commit_hash: Commit hash
+        workflow_name: Workflow name
+        run_url: URL to the GitHub Actions run
+
+    Returns:
+        Created task dict
+    """
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+    task_name = f"[Run #{run_number}] {workflow_name} - {branch_name}"
+
+    description = f"""# GitHub Actions Run #{run_number}
+
+**Workflow:** {workflow_name}
+**Repository:** {repo_name}
+**Branch:** {branch_name}
+**Commit:** `{commit_hash}`
+**Timestamp:** {timestamp}
+**Run URL:** {run_url}
+
+---
+
+## Test Results
+
+Test result tasks will be added as subtasks below.
+"""
+
+    task_data = {
+        'name': task_name,
+        'status': 'to do',
+        'custom_type': 'Actions Run',  # Custom task type
+        'tags': [
+            {'name': f'run-{run_number}'},
+            {'name': 'github-actions'},
+            {'name': 'automated'},
+            {'name': branch_name}
+        ]
+    }
+
+    if contains_markdown(description):
+        task_data['markdown_description'] = description
+    else:
+        task_data['description'] = description
+
+    task = client.create_task(list_id, **task_data)
+    return task
+
+
+def upload_test_report_attachments(client, task_id):
+    """
+    Upload test report files as attachments using the attachments API.
+
+    Args:
+        client: ClickUpClient instance
+        task_id: Task ID to attach files to
+
+    Returns:
+        List of uploaded attachment info
+    """
+    attachments = []
+
+    files_to_attach = [
+        ('test_report.json', 'Test Report (JSON)'),
+        ('coverage.json', 'Coverage Report (JSON)')
+    ]
+
+    for filename, description in files_to_attach:
+        if os.path.exists(filename):
+            try:
+                print(f"  Uploading {filename}...")
+
+                # Upload using ClickUp API (takes file path directly)
+                attachment = client.create_task_attachment(task_id, filename)
+
+                print(f"  ✓ {filename} uploaded successfully")
+                attachments.append({
+                    'filename': filename,
+                    'description': description,
+                    'attachment': attachment
+                })
+            except Exception as e:
+                print(f"  ✗ Error uploading {filename}: {e}")
+                import traceback
+                traceback.print_exc()
+
+    return attachments
+
+
 def main():
     """Main entry point."""
     # Configuration
@@ -446,6 +530,11 @@ def main():
     REPO_NAME = os.environ.get('GITHUB_REPOSITORY', 'clickup_framework')
     BRANCH_NAME = os.environ.get('GITHUB_REF_NAME', 'unknown')
     COMMIT_HASH = os.environ.get('GITHUB_SHA', 'unknown')[:8]
+    RUN_NUMBER = os.environ.get('GITHUB_RUN_NUMBER', 'unknown')
+    RUN_ID = os.environ.get('GITHUB_RUN_ID', 'unknown')
+    WORKFLOW_NAME = os.environ.get('GITHUB_WORKFLOW', 'Tests')
+    SERVER_URL = os.environ.get('GITHUB_SERVER_URL', 'https://github.com')
+    RUN_URL = f"{SERVER_URL}/{REPO_NAME}/actions/runs/{RUN_ID}"
 
     print("=" * 80)
     print(f"Posting Test Results to ClickUp")
@@ -453,10 +542,9 @@ def main():
     print(f"Repository: {REPO_NAME}")
     print(f"Branch: {BRANCH_NAME}")
     print(f"Commit: {COMMIT_HASH}")
+    print(f"Run: #{RUN_NUMBER}")
+    print(f"Workflow: {WORKFLOW_NAME}")
 
-    # Get PR info
-    pr_info = get_pr_info()
-    print(f"PR: {pr_info['number'] if pr_info['is_pr'] else 'N/A'}")
     print()
 
     # Initialize client
@@ -467,34 +555,28 @@ def main():
         print("Make sure CLICKUP_API_TOKEN environment variable is set.", file=sys.stderr)
         return 1
 
-    # Handle PR task creation
-    parent_task_id = None
-    if pr_info['is_pr'] and pr_info['number']:
-        print(f"Looking for existing PR task for PR #{pr_info['number']}...")
-        existing_pr_task = find_pr_task(client, LIST_ID, pr_info['number'])
-
-        if existing_pr_task:
-            print(f"✓ Found existing PR task: {existing_pr_task['id']}")
-            print(f"  URL: {existing_pr_task.get('url', 'N/A')}")
-            parent_task_id = existing_pr_task['id']
-        else:
-            print(f"Creating new PR task for PR #{pr_info['number']}...")
-            try:
-                pr_task = create_pr_task(
-                    client,
-                    LIST_ID,
-                    pr_info['number'],
-                    pr_info['title'],
-                    REPO_NAME,
-                    BRANCH_NAME
-                )
-                print(f"✓ PR task created: {pr_task['id']}")
-                print(f"  URL: {pr_task.get('url', 'N/A')}")
-                parent_task_id = pr_task['id']
-            except Exception as e:
-                print(f"✗ Error creating PR task: {e}")
-                print("  Continuing without PR parent task...")
-        print()
+    # Create Actions Run parent task
+    print(f"Creating Actions Run task for run #{RUN_NUMBER}...")
+    try:
+        actions_run_task = create_actions_run_task(
+            client,
+            LIST_ID,
+            RUN_NUMBER,
+            REPO_NAME,
+            BRANCH_NAME,
+            COMMIT_HASH,
+            WORKFLOW_NAME,
+            RUN_URL
+        )
+        print(f"✓ Actions Run task created: {actions_run_task['id']}")
+        print(f"  URL: {actions_run_task.get('url', 'N/A')}")
+        actions_run_task_id = actions_run_task['id']
+    except Exception as e:
+        print(f"✗ Error creating Actions Run task: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+    print()
 
     # Run tests
     test_run_result = run_tests_with_coverage()
@@ -503,8 +585,9 @@ def main():
     test_report = load_test_report()
     coverage_report = load_coverage_report()
 
-    # Create test results task
+    # Create test results task under Actions Run
     try:
+        # Update the test results task to include run number and be a child of Actions Run
         test_task = create_test_results_task(
             client,
             LIST_ID,
@@ -513,17 +596,18 @@ def main():
             REPO_NAME,
             BRANCH_NAME,
             COMMIT_HASH,
-            parent_task_id=parent_task_id
+            parent_task_id=actions_run_task_id,  # Make it child of Actions Run
+            run_number=RUN_NUMBER
         )
         print(f"✓ Test results task created: {test_task['id']}")
         print(f"  URL: {test_task.get('url', 'N/A')}")
         print()
 
-        # Upload attachments
+        # Upload attachments using proper API
         print("Uploading test report files...")
-        attachments = upload_attachments(client, test_task['id'])
+        attachments = upload_test_report_attachments(client, test_task['id'])
         if attachments:
-            print(f"✓ {len(attachments)} files ready for attachment")
+            print(f"✓ {len(attachments)} files uploaded successfully")
         print()
 
         # Create tasks for failed tests
@@ -551,8 +635,7 @@ def main():
     print("=" * 80)
     print("SUMMARY")
     print("=" * 80)
-    if pr_info['is_pr']:
-        print(f"PR: #{pr_info['number']} - {pr_info['title']}")
+    print(f"Actions Run: #{RUN_NUMBER}")
     print(f"Test run: {test_run_result['exit_code'] == 0 and '✅ PASSED' or '❌ FAILED'}")
     if test_report and 'summary' in test_report:
         summary = test_report['summary']
@@ -560,6 +643,7 @@ def main():
     if coverage_report and 'totals' in coverage_report:
         pct = coverage_report['totals'].get('percent_covered', 0)
         print(f"Coverage: {pct:.1f}%")
+    print(f"Actions Run Task: {actions_run_task.get('url', 'N/A')}")
     print("=" * 80)
 
     return test_run_result['exit_code']
