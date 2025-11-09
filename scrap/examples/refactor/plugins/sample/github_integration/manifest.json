@@ -1,0 +1,14 @@
+{
+    "id": "github_integration",
+    "name": "GitHub Integration",
+    "version": "1.0.0",
+    "description": "Integrates ClickUp JSON Manager with GitHub repositories for issue tracking and synchronization",
+    "entry_point": "github_plugin",
+    "author": "ClickUp JSON Manager Team",
+    "website": "https://github.com/clickup-json-manager/plugins",
+    "license": "MIT",
+    "min_app_version": "1.0.0",
+    "max_app_version": "2.0.0",
+    "tags": ["integration", "github", "issues", "sync"],
+    "dependencies": []
+} 
