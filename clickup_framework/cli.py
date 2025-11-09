@@ -10,6 +10,7 @@ Usage:
     python -m clickup_framework.cli container <list_id>
     python -m clickup_framework.cli detail <task_id> <list_id>
     python -m clickup_framework.cli filter <list_id> --status "in progress"
+    python -m clickup_framework.cli assigned [--user-id <user_id>] [--team-id <team_id>]
 """
 
 import argparse
@@ -934,33 +935,352 @@ def task_set_tags_command(args):
         sys.exit(1)
 
 
+def assigned_tasks_command(args):
+    """Display tasks assigned to a user, sorted by dependency difficulty."""
+    from collections import defaultdict, deque
+
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Get user ID from args or use default assignee
+    if args.user_id:
+        user_id = args.user_id
+    else:
+        user_id = context.get_default_assignee()
+        if not user_id:
+            print("Error: No user ID specified and no default assignee configured.", file=sys.stderr)
+            print("Use --user-id <user_id> or set default: set_current assignee <user_id>", file=sys.stderr)
+            sys.exit(1)
+
+    # Get workspace/team ID
+    try:
+        team_id = context.resolve_id('workspace', args.team_id if hasattr(args, 'team_id') and args.team_id else 'current')
+    except ValueError:
+        print("Error: No team/workspace ID specified. Use --team-id or set_current workspace <team_id>", file=sys.stderr)
+        sys.exit(1)
+
+    # Fetch tasks assigned to user
+    try:
+        result = client.get_team_tasks(
+            team_id,
+            assignees=[user_id],
+            subtasks=True,
+            include_closed=False
+        )
+        tasks = result.get('tasks', [])
+    except Exception as e:
+        print(f"Error fetching tasks: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not tasks:
+        print(f"No tasks found assigned to user {user_id}")
+        return
+
+    # Build dependency graph
+    task_map = {task['id']: task for task in tasks}
+    task_info = {}
+
+    for task in tasks:
+        task_id = task['id']
+        dependencies = task.get('dependencies', [])
+
+        # Count blockers (tasks this task is waiting on)
+        blockers = []
+        open_blockers = []
+
+        for dep in dependencies:
+            # Type 0 means this task waits for another task
+            if dep.get('type') == 0:
+                blocker_id = dep.get('depends_on')
+                if blocker_id:
+                    blockers.append(blocker_id)
+                    # Check if blocker is completed
+                    if blocker_id in task_map:
+                        blocker_status = task_map[blocker_id].get('status', {})
+                        if isinstance(blocker_status, dict):
+                            blocker_status = blocker_status.get('status', '').lower()
+                        else:
+                            blocker_status = str(blocker_status).lower()
+
+                        if blocker_status not in ['closed', 'complete', 'completed']:
+                            open_blockers.append(blocker_id)
+
+        # Count dependents (tasks waiting on this task)
+        dependents = []
+        for dep in dependencies:
+            # Type 1 means this task blocks another task
+            if dep.get('type') == 1:
+                dependent_id = dep.get('task_id')
+                if dependent_id:
+                    dependents.append(dependent_id)
+
+        task_info[task_id] = {
+            'task': task,
+            'blockers': blockers,
+            'open_blockers': open_blockers,
+            'dependents': dependents,
+            'difficulty': len(open_blockers),  # Difficulty score = number of open blockers
+        }
+
+    # Calculate dependency depth using topological sort
+    def calculate_depth():
+        depths = {}
+        in_degree = defaultdict(int)
+
+        # Initialize
+        for task_id in task_info:
+            in_degree[task_id] = 0
+
+        # Build in-degree count
+        for task_id, info in task_info.items():
+            for blocker in info['blockers']:
+                if blocker in task_info:
+                    in_degree[task_id] += 1
+
+        # BFS to calculate depth
+        queue = deque()
+        for task_id in task_info:
+            if in_degree[task_id] == 0:
+                queue.append((task_id, 0))
+                depths[task_id] = 0
+
+        while queue:
+            task_id, depth = queue.popleft()
+
+            # Find tasks that depend on this one
+            for tid, info in task_info.items():
+                if task_id in info['blockers']:
+                    in_degree[tid] -= 1
+                    new_depth = depth + 1
+                    if tid not in depths or new_depth > depths[tid]:
+                        depths[tid] = new_depth
+                    if in_degree[tid] == 0:
+                        queue.append((tid, depths[tid]))
+
+        return depths
+
+    depths = calculate_depth()
+    for task_id in task_info:
+        task_info[task_id]['depth'] = depths.get(task_id, 0)
+
+    # Sort tasks by difficulty (ascending) then by depth (ascending)
+    sorted_task_ids = sorted(
+        task_info.keys(),
+        key=lambda tid: (task_info[tid]['difficulty'], task_info[tid]['depth'])
+    )
+
+    # Display header
+    print(ANSIAnimations.gradient_text(f"Tasks Assigned to User {user_id}", ANSIAnimations.GRADIENT_RAINBOW))
+    print(f"Total: {len(tasks)} tasks\n")
+
+    # Get colorize setting
+    use_color = context.get_ansi_output()
+
+    # Display tasks
+    from clickup_framework.utils.colors import status_color as get_status_color
+
+    for i, task_id in enumerate(sorted_task_ids, 1):
+        info = task_info[task_id]
+        task = info['task']
+
+        # Task name and ID
+        task_name = task.get('name', 'Unnamed')
+        status = task.get('status', {})
+        if isinstance(status, dict):
+            status_name = status.get('status', 'Unknown')
+        else:
+            status_name = str(status)
+
+        # Format status with color
+        if use_color:
+            status_colored = colorize(status_name, get_status_color(status_name), TextStyle.BOLD)
+            task_name_colored = colorize(task_name, TextColor.BRIGHT_WHITE)
+        else:
+            status_colored = status_name
+            task_name_colored = task_name
+
+        # Difficulty indicator
+        difficulty = info['difficulty']
+        if difficulty == 0:
+            difficulty_indicator = colorize("✓ Ready", TextColor.BRIGHT_GREEN) if use_color else "✓ Ready"
+        elif difficulty <= 2:
+            difficulty_indicator = colorize(f"⚠ {difficulty} blocker(s)", TextColor.BRIGHT_YELLOW) if use_color else f"⚠ {difficulty} blocker(s)"
+        else:
+            difficulty_indicator = colorize(f"🚫 {difficulty} blocker(s)", TextColor.BRIGHT_RED) if use_color else f"🚫 {difficulty} blocker(s)"
+
+        print(f"{i}. {task_name_colored}")
+        print(f"   Status: {status_colored}")
+        print(f"   Difficulty: {difficulty_indicator}")
+        print(f"   Depth: {info['depth']} | Relationships: {len(info['blockers'])} blockers, {len(info['dependents'])} dependents")
+        print(f"   ID: {colorize(task_id, TextColor.BRIGHT_BLACK) if use_color else task_id}")
+
+        # Show blocker details if any
+        if info['open_blockers']:
+            print(f"   Blocked by:")
+            for blocker_id in info['open_blockers'][:3]:  # Show first 3
+                if blocker_id in task_map:
+                    blocker_task = task_map[blocker_id]
+                    blocker_name = blocker_task.get('name', 'Unknown')
+                    print(f"     - {blocker_name} [{blocker_id}]")
+
+        print()  # Blank line between tasks
+
+    # Summary stats
+    ready_tasks = sum(1 for info in task_info.values() if info['difficulty'] == 0)
+    blocked_tasks = sum(1 for info in task_info.values() if info['difficulty'] > 0)
+
+    print(f"{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD) if use_color else 'Summary:'}")
+    print(f"  Ready to start: {ready_tasks} task(s)")
+    print(f"  Blocked: {blocked_tasks} task(s)")
+
+
+def show_command_tree():
+    """Display available commands in a tree view."""
+    import time
+    context = get_context_manager()
+    use_color = context.get_ansi_output()
+
+    # Print header with animation
+    if use_color:
+        # Animated rainbow gradient header
+        header = ANSIAnimations.gradient_text("ClickUp Framework CLI - Available Commands", ANSIAnimations.GRADIENT_RAINBOW)
+        print(header)
+        print()
+
+        # Animated separator
+        separator = ANSIAnimations.rainbow_wave("─" * 60)
+        print(separator)
+        print()
+        time.sleep(0.05)
+    else:
+        print("ClickUp Framework CLI - Available Commands")
+        print("─" * 60)
+        print()
+
+    commands = {
+        "📊 View Commands": [
+            ("hierarchy", "<list_id> [options]", "Display tasks in hierarchical parent-child view (default: full preset)"),
+            ("container", "<list_id> [options]", "Display tasks by container hierarchy (Space → Folder → List)"),
+            ("flat", "<list_id> [options]", "Display all tasks in flat list format"),
+            ("filter", "<list_id> [filter_options]", "Display filtered tasks by status/priority/tags/assignee"),
+            ("detail", "<task_id> [list_id]", "Show comprehensive details for a single task"),
+            ("stats", "<list_id>", "Display aggregate statistics for tasks in a list"),
+            ("demo", "[--mode MODE] [options]", "View demo output with sample data (no API required)"),
+            ("assigned", "[--user-id ID] [--team-id ID]", "Show tasks assigned to user, sorted by difficulty"),
+        ],
+        "🎯 Context Management": [
+            ("set_current", "<type> <id>", "Set current task/list/workspace/assignee"),
+            ("show_current", "", "Display current context with animated box"),
+            ("clear_current", "[type]", "Clear one or all context resources"),
+        ],
+        "✅ Task Management": [
+            ("task_create", "<list_id> <name> [OPTIONS]", "Create new task with optional description/tags/assignees"),
+            ("task_update", "<task_id> [OPTIONS]", "Update task name/description/status/priority/tags"),
+            ("task_delete", "<task_id> [--force]", "Delete task with confirmation prompt"),
+            ("task_assign", "<task_id> <user_id> [...]", "Assign one or more users to task"),
+            ("task_unassign", "<task_id> <user_id> [...]", "Remove assignees from task"),
+            ("task_set_status", "<task_id> [...] <status>", "Set task status with subtask validation"),
+            ("task_set_priority", "<task_id> <priority>", "Set task priority (1-4 or urgent/high/normal/low)"),
+            ("task_set_tags", "<task_id> [--add|--remove|--set]", "Manage task tags"),
+        ],
+        "🎨 Configuration": [
+            ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
+        ],
+    }
+
+    for category, cmds in commands.items():
+        # Print category
+        if use_color:
+            print(colorize(category, TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        else:
+            print(category)
+
+        # Print commands in this category
+        for i, (cmd, args, desc) in enumerate(cmds):
+            is_last = i == len(cmds) - 1
+            prefix = "└─ " if is_last else "├─ "
+
+            if use_color:
+                cmd_colored = colorize(cmd, TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+                args_colored = colorize(args, TextColor.BRIGHT_YELLOW) if args else ""
+                desc_colored = colorize(desc, TextColor.BRIGHT_BLACK)
+            else:
+                cmd_colored = cmd
+                args_colored = args
+                desc_colored = desc
+
+            cmd_line = f"{prefix}{cmd_colored}"
+            if args_colored:
+                cmd_line += f" {args_colored}"
+            print(cmd_line)
+
+            # Print description indented
+            indent = "   " if is_last else "│  "
+            print(f"{indent}{desc_colored}")
+
+        print()  # Blank line between categories
+
+    # Print footer with examples
+    if use_color:
+        print(colorize("Quick Examples:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+    else:
+        print("Quick Examples:")
+
+    examples = [
+        ("cum hierarchy 901517404278", "Show tasks in hierarchy view"),
+        ("cum assigned", "Show your assigned tasks"),
+        ("cum task_create current \"New Task\"", "Create a task in current list"),
+        ("cum set_current assignee 68483025", "Set default assignee"),
+        ("cum demo --mode hierarchy", "Try demo mode (no API needed)"),
+    ]
+
+    for cmd, desc in examples:
+        if use_color:
+            cmd_colored = colorize(cmd, TextColor.BRIGHT_GREEN)
+            desc_colored = colorize(f"  # {desc}", TextColor.BRIGHT_BLACK)
+        else:
+            cmd_colored = cmd
+            desc_colored = f"  # {desc}"
+        print(f"  {cmd_colored}{desc_colored}")
+
+    print()
+    if use_color:
+        help_text = colorize("For detailed help on any command:", TextColor.BRIGHT_WHITE)
+        example = colorize("cum <command> --help", TextColor.BRIGHT_GREEN)
+    else:
+        help_text = "For detailed help on any command:"
+        example = "cum <command> --help"
+    print(f"{help_text} {example}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description='ClickUp Framework CLI - Beautiful hierarchical task displays',
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,  # Disable default help to use custom tree view
         epilog="""
 Examples:
   # Show hierarchy view
-  python -m clickup_framework.cli hierarchy <list_id>
+  cum hierarchy <list_id>
 
   # Show container view
-  python -m clickup_framework.cli container <list_id>
+  cum container <list_id>
 
   # Show task details
-  python -m clickup_framework.cli detail <task_id> <list_id>
+  cum detail <task_id> <list_id>
 
   # Filter tasks
-  python -m clickup_framework.cli filter <list_id> --status "in progress"
+  cum filter <list_id> --status "in progress"
 
   # Show with custom options
-  python -m clickup_framework.cli hierarchy <list_id> --show-ids --show-descriptions
+  cum hierarchy <list_id> --show-ids --show-descriptions
 
   # Use preset formats
-  python -m clickup_framework.cli hierarchy <list_id> --preset detailed
+  cum hierarchy <list_id> --preset detailed
 
   # Demo mode (no API required)
-  python -m clickup_framework.cli demo --mode hierarchy
+  cum demo --mode hierarchy
         """
     )
 
@@ -995,7 +1315,7 @@ Examples:
     hierarchy_parser.add_argument('list_id', help='ClickUp list ID')
     hierarchy_parser.add_argument('--header', help='Custom header text')
     add_common_args(hierarchy_parser)
-    hierarchy_parser.set_defaults(func=hierarchy_command)
+    hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
 
     # Container command
     container_parser = subparsers.add_parser('container', help='Display tasks by container hierarchy')
@@ -1027,7 +1347,7 @@ Examples:
     detail_parser.add_argument('task_id', help='ClickUp task ID')
     detail_parser.add_argument('list_id', nargs='?', help='List ID for relationship context (optional)')
     add_common_args(detail_parser)
-    detail_parser.set_defaults(func=detail_command)
+    detail_parser.set_defaults(func=detail_command, preset='full')
 
     # Stats command
     stats_parser = subparsers.add_parser('stats', help='Display task statistics')
@@ -1133,13 +1453,22 @@ Examples:
                             help='Action to perform (enable/disable/status)')
     ansi_parser.set_defaults(func=ansi_command)
 
+    # Assigned tasks command
+    assigned_parser = subparsers.add_parser('assigned',
+                                            help='Show tasks assigned to user, sorted by dependency difficulty')
+    assigned_parser.add_argument('--user-id', dest='user_id',
+                                help='User ID to filter tasks (defaults to configured default assignee)')
+    assigned_parser.add_argument('--team-id', dest='team_id',
+                                help='Team/workspace ID (defaults to current workspace)')
+    assigned_parser.set_defaults(func=assigned_tasks_command)
+
     # Parse arguments
     args = parser.parse_args()
 
     # Show help if no command specified
     if not args.command:
-        parser.print_help()
-        sys.exit(1)
+        show_command_tree()
+        sys.exit(0)
 
     # Execute command
     try:
