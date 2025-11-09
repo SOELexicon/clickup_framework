@@ -1,7 +1,7 @@
 """Demo command."""
 
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options
+from clickup_framework.commands.utils import create_format_options, add_common_args
 
 
 def demo_command(args):
@@ -70,7 +70,7 @@ def demo_command(args):
     print(output)
 
 
-def register_command(subparsers, add_common_args):
+def register_command(subparsers):
     """Register the demo command with argparse."""
     parser = subparsers.add_parser(
         'demo',

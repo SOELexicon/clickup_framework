@@ -1,9 +1,9 @@
-"""Hierarchy view command."""
+"""Hierarchy view command - displays tasks in parent-child hierarchy."""
 
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses
+from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args
 
 
 def hierarchy_command(args):
@@ -66,38 +66,22 @@ def hierarchy_command(args):
     print(output)
 
 
-def register_command(subparsers, add_common_args):
-    """
-    Register the hierarchy command with argparse.
-
-    Args:
-        subparsers: The argparse subparsers object
-        add_common_args: Function to add common formatting arguments
-    """
+def register_command(subparsers):
+    """Register the hierarchy command and its alias 'list'."""
     # Hierarchy command
-    parser = subparsers.add_parser(
-        'hierarchy',
-        aliases=['h'],
-        help='Display tasks in hierarchical view',
-        description='Display tasks in hierarchical parent-child view'
-    )
-    parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
-    parser.add_argument('--header', help='Custom header text')
-    parser.add_argument('--all', dest='show_all', action='store_true',
-                        help='Show all tasks from the entire workspace')
-    add_common_args(parser)
-    parser.set_defaults(func=hierarchy_command, preset='full')
+    hierarchy_parser = subparsers.add_parser('hierarchy', help='Display tasks in hierarchical view')
+    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
+    hierarchy_parser.add_argument('--header', help='Custom header text')
+    hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
+                                 help='Show all tasks from the entire workspace')
+    add_common_args(hierarchy_parser)
+    hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
 
     # List command (alias for hierarchy)
-    list_parser = subparsers.add_parser(
-        'list',
-        aliases=['ls', 'l'],
-        help='Display tasks in hierarchical view (alias for hierarchy)',
-        description='Display tasks in hierarchical parent-child view'
-    )
+    list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
     list_parser.add_argument('list_id', nargs='?', help='ClickUp list ID (optional if --all is used)')
     list_parser.add_argument('--header', help='Custom header text')
     list_parser.add_argument('--all', dest='show_all', action='store_true',
-                             help='Show all tasks from the entire workspace')
+                            help='Show all tasks from the entire workspace')
     add_common_args(list_parser)
     list_parser.set_defaults(func=hierarchy_command, preset='full')

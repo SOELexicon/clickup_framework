@@ -3,7 +3,7 @@
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses
+from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args
 
 
 def flat_command(args):
@@ -37,7 +37,7 @@ def flat_command(args):
     print(output)
 
 
-def register_command(subparsers, add_common_args):
+def register_command(subparsers):
     """Register the flat command with argparse."""
     parser = subparsers.add_parser(
         'flat',
