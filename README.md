@@ -152,6 +152,13 @@ export PYTHONPATH="/home/user/Skills:$PYTHONPATH"
 
 Enable tab completion for `cum` and `clickup` commands to get command suggestions and argument completion:
 
+**What you get:**
+- Tab completion for all commands: `cum <TAB>` shows all available commands
+- Prefix matching: `cum task_<TAB>` shows all task commands
+- Argument completion: `cum hierarchy <TAB>` shows available options
+
+#### Linux / macOS / WSL
+
 ```bash
 # Run the setup script (bash or zsh)
 ./enable-completion.sh
@@ -163,25 +170,40 @@ source ~/.zshrc   # for zsh
 # Or restart your terminal
 ```
 
-**What you get:**
-- Tab completion for all commands: `cum <TAB>` shows all available commands
-- Prefix matching: `cum task_<TAB>` shows all task commands
-- Argument completion: `cum hierarchy <TAB>` shows available options
-
-**Manual setup:**
-
-For bash, add to `~/.bashrc`:
+**Manual setup for bash** (`~/.bashrc`):
 ```bash
 eval "$(register-python-argcomplete cum)"
 eval "$(register-python-argcomplete clickup)"
 ```
 
-For zsh, add to `~/.zshrc`:
+**Manual setup for zsh** (`~/.zshrc`):
 ```bash
 autoload -U bashcompinit
 bashcompinit
 eval "$(register-python-argcomplete cum)"
 eval "$(register-python-argcomplete clickup)"
+```
+
+#### Windows
+
+**PowerShell** (recommended):
+```powershell
+# Run the setup script
+.\enable-completion.ps1
+
+# Reload your profile
+. $PROFILE
+
+# Or restart PowerShell
+```
+
+**Git Bash on Windows**:
+```bash
+# Use the bash setup script
+./enable-completion.sh
+
+# Reload configuration
+source ~/.bashrc
 ```
 
 ## Quick Start

@@ -97,6 +97,7 @@ case "$SHELL_NAME" in
         echo "Unsupported shell: $SHELL_NAME"
         echo ""
         echo "Manual setup instructions:"
+        echo ""
         echo "For bash, add this to your ~/.bashrc:"
         echo '  eval "$(register-python-argcomplete cum)"'
         echo '  eval "$(register-python-argcomplete clickup)"'
@@ -106,6 +107,9 @@ case "$SHELL_NAME" in
         echo "  bashcompinit"
         echo '  eval "$(register-python-argcomplete cum)"'
         echo '  eval "$(register-python-argcomplete clickup)"'
+        echo ""
+        echo "For Windows PowerShell, run:"
+        echo "  .\\enable-completion.ps1"
         exit 1
         ;;
 esac
