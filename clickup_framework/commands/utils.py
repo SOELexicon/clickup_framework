@@ -167,6 +167,9 @@ def read_text_from_file(file_path: str) -> str:
         with open(path, 'r', encoding='utf-8') as f:
             content = f.read()
 
+        if not content.strip():
+            print(f"Error: File is empty: {file_path}", file=sys.stderr)
+            sys.exit(1)
         return content
     except UnicodeDecodeError:
         print(f"Error: File is not a valid text file: {file_path}", file=sys.stderr)
