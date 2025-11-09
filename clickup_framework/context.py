@@ -29,7 +29,7 @@ class ContextManager:
     Manages persistent context for ClickUp operations.
 
     Stores current task, list, space, folder, and workspace IDs in a JSON file
-    at ~/.clickup_context.json for easy access across CLI commands.
+    at ~/.cum/clickup_context.json for easy access across CLI commands.
 
     Security:
     - Can optionally store API token for convenience
@@ -37,7 +37,7 @@ class ContextManager:
     - File permissions are set to user-only (0600)
     """
 
-    DEFAULT_CONTEXT_PATH = os.path.expanduser("~/.clickup_context.json")
+    DEFAULT_CONTEXT_PATH = os.path.expanduser("~/.cum/clickup_context.json")
     DEFAULT_CACHE_TTL = 3600  # 1 hour in seconds
 
     def __init__(self, context_path: Optional[str] = None, cache_ttl: int = DEFAULT_CACHE_TTL):
@@ -45,7 +45,7 @@ class ContextManager:
         Initialize ContextManager.
 
         Args:
-            context_path: Path to context file (defaults to ~/.clickup_context.json)
+            context_path: Path to context file (defaults to ~/.cum/clickup_context.json)
             cache_ttl: Cache time-to-live in seconds (default: 3600 = 1 hour)
         """
         self.context_path = context_path or self.DEFAULT_CONTEXT_PATH
