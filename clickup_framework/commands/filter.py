@@ -3,7 +3,7 @@
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args
+from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_list_id
 
 
 def filter_command(args):
@@ -12,9 +12,9 @@ def filter_command(args):
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    # Resolve "current" to actual list ID
+    # Resolve list ID from either list ID, task ID, or "current" keyword
     try:
-        list_id = context.resolve_id('list', args.list_id)
+        list_id = resolve_list_id(client, args.list_id, context)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -53,7 +53,7 @@ def register_command(subparsers):
         description='Display tasks filtered by status, priority, tags, or assignee',
         aliases=['fil']
     )
-    parser.add_argument('list_id', help='ClickUp list ID')
+    parser.add_argument('list_id', help='ClickUp list ID or task ID')
     parser.add_argument('--status', help='Filter by status')
     parser.add_argument('--priority', type=int, help='Filter by priority')
     parser.add_argument('--tags', nargs='+', help='Filter by tags')

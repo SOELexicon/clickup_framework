@@ -3,7 +3,7 @@
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import get_list_statuses
+from clickup_framework.commands.utils import get_list_statuses, resolve_list_id
 
 
 def get_task_type_emoji(task_type):
@@ -128,9 +128,9 @@ def stats_command(args):
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    # Resolve "current" to actual list ID
+    # Resolve list ID from either list ID, task ID, or "current" keyword
     try:
-        list_id = context.resolve_id('list', args.list_id)
+        list_id = resolve_list_id(client, args.list_id, context)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -171,7 +171,7 @@ def register_command(subparsers, add_common_args=None):
         help='Display task statistics',
         description='Display statistical summary of tasks in a list'
     )
-    parser.add_argument('list_id', help='ClickUp list ID')
+    parser.add_argument('list_id', help='ClickUp list ID or task ID')
     parser.add_argument('--by-type', action='store_true',
                         help='Show statistics grouped by task type')
     parser.add_argument('--type', type=str,
