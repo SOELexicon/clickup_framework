@@ -1,63 +1,89 @@
 """
-CLI Commands Package
+Drop-in plugin command loader for CLI.
 
-This package provides a plugin-based command system for the ClickUp Framework CLI.
-Each command is defined in its own Python module with a register_command() function.
+Each command module in this directory should define a `register_command(subparsers)` function
+that configures its own argument parser and sets the command function.
 
-Command files are automatically discovered and loaded by the CLI.
+Example command module structure:
+    def my_command(args):
+        '''Command implementation'''
+        pass
+
+    def register_command(subparsers):
+        parser = subparsers.add_parser('mycommand', help='Description')
+        parser.add_argument('arg1', help='Argument 1')
+        parser.set_defaults(func=my_command)
 """
 
 import os
 import importlib
-import inspect
+import pkgutil
 from pathlib import Path
 
 
-def discover_and_register_commands(subparsers, add_common_args):
+def discover_commands():
     """
-    Automatically discover and register all command modules.
+    Discover all command modules in this directory.
+
+    Returns:
+        List of module objects that have a register_command function
+    """
+    commands = []
+    package_dir = Path(__file__).parent
+
+    # Iterate through all .py files in the commands directory
+    for importer, module_name, ispkg in pkgutil.iter_modules([str(package_dir)]):
+        # Skip utils and private modules
+        if module_name.startswith('_') or module_name == 'utils':
+            continue
+
+        try:
+            # Import the module
+            module = importlib.import_module(f'.{module_name}', package=__name__)
+
+            # Check if it has a register_command function
+            if hasattr(module, 'register_command'):
+                commands.append(module)
+        except Exception as e:
+            print(f"Warning: Failed to load command module '{module_name}': {e}")
+
+    return commands
+
+
+def register_all_commands(subparsers):
+    """
+    Register all discovered commands with the argument parser.
 
     Args:
         subparsers: The argparse subparsers object to register commands with
-        add_common_args: Function to add common arguments to a parser
-
-    This function scans the commands directory for Python files and imports
-    each module. If the module has a register_command() function, it calls it
-    to register the command with argparse.
     """
-    commands_dir = Path(__file__).parent
+    commands = discover_commands()
 
-    # Get all .py files in the commands directory
-    command_files = [
-        f.stem for f in commands_dir.glob('*.py')
-        if f.is_file()
-        and f.stem not in ['__init__', 'utils']  # Skip special files
-        and not f.stem.startswith('_')  # Skip private modules
-    ]
-
-    registered_commands = []
-
-    for module_name in sorted(command_files):
+    for module in commands:
         try:
-            # Import the module
-            module = importlib.import_module(f'clickup_framework.commands.{module_name}')
-
-            # Check if module has register_command function
-            if hasattr(module, 'register_command') and callable(module.register_command):
-                # Get the function signature to see what parameters it expects
-                sig = inspect.signature(module.register_command)
-                params = list(sig.parameters.keys())
-
-                # Call register_command with appropriate arguments
-                if 'add_common_args' in params:
-                    module.register_command(subparsers, add_common_args)
-                else:
-                    module.register_command(subparsers)
-
-                registered_commands.append(module_name)
+            module.register_command(subparsers)
         except Exception as e:
-            # Log error but continue loading other commands
-            import sys
-            print(f"Warning: Failed to load command module '{module_name}': {e}", file=sys.stderr)
+            module_name = module.__name__.split('.')[-1]
+            print(f"Warning: Failed to register command from '{module_name}': {e}")
 
-    return registered_commands
+
+def discover_and_register_commands(subparsers, add_common_args=None):
+    """
+    Discover and register all command plugins.
+
+    This is a wrapper function for backward compatibility with cli.py.
+    The add_common_args parameter is accepted but not used since command
+    modules import and use add_common_args from utils directly.
+
+    Args:
+        subparsers: The argparse subparsers object to register commands with
+        add_common_args: (Optional) Common args function (for compatibility)
+    """
+    register_all_commands(subparsers)
+
+
+# Export utility functions for use by command modules
+from .utils import create_format_options, get_list_statuses
+
+__all__ = ['discover_commands', 'register_all_commands', 'discover_and_register_commands',
+           'create_format_options', 'get_list_statuses']
