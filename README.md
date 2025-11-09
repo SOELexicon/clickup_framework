@@ -148,6 +148,42 @@ pip install -e .
 export PYTHONPATH="/home/user/Skills:$PYTHONPATH"
 ```
 
+### Tab Autocomplete (Optional)
+
+Enable tab completion for `cum` and `clickup` commands to get command suggestions and argument completion:
+
+```bash
+# Run the setup script (bash or zsh)
+./enable-completion.sh
+
+# Reload your shell configuration
+source ~/.bashrc  # for bash
+source ~/.zshrc   # for zsh
+
+# Or restart your terminal
+```
+
+**What you get:**
+- Tab completion for all commands: `cum <TAB>` shows all available commands
+- Prefix matching: `cum task_<TAB>` shows all task commands
+- Argument completion: `cum hierarchy <TAB>` shows available options
+
+**Manual setup:**
+
+For bash, add to `~/.bashrc`:
+```bash
+eval "$(register-python-argcomplete cum)"
+eval "$(register-python-argcomplete clickup)"
+```
+
+For zsh, add to `~/.zshrc`:
+```bash
+autoload -U bashcompinit
+bashcompinit
+eval "$(register-python-argcomplete cum)"
+eval "$(register-python-argcomplete clickup)"
+```
+
 ## Quick Start
 
 ### Command-Line Interface (NEW! ✨)
