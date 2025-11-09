@@ -17,7 +17,7 @@ import sys
 import os
 from typing import Optional
 
-from clickup_framework import ClickUpClient
+from clickup_framework import ClickUpClient, ContextManager, get_context_manager
 from clickup_framework.components import (
     DisplayManager,
     FormatOptions,
@@ -53,10 +53,18 @@ def create_format_options(args) -> FormatOptions:
 
 def hierarchy_command(args):
     """Display tasks in hierarchical parent-child view."""
+    context = get_context_manager()
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    tasks = client.get_list_tasks(args.list_id)
+    # Resolve "current" to actual list ID
+    try:
+        list_id = context.resolve_id('list', args.list_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
 
     header = args.header if hasattr(args, 'header') and args.header else None
@@ -67,10 +75,18 @@ def hierarchy_command(args):
 
 def container_command(args):
     """Display tasks organized by container hierarchy."""
+    context = get_context_manager()
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    tasks = client.get_list_tasks(args.list_id)
+    # Resolve "current" to actual list ID
+    try:
+        list_id = context.resolve_id('list', args.list_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
 
     output = display.container_view(tasks, options)
@@ -80,10 +96,18 @@ def container_command(args):
 
 def flat_command(args):
     """Display tasks in a flat list."""
+    context = get_context_manager()
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    tasks = client.get_list_tasks(args.list_id)
+    # Resolve "current" to actual list ID
+    try:
+        list_id = context.resolve_id('list', args.list_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
 
     header = args.header if hasattr(args, 'header') and args.header else None
@@ -94,10 +118,18 @@ def flat_command(args):
 
 def filter_command(args):
     """Display filtered tasks."""
+    context = get_context_manager()
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    tasks = client.get_list_tasks(args.list_id)
+    # Resolve "current" to actual list ID
+    try:
+        list_id = context.resolve_id('list', args.list_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
 
     output = display.filtered_view(
@@ -116,14 +148,30 @@ def filter_command(args):
 
 def detail_command(args):
     """Display comprehensive details of a single task with relationships."""
+    context = get_context_manager()
     client = ClickUpClient()
     display = DisplayManager(client)
 
+    # Resolve "current" to actual task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
     # Get the specific task
-    task = client.get_task(args.task_id)
+    task = client.get_task(task_id)
 
     # Get all tasks from the list for relationship context
-    all_tasks = client.get_list_tasks(args.list_id) if args.list_id else None
+    if args.list_id:
+        try:
+            list_id = context.resolve_id('list', args.list_id)
+            all_tasks = client.get_list_tasks(list_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        all_tasks = None
 
     options = create_format_options(args)
 
@@ -134,10 +182,18 @@ def detail_command(args):
 
 def stats_command(args):
     """Display task statistics."""
+    context = get_context_manager()
     client = ClickUpClient()
     display = DisplayManager(client)
 
-    tasks = client.get_list_tasks(args.list_id)
+    # Resolve "current" to actual list ID
+    try:
+        list_id = context.resolve_id('list', args.list_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    tasks = client.get_list_tasks(list_id)
 
     output = display.summary_stats(tasks)
 
@@ -210,6 +266,94 @@ def demo_command(args):
         output = display.hierarchy_view(sample_tasks, options, "Demo: Hierarchy View")
 
     print(output)
+
+
+def set_current_command(args):
+    """Set current resource context."""
+    context = get_context_manager()
+
+    resource_type = args.resource_type.lower()
+    resource_id = args.resource_id
+
+    # Map resource types to setter methods
+    setters = {
+        'task': context.set_current_task,
+        'list': context.set_current_list,
+        'space': context.set_current_space,
+        'folder': context.set_current_folder,
+        'workspace': context.set_current_workspace,
+        'team': context.set_current_workspace,  # Alias
+    }
+
+    setter = setters.get(resource_type)
+    if not setter:
+        print(f"Error: Unknown resource type '{resource_type}'", file=sys.stderr)
+        print(f"Valid types: {', '.join(setters.keys())}", file=sys.stderr)
+        sys.exit(1)
+
+    setter(resource_id)
+    print(f"✓ Set current {resource_type} to: {resource_id}")
+
+
+def clear_current_command(args):
+    """Clear current resource context."""
+    context = get_context_manager()
+
+    if args.resource_type:
+        resource_type = args.resource_type.lower()
+
+        # Map resource types to clear methods
+        clearers = {
+            'task': context.clear_current_task,
+            'list': context.clear_current_list,
+            'space': context.clear_current_space,
+            'folder': context.clear_current_folder,
+            'workspace': context.clear_current_workspace,
+            'team': context.clear_current_workspace,  # Alias
+        }
+
+        clearer = clearers.get(resource_type)
+        if not clearer:
+            print(f"Error: Unknown resource type '{resource_type}'", file=sys.stderr)
+            print(f"Valid types: {', '.join(clearers.keys())}", file=sys.stderr)
+            sys.exit(1)
+
+        clearer()
+        print(f"✓ Cleared current {resource_type}")
+    else:
+        # Clear all context
+        context.clear_all()
+        print("✓ Cleared all context")
+
+
+def show_current_command(args):
+    """Show current resource context."""
+    context = get_context_manager()
+    all_context = context.get_all()
+
+    if not all_context:
+        print("No context set.")
+        return
+
+    print("Current Context:")
+    print("=" * 50)
+
+    # Show current values
+    items = [
+        ('Task', context.get_current_task()),
+        ('List', context.get_current_list()),
+        ('Space', context.get_current_space()),
+        ('Folder', context.get_current_folder()),
+        ('Workspace', context.get_current_workspace()),
+    ]
+
+    for label, value in items:
+        if value:
+            print(f"  {label:12} {value}")
+
+    # Show last updated
+    if 'last_updated' in all_context:
+        print(f"\nLast Updated: {all_context['last_updated']}")
 
 
 def main():
@@ -316,6 +460,26 @@ Examples:
                            default='hierarchy', help='View mode to demonstrate')
     add_common_args(demo_parser)
     demo_parser.set_defaults(func=demo_command)
+
+    # Context management commands
+    set_current_parser = subparsers.add_parser('set_current',
+                                                help='Set current resource context')
+    set_current_parser.add_argument('resource_type',
+                                     choices=['task', 'list', 'space', 'folder', 'workspace', 'team'],
+                                     help='Type of resource to set as current')
+    set_current_parser.add_argument('resource_id', help='ID of the resource')
+    set_current_parser.set_defaults(func=set_current_command)
+
+    clear_current_parser = subparsers.add_parser('clear_current',
+                                                  help='Clear current resource context')
+    clear_current_parser.add_argument('resource_type', nargs='?',
+                                       choices=['task', 'list', 'space', 'folder', 'workspace', 'team'],
+                                       help='Type of resource to clear (omit to clear all)')
+    clear_current_parser.set_defaults(func=clear_current_command)
+
+    show_current_parser = subparsers.add_parser('show_current',
+                                                 help='Show current resource context')
+    show_current_parser.set_defaults(func=show_current_command)
 
     # Parse arguments
     args = parser.parse_args()
