@@ -5,16 +5,16 @@
 
 ## Table of Contents
 
-1. [Coding Task](http://#agent-coding-task)
-2. [Bug Fix Task](http://#bug-fix-task)
-3. [Feature Request](http://#feature-request)
-4. [Research & Investigation](http://#research--investigation)
-5. [Documentation Task](http://#documentation-task)
-6. [Code Review](http://#code-review)
-7. [Deployment Task](http://#deployment-task)
-8. [Configuration Change](http://#configuration-change)
-9. [Database Migration](http://#database-migration)
-10. [Performance Optimization](http://#performance-optimization)
+1. [Coding Task](Coding_Task_Normal_Task.md)
+2. [Bug Fix Task](Bug_Fix_Task.md)
+3. [Feature Request](Feature_Request.md)
+4. [Research & Investigation](Research_&_Investigation.md)
+5. [Documentation Task](Documentation_Task.md)
+6. [Code Review](Code_Review.md)
+7. [Deployment Task](Deployment_Task.md)
+8. [Configuration Change](Configuration_Change.md)
+9. [Database Migration](Database_Migration.md)
+10. [Performance Optimization](Performance_Optimization.md)
 * * *
 ## Template Usage Guidelines
 
