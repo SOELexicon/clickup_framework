@@ -1,0 +1,70 @@
+name: Post Actions to ClickUp
+
+on:
+  workflow_run:
+    workflows: ["ClickUp Framework Tests", "Test and Generate Display Screenshots"]
+    types:
+      - completed
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      job_status:
+        description: 'Job status (for manual testing)'
+        required: false
+        default: 'success'
+        type: choice
+        options:
+          - success
+          - failure
+          - cancelled
+
+jobs:
+  post-to-clickup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+
+    - name: Determine job status
+      id: status
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "status=${{ inputs.job_status }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+          echo "status=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+        else
+          echo "status=unknown" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Post workflow run to ClickUp
+      env:
+        CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_REF_NAME: ${{ github.ref_name }}
+        GITHUB_SHA: ${{ github.sha }}
+        JOB_STATUS: ${{ steps.status.outputs.status }}
+        GITHUB_WORKFLOW: ${{ github.workflow }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+        GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_REF_TYPE: ${{ github.ref_type }}
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+      run: |
+        python scripts/post_actions_to_clickup.py
+      continue-on-error: true  # Don't fail the workflow if posting fails
