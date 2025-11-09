@@ -1,5 +1,7 @@
 """Utility functions for CLI commands."""
 
+import sys
+from pathlib import Path
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import FormatOptions
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
@@ -137,3 +139,41 @@ def add_common_args(subparser):
                          help='Include completed tasks')
     subparser.add_argument('--no-emoji', dest='show_emoji', action='store_false',
                          help='Hide task type emojis')
+
+
+def read_text_from_file(file_path: str) -> str:
+    """
+    Read text content from a file.
+
+    Args:
+        file_path: Path to the file to read
+
+    Returns:
+        File content as string
+
+    Raises:
+        SystemExit: If file cannot be read
+    """
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            print(f"Error: File not found: {file_path}", file=sys.stderr)
+            sys.exit(1)
+
+        if not path.is_file():
+            print(f"Error: Not a file: {file_path}", file=sys.stderr)
+            sys.exit(1)
+
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        return content
+    except UnicodeDecodeError:
+        print(f"Error: File is not a valid text file: {file_path}", file=sys.stderr)
+        sys.exit(1)
+    except PermissionError:
+        print(f"Error: Permission denied reading file: {file_path}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error reading file {file_path}: {e}", file=sys.stderr)
+        sys.exit(1)
