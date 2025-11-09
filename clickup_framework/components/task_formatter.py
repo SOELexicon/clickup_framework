@@ -7,7 +7,7 @@ Provides enhanced formatting for individual tasks with emojis, colors, and detai
 from typing import Dict, Any, Optional
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.utils.colors import (
-    colorize, status_color, priority_color, get_task_emoji,
+    colorize, status_color, status_to_code, priority_color, get_task_emoji,
     TextColor, TextStyle
 )
 from clickup_framework.utils.text import truncate
@@ -50,28 +50,39 @@ class RichTaskFormatter:
             emoji = get_task_emoji(task_type)
             parts.append(emoji)
 
-        # Add task name
-        name = task.get('name', 'Untitled')
-        if options.colorize_output:
-            status = task.get('status', {})
-            status_name = status.get('status') if isinstance(status, dict) else status
-            color = status_color(status_name)
-            name = colorize(name, color)
-        parts.append(name)
-
-        # Add status (if not default)
+        # Get status for both code and color
         status = task.get('status', {})
         status_name = status.get('status') if isinstance(status, dict) else status
-        if status_name and str(status_name).lower() not in ('to do', 'open'):
-            status_str = f"[{status_name}]"
-            if options.colorize_output:
-                status_str = colorize(status_str, status_color(status_name))
-            parts.append(status_str)
+
+        # Add status code at the beginning of task name
+        status_code = status_to_code(status_name or '')
+        status_code_str = f"[{status_code}]"
+        if options.colorize_output:
+            status_code_str = colorize(status_code_str, status_color(status_name))
+
+        # Add task name with status code prefix
+        name = task.get('name', 'Untitled')
+        full_name = f"{status_code_str} {name}"
+        if options.colorize_output:
+            color = status_color(status_name)
+            full_name = f"{status_code_str} {colorize(name, color)}"
+        parts.append(full_name)
 
         # Add priority (if not default)
         priority = task.get('priority')
         if priority and priority.get('priority') != '4':
             priority_val = priority.get('priority', '4')
+
+            # Map string priorities to numbers
+            if isinstance(priority_val, str):
+                priority_map = {
+                    'urgent': '1',
+                    'high': '2',
+                    'normal': '3',
+                    'low': '4'
+                }
+                priority_val = priority_map.get(priority_val.lower(), priority_val)
+
             priority_str = f"(P{priority_val})"
             if options.colorize_output:
                 priority_str = colorize(priority_str, priority_color(priority_val))
