@@ -1,0 +1,77 @@
+{
+  "id": "email_notification_plugin",
+  "name": "Email Notification Plugin",
+  "version": "1.0.0",
+  "description": "Send notifications via email (SMTP)",
+  "author": "ClickUp JSON Manager Team",
+  "entry_point": "email_plugin.py:EmailNotificationPlugin",
+  "type": "notification",
+  "min_app_version": "2.0.0",
+  "enabled_by_default": true,
+  "requires_config": true,
+  "dependencies": [],
+  "tags": ["notification", "email", "smtp"],
+  "icon": "mail.png",
+  "permissions": ["network"],
+  "security_level": "medium_trust",
+  "allowed_imports": ["smtplib", "email"],
+  "allowed_network_hosts": [],
+  "config_schema": {
+    "smtp_server": {
+      "type": "string",
+      "description": "SMTP server hostname",
+      "default": "smtp.gmail.com",
+      "required": true
+    },
+    "smtp_port": {
+      "type": "integer",
+      "description": "SMTP server port",
+      "default": 587,
+      "required": true
+    },
+    "use_tls": {
+      "type": "boolean",
+      "description": "Whether to use TLS for connection",
+      "default": true
+    },
+    "username": {
+      "type": "string",
+      "description": "SMTP username for authentication",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "description": "SMTP password for authentication",
+      "required": true,
+      "sensitive": true
+    },
+    "sender_email": {
+      "type": "string",
+      "description": "Email address to send notifications from",
+      "required": true
+    },
+    "sender_name": {
+      "type": "string",
+      "description": "Name to display for the sender",
+      "default": "ClickUp JSON Manager"
+    },
+    "default_recipients": {
+      "type": "array",
+      "description": "Default recipient email addresses",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_task_details": {
+      "type": "boolean",
+      "description": "Include detailed task information in notifications",
+      "default": true
+    },
+    "html_format": {
+      "type": "boolean",
+      "description": "Send emails in HTML format",
+      "default": true
+    }
+  }
+} 
