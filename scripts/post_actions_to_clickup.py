@@ -370,6 +370,61 @@ def upload_test_report_attachments(client, task_id):
     return attachments
 
 
+def upload_screenshot_attachments(client, task_id):
+    """
+    Upload display component screenshot files as attachments.
+
+    Args:
+        client: ClickUpClient instance
+        task_id: Task ID to attach files to
+
+    Returns:
+        List of uploaded attachment info
+    """
+    attachments = []
+    screenshots_dir = 'screenshots'
+
+    # Check if screenshots directory exists
+    if not os.path.exists(screenshots_dir):
+        print(f"  No {screenshots_dir}/ directory found")
+        return attachments
+
+    # Get all JPG files from screenshots directory
+    try:
+        screenshot_files = [
+            f for f in os.listdir(screenshots_dir)
+            if f.endswith('.jpg')
+        ]
+
+        if not screenshot_files:
+            print(f"  No screenshot files found in {screenshots_dir}/")
+            return attachments
+
+        print(f"  Found {len(screenshot_files)} screenshot(s) to upload")
+
+        for filename in sorted(screenshot_files):
+            file_path = os.path.join(screenshots_dir, filename)
+            try:
+                print(f"  Uploading {filename}...")
+
+                # Upload using ClickUp API (takes file path directly)
+                attachment = client.create_task_attachment(task_id, file_path)
+
+                print(f"  ✓ {filename} uploaded successfully")
+                attachments.append({
+                    'filename': filename,
+                    'description': f'Display Component Screenshot: {filename}',
+                    'attachment': attachment
+                })
+            except Exception as e:
+                print(f"  ✗ Error uploading {filename}: {e}")
+
+    except Exception as e:
+        print(f"  Error reading screenshots directory: {e}")
+
+    return attachments
+
+
 def get_task_type_breakdown(client, list_id):
     """
     Get breakdown of tasks by type from the list.
@@ -617,6 +672,16 @@ def main():
             # Don't return error - Action Run task was created successfully
     else:
         print("No test reports found. Skipping Test Result subtask creation.")
+        print()
+
+    # Upload screenshot attachments to the Action Run task
+    print("Checking for display component screenshots...")
+    screenshot_attachments = upload_screenshot_attachments(client, action_run_task['id'])
+    if screenshot_attachments:
+        print(f"✓ {len(screenshot_attachments)} screenshot(s) uploaded to Action Run task")
+        print()
+    else:
+        print("No screenshots found to upload")
         print()
 
     # Summary

@@ -251,6 +251,13 @@ jobs:
         merge-multiple: true
       continue-on-error: true
 
+    - name: Download screenshot artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: display-screenshots-*
+        merge-multiple: true
+      continue-on-error: true
+
     - name: List downloaded files
       run: |
         echo "Current directory contents:"
@@ -260,6 +267,10 @@ jobs:
         fi
         if [ -f coverage.json ]; then
           echo "✓ coverage.json found"
+        fi
+        if [ -d screenshots ]; then
+          echo "✓ screenshots/ directory found"
+          ls -la screenshots/
         fi
 
     - name: Determine job status
