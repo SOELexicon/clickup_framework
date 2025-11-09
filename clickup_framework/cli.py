@@ -429,15 +429,108 @@ def demo_command(args):
 
 
 def set_current_command(args):
-    """Set current resource context."""
+    """
+    Set current resource context.
+
+    For tasks: Automatically fetches the task and sets the workspace, space,
+    folder, and list IDs from the task's hierarchy. This allows a single
+    command to configure the entire context based on a task ID.
+
+    For other resource types: Sets only that specific resource.
+    """
     context = get_context_manager()
 
     resource_type = args.resource_type.lower()
     resource_id = args.resource_id
 
+    # Special handling for task - auto-set workspace, space, folder, and list
+    if resource_type == 'task':
+        try:
+            # Fetch the task to get its hierarchy information
+            client = ClickUpClient()
+            task = client.get_task(resource_id)
+
+            # Set the task ID
+            context.set_current_task(resource_id)
+            print(f"✓ Set current task to: {resource_id}")
+
+            # Extract and set list ID
+            if task.get('list') and isinstance(task['list'], dict):
+                list_id = task['list'].get('id')
+                if list_id:
+                    context.set_current_list(list_id)
+                    list_name = task['list'].get('name', list_id)
+                    print(f"✓ Set current list to: {list_id} ({list_name})")
+
+            # Extract and set folder ID (if present)
+            if task.get('folder') and isinstance(task['folder'], dict):
+                folder_id = task['folder'].get('id')
+                if folder_id:
+                    context.set_current_folder(folder_id)
+                    folder_name = task['folder'].get('name', folder_id)
+                    print(f"✓ Set current folder to: {folder_id} ({folder_name})")
+
+            # Extract and set space ID
+            if task.get('space') and isinstance(task['space'], dict):
+                space_id = task['space'].get('id')
+                if space_id:
+                    context.set_current_space(space_id)
+                    space_name = task['space'].get('name', space_id)
+                    print(f"✓ Set current space to: {space_id} ({space_name})")
+
+            # Try to determine and set workspace/team
+            # Method 1: Check if task includes team info directly
+            workspace_id = None
+            if task.get('team_id'):
+                workspace_id = task['team_id']
+
+            # Method 2: Check space object for team info
+            if not workspace_id and task.get('space') and isinstance(task['space'], dict):
+                if task['space'].get('team_id'):
+                    workspace_id = task['space']['team_id']
+
+            # Method 3: Fetch list and check for team info
+            if not workspace_id and task.get('list') and isinstance(task['list'], dict):
+                list_id = task['list'].get('id')
+                try:
+                    list_data = client.get_list(list_id)
+
+                    # Check various places where team_id might be
+                    if list_data.get('team_id'):
+                        workspace_id = list_data['team_id']
+                    elif list_data.get('space') and isinstance(list_data['space'], dict):
+                        if list_data['space'].get('team_id'):
+                            workspace_id = list_data['space']['team_id']
+                except Exception:
+                    # If list fetch fails, continue without workspace
+                    pass
+
+            # Method 4: Fetch space and check for team info
+            if not workspace_id and task.get('space') and isinstance(task['space'], dict):
+                space_id = task['space'].get('id')
+                try:
+                    space_data = client.get_space(space_id)
+                    if space_data.get('team_id'):
+                        workspace_id = space_data['team_id']
+                except Exception:
+                    pass
+
+            # Set workspace if found
+            if workspace_id:
+                context.set_current_workspace(workspace_id)
+                print(f"✓ Set current workspace to: {workspace_id}")
+
+            print(f"\n✓ Context updated successfully for task: {task.get('name', resource_id)}")
+
+        except Exception as e:
+            print(f"Error fetching task: {e}", file=sys.stderr)
+            print("Setting task ID only without hierarchy information.", file=sys.stderr)
+            context.set_current_task(resource_id)
+            print(f"✓ Set current task to: {resource_id}")
+        return
+
     # Map resource types to setter methods
     setters = {
-        'task': context.set_current_task,
         'list': context.set_current_list,
         'space': context.set_current_space,
         'folder': context.set_current_folder,
@@ -450,7 +543,7 @@ def set_current_command(args):
     setter = setters.get(resource_type)
     if not setter:
         print(f"Error: Unknown resource type '{resource_type}'", file=sys.stderr)
-        print(f"Valid types: {', '.join(setters.keys())}", file=sys.stderr)
+        print(f"Valid types: task, {', '.join(setters.keys())}", file=sys.stderr)
         sys.exit(1)
 
     try:
