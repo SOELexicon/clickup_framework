@@ -1,0 +1,78 @@
+{
+  "plugin_id": "visualization_plugin",
+  "name": "Task Visualization Plugin",
+  "version": "1.0.0",
+  "description": "Provides custom visualization charts and graphs for task data, metrics, and progress",
+  "entry_point": "visualization_plugin.py:VisualizationPlugin",
+  "author": "ClickUp JSON Manager",
+  "website": "https://github.com/yourusername/clickup_json_manager",
+  "plugin_type": "visualization",
+  "min_app_version": "1.0.0",
+  "required_config": {
+    "render_backend": {
+      "type": "string",
+      "description": "The backend to use for rendering (matplotlib, plotly, or ascii)",
+      "default": "matplotlib",
+      "options": ["matplotlib", "plotly", "ascii"]
+    },
+    "default_charts": {
+      "type": "array",
+      "description": "Default charts to display on dashboard",
+      "default": ["status_distribution", "priority_distribution", "completion_trend"],
+      "item_type": "string"
+    },
+    "chart_theme": {
+      "type": "string",
+      "description": "Color theme for charts",
+      "default": "default",
+      "options": ["default", "dark", "light", "colorblind_friendly"]
+    },
+    "export_formats": {
+      "type": "array",
+      "description": "Formats for exporting visualizations",
+      "default": ["png", "svg", "pdf"],
+      "item_type": "string"
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Whether to generate interactive charts when possible",
+      "default": true
+    }
+  },
+  "optional_config": {
+    "custom_colors": {
+      "type": "object",
+      "description": "Custom colors for different status values",
+      "default": {
+        "to do": "#3498db",
+        "in progress": "#f39c12",
+        "in review": "#9b59b6",
+        "complete": "#2ecc71"
+      }
+    },
+    "max_chart_items": {
+      "type": "number",
+      "description": "Maximum number of items to display in charts",
+      "default": 10,
+      "min": 5,
+      "max": 50
+    },
+    "refresh_interval": {
+      "type": "number",
+      "description": "Refresh interval for live charts in seconds",
+      "default": 60,
+      "min": 5
+    }
+  },
+  "hooks": [
+    "dashboard.initialize",
+    "dashboard.render_view",
+    "task.status_changed",
+    "command.dashboard"
+  ],
+  "permissions": [
+    "read_tasks",
+    "read_metrics",
+    "create_files"
+  ]
+} 

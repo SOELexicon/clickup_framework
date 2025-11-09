@@ -1,0 +1,55 @@
+{
+  "id": "time_tracking_plugin",
+  "name": "Time Tracking Plugin",
+  "version": "1.0.0",
+  "description": "Track time spent on tasks with detailed reporting and integration capabilities",
+  "author": "ClickUp JSON Manager Team",
+  "entry_point": "time_tracking_plugin.py:TimeTrackingPlugin",
+  "type": "utility",
+  "min_app_version": "2.0.0",
+  "enabled_by_default": true,
+  "requires_config": true,
+  "dependencies": [],
+  "tags": ["time-tracking", "reporting", "productivity"],
+  "icon": "clock.png",
+  "config_schema": {
+    "auto_track": {
+      "type": "boolean",
+      "description": "Automatically track time based on task status",
+      "default": false
+    },
+    "track_status_changes": {
+      "type": "boolean",
+      "description": "Track time when task status changes",
+      "default": true
+    },
+    "idle_detection": {
+      "type": "boolean",
+      "description": "Detect idle time and prompt for exclusion",
+      "default": true
+    },
+    "idle_threshold_minutes": {
+      "type": "integer",
+      "description": "Number of minutes before idle detection triggers",
+      "default": 5,
+      "min": 1,
+      "max": 60
+    },
+    "export_formats": {
+      "type": "array",
+      "description": "Formats to export time tracking data",
+      "default": ["csv", "json"],
+      "items": {
+        "type": "string",
+        "enum": ["csv", "json", "pdf", "xlsx"]
+      }
+    },
+    "round_to_nearest": {
+      "type": "integer",
+      "description": "Round time entries to nearest X minutes",
+      "default": 1,
+      "min": 1,
+      "max": 60
+    }
+  }
+} 
