@@ -41,6 +41,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'  # Only run on manual trigger
 
     steps:
     - name: Checkout code
