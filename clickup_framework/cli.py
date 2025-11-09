@@ -23,6 +23,65 @@ from clickup_framework.components import (
     FormatOptions,
     TaskDetailFormatter
 )
+from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.utils.animations import ANSIAnimations
+
+
+def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = True) -> str:
+    """
+    Get and format available statuses for a list with caching.
+
+    Args:
+        client: ClickUpClient instance
+        list_id: List ID
+        use_color: Whether to colorize output
+
+    Returns:
+        Formatted string showing available statuses
+    """
+    from clickup_framework.utils.colors import status_color as get_status_color
+
+    try:
+        context = get_context_manager()
+
+        # Try to get from cache first
+        cached_metadata = context.get_cached_list_metadata(list_id)
+
+        if cached_metadata:
+            list_data = cached_metadata
+        else:
+            # Fetch from API and cache
+            list_data = client.get_list(list_id)
+            context.cache_list_metadata(list_id, list_data)
+
+        statuses = list_data.get('statuses', [])
+
+        if not statuses:
+            return ""
+
+        # Format status display
+        status_parts = []
+        for status in statuses:
+            status_name = status.get('status', 'Unknown')
+
+            if use_color:
+                # Use our status color mapping
+                color = get_status_color(status_name)
+                status_parts.append(colorize(status_name, color, TextStyle.BOLD))
+            else:
+                status_parts.append(status_name)
+
+        status_line = " → ".join(status_parts)
+
+        if use_color:
+            header = colorize("Available Statuses:", TextColor.BRIGHT_BLUE, TextStyle.BOLD) + f" {status_line}"
+        else:
+            header = f"Available Statuses: {status_line}"
+
+        return header
+    except Exception:
+        # If anything fails (e.g., in tests or network issues), silently return empty string
+        return ""
 
 
 def create_format_options(args) -> FormatOptions:
@@ -67,6 +126,13 @@ def hierarchy_command(args):
     tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
 
+    # Show available statuses
+    colorize = getattr(args, 'colorize', True)
+    status_line = get_list_statuses(client, list_id, use_color=colorize)
+    if status_line:
+        print(status_line)
+        print()  # Empty line for spacing
+
     header = args.header if hasattr(args, 'header') and args.header else None
     output = display.hierarchy_view(tasks, options, header)
 
@@ -89,6 +155,13 @@ def container_command(args):
     tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
 
+    # Show available statuses
+    colorize = getattr(args, 'colorize', True)
+    status_line = get_list_statuses(client, list_id, use_color=colorize)
+    if status_line:
+        print(status_line)
+        print()  # Empty line for spacing
+
     output = display.container_view(tasks, options)
 
     print(output)
@@ -109,6 +182,13 @@ def flat_command(args):
 
     tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
+
+    # Show available statuses
+    colorize = getattr(args, 'colorize', True)
+    status_line = get_list_statuses(client, list_id, use_color=colorize)
+    if status_line:
+        print(status_line)
+        print()  # Empty line for spacing
 
     header = args.header if hasattr(args, 'header') and args.header else None
     output = display.flat_view(tasks, options, header)
@@ -131,6 +211,13 @@ def filter_command(args):
 
     tasks = client.get_list_tasks(list_id)
     options = create_format_options(args)
+
+    # Show available statuses
+    colorize = getattr(args, 'colorize', True)
+    status_line = get_list_statuses(client, list_id, use_color=colorize)
+    if status_line:
+        print(status_line)
+        print()  # Empty line for spacing
 
     output = display.filtered_view(
         tasks,
@@ -194,6 +281,13 @@ def stats_command(args):
         sys.exit(1)
 
     tasks = client.get_list_tasks(list_id)
+
+    # Show available statuses
+    # Note: stats command doesn't have colorize arg, so default to True
+    status_line = get_list_statuses(client, list_id, use_color=True)
+    if status_line:
+        print(status_line)
+        print()  # Empty line for spacing
 
     output = display.summary_stats(tasks)
 
@@ -327,33 +421,53 @@ def clear_current_command(args):
 
 
 def show_current_command(args):
-    """Show current resource context."""
+    """Show current resource context with animated display."""
     context = get_context_manager()
     all_context = context.get_all()
 
-    if not all_context:
-        print("No context set.")
+    if not all_context or all(v is None for v in [
+        context.get_current_task(),
+        context.get_current_list(),
+        context.get_current_space(),
+        context.get_current_folder(),
+        context.get_current_workspace()
+    ]):
+        print(ANSIAnimations.warning_message("No context set"))
         return
 
-    print("Current Context:")
-    print("=" * 50)
+    # Build content lines for the box
+    content_lines = []
 
-    # Show current values
+    # Show current values with highlighted IDs
     items = [
-        ('Task', context.get_current_task()),
-        ('List', context.get_current_list()),
-        ('Space', context.get_current_space()),
-        ('Folder', context.get_current_folder()),
-        ('Workspace', context.get_current_workspace()),
+        ('Workspace', context.get_current_workspace(), TextColor.BRIGHT_MAGENTA),
+        ('Space', context.get_current_space(), TextColor.BRIGHT_BLUE),
+        ('Folder', context.get_current_folder(), TextColor.BRIGHT_CYAN),
+        ('List', context.get_current_list(), TextColor.BRIGHT_YELLOW),
+        ('Task', context.get_current_task(), TextColor.BRIGHT_GREEN),
     ]
 
-    for label, value in items:
+    for label, value, color in items:
         if value:
-            print(f"  {label:12} {value}")
+            content_lines.append(ANSIAnimations.highlight_id(label, value, id_color=color))
 
-    # Show last updated
+    # Show last updated with gradient
     if 'last_updated' in all_context:
-        print(f"\nLast Updated: {all_context['last_updated']}")
+        last_updated = all_context['last_updated']
+        content_lines.append("")  # Empty line for spacing
+        content_lines.append(
+            colorize("Last Updated: ", TextColor.BRIGHT_BLACK) +
+            colorize(last_updated, TextColor.BRIGHT_WHITE)
+        )
+
+    # Create animated box
+    box = ANSIAnimations.animated_box(
+        ANSIAnimations.gradient_text("Current Context", ANSIAnimations.GRADIENT_RAINBOW),
+        content_lines,
+        color=TextColor.BRIGHT_CYAN
+    )
+
+    print("\n" + box + "\n")
 
 
 def main():
