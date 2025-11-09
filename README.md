@@ -94,7 +94,7 @@ A modular, token-efficient framework for ClickUp API interactions achieving **90
 
 - [ ] **Phase 4:** Skill Integration (Week 4)
   - [x] **Context Management System**
-    - [x] Implement persistent JSON context storage (~/.clickup_context.json)
+    - [x] Implement persistent JSON context storage (~/.cum/clickup_context.json)
     - [x] Add set_current functionality for tasks, lists, spaces
     - [x] Add CLI commands for context management (set_current, clear_current, show_current)
     - [x] Integrate context resolution in existing CLI commands
@@ -593,7 +593,7 @@ All CLI commands now support the `current` keyword:
 ```
 
 **Context Storage:**
-- Context is stored in `~/.clickup_context.json`
+- Context is stored in `~/.cum/clickup_context.json`
 - File permissions are set to user-only (0600 on Unix systems)
 - Does NOT store API tokens or sensitive credentials
 - Only stores resource IDs for convenience
