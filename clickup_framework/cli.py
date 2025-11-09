@@ -118,15 +118,21 @@ def create_format_options(args) -> FormatOptions:
     if colorize_val is None:
         colorize_val = default_colorize
 
+    # Handle full descriptions flag
+    full_descriptions = getattr(args, 'full_descriptions', False)
+    show_descriptions = getattr(args, 'show_descriptions', False) or full_descriptions
+    description_length = 10000 if full_descriptions else 500
+
     return FormatOptions(
         colorize_output=colorize_val,
         show_ids=getattr(args, 'show_ids', False),
         show_tags=getattr(args, 'show_tags', True),
-        show_descriptions=getattr(args, 'show_descriptions', False),
+        show_descriptions=show_descriptions,
         show_dates=getattr(args, 'show_dates', False),
         show_comments=getattr(args, 'show_comments', 0),
         include_completed=getattr(args, 'include_completed', False),
-        show_type_emoji=getattr(args, 'show_emoji', True)
+        show_type_emoji=getattr(args, 'show_emoji', True),
+        description_length=description_length
     )
 
 
@@ -1532,6 +1538,8 @@ Examples:
                              help='Show task tags (default: true)')
         subparser.add_argument('--show-descriptions', action='store_true',
                              help='Show task descriptions')
+        subparser.add_argument('-d', '--full-descriptions', dest='full_descriptions', action='store_true',
+                             help='Show full descriptions without truncation (implies --show-descriptions)')
         subparser.add_argument('--show-dates', action='store_true',
                              help='Show task dates')
         subparser.add_argument('--show-comments', type=int, default=0, metavar='N',

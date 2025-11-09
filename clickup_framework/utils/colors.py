@@ -116,6 +116,7 @@ def status_to_code(status: str) -> str:
         "todo": "TDO",
         "open": "OPN",
         "in progress": "PRG",
+        "in development": "DEV",
         "in review": "REV",
         "complete": "CMP",
         "completed": "CMP",
@@ -153,7 +154,7 @@ def status_color(status: str) -> TextColor:
 
     if status_lower in ("to do", "todo", "open"):
         return TextColor.YELLOW
-    elif status_lower in ("in progress", "in review"):
+    elif status_lower in ("in progress", "in development", "in review"):
         return TextColor.BRIGHT_BLUE
     elif status_lower in ("complete", "completed", "done", "closed"):
         return TextColor.BRIGHT_GREEN
