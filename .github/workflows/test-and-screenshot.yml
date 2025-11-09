@@ -10,6 +10,10 @@ on:
 jobs:
   test-and-screenshot:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
 
     steps:
     - name: Checkout code
@@ -36,7 +40,7 @@ jobs:
         python -m pytest tests/components/ -v --cov=clickup_framework.components --cov-report=term --cov-report=html
 
     - name: Upload coverage report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: htmlcov/
@@ -53,7 +57,7 @@ jobs:
         ./scripts/generate_screenshots.sh
 
     - name: Upload screenshots
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: display-screenshots
         path: screenshots/*.jpg
