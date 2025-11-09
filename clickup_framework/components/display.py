@@ -197,7 +197,8 @@ class DisplayManager:
             raise ValueError("ClickUpClient must be configured to fetch tasks")
 
         result = self.client.get_list_tasks(list_id)
-        tasks = result.get('tasks', [])
+        # Handle both dict response {'tasks': [...]} and direct list response
+        tasks = result if isinstance(result, list) else result.get('tasks', [])
 
         if view_mode == 'hierarchy':
             return self.hierarchy_view(tasks, options)
@@ -230,7 +231,8 @@ class DisplayManager:
             raise ValueError("ClickUpClient must be configured to fetch tasks")
 
         result = self.client.get_team_tasks(team_id)
-        tasks = result.get('tasks', [])
+        # Handle both dict response {'tasks': [...]} and direct list response
+        tasks = result if isinstance(result, list) else result.get('tasks', [])
 
         if view_mode == 'hierarchy':
             return self.hierarchy_view(tasks, options)
