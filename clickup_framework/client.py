@@ -111,6 +111,18 @@ class ClickUpClient:
         else:
             url = f"{self.BASE_URL}/{endpoint_stripped}"
 
+        # Convert list parameters to bracket notation for ClickUp API
+        # e.g., assignees=[1, 2] becomes assignees[]=[1, 2] for proper array handling
+        if params:
+            normalized_params = {}
+            for key, value in params.items():
+                if isinstance(value, list):
+                    # Use bracket notation for array parameters
+                    normalized_params[f"{key}[]"] = value
+                else:
+                    normalized_params[key] = value
+            params = normalized_params
+
         # Acquire rate limit token
         self.rate_limiter.acquire()
 
