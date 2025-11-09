@@ -17,6 +17,7 @@ __version__ = "1.0.0-alpha"
 __author__ = "ClickUp Skills Development Team"
 
 from .client import ClickUpClient
+from .context import ContextManager, get_context_manager
 from .exceptions import (
     ClickUpError,
     ClickUpAPIError,
@@ -27,6 +28,8 @@ from .exceptions import (
 
 __all__ = [
     "ClickUpClient",
+    "ContextManager",
+    "get_context_manager",
     "ClickUpError",
     "ClickUpAPIError",
     "ClickUpAuthError",

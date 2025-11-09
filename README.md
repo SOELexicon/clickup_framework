@@ -29,18 +29,114 @@ A modular, token-efficient framework for ClickUp API interactions achieving **90
   - [ ] Workspace formatter (future)
 
 - [x] **Phase 3:** Resource APIs (Week 3) - COMPLETE ✅
-  - [x] TasksAPI: Task CRUD, comments, checklists, custom fields
-  - [x] TasksAPI: Task relationships (dependencies, links, custom relationships)
-  - [x] ListsAPI: List management and task queries
-  - [x] WorkspacesAPI: Workspace, space, folder, search operations
-  - [x] TimeAPI: Time tracking with automatic formatting
-  - [x] DocsAPI: Placeholder structure (pending client endpoints)
-  - [x] Automatic formatting integration via detail_level parameter
-  - [x] Convenience methods for common operations
-  - [x] Tested with real API data
+  - [x] **TasksAPI:** Task CRUD, comments, checklists, custom fields, relationships
+    - [x] Implementing GET/retrieve operations (get, get_list_tasks, get_team_tasks)
+    - [x] Implementing CREATE operations (create)
+    - [x] Implementing UPDATE operations (update, update_status, update_priority)
+    - [x] Implementing DELETE operations (delete)
+    - [ ] Adding filtering and search capabilities (advanced filters)
+    - [x] Integrating automatic formatting with detail levels (minimal, summary, detailed, full)
+    - [x] Adding convenience methods (assign, unassign, status updates)
+    - [x] Adding comment operations (add_comment, get_comments)
+    - [x] Adding checklist operations (add_checklist, add_checklist_item)
+    - [x] Adding custom field operations (set_custom_field, remove_custom_field)
+    - [x] Adding dependency operations (add_dependency_waiting_on, add_dependency_blocking, remove_dependency)
+    - [x] Adding link operations (add_link, remove_link)
+    - [x] Adding custom relationship operations (set_relationship_field)
+    - [x] Testing with real API data
+    - [x] Error handling and edge cases
+    - [x] View-before-modify safeguards for update/delete
+    - [x] Duplicate detection for create operations
+
+  - [x] **ListsAPI:** List management and task queries
+    - [x] Implementing GET/retrieve operations (get, get_tasks)
+    - [x] Implementing CREATE operations (create)
+    - [x] Implementing UPDATE operations (update)
+    - [ ] Implementing DELETE operations (delete)
+    - [x] Adding filtering capabilities (archived, include_closed)
+    - [ ] Integrating automatic formatting with detail levels
+    - [x] Adding convenience methods (get_custom_fields)
+    - [x] Testing with real API data
+    - [x] Error handling and edge cases
+
+  - [x] **WorkspacesAPI:** Workspace, space, folder, search operations
+    - [x] Implementing GET/retrieve operations (get_hierarchy, get_space, get_spaces, get_folder, get_tags)
+    - [x] Implementing CREATE operations (create_space, create_folder, create_tag)
+    - [x] Implementing UPDATE operations (update_space, update_folder)
+    - [x] Implementing DELETE operations (delete_space)
+    - [x] Adding search capabilities (search)
+    - [ ] Integrating automatic formatting with detail levels
+    - [x] Adding convenience methods for hierarchy navigation
+    - [x] Testing with real API data
+    - [x] Error handling and edge cases
+
+  - [x] **TimeAPI:** Time tracking with automatic formatting
+    - [x] Implementing GET/retrieve operations (get_entries, get_task_time, get_user_time)
+    - [x] Implementing CREATE operations (create_entry)
+    - [ ] Implementing UPDATE operations (update_entry)
+    - [ ] Implementing DELETE operations (delete_entry)
+    - [x] Adding filtering capabilities (by date, assignee, task)
+    - [x] Integrating automatic formatting with detail levels (minimal, summary, detailed, full)
+    - [x] Adding convenience methods (get_task_time, get_user_time)
+    - [x] Testing with real API data
+    - [x] Error handling and edge cases
+
+  - [x] **DocsAPI:** Document and page management
+    - [x] Implementing GET/retrieve operations (get_workspace_docs, get_doc, get_doc_pages, get_page)
+    - [x] Implementing CREATE operations (create_doc, create_page)
+    - [x] Implementing UPDATE operations (update_page)
+    - [ ] Implementing DELETE operations (delete_doc, delete_page)
+    - [ ] Adding search capabilities for docs
+    - [ ] Integrating automatic formatting with detail levels
+    - [x] Adding convenience methods (create_doc_with_pages)
+    - [x] Testing with real API data
+    - [x] Error handling and edge cases
 
 - [ ] **Phase 4:** Skill Integration (Week 4)
+  - [x] **Context Management System**
+    - [x] Implement persistent JSON context storage (~/.clickup_context.json)
+    - [x] Add set_current functionality for tasks, lists, spaces
+    - [x] Add CLI commands for context management (set_current, clear_current, show_current)
+    - [x] Integrate context resolution in existing CLI commands
+    - [x] Add "current" keyword support for task/list/space IDs
+    - [x] Error handling for missing context
+    - [x] Security considerations (no API tokens in context file)
+    - [x] Unit tests for context loading/saving
+    - [x] Documentation and examples
+
+  - [ ] **Skill-Based Task Automation**
+    - [ ] Define skill interface for task operations
+    - [ ] Implement task creation workflows
+    - [ ] Implement task update workflows
+    - [ ] Implement task search and filtering workflows
+    - [ ] Add intelligent task suggestions
+    - [ ] Integration with LLM for natural language commands
+    - [ ] Error recovery and rollback mechanisms
+
+  - [ ] **Advanced Display Features**
+    - [ ] Gantt chart visualization
+    - [ ] Dependency graph visualization
+    - [ ] Burndown charts and progress tracking
+    - [ ] Custom view templates
+    - [ ] Export to various formats (PDF, HTML, Markdown)
+
+  - [ ] **Workflow Automation**
+    - [ ] Task templates and presets
+    - [ ] Bulk operations (batch create, update, delete)
+    - [ ] Automated task assignments
+    - [ ] Status transition rules
+    - [ ] Custom field automation
+    - [ ] Integration with webhooks
+
 - [ ] **Phase 5:** Documentation & Release (Week 5)
+  - [ ] Complete API documentation
+  - [ ] Tutorial and getting started guide
+  - [ ] Best practices and patterns
+  - [ ] Migration guide from ClickupCLI
+  - [ ] Performance benchmarks and optimization guide
+  - [ ] Security and authentication guide
+  - [ ] Example projects and use cases
+  - [ ] Release preparation (versioning, changelog, PyPI)
 
 ## Installation
 
@@ -85,6 +181,8 @@ python -m clickup_framework --help
 ```
 
 **CLI Commands:**
+
+*Display Commands:*
 - `hierarchy` - Display tasks in hierarchical parent-child view
 - `container` - Display tasks by workspace → space → folder → list
 - `flat` - Display tasks in simple flat list
@@ -92,6 +190,11 @@ python -m clickup_framework --help
 - `detail` - Show comprehensive single-task view with relationships
 - `stats` - Display task statistics and counts
 - `demo` - Show examples with sample data (no API required)
+
+*Context Management:*
+- `set_current` - Set current resource (task, list, space, folder, workspace)
+- `show_current` - Display current context
+- `clear_current` - Clear current context (specific resource or all)
 
 **Common Options:**
 - `--preset <level>` - Use preset format: minimal, summary, detailed, full
@@ -423,6 +526,172 @@ FORCE_COLOR=1 python scripts/generate_display_examples.py
 
 See `screenshots/README.md` for details on all available screenshots.
 
+### Context Management (NEW! ✨)
+
+Persistent context storage allows you to work with "current" items without repeatedly specifying IDs:
+
+```python
+from clickup_framework import ContextManager
+
+# Initialize context manager
+context = ContextManager()
+
+# Set current task, list, space, etc.
+context.set_current_task("task_123")
+context.set_current_list("list_456")
+context.set_current_space("space_789")
+
+# Get current IDs
+task_id = context.get_current_task()  # Returns "task_123"
+
+# Resolve "current" keyword to actual ID
+actual_id = context.resolve_id("task", "current")  # Returns "task_123"
+```
+
+**CLI Commands:**
+
+```bash
+# Set current resources
+./clickup set_current task task_123
+./clickup set_current list list_456
+./clickup set_current space space_789
+
+# View current context
+./clickup show_current
+# Output:
+# Current Context:
+# ==================================================
+#   Task         task_123
+#   List         list_456
+#   Space        space_789
+#
+# Last Updated: 2025-11-09T12:34:56.789012
+
+# Clear specific context
+./clickup clear_current task
+
+# Clear all context
+./clickup clear_current
+
+# Use "current" in commands
+./clickup detail current           # Uses current task
+./clickup hierarchy current        # Uses current list
+```
+
+**Integration with Existing Commands:**
+
+All CLI commands now support the `current` keyword:
+
+```bash
+# Set current list once
+./clickup set_current list 90151234
+
+# Use "current" in subsequent commands
+./clickup hierarchy current
+./clickup stats current
+./clickup filter current --status "in progress"
+```
+
+**Context Storage:**
+- Context is stored in `~/.clickup_context.json`
+- File permissions are set to user-only (0600 on Unix systems)
+- Does NOT store API tokens or sensitive credentials
+- Only stores resource IDs for convenience
+
+### Task Operation Safeguards (NEW! ✨)
+
+The TasksAPI now includes safeguards to prevent accidental modifications and duplicate creation:
+
+#### View-Before-Modify Requirement
+
+Update and delete operations now require you to fetch the task first:
+
+```python
+from clickup_framework.resources import TasksAPI
+
+tasks = TasksAPI(client)
+
+# ✅ CORRECT - View task before modifying
+task = tasks.get("task_id")
+tasks.update(task, status="in progress")
+tasks.delete(task)
+
+# ❌ WRONG - Will raise ValueError
+tasks.update("task_id", status="done")  # Error!
+tasks.delete("task_id")                 # Error!
+```
+
+**Why this matters:**
+- Ensures you're aware of the current state before making changes
+- Prevents blind edits that might conflict with recent updates
+- Reduces risk of accidental deletions
+- Encourages intentional, informed modifications
+
+**Convenience methods also require task object:**
+
+```python
+task = tasks.get("task_id")
+
+# All these require the task object
+tasks.update_status(task, "in progress")
+tasks.update_priority(task, 1)
+tasks.assign(task, [user_id])
+tasks.unassign(task, [user_id])
+```
+
+#### Duplicate Detection
+
+Task creation now automatically checks for duplicates using fuzzy matching:
+
+```python
+# Create a task
+new_task = tasks.create(
+    list_id="list_123",
+    name="Implement login feature",
+    description="Add OAuth2 authentication"
+)
+
+# Try to create a similar task
+try:
+    tasks.create(
+        list_id="list_123",
+        name="Implement login feature",
+        description="Add OAuth2 authentication"
+    )
+except ValueError as e:
+    # Raises: "Task already exists with similar name, description, and parent.
+    #          Please review existing task [task_123]: 'Implement login feature'.
+    #          Use skip_duplicate_check=True to force creation."
+    print(e)
+```
+
+**Features:**
+- Uses fuzzy string matching (default 95% similarity threshold)
+- Checks both task name AND description
+- Considers parent task for subtasks (duplicates must have same parent)
+- Configurable similarity threshold
+
+**Force creation if needed:**
+
+```python
+# Skip duplicate check (use with caution)
+tasks.create(
+    list_id="list_123",
+    name="Implement login feature",
+    skip_duplicate_check=True
+)
+```
+
+**Customize similarity threshold:**
+
+```python
+# Require 98% similarity for duplicate detection
+tasks = TasksAPI(client, duplicate_threshold=0.98)
+
+# Or more lenient (90% similarity)
+tasks = TasksAPI(client, duplicate_threshold=0.90)
+```
+
 ## Features
 
 ### Phase 2: Token-Efficient Formatters ✨
@@ -530,13 +799,25 @@ Convenient, high-level interfaces for ClickUp operations with automatic formatti
 
 ### Supported Endpoints
 
-**Tasks:**
+**Tasks (via TasksAPI - with safeguards):**
+- `get(task_id, detail_level=None)` - Get task by ID (optionally formatted)
+- `get_list_tasks(list_id, detail_level=None)` - Get all tasks in list
+- `get_team_tasks(team_id, detail_level=None)` - Get all tasks in workspace
+- `create(list_id, name, skip_duplicate_check=False, **data)` - Create new task with duplicate detection
+- `update(task, **updates)` - Update task (requires task object)
+- `delete(task)` - Delete task (requires task object)
+- `update_status(task, status)` - Update task status (requires task object)
+- `update_priority(task, priority)` - Update task priority (requires task object)
+- `assign(task, user_ids)` - Assign users to task (requires task object)
+- `unassign(task, user_ids)` - Unassign users from task (requires task object)
+
+**Tasks (via ClickUpClient - direct API):**
 - `get_task(task_id)` - Get task by ID
 - `get_list_tasks(list_id)` - Get all tasks in list
 - `get_team_tasks(team_id)` - Get all tasks in workspace
-- `create_task(list_id, **data)` - Create new task
-- `update_task(task_id, **updates)` - Update task
-- `delete_task(task_id)` - Delete task
+- `create_task(list_id, **data)` - Create new task (no safeguards)
+- `update_task(task_id, **updates)` - Update task (no safeguards)
+- `delete_task(task_id)` - Delete task (no safeguards)
 
 **Lists:**
 - `get_list(list_id)` - Get list by ID
