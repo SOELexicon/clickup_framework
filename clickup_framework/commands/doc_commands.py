@@ -353,7 +353,7 @@ def doc_export_command(args):
 def register_command(subparsers):
     """Register doc management commands."""
     # Doc list
-    doc_list_parser = subparsers.add_parser('doc_list', aliases=['dl'],
+    doc_list_parser = subparsers.add_parser('dlist', aliases=['dl', 'doc_list'],
                                             help='List all docs in a workspace')
     doc_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_list_parser.set_defaults(func=doc_list_command)
