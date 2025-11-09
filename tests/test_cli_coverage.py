@@ -24,6 +24,7 @@ from clickup_framework.cli import (
     set_current_command,
     clear_current_command,
     show_current_command,
+    assigned_tasks_command,
     main
 )
 from clickup_framework.components import FormatOptions
@@ -850,6 +851,8 @@ class TestMainCLIExtended(unittest.TestCase):
         mock_context_inst.get_current_space.return_value = None
         mock_context_inst.get_current_folder.return_value = None
         mock_context_inst.get_current_workspace.return_value = None
+        mock_context_inst.get_api_token.return_value = None
+        mock_context_inst.get_default_assignee.return_value = None
         mock_context.return_value = mock_context_inst
 
         captured_output = io.StringIO()
@@ -880,6 +883,241 @@ class TestMainCLIExtended(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         self.assertTrue(len(captured_output.getvalue()) > 0)
+
+
+class TestAssignedTasksCommand(unittest.TestCase):
+    """Test assigned_tasks_command function."""
+
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_with_user_and_team(self, mock_context, mock_client):
+        """Test assigned command with user-id and team-id provided."""
+        mock_context_inst = Mock()
+        mock_context_inst.resolve_id.return_value = 'team_123'
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        # Return tasks with dependencies
+        mock_client_inst.get_team_tasks.return_value = {
+            'tasks': [
+                {
+                    'id': 'task_1',
+                    'name': 'Task 1',
+                    'status': {'status': 'in progress'},
+                    'dependencies': [],
+                    'assignees': [{'id': '12345'}]
+                },
+                {
+                    'id': 'task_2',
+                    'name': 'Task 2',
+                    'status': {'status': 'to do'},
+                    'dependencies': [
+                        {'type': 0, 'depends_on': 'task_1'}  # Task 2 waits on Task 1
+                    ],
+                    'assignees': [{'id': '12345'}]
+                }
+            ]
+        }
+        mock_client.return_value = mock_client_inst
+
+        args = argparse.Namespace(
+            user_id='12345',
+            team_id='team_123'
+        )
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        assigned_tasks_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        # Verify API calls
+        mock_client_inst.get_team_tasks.assert_called_once_with(
+            'team_123',
+            assignees=['12345'],
+            subtasks=True,
+            include_closed=False
+        )
+
+        output = captured_output.getvalue()
+        self.assertIn('Task 1', output)
+        self.assertIn('Task 2', output)
+
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_no_user_id_or_default(self, mock_context):
+        """Test assigned command without user-id and no default assignee."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_default_assignee.return_value = None
+        mock_context.return_value = mock_context_inst
+
+        args = argparse.Namespace(
+            user_id=None,
+            team_id='team_123'
+        )
+
+        with self.assertRaises(SystemExit) as cm:
+            assigned_tasks_command(args)
+
+        self.assertEqual(cm.exception.code, 1)
+
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_use_default_assignee(self, mock_context, mock_client):
+        """Test assigned command using default assignee from context."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_default_assignee.return_value = '68483025'
+        mock_context_inst.resolve_id.return_value = 'team_123'
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client_inst.get_team_tasks.return_value = {'tasks': []}
+        mock_client.return_value = mock_client_inst
+
+        args = argparse.Namespace(
+            user_id=None,
+            team_id='team_123'
+        )
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        assigned_tasks_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        # Verify default assignee was used
+        mock_client_inst.get_team_tasks.assert_called_once_with(
+            'team_123',
+            assignees=['68483025'],
+            subtasks=True,
+            include_closed=False
+        )
+
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_no_workspace_no_teams(self, mock_context, mock_client):
+        """Test assigned command without workspace ID and no teams available."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_default_assignee.return_value = '12345'
+        mock_context_inst.resolve_id.side_effect = ValueError("No workspace set")
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client_inst.get_workspaces.return_value = {'teams': []}
+        mock_client.return_value = mock_client_inst
+
+        args = argparse.Namespace(
+            user_id='12345',
+            team_id=None
+        )
+
+        with self.assertRaises(SystemExit) as cm:
+            assigned_tasks_command(args)
+
+        self.assertEqual(cm.exception.code, 1)
+
+    @patch('builtins.input', return_value='1')
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_interactive_workspace_selection(self, mock_context, mock_client, mock_input):
+        """Test assigned command with interactive workspace selection."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_default_assignee.return_value = '12345'
+        mock_context_inst.resolve_id.side_effect = ValueError("No workspace set")
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client_inst.get_workspaces.return_value = {
+            'teams': [
+                {'id': 'team_123', 'name': 'My Workspace'},
+                {'id': 'team_456', 'name': 'Other Workspace'}
+            ]
+        }
+        mock_client_inst.get_team_tasks.return_value = {'tasks': []}
+        mock_client.return_value = mock_client_inst
+
+        args = argparse.Namespace(
+            user_id='12345',
+            team_id=None
+        )
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        assigned_tasks_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        # Verify workspace list was fetched
+        mock_client_inst.get_workspaces.assert_called_once()
+        # Verify the selected workspace was used
+        mock_client_inst.get_team_tasks.assert_called_once_with(
+            'team_123',
+            assignees=['12345'],
+            subtasks=True,
+            include_closed=False
+        )
+
+    @patch('builtins.input', return_value='q')
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_cancel_workspace_selection(self, mock_context, mock_client, mock_input):
+        """Test assigned command cancelling workspace selection."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_default_assignee.return_value = '12345'
+        mock_context_inst.resolve_id.side_effect = ValueError("No workspace set")
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client_inst.get_workspaces.return_value = {
+            'teams': [
+                {'id': 'team_123', 'name': 'My Workspace'}
+            ]
+        }
+        mock_client.return_value = mock_client_inst
+
+        args = argparse.Namespace(
+            user_id='12345',
+            team_id=None
+        )
+
+        with self.assertRaises(SystemExit) as cm:
+            assigned_tasks_command(args)
+
+        self.assertEqual(cm.exception.code, 0)  # Cancelled, not an error
+
+    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.cli.get_context_manager')
+    def test_assigned_tasks_no_tasks_found(self, mock_context, mock_client):
+        """Test assigned command when no tasks are found."""
+        mock_context_inst = Mock()
+        mock_context_inst.resolve_id.return_value = 'team_123'
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client_inst.get_team_tasks.return_value = {'tasks': []}
+        mock_client.return_value = mock_client_inst
+
+        args = argparse.Namespace(
+            user_id='12345',
+            team_id='team_123'
+        )
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        assigned_tasks_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        output = captured_output.getvalue()
+        self.assertIn('No tasks found', output)
 
 
 if __name__ == "__main__":
