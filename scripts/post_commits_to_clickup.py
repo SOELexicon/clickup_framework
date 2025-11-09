@@ -10,12 +10,37 @@ import sys
 import os
 import subprocess
 import json
+import re
 from datetime import datetime
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from clickup_framework import ClickUpClient
+
+
+def contains_markdown(text):
+    """
+    Detect if text contains markdown formatting.
+    """
+    if not text:
+        return False
+
+    markdown_patterns = [
+        r'#+\s',           # Headers
+        r'```',            # Code blocks
+        r'\|.*\|',         # Tables
+        r'\[.*\]\(.*\)',   # Links
+        r'\*\*.*\*\*',     # Bold
+        r'^[-*]\s',        # Unordered lists
+        r'^\d+\.\s',       # Ordered lists
+    ]
+
+    for pattern in markdown_patterns:
+        if re.search(pattern, text, re.MULTILINE):
+            return True
+
+    return False
 
 
 def get_commit_info(commit_hash):
@@ -176,7 +201,6 @@ def create_commit_task(client, list_id, commit_info, repo_name, branch_name, par
     # Create the task with Commit type
     task_data = {
         'name': task_name,
-        'description': description,
         'custom_type': 'Commit',
         'tags': [
             {'name': 'commit'},
@@ -184,6 +208,12 @@ def create_commit_task(client, list_id, commit_info, repo_name, branch_name, par
             {'name': branch_name}
         ]
     }
+
+    # Use markdown_description if content has markdown
+    if contains_markdown(description):
+        task_data['markdown_description'] = description
+    else:
+        task_data['description'] = description
 
     # Add parent if provided (make it a subtask)
     if parent_task_id:
@@ -236,7 +266,6 @@ This task contains all commits pushed to the `{branch_name}` branch.
 
         task_data = {
             'name': branch_task_name,
-            'description': description,
             'custom_type': 'Branch',
             'tags': [
                 {'name': 'branch'},
@@ -244,6 +273,12 @@ This task contains all commits pushed to the `{branch_name}` branch.
                 {'name': branch_name}
             ]
         }
+
+        # Use markdown_description if content has markdown
+        if contains_markdown(description):
+            task_data['markdown_description'] = description
+        else:
+            task_data['description'] = description
 
         branch_task = client.create_task(list_id, **task_data)
         print(f"  ✓ Branch task created: {branch_task['id']}")
