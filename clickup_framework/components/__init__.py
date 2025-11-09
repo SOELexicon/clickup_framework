@@ -41,6 +41,7 @@ from clickup_framework.components.hierarchy import TaskHierarchyFormatter
 from clickup_framework.components.container import ContainerHierarchyFormatter
 from clickup_framework.components.filters import TaskFilter
 from clickup_framework.components.task_formatter import RichTaskFormatter
+from clickup_framework.components.detail_view import TaskDetailFormatter
 from clickup_framework.components.display import DisplayManager
 
 __all__ = [
@@ -50,5 +51,6 @@ __all__ = [
     'ContainerHierarchyFormatter',
     'TaskFilter',
     'RichTaskFormatter',
+    'TaskDetailFormatter',
     'DisplayManager',
 ]

@@ -10,6 +10,7 @@ from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.hierarchy import TaskHierarchyFormatter
 from clickup_framework.components.container import ContainerHierarchyFormatter
 from clickup_framework.components.task_formatter import RichTaskFormatter
+from clickup_framework.components.detail_view import TaskDetailFormatter
 from clickup_framework.components.filters import TaskFilter
 
 
@@ -48,6 +49,7 @@ class DisplayManager:
         self.task_formatter = RichTaskFormatter()
         self.hierarchy_formatter = TaskHierarchyFormatter(self.task_formatter)
         self.container_formatter = ContainerHierarchyFormatter(self.task_formatter)
+        self.detail_formatter = TaskDetailFormatter()
         self.filter = TaskFilter()
 
     def hierarchy_view(
@@ -234,6 +236,41 @@ class DisplayManager:
             return self.container_view(tasks, options)
         else:
             return self.flat_view(tasks, options)
+
+    def detail_view(
+        self,
+        task: Dict[str, Any],
+        all_tasks: Optional[List[Dict[str, Any]]] = None,
+        options: Optional[FormatOptions] = None
+    ) -> str:
+        """
+        Display comprehensive details of a single task with relationship tree.
+
+        Shows the task with its full context including parent chain, siblings,
+        children (subtasks), and dependencies in a tree view.
+
+        Args:
+            task: The task to display
+            all_tasks: All tasks (for resolving relationships)
+            options: Format options
+
+        Returns:
+            Formatted detailed task view with relationships
+
+        Example:
+            ```python
+            # Show a task with its full relationship context
+            task = client.get_task("task_id")
+            all_tasks = client.get_list_tasks("list_id")
+
+            output = display.detail_view(task, all_tasks, FormatOptions.detailed())
+            print(output)
+            ```
+        """
+        if all_tasks:
+            return self.detail_formatter.format_with_context(task, all_tasks, options)
+        else:
+            return self.detail_formatter.format_detail(task, options)
 
     def summary_stats(self, tasks: List[Dict[str, Any]]) -> str:
         """
