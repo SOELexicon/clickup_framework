@@ -1,9 +1,11 @@
 """Task management commands for ClickUp Framework CLI."""
 
 import sys
+from collections import defaultdict
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.exceptions import ClickUpAPIError
 
 
 def task_create_command(args):
@@ -240,6 +242,7 @@ def task_set_status_command(args):
     # Process each task
     success_count = 0
     failed_count = 0
+    errors_by_type = defaultdict(list)  # {(error_message, status_code): [task_ids]}
 
     for task_id in task_ids:
         # Get task details to check for subtasks
@@ -317,8 +320,16 @@ def task_set_status_command(args):
 
             success_count += 1
 
+        except ClickUpAPIError as e:
+            # Collect API errors by type and status code
+            error_key = (e.message, e.status_code)
+            errors_by_type[error_key].append(task_id)
+            failed_count += 1
+            continue
         except Exception as e:
-            print(f"Error setting status for {task_id}: {e}", file=sys.stderr)
+            # Collect other errors
+            error_key = (str(e), None)
+            errors_by_type[error_key].append(task_id)
             failed_count += 1
             continue
 
@@ -328,6 +339,19 @@ def task_set_status_command(args):
         print(f"  Updated: {success_count}/{len(task_ids)} tasks")
         if failed_count > 0:
             print(f"  Failed: {failed_count}/{len(task_ids)} tasks")
+
+    # Display grouped errors if any
+    if errors_by_type:
+        print(f"\n{colorize('Errors:', TextColor.BRIGHT_RED, TextStyle.BOLD)}")
+        for (error_msg, status_code), task_list in sorted(errors_by_type.items()):
+            if status_code:
+                print(f"{error_msg}: {colorize(str(status_code), TextColor.BRIGHT_YELLOW)}")
+            else:
+                print(f"{error_msg}")
+            # Format task IDs in a comma-separated list
+            task_ids_str = ', '.join(task_list)
+            print(f"   - ({colorize(task_ids_str, TextColor.BRIGHT_BLACK)})")
+            print()
 
     if failed_count > 0:
         sys.exit(1)
