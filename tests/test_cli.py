@@ -92,10 +92,11 @@ class TestCreateFormatOptions(unittest.TestCase):
 class TestHierarchyCommand(unittest.TestCase):
     """Test hierarchy_command function."""
 
+    @patch('clickup_framework.cli.get_list_statuses', return_value="")
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     @patch('clickup_framework.cli.DisplayManager')
-    def test_hierarchy_command_success(self, mock_display_mgr, mock_context, mock_client):
+    def test_hierarchy_command_success(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
         """Test hierarchy command with valid input."""
         # Setup mocks
         mock_context_inst = Mock()
