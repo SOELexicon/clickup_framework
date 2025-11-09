@@ -370,6 +370,140 @@ def upload_test_report_attachments(client, task_id):
     return attachments
 
 
+def get_task_type_breakdown(client, list_id):
+    """
+    Get breakdown of tasks by type from the list.
+
+    Args:
+        client: ClickUpClient instance
+        list_id: List ID to analyze
+
+    Returns:
+        Dictionary with task type statistics
+    """
+    try:
+        print("Fetching tasks for type breakdown...")
+        response = client.get_list_tasks(list_id, include_closed=True)
+        tasks = response.get('tasks', [])
+
+        # Count by task type
+        type_counts = {}
+        type_status_counts = {}
+        type_emojis = {
+            'Bug': '🐛',
+            'Feature': '🚀',
+            'Test': '🧪',
+            'Test Result': '📊',
+            'Action Run': '⚙️',
+            'Documentation': '📚',
+            'Refactor': '♻️',
+            'Enhancement': '✨',
+            'Chore': '🧹',
+            'Security': '🛡️',
+            'Merge': '🔀',
+            'Task': '📝',
+            'Commit': '💾'
+        }
+
+        for task in tasks:
+            task_type = task.get('custom_type') or 'Task'
+            status = task.get('status', {}).get('status', 'unknown')
+
+            # Count by type
+            if task_type not in type_counts:
+                type_counts[task_type] = 0
+            type_counts[task_type] += 1
+
+            # Count by type and status
+            if task_type not in type_status_counts:
+                type_status_counts[task_type] = {
+                    'open': 0,
+                    'in_progress': 0,
+                    'complete': 0,
+                    'failed': 0,
+                    'other': 0
+                }
+
+            # Categorize status
+            status_lower = status.lower()
+            if status_lower in ['open', 'to do', 'todo', 'backlog']:
+                type_status_counts[task_type]['open'] += 1
+            elif status_lower in ['in progress', 'in review', 'testing']:
+                type_status_counts[task_type]['in_progress'] += 1
+            elif status_lower in ['complete', 'closed', 'done', 'passed']:
+                type_status_counts[task_type]['complete'] += 1
+            elif status_lower in ['failed', 'blocked']:
+                type_status_counts[task_type]['failed'] += 1
+            else:
+                type_status_counts[task_type]['other'] += 1
+
+        return {
+            'total_tasks': len(tasks),
+            'type_counts': type_counts,
+            'type_status_counts': type_status_counts,
+            'type_emojis': type_emojis
+        }
+
+    except Exception as e:
+        print(f"Warning: Could not fetch task breakdown: {e}")
+        return None
+
+
+def format_task_type_report(breakdown):
+    """
+    Format task type breakdown as markdown.
+
+    Args:
+        breakdown: Dictionary from get_task_type_breakdown
+
+    Returns:
+        Markdown formatted report
+    """
+    if not breakdown:
+        return "_Task breakdown unavailable_"
+
+    type_counts = breakdown['type_counts']
+    type_status_counts = breakdown['type_status_counts']
+    type_emojis = breakdown['type_emojis']
+    total_tasks = breakdown['total_tasks']
+
+    # Sort by count descending
+    sorted_types = sorted(type_counts.items(), key=lambda x: x[1], reverse=True)
+
+    report = f"## 📊 Task Type Breakdown\n\n"
+    report += f"**Total Tasks in List:** {total_tasks}\n\n"
+    report += "| Type | Total | Open | In Progress | Complete | Failed |\n"
+    report += "|------|-------|------|-------------|----------|--------|\n"
+
+    for task_type, count in sorted_types:
+        emoji = type_emojis.get(task_type, '📝')
+        status_counts = type_status_counts.get(task_type, {})
+        open_count = status_counts.get('open', 0)
+        in_progress = status_counts.get('in_progress', 0)
+        complete = status_counts.get('complete', 0)
+        failed = status_counts.get('failed', 0)
+
+        report += f"| {emoji} **{task_type}** | {count} | {open_count} | {in_progress} | {complete} | {failed} |\n"
+
+    # Add summary stats
+    total_open = sum(counts.get('open', 0) for counts in type_status_counts.values())
+    total_in_progress = sum(counts.get('in_progress', 0) for counts in type_status_counts.values())
+    total_complete = sum(counts.get('complete', 0) for counts in type_status_counts.values())
+    total_failed = sum(counts.get('failed', 0) for counts in type_status_counts.values())
+
+    report += f"| **TOTAL** | **{total_tasks}** | **{total_open}** | **{total_in_progress}** | **{total_complete}** | **{total_failed}** |\n\n"
+
+    # Calculate completion rate
+    if total_tasks > 0:
+        completion_rate = (total_complete / total_tasks) * 100
+        report += f"**Completion Rate:** {completion_rate:.1f}%\n"
+        if total_failed > 0:
+            failure_rate = (total_failed / total_tasks) * 100
+            report += f"**Failure Rate:** {failure_rate:.1f}%\n"
+
+    return report
+
+
 def main():
     """Main entry point."""
     # Configuration
@@ -399,6 +533,13 @@ def main():
         print("Make sure CLICKUP_API_TOKEN environment variable is set.", file=sys.stderr)
         return 1
 
+    # Get task type breakdown
+    print()
+    task_breakdown = get_task_type_breakdown(client, LIST_ID)
+    if task_breakdown:
+        print(f"✓ Task breakdown retrieved: {task_breakdown['total_tasks']} tasks analyzed")
+        print()
+
     # Create Action Run task in ClickUp
     print(f"Creating Action Run task for run #{run_info['run_number']}...")
     try:
@@ -407,6 +548,31 @@ def main():
         print(f"  Name: {action_run_task['name']}")
         print(f"  URL: {action_run_task.get('url', 'N/A')}")
         print()
+
+        # Add task type breakdown as a comment
+        if task_breakdown:
+            print("Adding task type breakdown report as comment...")
+            try:
+                breakdown_report = format_task_type_report(task_breakdown)
+                comment_text = f"""# 📊 Project Status Report
+
+{breakdown_report}
+
+---
+
+*Report generated at workflow run #{run_info['run_number']}*
+"""
+                client.create_task_comment(
+                    action_run_task['id'],
+                    comment_text=comment_text,
+                    notify_all=False
+                )
+                print("✓ Task breakdown report added to Action Run task")
+                print()
+            except Exception as e:
+                print(f"Warning: Could not add breakdown report: {e}")
+                print()
+
     except Exception as e:
         print(f"✗ Error creating Action Run task: {e}", file=sys.stderr)
         import traceback
