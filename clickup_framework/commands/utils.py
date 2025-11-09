@@ -141,6 +141,61 @@ def add_common_args(subparser):
                          help='Hide task type emojis')
 
 
+def resolve_list_id(client: ClickUpClient, id_or_current: str, context=None) -> str:
+    """
+    Resolve a list ID from either a list ID, task ID, or "current" keyword.
+
+    This function is flexible and accepts:
+    - List IDs: returns the list ID as-is
+    - Task IDs: fetches the task and returns its list ID
+    - "current": resolves from context
+
+    Args:
+        client: ClickUpClient instance
+        id_or_current: Either a list ID, task ID, or "current"
+        context: Context manager (optional, will be fetched if not provided)
+
+    Returns:
+        Resolved list ID
+
+    Raises:
+        ValueError: If ID cannot be resolved or is invalid
+    """
+    if context is None:
+        context = get_context_manager()
+
+    # Handle "current" keyword
+    if id_or_current.lower() == "current":
+        try:
+            return context.resolve_id('list', 'current')
+        except ValueError as e:
+            raise ValueError(f"No current list set. Use 'cum set list <list_id>' first or provide a list/task ID.") from e
+
+    # First, try to use it as a list ID
+    try:
+        # Try to fetch the list to validate it's a list ID
+        client.get_list(id_or_current)
+        return id_or_current
+    except Exception:
+        # If that fails, try to get it as a task ID
+        pass
+
+    # Try to get it as a task ID
+    try:
+        task = client.get_task(id_or_current)
+        list_id = task.get('list', {}).get('id')
+        if list_id:
+            return list_id
+        else:
+            raise ValueError(f"Task {id_or_current} does not have a valid list ID")
+    except Exception:
+        # If both fail, raise an error
+        raise ValueError(
+            f"Invalid ID '{id_or_current}'. "
+            f"Please provide a valid list ID, task ID, or use 'current' if you have a list set in context."
+        )
+
+
 def read_text_from_file(file_path: str) -> str:
     """
     Read text content from a file.
