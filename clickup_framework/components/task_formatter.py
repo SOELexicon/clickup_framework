@@ -112,7 +112,10 @@ class RichTaskFormatter:
             if options.colorize_output:
                 desc_str = colorize(desc_str, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
             additional_lines.append(f"│  {desc_str}")
-            additional_lines.append(f"│    {desc}")
+
+            # Handle multi-line descriptions - add tree character to each line
+            for desc_line in desc.split('\n'):
+                additional_lines.append(f"│    {desc_line}")
 
         # Dates
         if options.show_dates:
