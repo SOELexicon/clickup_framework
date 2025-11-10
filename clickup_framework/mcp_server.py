@@ -648,8 +648,8 @@ async def handle_remove_task_link(client: ClickUpClient, arguments: dict) -> lis
     return [types.TextContent(type="text", text=f"✓ Unlinked tasks: {task_id} <-> {linked_task_id}")]
 
 
-async def main():
-    """Run the MCP server."""
+async def async_main():
+    """Run the MCP server (async implementation)."""
     logger.info("Starting ClickUp MCP Server...")
 
     # Check if API token is configured
@@ -666,5 +666,10 @@ async def main():
         )
 
 
+def main():
+    """Entry point for the MCP server (sync wrapper)."""
+    asyncio.run(async_main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
