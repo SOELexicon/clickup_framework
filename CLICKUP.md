@@ -15,7 +15,7 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 - [Context Management (Implemented)](#context-management-implemented-)
 - [Task Management Commands (Implemented)](#task-management-commands-implemented-)
 - [Comment Commands (Implemented)](#comment-commands-)
-- [Checklist Commands (Planned)](#checklist-commands-planned-)
+- [Checklist Commands (Implemented)](#checklist-commands-)
 - [Relationship Commands (Implemented)](#relationship-commands-)
 - [Custom Field Commands (Implemented)](#custom-field-commands-)
 - [List Commands (Planned)](#list-commands-planned-)
@@ -706,58 +706,166 @@ cum comment_delete abc123 -f   # Skip confirmation
 
 ---
 
-## Checklist Commands (Planned) 🚧
+## Checklist Commands ✅
 
-> **Status**: Not yet implemented
+> **Status**: Implemented
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q0v)
 
+Manage checklists and checklist items on tasks.
+
+**Alias**: `chk`
+
 ### `checklist create` - Create Checklist
-**Task ID**: [86c6e0q0w](https://app.clickup.com/t/86c6e0q0w)
+
+Create a new checklist on a task.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum checklist create <task_id> --name "Checklist name"
+cum checklist create <task_id> <name>
+cum chk create current "Implementation Tasks"
 ```
+
+**Arguments**:
+- `task_id` - Task ID (or "current")
+- `name` - Checklist name
+
+**Options**:
+- `--verbose`, `-v` - Show additional information
 
 ---
 
 ### `checklist delete` - Delete Checklist
-**Task ID**: [86c6e0q0x](https://app.clickup.com/t/86c6e0q0x)
+
+Delete a checklist and all its items.
 
 ```bash
-# NOT YET IMPLEMENTED
 cum checklist delete <checklist_id>
+cum chk delete <checklist_id> --force
+cum chk rm <checklist_id>  # Using alias
+```
+
+**Arguments**:
+- `checklist_id` - Checklist ID
+
+**Options**:
+- `--force`, `-f` - Skip confirmation prompt
+
+---
+
+### `checklist update` - Update Checklist
+
+Update checklist properties.
+
+```bash
+cum checklist update <checklist_id> --name "New name"
+cum chk update <checklist_id> --position 0
+```
+
+**Arguments**:
+- `checklist_id` - Checklist ID
+
+**Options**:
+- `--name NAME` - New checklist name
+- `--position POS` - New position (order)
+- `--verbose`, `-v` - Show update details
+
+---
+
+### `checklist list` - List Checklists
+
+List all checklists and items on a task.
+
+```bash
+cum checklist list <task_id>
+cum chk list current
+cum chk ls current --show-ids
+```
+
+**Arguments**:
+- `task_id` - Task ID (or "current")
+
+**Options**:
+- `--show-ids` - Show checklist and item IDs
+- `--no-items` - Hide checklist items, show only checklist names
+- `--colorize` - Use colors in output (default: true)
+
+**Example Output**:
+```
+Checklists for task CLI Command Implementation
+Task ID: 86c6e0q06
+
+☑️  Implementation Tasks (0/3)
+    ☐ Create checklist commands module
+    ☐ Test all commands
+    ☐ Update documentation
 ```
 
 ---
 
-### `checklist-item add` - Add Checklist Item
-**Task ID**: [86c6e0q0z](https://app.clickup.com/t/86c6e0q0z)
+### `checklist item-add` - Add Checklist Item
+
+Add a new item to an existing checklist.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum checklist-item add <checklist_id> --name "Item name"
+cum checklist item-add <checklist_id> <name>
+cum chk add <checklist_id> "Complete testing"
+cum chk add <checklist_id> "Review code" --assignee 68483025
 ```
+
+**Alias**: `add`
+
+**Arguments**:
+- `checklist_id` - Checklist ID
+- `name` - Item name
+
+**Options**:
+- `--assignee USER_ID` - User ID to assign (or "current")
+- `--verbose`, `-v` - Show additional information
 
 ---
 
-### `checklist-item update` - Update Checklist Item
-**Task ID**: [86c6e0q10](https://app.clickup.com/t/86c6e0q10)
+### `checklist item-update` - Update Checklist Item
+
+Update properties of a checklist item.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum checklist-item update <item_id> [options]
+cum checklist item-update <checklist_id> <item_id> --name "New name"
+cum chk update-item <checklist_id> <item_id> --resolved true
+cum chk update-item <checklist_id> <item_id> --assignee 68483025
 ```
+
+**Alias**: `update-item`
+
+**Arguments**:
+- `checklist_id` - Checklist ID
+- `item_id` - Item ID
+
+**Options**:
+- `--name NAME` - New item name
+- `--assignee USER_ID` - User ID to assign (or empty to unassign)
+- `--resolved BOOL` - Mark as resolved (true/false)
+- `--parent PARENT_ID` - Parent checklist item ID
+- `--verbose`, `-v` - Show update details
 
 ---
 
-### `checklist-item delete` - Delete Checklist Item
-**Task ID**: [86c6e0q11](https://app.clickup.com/t/86c6e0q11)
+### `checklist item-delete` - Delete Checklist Item
+
+Delete a checklist item.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum checklist-item delete <item_id>
+cum checklist item-delete <checklist_id> <item_id>
+cum chk delete-item <checklist_id> <item_id> --force
+cum chk rm-item <checklist_id> <item_id>
 ```
+
+**Aliases**: `delete-item`, `rm-item`
+
+**Arguments**:
+- `checklist_id` - Checklist ID
+- `item_id` - Item ID
+
+**Options**:
+- `--force`, `-f` - Skip confirmation prompt
 
 ---
 
