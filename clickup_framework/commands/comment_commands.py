@@ -27,7 +27,7 @@ def comment_add_command(args):
     if args.comment_file:
         comment_text = read_text_from_file(args.comment_file)
     else:
-        comment_text = args.comment_text
+        comment_text = args.text
 
     try:
         # Create the comment
@@ -120,7 +120,7 @@ def comment_update_command(args):
     if args.comment_file:
         comment_text = read_text_from_file(args.comment_file)
     else:
-        comment_text = args.comment_text
+        comment_text = args.text
 
     try:
         # Update the comment
@@ -180,8 +180,8 @@ def register_command(subparsers):
                                                 help='Add a comment to a task')
     comment_add_parser.add_argument('task_id', help='Task ID (or "current")')
     comment_text_group = comment_add_parser.add_mutually_exclusive_group(required=True)
-    comment_text_group.add_argument('comment_text', nargs='?', help='Comment text')
-    comment_text_group.add_argument('--comment-file', help='Read comment text from file')
+    comment_text_group.add_argument('--text', '-t', help='Comment text')
+    comment_text_group.add_argument('--comment-file', '-f', help='Read comment text from file')
     comment_add_parser.set_defaults(func=comment_add_command)
 
     # Comment list
@@ -198,8 +198,8 @@ def register_command(subparsers):
                                                    help='Update an existing comment')
     comment_update_parser.add_argument('comment_id', help='Comment ID')
     comment_update_text_group = comment_update_parser.add_mutually_exclusive_group(required=True)
-    comment_update_text_group.add_argument('comment_text', nargs='?', help='New comment text')
-    comment_update_text_group.add_argument('--comment-file', help='Read new comment text from file')
+    comment_update_text_group.add_argument('--text', '-t', help='New comment text')
+    comment_update_text_group.add_argument('--comment-file', '-f', help='Read new comment text from file')
     comment_update_parser.set_defaults(func=comment_update_command)
 
     # Comment delete
