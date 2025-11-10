@@ -49,7 +49,23 @@ class TreeFormatter:
 
             # Format the current item
             formatted = format_fn(item)
-            lines.append(f"{prefix}{branch}{formatted}")
+
+            # Handle multi-line formatted content
+            formatted_lines = formatted.split('\n')
+
+            # Add the first line with branch character
+            lines.append(f"{prefix}{branch}{formatted_lines[0]}")
+
+            # Add remaining lines with proper indentation
+            if len(formatted_lines) > 1:
+                # Calculate the continuation prefix
+                if is_last_item:
+                    continuation_prefix = prefix + "  "  # No vertical line
+                else:
+                    continuation_prefix = prefix + "│ "  # Continue vertical line
+
+                for line in formatted_lines[1:]:
+                    lines.append(f"{continuation_prefix}{line}")
 
             # Get children
             children = get_children_fn(item)
