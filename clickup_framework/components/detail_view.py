@@ -8,8 +8,9 @@ showing the task in context of its parent, children, and dependencies in a tree 
 from typing import Dict, Any, Optional, List
 from clickup_framework.utils.colors import (
     colorize, status_color, priority_color, TextColor, TextStyle,
-    get_task_emoji, TASK_TYPE_EMOJI
+    get_task_emoji, TASK_TYPE_EMOJI, USE_COLORS
 )
+from clickup_framework.utils.text import strip_markdown
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.tree import TreeFormatter
 from clickup_framework.components.task_formatter import RichTaskFormatter
@@ -347,6 +348,11 @@ class TaskDetailFormatter:
         description = task.get('description', '').strip()
         if not description:
             return ""
+
+        # Strip markdown formatting when ANSI colors are enabled
+        # because terminals don't render markdown, only ANSI codes
+        if options.colorize_output or USE_COLORS:
+            description = strip_markdown(description)
 
         lines = []
         header = "📝 Description:"
