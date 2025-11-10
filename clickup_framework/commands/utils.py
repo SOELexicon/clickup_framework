@@ -1,10 +1,13 @@
 """Utility functions for CLI commands."""
 
 import sys
+import logging
 from pathlib import Path
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import FormatOptions
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+
+logger = logging.getLogger(__name__)
 
 
 def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = True) -> str:
@@ -189,8 +192,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         got_auth_error = True
     except ClickUpNotFoundError as e:
         last_error = e
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to resolve '{id_or_current}' as space ID: {e}")
+        if last_error is None:
+            last_error = e
 
     # Try as folder ID
     try:
@@ -201,8 +206,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         got_auth_error = True
     except ClickUpNotFoundError as e:
         last_error = e
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to resolve '{id_or_current}' as folder ID: {e}")
+        if last_error is None:
+            last_error = e
 
     # Try as list ID
     try:
@@ -213,8 +220,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         got_auth_error = True
     except ClickUpNotFoundError as e:
         last_error = e
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to resolve '{id_or_current}' as list ID: {e}")
+        if last_error is None:
+            last_error = e
 
     # Try as task ID
     try:
@@ -229,8 +238,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         got_auth_error = True
     except ClickUpNotFoundError as e:
         last_error = e
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to resolve '{id_or_current}' as task ID: {e}")
+        if last_error is None:
+            last_error = e
 
     # If we got an auth error, provide more diagnostic information
     if got_auth_error:

@@ -1,9 +1,12 @@
 """Hierarchy view command - displays tasks in parent-child hierarchy."""
 
 import sys
+import logging
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
 from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_container_id
+
+logger = logging.getLogger(__name__)
 
 
 def hierarchy_command(args):
@@ -88,6 +91,30 @@ def hierarchy_command(args):
     print(output)
 
 
+def _get_tasks_from_lists(client, lists):
+    """
+    Fetch tasks from a list of list objects.
+    
+    Args:
+        client: ClickUpClient instance
+        lists: List of list objects with 'id' field
+    
+    Returns:
+        List of tasks from all lists
+    """
+    tasks = []
+    for list_item in lists:
+        list_id = list_item.get('id')
+        if list_id:
+            try:
+                result = client.get_list_tasks(list_id)
+                tasks.extend(result.get('tasks', []))
+            except Exception as e:
+                # Log error but continue with other lists
+                logger.debug(f"Failed to fetch tasks from list {list_id}: {e}")
+    return tasks
+
+
 def _get_tasks_from_space(client, space_data):
     """Fetch all tasks from all lists within a space."""
     tasks = []
@@ -96,47 +123,19 @@ def _get_tasks_from_space(client, space_data):
     folders = space_data.get('folders', [])
     for folder in folders:
         lists = folder.get('lists', [])
-        for list_item in lists:
-            list_id = list_item.get('id')
-            if list_id:
-                try:
-                    result = client.get_list_tasks(list_id)
-                    tasks.extend(result.get('tasks', []))
-                except Exception:
-                    # Skip lists that fail to fetch
-                    pass
+        tasks.extend(_get_tasks_from_lists(client, lists))
 
     # Get folderless lists (lists directly under space)
     lists = space_data.get('lists', [])
-    for list_item in lists:
-        list_id = list_item.get('id')
-        if list_id:
-            try:
-                result = client.get_list_tasks(list_id)
-                tasks.extend(result.get('tasks', []))
-            except Exception:
-                # Skip lists that fail to fetch
-                pass
+    tasks.extend(_get_tasks_from_lists(client, lists))
 
     return tasks
 
 
 def _get_tasks_from_folder(client, folder_data):
     """Fetch all tasks from all lists within a folder."""
-    tasks = []
-
     lists = folder_data.get('lists', [])
-    for list_item in lists:
-        list_id = list_item.get('id')
-        if list_id:
-            try:
-                result = client.get_list_tasks(list_id)
-                tasks.extend(result.get('tasks', []))
-            except Exception:
-                # Skip lists that fail to fetch
-                pass
-
-    return tasks
+    return _get_tasks_from_lists(client, lists)
 
 
 def register_command(subparsers):
