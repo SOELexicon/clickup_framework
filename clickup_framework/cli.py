@@ -23,6 +23,7 @@ import os
 from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.cli_error_handler import handle_cli_error
 
 # Import argcomplete for tab completion
 try:
@@ -248,10 +249,10 @@ Examples:
         print("\n\nInterrupted by user", file=sys.stderr)
         sys.exit(130)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        # Use centralized error handler for beautiful error messages
         if os.getenv('DEBUG'):
             raise
-        sys.exit(1)
+        handle_cli_error(e)
 
 
 if __name__ == '__main__':
