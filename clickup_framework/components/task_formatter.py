@@ -101,7 +101,7 @@ class RichTaskFormatter:
                 tag_str = f"🏷️  Tags: {', '.join(tags)}"
                 if options.colorize_output:
                     tag_str = colorize(tag_str, TextColor.BRIGHT_MAGENTA)
-                additional_lines.append(f"│  {tag_str}")
+                additional_lines.append(f"  {tag_str}")
 
         # Description
         if options.show_descriptions and task.get('description'):
@@ -117,11 +117,11 @@ class RichTaskFormatter:
             desc_str = f"📝 Description:"
             if options.colorize_output:
                 desc_str = colorize(desc_str, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
-            additional_lines.append(f"│  {desc_str}")
+            additional_lines.append(f"  {desc_str}")
 
-            # Handle multi-line descriptions - add tree character to each line
+            # Handle multi-line descriptions with proper indentation
             for desc_line in desc.split('\n'):
-                additional_lines.append(f"│    {desc_line}")
+                additional_lines.append(f"    {desc_line}")
 
         # Dates
         if options.show_dates:
@@ -137,7 +137,7 @@ class RichTaskFormatter:
                 date_str = f"📅 {' | '.join(date_parts)}"
                 if options.colorize_output:
                     date_str = colorize(date_str, TextColor.CYAN)
-                additional_lines.append(f"│  {date_str}")
+                additional_lines.append(f"  {date_str}")
 
         # Comments
         if options.show_comments > 0 and task.get('comments'):
@@ -146,14 +146,14 @@ class RichTaskFormatter:
                 comment_str = f"💬 Comments ({len(comments)}):"
                 if options.colorize_output:
                     comment_str = colorize(comment_str, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
-                additional_lines.append(f"│  {comment_str}")
+                additional_lines.append(f"  {comment_str}")
 
                 for comment in comments:
                     user = comment.get('user', {}).get('username', 'Unknown')
                     text = comment.get('comment_text', '')
                     if len(text) > 50:
                         text = truncate(text, 50)
-                    additional_lines.append(f"│    {user}: {text}")
+                    additional_lines.append(f"    {user}: {text}")
 
         # Relationships
         if options.show_relationships:
@@ -167,7 +167,7 @@ class RichTaskFormatter:
                 rel_str = f"🔗 {' | '.join(relationships)}"
                 if options.colorize_output:
                     rel_str = colorize(rel_str, TextColor.BRIGHT_CYAN)
-                additional_lines.append(f"│  {rel_str}")
+                additional_lines.append(f"  {rel_str}")
 
         # Custom Fields - Show Difficulty Score if set
         custom_fields = task.get('custom_fields', [])
@@ -200,18 +200,16 @@ class RichTaskFormatter:
                         score_str = f"⚙️  {field_name}: {value}"
                         if options.colorize_output:
                             score_str = f"⚙️  {field_name}: {colorize(str(value), color, TextStyle.BOLD)}"
-                        additional_lines.append(f"│  {score_str}")
+                        additional_lines.append(f"  {score_str}")
                     else:
                         # Non-numeric custom field value
                         score_str = f"⚙️  {field_name}: {value}"
                         if options.colorize_output:
                             score_str = colorize(score_str, TextColor.BRIGHT_CYAN)
-                        additional_lines.append(f"│  {score_str}")
+                        additional_lines.append(f"  {score_str}")
 
         # Combine everything
         if additional_lines:
-            # Add final line marker
-            additional_lines.append("└─")
             return main_line + "\n" + "\n".join(additional_lines)
         else:
             return main_line
