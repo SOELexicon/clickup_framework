@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "clickup": {
+      "command": "clickup-mcp",
+      "env": {
+        "CLICKUP_API_TOKEN": "pk_your_token_here"
+      }
+    }
+  }
+}
