@@ -214,7 +214,13 @@ class ClickUpClient:
                         logger.info("Retrying request with fallback token...")
                         # Retry immediately with new token (don't count as an attempt)
                         continue
-                    raise ClickUpAuthError("Invalid or expired API token")
+                    # Extract actual error message from API response
+                    try:
+                        error_data = response.json()
+                        message = error_data.get("err", error_data.get("error", "Invalid or expired API token"))
+                    except:
+                        message = response.text or "Invalid or expired API token"
+                    raise ClickUpAuthError(message)
 
                 elif response.status_code == 404:
                     # Try to extract resource info from endpoint
@@ -614,7 +620,13 @@ class ClickUpClient:
             if response.status_code in [200, 201]:
                 return response.json()
             elif response.status_code == 401:
-                raise ClickUpAuthError("Invalid or expired API token")
+                # Extract actual error message from API response
+                try:
+                    error_data = response.json()
+                    message = error_data.get("err", error_data.get("error", "Invalid or expired API token"))
+                except:
+                    message = response.text or "Invalid or expired API token"
+                raise ClickUpAuthError(message)
             elif response.status_code == 404:
                 raise ClickUpNotFoundError("task", task_id)
             else:
