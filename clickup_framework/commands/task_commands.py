@@ -7,6 +7,13 @@ from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
 from clickup_framework.commands.utils import read_text_from_file
+from clickup_framework.cli_error_handler import handle_cli_error
+from clickup_framework.utils.status_mapper import (
+    map_status,
+    get_available_statuses,
+    format_available_statuses,
+    suggest_status,
+)
 
 
 def task_create_command(args):
@@ -18,8 +25,7 @@ def task_create_command(args):
     try:
         list_id = context.resolve_id('list', args.list_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': 'task_create', 'provided_list_id': args.list_id})
 
     # Build task data
     task_data = {'name': args.name}
@@ -30,8 +36,27 @@ def task_create_command(args):
     elif args.description:
         task_data['description'] = args.description
 
+    # Handle status with smart mapping
     if args.status:
-        task_data['status'] = args.status
+        try:
+            # Fetch list data to get available statuses
+            list_data = client.get_list(list_id)
+            available_statuses = get_available_statuses(list_data)
+
+            # Try to map the user's status to an actual status
+            mapped_status = map_status(args.status, available_statuses)
+
+            if mapped_status:
+                task_data['status'] = mapped_status
+                # Show user if we mapped their status
+                if mapped_status.lower() != args.status.lower():
+                    print(f"ℹ️  Mapped status '{args.status}' → '{mapped_status}'")
+            else:
+                # No mapping found, try original status (will error if invalid)
+                task_data['status'] = args.status
+        except Exception:
+            # If we can't fetch list data, just use the original status
+            task_data['status'] = args.status
 
     if args.priority is not None:
         task_data['priority'] = args.priority
@@ -61,8 +86,24 @@ def task_create_command(args):
         print(f"URL: {task['url']}")
 
     except Exception as e:
-        print(f"Error creating task: {e}", file=sys.stderr)
-        sys.exit(1)
+        # If it's a status error, try to get available statuses for the error message
+        error_context = {
+            'command': 'task_create',
+            'list_id': list_id,
+            'task_name': args.name,
+        }
+
+        # Check if this is a status-related error
+        error_str = str(e).lower()
+        if 'status' in error_str and args.status:
+            error_context['user_provided_status'] = args.status
+            try:
+                list_data = client.get_list(list_id)
+                error_context['available_statuses'] = get_available_statuses(list_data)
+            except:
+                pass
+
+        handle_cli_error(e, error_context)
 
 
 def task_update_command(args):
@@ -74,8 +115,7 @@ def task_update_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Build update dictionary from provided arguments
     updates = {}
@@ -131,8 +171,7 @@ def task_update_command(args):
             print(f"  {colorize(key, TextColor.BRIGHT_CYAN)}: {value_str}")
 
     except Exception as e:
-        print(f"Error updating task: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': 'task_update', 'task_id': task_id, 'updates': updates})
 
 
 def task_delete_command(args):
@@ -144,16 +183,14 @@ def task_delete_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Get task name for confirmation
     try:
         task = client.get_task(task_id)
         task_name = task['name']
     except Exception as e:
-        print(f"Error fetching task: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': 'task_delete', 'task_id': task_id})
 
     # Confirmation prompt unless force flag is set
     if not args.force:
@@ -169,8 +206,7 @@ def task_delete_command(args):
         print(success_msg)
 
     except Exception as e:
-        print(f"Error deleting task: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': 'task_delete', 'task_id': task_id, 'task_name': task_name})
 
 
 def task_assign_command(args):
@@ -182,8 +218,7 @@ def task_assign_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Get current task to append assignees
     try:
@@ -202,8 +237,7 @@ def task_assign_command(args):
         print(f"Assignees: {', '.join(args.assignee_ids)}")
 
     except Exception as e:
-        print(f"Error assigning task: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': 'task_assign', 'task_id': task_id, 'assignee_ids': args.assignee_ids})
 
 
 def task_unassign_command(args):
@@ -215,8 +249,7 @@ def task_unassign_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Remove assignees
     try:
@@ -227,8 +260,7 @@ def task_unassign_command(args):
         print(f"\nTask: {updated_task['name']}")
 
     except Exception as e:
-        print(f"Error unassigning task: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': 'task_unassign', 'task_id': task_id, 'assignee_ids': args.assignee_ids})
 
 
 def task_set_status_command(args):
@@ -373,8 +405,7 @@ def task_set_priority_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Map priority names to numbers if needed
     priority_map = {
@@ -417,8 +448,7 @@ def task_set_tags_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Get current task
     try:
@@ -464,8 +494,7 @@ def task_add_dependency_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Validate that exactly one relationship type is provided
     if not args.waiting_on and not args.blocking:
@@ -511,8 +540,7 @@ def task_remove_dependency_command(args):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
 
     # Validate that exactly one relationship type is provided
     if not args.waiting_on and not args.blocking:
