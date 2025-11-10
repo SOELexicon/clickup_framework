@@ -8,9 +8,9 @@ from typing import Dict, Any, Optional
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.utils.colors import (
     colorize, status_color, status_to_code, priority_color, get_task_emoji,
-    TextColor, TextStyle
+    TextColor, TextStyle, USE_COLORS
 )
-from clickup_framework.utils.text import truncate
+from clickup_framework.utils.text import truncate, strip_markdown
 
 
 class RichTaskFormatter:
@@ -106,6 +106,12 @@ class RichTaskFormatter:
         # Description
         if options.show_descriptions and task.get('description'):
             desc = task['description']
+
+            # Strip markdown formatting when ANSI colors are enabled
+            # because terminals don't render markdown, only ANSI codes
+            if options.colorize_output or USE_COLORS:
+                desc = strip_markdown(desc)
+
             if len(desc) > options.description_length:
                 desc = truncate(desc, options.description_length)
             desc_str = f"📝 Description:"
@@ -166,9 +172,19 @@ class RichTaskFormatter:
         # Custom Fields - Show Difficulty Score if set
         custom_fields = task.get('custom_fields', [])
         for cf in custom_fields:
-            # Check for Difficulty Score field
+            # Check for Difficulty Score field (exact match or prefix/suffix)
             field_name = cf.get('name', '')
-            if 'difficulty' in field_name.lower() or 'score' in field_name.lower():
+            field_name_lower = field_name.lower()
+            # Match only if field name starts/ends with difficulty/score or is exactly "difficulty" or "score"
+            is_difficulty_field = (
+                field_name_lower == 'difficulty' or 
+                field_name_lower == 'score' or
+                field_name_lower.startswith('difficulty ') or
+                field_name_lower.startswith('score ') or
+                field_name_lower.endswith(' difficulty') or
+                field_name_lower.endswith(' score')
+            )
+            if is_difficulty_field:
                 value = cf.get('value')
                 if value is not None and value != '':
                     # Format the difficulty score
