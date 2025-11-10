@@ -273,7 +273,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
                     f"  1. The ID doesn't exist in your workspace (team_id: {workspace_id})\n"
                     f"  2. The ID belongs to a different workspace\n"
                     f"  3. Your API token lacks permission to access this resource\n\n"
-                    f"To verify, check the ID in ClickUp or try a different ID."
+                    f"Try these commands to explore your workspace:\n"
+                    f"  - cum container {workspace_id}  (view workspace structure)\n"
+                    f"  - cum show                      (view current context)\n"
+                    f"  - cum h <valid_id> --preset summary  (test with a known ID)"
                 )
 
         raise ValueError(error_msg)
@@ -282,7 +285,11 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     error_msg = f"Invalid ID '{id_or_current}'. "
     if last_error:
         error_msg += f"Error: {str(last_error)}. "
-    error_msg += "Please provide a valid space, folder, list, or task ID, or use 'current' if you have a list set in context."
+    error_msg += (
+        "Please provide a valid space, folder, list, or task ID.\n\n"
+        "To set up context: cum set list <list_id>\n"
+        "To view workspace: cum container <workspace_id>"
+    )
 
     raise ValueError(error_msg)
 
@@ -341,7 +348,8 @@ def resolve_list_id(client: ClickUpClient, id_or_current: str, context=None) -> 
         # If both fail, raise an error
         raise ValueError(
             f"Invalid ID '{id_or_current}'. "
-            f"Please provide a valid list ID, task ID, or use 'current' if you have a list set in context."
+            f"Please provide a valid list ID, task ID, or use 'current' if you have a list set.\n"
+            f"To set current list: cum set list <list_id>"
         )
 
 
