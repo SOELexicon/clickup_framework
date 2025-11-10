@@ -163,6 +163,35 @@ class RichTaskFormatter:
                     rel_str = colorize(rel_str, TextColor.BRIGHT_CYAN)
                 additional_lines.append(f"│  {rel_str}")
 
+        # Custom Fields - Show Difficulty Score if set
+        custom_fields = task.get('custom_fields', [])
+        for cf in custom_fields:
+            # Check for Difficulty Score field
+            field_name = cf.get('name', '')
+            if 'difficulty' in field_name.lower() or 'score' in field_name.lower():
+                value = cf.get('value')
+                if value is not None and value != '':
+                    # Format the difficulty score
+                    if isinstance(value, (int, float)):
+                        # Show as colored score based on difficulty level
+                        if value <= 3:
+                            color = TextColor.BRIGHT_GREEN  # Easy
+                        elif value <= 6:
+                            color = TextColor.BRIGHT_YELLOW  # Medium
+                        else:
+                            color = TextColor.BRIGHT_RED  # Hard
+
+                        score_str = f"⚙️  {field_name}: {value}"
+                        if options.colorize_output:
+                            score_str = f"⚙️  {field_name}: {colorize(str(value), color, TextStyle.BOLD)}"
+                        additional_lines.append(f"│  {score_str}")
+                    else:
+                        # Non-numeric custom field value
+                        score_str = f"⚙️  {field_name}: {value}"
+                        if options.colorize_output:
+                            score_str = colorize(score_str, TextColor.BRIGHT_CYAN)
+                        additional_lines.append(f"│  {score_str}")
+
         # Combine everything
         if additional_lines:
             # Add final line marker
