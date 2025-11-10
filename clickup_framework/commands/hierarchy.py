@@ -29,7 +29,7 @@ def hierarchy_command(args):
         try:
             team_id = context.resolve_id('workspace', 'current')
         except ValueError:
-            print("Error: No workspace ID set. Use 'set_current workspace <team_id>' first.", file=sys.stderr)
+            print("Error: No workspace ID set. Use 'cum set workspace <team_id>' first.", file=sys.stderr)
             sys.exit(1)
 
         result = client.get_team_tasks(team_id, subtasks=True, include_closed=False)
