@@ -247,6 +247,15 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     if got_auth_error:
         error_msg = f"Cannot access ID '{id_or_current}'. "
 
+        # Try to get available workspaces
+        available_workspaces = []
+        try:
+            workspaces_data = client.get_authorized_workspaces()
+            teams = workspaces_data.get('teams', [])
+            available_workspaces = [{'id': team.get('id'), 'name': team.get('name')} for team in teams if team.get('id')]
+        except Exception:
+            pass
+
         # Check if workspace is set
         workspace_id = None
         try:
@@ -261,8 +270,15 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
                 "  1. You need to set a workspace: cum set workspace <team_id>\n"
                 "  2. The ID doesn't exist or is invalid\n"
                 "  3. Your API token is invalid or lacks permissions\n\n"
-                "To verify your API token is valid, try: cum show"
             )
+
+            if available_workspaces:
+                error_msg += "Available workspaces:\n"
+                for ws in available_workspaces:
+                    error_msg += f"  - {ws['id']}: {ws['name']}\n"
+                error_msg += f"\nTo set a workspace: cum set workspace <team_id>"
+            else:
+                error_msg += "To verify your API token is valid, try: cum show"
         else:
             # Validate API token by checking if we can access the workspace
             token_valid = False
@@ -284,7 +300,17 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
                     f"  1. The ID doesn't exist in your workspace (team_id: {workspace_id})\n"
                     f"  2. The ID belongs to a different workspace\n"
                     f"  3. Your API token lacks permission to access this resource\n\n"
-                    f"Try these commands to explore your workspace:\n"
+                )
+
+                if available_workspaces:
+                    error_msg += "Available workspaces:\n"
+                    for ws in available_workspaces:
+                        marker = " (current)" if ws['id'] == workspace_id else ""
+                        error_msg += f"  - {ws['id']}: {ws['name']}{marker}\n"
+                    error_msg += "\n"
+
+                error_msg += (
+                    "Try these commands to explore your workspace:\n"
                     f"  - cum container {workspace_id}  (view workspace structure)\n"
                     f"  - cum show                      (view current context)\n"
                     f"  - cum h <valid_id> --preset summary  (test with a known ID)"
