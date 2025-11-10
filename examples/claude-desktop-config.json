@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "clickup": {
-      "command": "clickup-mcp",
+      "command": "cum-mcp",
       "env": {
         "CLICKUP_API_TOKEN": "pk_your_token_here"
       }

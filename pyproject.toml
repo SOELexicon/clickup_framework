@@ -48,7 +48,7 @@ Issues = "https://github.com/SOELexicon/clickup_framework/issues"
 [project.scripts]
 clickup = "clickup_framework.cli:main"
 cum = "clickup_framework.cli:main"
-clickup-mcp = "clickup_framework.mcp_server:main"
+cum-mcp = "clickup_framework.mcp_server:main"
 
 [tool.setuptools.packages.find]
 # Standard package layout with clickup_framework/ directory

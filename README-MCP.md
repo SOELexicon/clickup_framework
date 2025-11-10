@@ -59,7 +59,7 @@ pip install -e .
 ### Verify Installation
 
 ```bash
-clickup-mcp --help
+cum-mcp --help
 ```
 
 ## Configuration
@@ -85,7 +85,7 @@ Add the ClickUp MCP server to your Claude Desktop configuration:
 {
   "mcpServers": {
     "clickup": {
-      "command": "clickup-mcp",
+      "command": "cum-mcp",
       "env": {
         "CLICKUP_API_TOKEN": "pk_your_actual_token_here"
       }
@@ -312,7 +312,7 @@ Control output verbosity with `detail_level`:
 
 2. **Test Server Manually:**
    ```bash
-   clickup-mcp
+   cum-mcp
    ```
    Should start without errors. Press Ctrl+C to stop.
 
@@ -342,7 +342,7 @@ Or provide IDs directly in commands:
 
 1. Restart Claude Desktop
 2. Check configuration file syntax (valid JSON)
-3. Verify `clickup-mcp` command exists: `which clickup-mcp`
+3. Verify `cum-mcp` command exists: `which cum-mcp`
 4. Try development mode with full Python path
 
 ## Advanced Usage
@@ -385,7 +385,7 @@ The MCP server wraps the existing ClickUp Framework CLI:
 └───────────────┬─────────────────────┘
                 │ MCP Protocol
 ┌───────────────▼─────────────────────┐
-│         clickup-mcp Server          │
+│         cum-mcp Server          │
 │  (clickup_framework/mcp_server.py)  │
 ├─────────────────────────────────────┤
 │         MCP Tools (25+ tools)       │
@@ -431,7 +431,7 @@ cum tc current "New task"
 cum h --preset detailed
 
 # Plus new MCP server
-clickup-mcp
+cum-mcp
 ```
 
 Both can be used simultaneously!
