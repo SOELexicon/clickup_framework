@@ -8,6 +8,12 @@ from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
 from clickup_framework.commands.utils import read_text_from_file
 from clickup_framework.cli_error_handler import handle_cli_error
+from clickup_framework.utils.status_mapper import (
+    map_status,
+    get_available_statuses,
+    format_available_statuses,
+    suggest_status,
+)
 
 
 def task_create_command(args):
@@ -30,8 +36,27 @@ def task_create_command(args):
     elif args.description:
         task_data['description'] = args.description
 
+    # Handle status with smart mapping
     if args.status:
-        task_data['status'] = args.status
+        try:
+            # Fetch list data to get available statuses
+            list_data = client.get_list(list_id)
+            available_statuses = get_available_statuses(list_data)
+
+            # Try to map the user's status to an actual status
+            mapped_status = map_status(args.status, available_statuses)
+
+            if mapped_status:
+                task_data['status'] = mapped_status
+                # Show user if we mapped their status
+                if mapped_status.lower() != args.status.lower():
+                    print(f"ℹ️  Mapped status '{args.status}' → '{mapped_status}'")
+            else:
+                # No mapping found, try original status (will error if invalid)
+                task_data['status'] = args.status
+        except Exception:
+            # If we can't fetch list data, just use the original status
+            task_data['status'] = args.status
 
     if args.priority is not None:
         task_data['priority'] = args.priority
@@ -61,11 +86,24 @@ def task_create_command(args):
         print(f"URL: {task['url']}")
 
     except Exception as e:
-        handle_cli_error(e, {
+        # If it's a status error, try to get available statuses for the error message
+        error_context = {
             'command': 'task_create',
             'list_id': list_id,
             'task_name': args.name,
-        })
+        }
+
+        # Check if this is a status-related error
+        error_str = str(e).lower()
+        if 'status' in error_str and args.status:
+            error_context['user_provided_status'] = args.status
+            try:
+                list_data = client.get_list(list_id)
+                error_context['available_statuses'] = get_available_statuses(list_data)
+            except:
+                pass
+
+        handle_cli_error(e, error_context)
 
 
 def task_update_command(args):

@@ -256,8 +256,35 @@ def _format_api_error(error: ClickUpAPIError, context: Dict, use_color: bool) ->
 
     suggestions = []
 
+    # Check if we have available statuses in context (for status-related errors)
+    available_statuses = context.get('available_statuses', None)
+    user_status = context.get('user_provided_status', None)
+
     # Parse specific error messages for better suggestions
-    if "list id invalid" in error_msg.lower():
+    if "status" in error_msg.lower() and "not found" in error_msg.lower():
+        # Status-specific error with available statuses
+        if available_statuses and user_status:
+            from clickup_framework.utils.status_mapper import suggest_status, format_available_statuses
+
+            # Get suggestions based on fuzzy matching
+            status_suggestions = suggest_status(user_status, available_statuses, max_suggestions=3)
+
+            if status_suggestions:
+                suggestions.append(f"Did you mean one of these? {', '.join(status_suggestions)}")
+
+            suggestions.append("Use one of the available statuses listed below")
+            suggestions.append("Status names are case-sensitive - use exact status name")
+            suggestions.append("Or use status mapping: 'complete' → 'complete', 'in progress' → 'in development'")
+
+            # Add formatted list of available statuses to context
+            context['available_statuses_formatted'] = format_available_statuses(available_statuses)
+        else:
+            suggestions = [
+                "Status names are case-sensitive - use exact status name",
+                "Common mappings: 'complete', 'in progress', 'to do', 'blocked'",
+                "View list statuses: cum hierarchy <list_id>",
+            ]
+    elif "list id invalid" in error_msg.lower():
         suggestions = [
             "Verify the list ID format is correct (should be numeric)",
             "Get list ID from ClickUp URL: https://app.clickup.com/.../<list_id>/...",
@@ -307,13 +334,30 @@ def _format_api_error(error: ClickUpAPIError, context: Dict, use_color: bool) ->
     if status_code:
         context_with_status['status_code'] = status_code
 
-    return ErrorFormatter.format_error(
+    # Remove raw available_statuses from context (we'll show formatted version)
+    if 'available_statuses' in context_with_status:
+        del context_with_status['available_statuses']
+
+    # Remove available_statuses_formatted from context (we'll append it separately)
+    available_statuses_formatted = context_with_status.pop('available_statuses_formatted', None)
+
+    # Format the error
+    formatted_error = ErrorFormatter.format_error(
         error_type=f"API Error ({status_code})" if status_code else "API Error",
         message=clean_message,
         context=context_with_status,
         suggestions=suggestions,
         no_color=not use_color,
     )
+
+    # If we have available statuses, append them to the error message
+    if available_statuses_formatted:
+        formatted_error += "\n\n"
+        formatted_error += "📋 Available Statuses:\n"
+        formatted_error += "─" * 80 + "\n"
+        formatted_error += available_statuses_formatted
+
+    return formatted_error
 
 
 def _format_value_error(error: ValueError, context: Dict, use_color: bool) -> str:
