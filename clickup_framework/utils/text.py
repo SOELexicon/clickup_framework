@@ -4,6 +4,7 @@ Text Utilities
 Helper functions for text formatting and manipulation.
 """
 
+import re
 from typing import List, Optional
 
 
@@ -118,6 +119,66 @@ def clean_html(text: str) -> str:
 
     # Clean up whitespace
     text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def strip_markdown(text: str) -> str:
+    """
+    Remove markdown formatting from text.
+
+    Args:
+        text: Markdown text
+
+    Returns:
+        Plain text with markdown syntax removed
+
+    Examples:
+        >>> strip_markdown("**bold** and *italic*")
+        'bold and italic'
+        >>> strip_markdown("# Header\\nSome text")
+        'Header\\nSome text'
+    """
+    if not text:
+        return ""
+
+    # Remove headers
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+
+    # Remove bold (**text** or __text__)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+
+    # Remove italic (*text* or _text_)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'_(.+?)_', r'\1', text)
+
+    # Remove strikethrough (~~text~~)
+    text = re.sub(r'~~(.+?)~~', r'\1', text)
+
+    # Remove inline code (`text`)
+    text = re.sub(r'`(.+?)`', r'\1', text)
+
+    # Remove code blocks (```text```)
+    text = re.sub(r'```[\s\S]*?```', '', text)
+
+    # Remove links [text](url)
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+
+    # Remove images ![alt](url)
+    text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', r'\1', text)
+
+    # Remove bullet points
+    text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
+
+    # Remove numbered lists
+    text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
+
+    # Remove blockquotes
+    text = re.sub(r'^\s*>\s+', '', text, flags=re.MULTILINE)
+
+    # Remove horizontal rules
+    text = re.sub(r'^[\s-]{3,}$', '', text, flags=re.MULTILINE)
+
     return text.strip()
 
 

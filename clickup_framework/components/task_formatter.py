@@ -8,9 +8,9 @@ from typing import Dict, Any, Optional
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.utils.colors import (
     colorize, status_color, status_to_code, priority_color, get_task_emoji,
-    TextColor, TextStyle
+    TextColor, TextStyle, USE_COLORS
 )
-from clickup_framework.utils.text import truncate
+from clickup_framework.utils.text import truncate, strip_markdown
 
 
 class RichTaskFormatter:
@@ -106,6 +106,12 @@ class RichTaskFormatter:
         # Description
         if options.show_descriptions and task.get('description'):
             desc = task['description']
+
+            # Strip markdown formatting when ANSI colors are enabled
+            # because terminals don't render markdown, only ANSI codes
+            if options.colorize_output or USE_COLORS:
+                desc = strip_markdown(desc)
+
             if len(desc) > options.description_length:
                 desc = truncate(desc, options.description_length)
             desc_str = f"📝 Description:"
