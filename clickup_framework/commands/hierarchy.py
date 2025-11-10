@@ -102,6 +102,8 @@ def _get_tasks_from_lists(client, lists):
     Returns:
         List of tasks from all lists
     """
+    from clickup_framework.exceptions import ClickUpNotFoundError, ClickUpAuthError
+    
     tasks = []
     for list_item in lists:
         list_id = list_item.get('id')
@@ -109,9 +111,12 @@ def _get_tasks_from_lists(client, lists):
             try:
                 result = client.get_list_tasks(list_id)
                 tasks.extend(result.get('tasks', []))
-            except Exception as e:
-                # Log error but continue with other lists
+            except (ClickUpNotFoundError, ClickUpAuthError) as e:
+                # Log known errors but continue with other lists
                 logger.debug(f"Failed to fetch tasks from list {list_id}: {e}")
+            except Exception as e:
+                # Log unexpected errors but continue with other lists
+                logger.warning(f"Unexpected error fetching tasks from list {list_id}: {e}")
     return tasks
 
 

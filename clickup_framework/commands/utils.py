@@ -193,6 +193,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     except ClickUpNotFoundError as e:
         last_error = e
     except Exception as e:
+        # Unexpected error trying to resolve as space - log and continue trying other types
         logger.debug(f"Failed to resolve '{id_or_current}' as space ID: {e}")
         if last_error is None:
             last_error = e
@@ -207,6 +208,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     except ClickUpNotFoundError as e:
         last_error = e
     except Exception as e:
+        # Unexpected error trying to resolve as folder - log and continue trying other types
         logger.debug(f"Failed to resolve '{id_or_current}' as folder ID: {e}")
         if last_error is None:
             last_error = e
@@ -221,6 +223,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     except ClickUpNotFoundError as e:
         last_error = e
     except Exception as e:
+        # Unexpected error trying to resolve as list - log and continue trying other types
         logger.debug(f"Failed to resolve '{id_or_current}' as list ID: {e}")
         if last_error is None:
             last_error = e
@@ -239,6 +242,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     except ClickUpNotFoundError as e:
         last_error = e
     except Exception as e:
+        # Unexpected error trying to resolve as task - log and continue to error handling
         logger.debug(f"Failed to resolve '{id_or_current}' as task ID: {e}")
         if last_error is None:
             last_error = e
@@ -247,22 +251,42 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     if got_auth_error:
         error_msg = f"Cannot access ID '{id_or_current}'. "
 
+        # Try to get available workspaces
+        available_workspaces = []
+        try:
+            workspaces_data = client.get_authorized_workspaces()
+            teams = workspaces_data.get('teams', [])
+            available_workspaces = [{'id': team.get('id'), 'name': team.get('name')} for team in teams if team.get('id')]
+        except Exception:
+            # Ignore errors when fetching available workspaces for diagnostics,
+            # as this is non-critical and we want to continue error reporting gracefully.
+            pass
+
         # Check if workspace is set
         workspace_id = None
         try:
             workspace_id = context.resolve_id('workspace', 'current')
         except ValueError:
+            # It's expected that resolving the current workspace may fail if none is set.
+            # In that case, we treat workspace_id as None and handle it below.
             pass
 
         if not workspace_id:
             error_msg += (
                 "No workspace is set in context. "
                 "This could mean:\n"
-                "  1. You need to set a workspace: cum set workspace <team_id>\n"
+                "  1. You need to set a workspace: cum set workspace <workspace_id>\n"
                 "  2. The ID doesn't exist or is invalid\n"
                 "  3. Your API token is invalid or lacks permissions\n\n"
-                "To verify your API token is valid, try: cum show"
             )
+
+            if available_workspaces:
+                error_msg += "Available workspaces:\n"
+                for ws in available_workspaces:
+                    error_msg += f"  - {ws['id']}: {ws['name']}\n"
+                error_msg += f"\nTo set a workspace: cum set workspace <workspace_id>"
+            else:
+                error_msg += "To verify your API token is valid, try: cum show"
         else:
             # Validate API token by checking if we can access the workspace
             token_valid = False
@@ -281,10 +305,20 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
                 error_msg += (
                     f"API token is valid, but ID '{id_or_current}' is not accessible. "
                     f"This could mean:\n"
-                    f"  1. The ID doesn't exist in your workspace (team_id: {workspace_id})\n"
+                    f"  1. The ID doesn't exist in your workspace (workspace_id: {workspace_id})\n"
                     f"  2. The ID belongs to a different workspace\n"
                     f"  3. Your API token lacks permission to access this resource\n\n"
-                    f"Try these commands to explore your workspace:\n"
+                )
+
+                if available_workspaces:
+                    error_msg += "Available workspaces:\n"
+                    for ws in available_workspaces:
+                        marker = " (current)" if ws['id'] == workspace_id else ""
+                        error_msg += f"  - {ws['id']}: {ws['name']}{marker}\n"
+                    error_msg += "\n"
+
+                error_msg += (
+                    "Try these commands to explore your workspace:\n"
                     f"  - cum container {workspace_id}  (view workspace structure)\n"
                     f"  - cum show                      (view current context)\n"
                     f"  - cum h <valid_id> --preset summary  (test with a known ID)"
@@ -328,6 +362,15 @@ def resolve_list_id(client: ClickUpClient, id_or_current: str, context=None) -> 
     Raises:
         ValueError: If ID cannot be resolved or is invalid
     """
+    import warnings
+    
+    warnings.warn(
+        "resolve_list_id() is deprecated and will be removed in a future version. "
+        "Use resolve_container_id() instead for better flexibility with spaces, folders, and lists.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     if context is None:
         context = get_context_manager()
 
