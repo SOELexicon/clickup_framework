@@ -447,7 +447,7 @@ class TasksAPI:
         Returns:
             Created checklist item (raw dict)
         """
-        data = {"name": name}
+        data = {}
         if assignee:
             data["assignee"] = assignee
 
