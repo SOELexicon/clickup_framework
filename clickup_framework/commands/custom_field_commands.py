@@ -118,7 +118,7 @@ def format_field_value(field: Dict[str, Any], value: Any) -> str:
         try:
             dt = datetime.fromtimestamp(int(value) / 1000)
             return dt.strftime('%Y-%m-%d %H:%M')
-        except:
+        except (ValueError, TypeError, OSError) as e:
             return str(value)
 
     # Dropdown/Labels - value is option ID, need to look up name
