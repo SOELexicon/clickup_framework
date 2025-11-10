@@ -17,7 +17,7 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 - [Comment Commands (Implemented)](#comment-commands-)
 - [Checklist Commands (Planned)](#checklist-commands-planned-)
 - [Relationship Commands (Implemented)](#relationship-commands-)
-- [Custom Field Commands (Planned)](#custom-field-commands-planned-)
+- [Custom Field Commands (Implemented)](#custom-field-commands-)
 - [List Commands (Planned)](#list-commands-planned-)
 - [Workspace/Space/Folder Commands (Planned)](#workspacespacefolders-commands-planned-)
 - [Docs Commands (Implemented)](#docs-commands-)
@@ -864,38 +864,168 @@ cum task_remove_link 86c6e0q0a 86c6e0q0b
 
 ---
 
-## Custom Field Commands (Planned) 🚧
+## Custom Field Commands ✅
 
-> **Status**: Not yet implemented
+> **Status**: Implemented
 > **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6e0q1e)
 
+Manage custom fields on tasks. Supports field resolution by name or ID, automatic type validation, and formatted display.
+
+**Alias**: `cf`
+
 ### `custom-field set` - Set Custom Field Value
-**Task ID**: [86c6e0q1f](https://app.clickup.com/t/86c6e0q1f)
+
+Set a custom field value on a task. Accepts field name (case-insensitive) or field ID.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum custom-field set <task_id> <field_id> <value>
+cum custom-field set <task_id> <field_name_or_id> <value>
+cum cf set current "Difficulty Score" 8
+```
+
+**Features**:
+- Auto-detects field type and validates value
+- Supports all field types: text, number, date, dropdown, checkbox, currency, rating, etc.
+- Field name resolution (case-insensitive)
+- Shows field info before setting
+
+**Examples**:
+```bash
+# Set by field name
+cum cf set 86c6e0q1e "Priority Score" 8
+
+# Set by field ID
+cum cf set current 518a7a2f-a441-4db8-847e-9b47436bf7fa 7
+
+# Set date field
+cum cf set current "Due Date" "2025-01-15"
+
+# Set dropdown
+cum cf set current "Status" "In Progress"
+
+# Set checkbox
+cum cf set current "Approved" true
 ```
 
 ---
 
-### `custom-field remove` - Remove Custom Field
-**Task ID**: [86c6e0q1g](https://app.clickup.com/t/86c6e0q1g)
+### `custom-field get` - Get Custom Field Value
+
+Get a specific custom field value from a task with formatted display.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum custom-field remove <task_id> <field_id>
+cum custom-field get <task_id> <field_name_or_id>
+cum cf get current "Difficulty Score"
+```
+
+**Features**:
+- Field name or ID resolution
+- Type-based value formatting
+- Color-coded by field type
+- Shows "(not set)" for empty fields
+
+**Example Output**:
+```
+Difficulty Score (number)
+Value: 8
 ```
 
 ---
 
-### `custom-field list` - List Available Fields
-**Task ID**: [86c6e0q1h](https://app.clickup.com/t/86c6e0q1h)
+### `custom-field list` - List Custom Fields
+
+List custom fields at different hierarchy levels or show values on a specific task.
 
 ```bash
-# NOT YET IMPLEMENTED
-cum custom-field list <list_id>
+cum custom-field list --task <task_id>        # Show fields on task with values
+cum custom-field list --list <list_id>        # Show available fields for list
+cum custom-field list --space <space_id>      # Show available fields for space
+cum custom-field list --workspace <team_id>   # Show all workspace fields
 ```
+
+**Features**:
+- Multiple hierarchy levels
+- Grouped by field type
+- Shows field definitions or values
+- Required fields marked with *
+- Additional type info (options, max rating, etc.)
+
+**Examples**:
+```bash
+# List all fields on current task with values
+cum cf list --task current
+
+# List available fields for current list
+cum cf list --list current
+
+# List all workspace custom fields
+cum cf list --workspace 90151898946
+```
+
+**Example Output**:
+```
+Custom Fields for Task 86c6e0q06
+Task: CLI Command Implementation
+
+  Difficulty Score (number)
+    Value: 8
+
+  🔐 On Closed (short_text)
+    Value: (not set)
+```
+
+---
+
+### `custom-field remove` - Remove Custom Field Value
+
+Remove/clear a custom field value from a task.
+
+```bash
+cum custom-field remove <task_id> <field_name_or_id>
+cum cf remove current "Difficulty Score"
+cum cf rm current "Priority Score"
+```
+
+**Alias**: `rm`
+
+**Features**:
+- Shows current value before removing
+- Warns if field is required
+- Field name or ID resolution
+
+**Example**:
+```bash
+cum cf remove current "Difficulty Score"
+```
+
+**Example Output**:
+```
+Field: Difficulty Score (number)
+Current value: 8
+
+✓ Custom field 'Difficulty Score' removed from task
+```
+
+---
+
+### Custom Field Type Support
+
+All ClickUp custom field types are supported:
+
+| Type | Description | Example Value |
+|------|-------------|---------------|
+| `short_text` | Short text field | "Quick note" |
+| `text` | Long text field | "Detailed description..." |
+| `number` | Numeric value | 42 |
+| `drop_down` | Single selection | "In Progress" |
+| `labels` | Multiple selection | "bug, urgent" |
+| `date` | Date/timestamp | "2025-01-15" |
+| `checkbox` | Boolean | true/false, yes/no, 1/0 |
+| `email` | Email address | "user@example.com" |
+| `url` | Web URL | "https://example.com" |
+| `phone` | Phone number | "+1-234-567-8900" |
+| `currency` | Money value | 99.99 |
+| `rating` | Star rating | 4 (★★★★☆) |
+| `location` | Location text | "San Francisco, CA" |
 
 ---
 
