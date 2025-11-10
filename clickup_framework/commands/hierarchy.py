@@ -3,7 +3,7 @@
 import sys
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_list_id
+from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_container_id
 
 
 def hierarchy_command(args):
@@ -17,11 +17,11 @@ def hierarchy_command(args):
 
     # Validate that either list_id or --all is provided
     if not show_all and not args.list_id:
-        print("Error: Either provide a list_id or use --all to show all workspace tasks", file=sys.stderr)
+        print("Error: Either provide a container ID or use --all to show all workspace tasks", file=sys.stderr)
         sys.exit(1)
 
     if show_all and args.list_id:
-        print("Error: Cannot use both list_id and --all flag together", file=sys.stderr)
+        print("Error: Cannot use both container ID and --all flag together", file=sys.stderr)
         sys.exit(1)
 
     if show_all:
@@ -35,16 +35,36 @@ def hierarchy_command(args):
         result = client.get_team_tasks(team_id, subtasks=True, include_closed=False)
         tasks = result.get('tasks', [])
         list_id = None
+        container_name = None
     else:
-        # Resolve list ID from either list ID, task ID, or "current" keyword
+        # Resolve container ID (space, folder, list, or task)
         try:
-            list_id = resolve_list_id(client, args.list_id, context)
+            container = resolve_container_id(client, args.list_id, context)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
-        result = client.get_list_tasks(list_id)
-        tasks = result.get('tasks', [])
+        container_type = container['type']
+        container_id = container['id']
+
+        if container_type == 'space':
+            # Fetch all tasks from all lists in the space
+            space_data = container['data']
+            container_name = space_data.get('name', 'Space')
+            tasks = _get_tasks_from_space(client, space_data)
+            list_id = None
+        elif container_type == 'folder':
+            # Fetch all tasks from all lists in the folder
+            folder_data = container['data']
+            container_name = folder_data.get('name', 'Folder')
+            tasks = _get_tasks_from_folder(client, folder_data)
+            list_id = None
+        else:  # container_type == 'list'
+            # Fetch tasks from the single list
+            list_id = container_id
+            result = client.get_list_tasks(list_id)
+            tasks = result.get('tasks', [])
+            container_name = None
 
     options = create_format_options(args)
 
@@ -60,17 +80,70 @@ def hierarchy_command(args):
     header = args.header if hasattr(args, 'header') and args.header else None
     if show_all and not header:
         header = "All Workspace Tasks"
+    elif container_name and not header:
+        header = container_name
 
     output = display.hierarchy_view(tasks, options, header)
 
     print(output)
 
 
+def _get_tasks_from_space(client, space_data):
+    """Fetch all tasks from all lists within a space."""
+    tasks = []
+
+    # Get lists from folders
+    folders = space_data.get('folders', [])
+    for folder in folders:
+        lists = folder.get('lists', [])
+        for list_item in lists:
+            list_id = list_item.get('id')
+            if list_id:
+                try:
+                    result = client.get_list_tasks(list_id)
+                    tasks.extend(result.get('tasks', []))
+                except Exception:
+                    # Skip lists that fail to fetch
+                    pass
+
+    # Get folderless lists (lists directly under space)
+    lists = space_data.get('lists', [])
+    for list_item in lists:
+        list_id = list_item.get('id')
+        if list_id:
+            try:
+                result = client.get_list_tasks(list_id)
+                tasks.extend(result.get('tasks', []))
+            except Exception:
+                # Skip lists that fail to fetch
+                pass
+
+    return tasks
+
+
+def _get_tasks_from_folder(client, folder_data):
+    """Fetch all tasks from all lists within a folder."""
+    tasks = []
+
+    lists = folder_data.get('lists', [])
+    for list_item in lists:
+        list_id = list_item.get('id')
+        if list_id:
+            try:
+                result = client.get_list_tasks(list_id)
+                tasks.extend(result.get('tasks', []))
+            except Exception:
+                # Skip lists that fail to fetch
+                pass
+
+    return tasks
+
+
 def register_command(subparsers):
     """Register the hierarchy command and its aliases 'list', 'h', 'ls', 'l'."""
     # Hierarchy command
     hierarchy_parser = subparsers.add_parser('hierarchy', help='Display tasks in hierarchical view')
-    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
+    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
     hierarchy_parser.add_argument('--header', help='Custom header text')
     hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
                                  help='Show all tasks from the entire workspace')
@@ -79,7 +152,7 @@ def register_command(subparsers):
 
     # Short alias: h
     h_parser = subparsers.add_parser('h', help='Display tasks in hierarchical view (alias for hierarchy)')
-    h_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
+    h_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
     h_parser.add_argument('--header', help='Custom header text')
     h_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
@@ -88,7 +161,7 @@ def register_command(subparsers):
 
     # List command (alias for hierarchy)
     list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
-    list_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
+    list_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
     list_parser.add_argument('--header', help='Custom header text')
     list_parser.add_argument('--all', dest='show_all', action='store_true',
                             help='Show all tasks from the entire workspace')
@@ -97,7 +170,7 @@ def register_command(subparsers):
 
     # Short alias: ls
     ls_parser = subparsers.add_parser('ls', help='Display tasks in hierarchical view (alias for hierarchy)')
-    ls_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
+    ls_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
     ls_parser.add_argument('--header', help='Custom header text')
     ls_parser.add_argument('--all', dest='show_all', action='store_true',
                           help='Show all tasks from the entire workspace')
@@ -106,7 +179,7 @@ def register_command(subparsers):
 
     # Short alias: l
     l_parser = subparsers.add_parser('l', help='Display tasks in hierarchical view (alias for hierarchy)')
-    l_parser.add_argument('list_id', nargs='?', help='ClickUp list ID or task ID (optional if --all is used)')
+    l_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
     l_parser.add_argument('--header', help='Custom header text')
     l_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
