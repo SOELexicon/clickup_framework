@@ -114,10 +114,13 @@ def checklist_item_add_command(args):
         success_msg = ANSIAnimations.success_message(f"Checklist item added: {args.name}")
         print(f"\n{success_msg}")
 
-        # The API response structure may vary, try to get item ID
-        if isinstance(result, dict):
-            item_id = result.get('id') or result.get('item', {}).get('id', 'Unknown')
-            print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
+        # The API returns: {"checklist": {"items": [...]}}
+        # The new item is the last one in the items array
+        if isinstance(result, dict) and 'checklist' in result:
+            items = result.get('checklist', {}).get('items', [])
+            if items:
+                item_id = items[-1].get('id', 'Unknown')
+                print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
 
         if assignee:
             print(f"Assigned to: {assignee}")
