@@ -28,6 +28,7 @@ dependencies = [
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
     "argcomplete>=3.0.0",
+    "mcp>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +48,7 @@ Issues = "https://github.com/SOELexicon/clickup_framework/issues"
 [project.scripts]
 clickup = "clickup_framework.cli:main"
 cum = "clickup_framework.cli:main"
+cum-mcp = "clickup_framework.mcp_server:main"
 
 [tool.setuptools.packages.find]
 # Standard package layout with clickup_framework/ directory
