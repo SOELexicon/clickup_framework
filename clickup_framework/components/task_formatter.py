@@ -166,9 +166,19 @@ class RichTaskFormatter:
         # Custom Fields - Show Difficulty Score if set
         custom_fields = task.get('custom_fields', [])
         for cf in custom_fields:
-            # Check for Difficulty Score field
+            # Check for Difficulty Score field (exact match or prefix/suffix)
             field_name = cf.get('name', '')
-            if 'difficulty' in field_name.lower() or 'score' in field_name.lower():
+            field_name_lower = field_name.lower()
+            # Match only if field name starts/ends with difficulty/score or is exactly "difficulty" or "score"
+            is_difficulty_field = (
+                field_name_lower == 'difficulty' or 
+                field_name_lower == 'score' or
+                field_name_lower.startswith('difficulty ') or
+                field_name_lower.startswith('score ') or
+                field_name_lower.endswith(' difficulty') or
+                field_name_lower.endswith(' score')
+            )
+            if is_difficulty_field:
                 value = cf.get('value')
                 if value is not None and value != '':
                     # Format the difficulty score

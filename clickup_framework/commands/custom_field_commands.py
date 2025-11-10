@@ -1,7 +1,7 @@
 """Custom field management commands for ClickUp Framework CLI."""
 
 import sys
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, List, Tuple
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.resources.custom_fields import CustomFieldsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
@@ -125,13 +125,14 @@ def format_field_value(field: Dict[str, Any], value: Any) -> str:
     elif field_type in ('drop_down', 'labels'):
         if isinstance(value, dict):
             # Sometimes the API returns the option object
-            return value.get('name', str(value))
+            return value.get('name') or value.get('label') or str(value)
         else:
             # Look up option name from field type_config
             options = field.get('type_config', {}).get('options', [])
             for option in options:
-                if option['id'] == value or option.get('orderindex') == value:
-                    return option['name']
+                if (isinstance(value, str) and option['id'] == value) or \
+                   (isinstance(value, int) and option.get('orderindex') == value):
+                    return option.get('name') or option.get('label')
             return str(value)
 
     # Currency
