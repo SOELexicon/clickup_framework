@@ -178,12 +178,16 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
 
     # Try each container type in order: space, folder, list, task
     last_error = None
+    got_auth_error = False
 
     # Try as space ID
     try:
         space_data = client.get_space(id_or_current)
         return {'type': 'space', 'id': id_or_current, 'data': space_data}
-    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+    except ClickUpAuthError as e:
+        last_error = e
+        got_auth_error = True
+    except ClickUpNotFoundError as e:
         last_error = e
     except Exception:
         pass
@@ -192,7 +196,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     try:
         folder_data = client.get_folder(id_or_current)
         return {'type': 'folder', 'id': id_or_current, 'data': folder_data}
-    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+    except ClickUpAuthError as e:
+        last_error = e
+        got_auth_error = True
+    except ClickUpNotFoundError as e:
         last_error = e
     except Exception:
         pass
@@ -201,7 +208,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     try:
         client.get_list(id_or_current)
         return {'type': 'list', 'id': id_or_current}
-    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+    except ClickUpAuthError as e:
+        last_error = e
+        got_auth_error = True
+    except ClickUpNotFoundError as e:
         last_error = e
     except Exception:
         pass
@@ -214,10 +224,59 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
             return {'type': 'list', 'id': list_id}
         else:
             raise ValueError(f"Task {id_or_current} does not have a valid list ID")
-    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+    except ClickUpAuthError as e:
+        last_error = e
+        got_auth_error = True
+    except ClickUpNotFoundError as e:
         last_error = e
     except Exception:
         pass
+
+    # If we got an auth error, provide more diagnostic information
+    if got_auth_error:
+        error_msg = f"Cannot access ID '{id_or_current}'. "
+
+        # Check if workspace is set
+        workspace_id = None
+        try:
+            workspace_id = context.resolve_id('workspace', 'current')
+        except ValueError:
+            pass
+
+        if not workspace_id:
+            error_msg += (
+                "No workspace is set in context. "
+                "This could mean:\n"
+                "  1. You need to set a workspace: cum set workspace <team_id>\n"
+                "  2. The ID doesn't exist or is invalid\n"
+                "  3. Your API token is invalid or lacks permissions\n\n"
+                "To verify your API token is valid, try: cum show"
+            )
+        else:
+            # Validate API token by checking if we can access the workspace
+            token_valid = False
+            try:
+                client.get_workspace_hierarchy(workspace_id)
+                token_valid = True
+            except ClickUpAuthError:
+                error_msg += (
+                    "Your API token appears to be invalid or expired. "
+                    "Please check your token and set it again: cum set token <your_token>"
+                )
+            except Exception:
+                token_valid = True  # Assume valid if error is not auth-related
+
+            if token_valid:
+                error_msg += (
+                    f"API token is valid, but ID '{id_or_current}' is not accessible. "
+                    f"This could mean:\n"
+                    f"  1. The ID doesn't exist in your workspace (team_id: {workspace_id})\n"
+                    f"  2. The ID belongs to a different workspace\n"
+                    f"  3. Your API token lacks permission to access this resource\n\n"
+                    f"To verify, check the ID in ClickUp or try a different ID."
+                )
+
+        raise ValueError(error_msg)
 
     # If all fail, provide a helpful error message
     error_msg = f"Invalid ID '{id_or_current}'. "
