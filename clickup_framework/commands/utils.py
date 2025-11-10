@@ -141,9 +141,99 @@ def add_common_args(subparser):
                          help='Hide task type emojis')
 
 
+def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None) -> dict:
+    """
+    Resolve a container ID from space, folder, list, task ID, or "current" keyword.
+
+    This function is flexible and accepts:
+    - Space IDs: returns {'type': 'space', 'id': space_id, 'data': space_data}
+    - Folder IDs: returns {'type': 'folder', 'id': folder_id, 'data': folder_data}
+    - List IDs: returns {'type': 'list', 'id': list_id}
+    - Task IDs: fetches the task and returns {'type': 'list', 'id': list_id}
+    - "current": resolves from context
+
+    Args:
+        client: ClickUpClient instance
+        id_or_current: Either a space, folder, list, task ID, or "current"
+        context: Context manager (optional, will be fetched if not provided)
+
+    Returns:
+        Dictionary with 'type' and 'id' keys, and optionally 'data' key
+
+    Raises:
+        ValueError: If ID cannot be resolved or is invalid
+    """
+    from clickup_framework.exceptions import ClickUpNotFoundError, ClickUpAuthError
+
+    if context is None:
+        context = get_context_manager()
+
+    # Handle "current" keyword
+    if id_or_current.lower() == "current":
+        try:
+            list_id = context.resolve_id('list', 'current')
+            return {'type': 'list', 'id': list_id}
+        except ValueError as e:
+            raise ValueError(f"No current list set. Use 'cum set list <list_id>' first or provide a space/folder/list/task ID.") from e
+
+    # Try each container type in order: space, folder, list, task
+    last_error = None
+
+    # Try as space ID
+    try:
+        space_data = client.get_space(id_or_current)
+        return {'type': 'space', 'id': id_or_current, 'data': space_data}
+    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+        last_error = e
+    except Exception:
+        pass
+
+    # Try as folder ID
+    try:
+        folder_data = client.get_folder(id_or_current)
+        return {'type': 'folder', 'id': id_or_current, 'data': folder_data}
+    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+        last_error = e
+    except Exception:
+        pass
+
+    # Try as list ID
+    try:
+        client.get_list(id_or_current)
+        return {'type': 'list', 'id': id_or_current}
+    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+        last_error = e
+    except Exception:
+        pass
+
+    # Try as task ID
+    try:
+        task = client.get_task(id_or_current)
+        list_id = task.get('list', {}).get('id')
+        if list_id:
+            return {'type': 'list', 'id': list_id}
+        else:
+            raise ValueError(f"Task {id_or_current} does not have a valid list ID")
+    except (ClickUpNotFoundError, ClickUpAuthError) as e:
+        last_error = e
+    except Exception:
+        pass
+
+    # If all fail, provide a helpful error message
+    error_msg = f"Invalid ID '{id_or_current}'. "
+    if last_error:
+        error_msg += f"Error: {str(last_error)}. "
+    error_msg += "Please provide a valid space, folder, list, or task ID, or use 'current' if you have a list set in context."
+
+    raise ValueError(error_msg)
+
+
 def resolve_list_id(client: ClickUpClient, id_or_current: str, context=None) -> str:
     """
     Resolve a list ID from either a list ID, task ID, or "current" keyword.
+
+    Note: This function is deprecated in favor of resolve_container_id() which
+    also handles space and folder IDs. This is kept for backwards compatibility.
 
     This function is flexible and accepts:
     - List IDs: returns the list ID as-is
