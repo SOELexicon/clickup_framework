@@ -4,11 +4,33 @@ description: Complete command reference for the ClickUp Framework CLI (`cum`) wi
 
 Quick reference for the ClickUp Framework CLI (`cum` / `clickup`)
 
-if cum isnt available ensure you install it by doing 
+## IMPORTANT: Command Invocation
 
+When executing ClickUp Framework commands, you MUST use the appropriate invocation method:
+
+**In Development Environment (working in the repo):**
+```bash
+python -m clickup_framework.cli <command> [args]
+```
+
+**In Installed Environment:**
+```bash
+cum <command> [args]
+# or
+clickup <command> [args]
+```
+
+**How to determine which to use:**
+1. First check if `cum` command is available with: `which cum` or `command -v cum`
+2. If NOT available (returns empty/error), use: `python -m clickup_framework.cli`
+3. If available, use: `cum`
+
+**Installation (if needed):**
 ```bash
 pip install --upgrade --force-reinstall git+https://github.com/SOELexicon/clickup_framework.git
 ```
+
+**For the rest of this document, examples show `cum` but replace with `python -m clickup_framework.cli` if in dev environment.**
 
 ## Quick Reference: All Short Codes
 
