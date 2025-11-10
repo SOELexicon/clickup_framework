@@ -115,14 +115,14 @@ class ContainerHierarchyFormatter:
                 continue
 
             # Extract container information
-            space = task.get('space', {})
-            folder = task.get('folder', {})
-            list_info = task.get('list', {})
+            space = task.get('space', {}) or {}
+            folder = task.get('folder', {}) or {}
+            list_info = task.get('list', {}) or {}
 
             space_id = space.get('id', 'unknown')
             space_name = space.get('name', 'Unknown Space')
-            folder_id = folder.get('id', 'no_folder')
-            folder_name = folder.get('name', 'No Folder')
+            folder_id = folder.get('id', 'no_folder') if folder else 'no_folder'
+            folder_name = folder.get('name', 'No Folder') if folder else 'No Folder'
             list_id = list_info.get('id', 'unknown')
             list_name = list_info.get('name', 'Unknown List')
 
@@ -237,7 +237,23 @@ class ContainerHierarchyFormatter:
 
             formatted_task = self.formatter.format_task(task, options)
             prefix = "  " if is_last else "│ "
-            lines.append(f"{prefix}{task_branch}{formatted_task}")
+
+            # Handle multi-line formatted content
+            formatted_lines = formatted_task.split('\n')
+
+            # Add the first line with branch character
+            lines.append(f"{prefix}{task_branch}{formatted_lines[0]}")
+
+            # Add remaining lines with proper indentation
+            if len(formatted_lines) > 1:
+                # Calculate the continuation prefix for multi-line task content
+                if is_last_task:
+                    continuation_prefix = prefix + "  "  # No vertical line
+                else:
+                    continuation_prefix = prefix + "│ "  # Continue vertical line
+
+                for line in formatted_lines[1:]:
+                    lines.append(f"{continuation_prefix}{line}")
 
         return lines
 
