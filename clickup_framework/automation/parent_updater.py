@@ -8,7 +8,6 @@ to active development states.
 import logging
 import time
 from datetime import datetime
-from typing import Optional
 
 from clickup_framework.automation.config import AutomationConfig
 from clickup_framework.automation.models import TaskUpdateEvent, ParentUpdateResult
