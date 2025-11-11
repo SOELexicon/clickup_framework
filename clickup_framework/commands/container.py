@@ -27,7 +27,8 @@ def container_command(args):
     # We need closed tasks if either include_completed or show_closed_only is True
     include_closed = include_completed or show_closed_only
 
-    result = client.get_list_tasks(list_id, include_closed=include_closed)
+    # Fetch tasks including subtasks to show proper hierarchy
+    result = client.get_list_tasks(list_id, include_closed=include_closed, subtasks='true')
     tasks = result.get('tasks', [])
     options = create_format_options(args)
 
