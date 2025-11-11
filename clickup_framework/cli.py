@@ -20,7 +20,7 @@ Examples:
 import argparse
 import sys
 import os
-from clickup_framework import get_context_manager
+from clickup_framework import get_context_manager, __version__
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.cli_error_handler import handle_cli_error
@@ -222,6 +222,13 @@ Examples:
   # Demo mode (no API required)
   cum demo --mode hierarchy
         """
+    )
+
+    # Add version flag
+    parser.add_argument(
+        '--version', '-v',
+        action='version',
+        version=f'ClickUp Framework CLI (cum) version {__version__}'
     )
 
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')

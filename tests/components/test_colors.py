@@ -2,10 +2,17 @@
 Tests for color utilities.
 """
 
+import os
 import pytest
 from clickup_framework.utils.colors import (
-    colorize, status_color, priority_color, container_color,
-    completion_color, get_task_emoji, TextColor, TextStyle
+    colorize,
+    status_color,
+    priority_color,
+    container_color,
+    completion_color,
+    get_task_emoji,
+    TextColor,
+    TextStyle,
 )
 
 
@@ -38,6 +45,53 @@ class TestColorize:
         """Test colorizing without color or style returns plain text."""
         result = colorize("Hello")
         assert result == "Hello"
+
+    def test_colorize_respects_hide_ansi_env_var(self):
+        """Test that HIDE_ANSI=1 disables colors."""
+        # Save original value
+        original = os.environ.get("HIDE_ANSI")
+
+        try:
+            # Set HIDE_ANSI=1
+            os.environ["HIDE_ANSI"] = "1"
+            result = colorize("Hello", TextColor.RED)
+            assert result == "Hello"  # No color codes
+            assert "\033[" not in result
+
+            # Set HIDE_ANSI=0 (should still show colors)
+            os.environ["HIDE_ANSI"] = "0"
+            result = colorize("Hello", TextColor.RED)
+            # Colors should still work when HIDE_ANSI is not '1'
+            # But this depends on NO_COLOR not being set
+
+            # Unset HIDE_ANSI
+            del os.environ["HIDE_ANSI"]
+            result = colorize("Hello", TextColor.RED)
+            # Should use default behavior
+        finally:
+            # Restore original value
+            if original is not None:
+                os.environ["HIDE_ANSI"] = original
+            elif "HIDE_ANSI" in os.environ:
+                del os.environ["HIDE_ANSI"]
+
+    def test_colorize_force_overrides_hide_ansi(self):
+        """Test that force=True overrides HIDE_ANSI."""
+        # Save original value
+        original = os.environ.get("HIDE_ANSI")
+
+        try:
+            # Set HIDE_ANSI=1
+            os.environ["HIDE_ANSI"] = "1"
+            result = colorize("Hello", TextColor.RED, force=True)
+            assert "\033[31m" in result  # Red color code should be present
+            assert "Hello" in result
+        finally:
+            # Restore original value
+            if original is not None:
+                os.environ["HIDE_ANSI"] = original
+            elif "HIDE_ANSI" in os.environ:
+                del os.environ["HIDE_ANSI"]
 
 
 class TestStatusColor:
