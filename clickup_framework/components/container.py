@@ -110,9 +110,17 @@ class ContainerHierarchyFormatter:
         })
 
         for task in tasks:
-            # Skip completed tasks if not including them
-            if not options.include_completed and self._is_completed(task):
-                continue
+            # Filter tasks based on completion status
+            is_completed = self._is_completed(task)
+            if options.show_closed_only:
+                # Show ONLY closed tasks - skip if not completed
+                if not is_completed:
+                    continue
+            elif not options.include_completed:
+                # Show only open tasks (default) - skip if completed
+                if is_completed:
+                    continue
+            # If include_completed is True, show all tasks (no filtering)
 
             # Extract container information
             space = task.get('space', {}) or {}

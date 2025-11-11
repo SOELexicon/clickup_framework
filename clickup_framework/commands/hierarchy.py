@@ -111,8 +111,13 @@ def hierarchy_command(args):
     # Check if --all flag is set
     show_all = getattr(args, 'show_all', False)
 
-    # Get the include_completed flag once for use throughout
-    include_closed = getattr(args, 'include_completed', False)
+    # Get the include_completed and show_closed_only flags
+    include_completed = getattr(args, 'include_completed', False)
+    show_closed_only = getattr(args, 'show_closed_only', False)
+
+    # Determine if we need to fetch closed tasks from the API
+    # We need closed tasks if either include_completed or show_closed_only is True
+    include_closed = include_completed or show_closed_only
 
     # Validate that either list_id or --all is provided
     if not show_all and not args.list_id:

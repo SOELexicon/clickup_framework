@@ -28,6 +28,7 @@ class FormatOptions:
         show_comments: Number of recent comments to show (0 to hide)
         show_relationships: Whether to show task relationships
         include_completed: Whether to include completed tasks
+        show_closed_only: Whether to show ONLY closed tasks
         hide_orphaned: Whether to hide orphaned tasks
         description_length: Maximum length for displayed descriptions
         show_container_diff: Whether to show container differences
@@ -45,6 +46,7 @@ class FormatOptions:
     show_comments: int = 0
     show_relationships: bool = False
     include_completed: bool = False
+    show_closed_only: bool = False
     hide_orphaned: bool = False
     description_length: int = 100
     show_container_diff: bool = True
