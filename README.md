@@ -222,37 +222,83 @@ python -m clickup_framework --help
 ./clickup demo --mode detail --preset detailed
 
 # Fetch and display tasks from ClickUp
-./clickup hierarchy <list_id>
-./clickup container <list_id>
-./clickup detail <task_id> <list_id>
+cum h <list_id>              # hierarchy view (short code)
+cum c <list_id>              # container view (short code)
+cum d <task_id> <list_id>    # detail view (short code)
 
 # Filter tasks
-./clickup filter <list_id> --status "in progress"
-./clickup filter <list_id> --priority 1 --tags backend api
+cum fil <list_id> --status "in progress"
+cum fil <list_id> --priority 1 --tags backend api
+
+# Task management
+cum tc "New Task" --list <list_id>  # create task (name comes first!)
+cum tss <task_id> "in progress"     # set status
+cum ca <task_id> "Great work!"      # add comment
 
 # Customize output
-./clickup hierarchy <list_id> --show-ids --show-descriptions --preset detailed
-./clickup container <list_id> --no-colorize --include-completed
+cum h <list_id> --show-ids --show-descriptions --preset detailed
+cum c <list_id> --no-colorize --include-completed
 
 # View statistics
-./clickup stats <list_id>
+cum st <list_id>
 ```
 
 **CLI Commands:**
 
 *Display Commands:*
-- `hierarchy` - Display tasks in hierarchical parent-child view
-- `container` - Display tasks by workspace → space → folder → list
-- `flat` - Display tasks in simple flat list
-- `filter` - Display filtered tasks with custom criteria
-- `detail` - Show comprehensive single-task view with relationships
-- `stats` - Display task statistics and counts
+- `hierarchy` / `h` / `list` / `ls` / `l` - Display tasks in hierarchical parent-child view
+- `clist` / `c` / `container` - Display tasks by workspace → space → folder → list
+- `flat` / `f` - Display tasks in simple flat list
+- `filter` / `fil` - Display filtered tasks with custom criteria
+- `detail` / `d` - Show comprehensive single-task view with relationships
+- `stats` / `st` - Display task statistics and counts
+- `assigned` / `a` - Show assigned tasks sorted by difficulty
 - `demo` - Show examples with sample data (no API required)
 
 *Context Management:*
-- `set_current` - Set current resource (task, list, space, folder, workspace)
-- `show_current` - Display current context
-- `clear_current` - Clear current context (specific resource or all)
+- `set_current` / `set` - Set current resource (task, list, space, folder, workspace, assignee)
+- `show_current` / `show` - Display current context
+- `clear_current` / `clear` - Clear current context (specific resource or all)
+- `ansi` - Enable/disable ANSI color output
+
+*Task Management:*
+- `task_create` / `tc` - Create new task
+- `task_update` / `tu` - Update task properties
+- `task_delete` / `td` - Delete task
+- `task_assign` / `ta` - Assign users to task
+- `task_unassign` / `tua` - Remove assignees
+- `task_set_status` / `tss` - Change task status (validates subtasks)
+- `task_set_priority` / `tsp` - Set task priority
+- `task_set_tags` / `tst` - Manage task tags
+
+*Relationships:*
+- `task_add_dependency` / `tad` - Add task dependency
+- `task_remove_dependency` / `trd` - Remove dependency
+- `task_add_link` / `tal` - Link tasks
+- `task_remove_link` / `trl` - Unlink tasks
+
+*Comments:*
+- `comment_add` / `ca` - Add comment
+- `comment_list` / `cl` - List comments
+- `comment_update` / `cu` - Update comment
+- `comment_delete` / `cd` - Delete comment
+
+*Checklists:*
+- `checklist` / `chk` - Manage checklists and checklist items
+
+*Custom Fields:*
+- `custom-field` / `cf` - Manage custom field values
+
+*Docs & Pages:*
+- `dlist` / `dl` / `doc_list` - List docs
+- `doc_get` / `dg` - Get doc details
+- `doc_create` / `dc` - Create doc
+- `doc_update` / `du` - Update doc
+- `doc_export` / `de` - Export docs to markdown
+- `doc_import` / `di` - Import markdown files
+- `page_list` / `pl` - List pages
+- `page_create` / `pc` - Create page
+- `page_update` / `pu` - Update page
 
 **Common Options:**
 - `--preset <level>` - Use preset format: minimal, summary, detailed, full

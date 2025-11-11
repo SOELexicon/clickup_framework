@@ -74,13 +74,13 @@ cum de <workspace_id> --output-dir ./out  # export
 
 | Command | Short Codes | Usage | Description |
 |---------|-------------|-------|-------------|
-| `hierarchy` | `h` `list` `ls` `l` | `cum h <list_id>` | Hierarchical parent-child tree view |
-| `container` | `c` `clist` | `cum c <list_id>` | Container hierarchy (Space→Folder→List) |
+| `hierarchy` | `h` `list` `ls` `l` | `cum h <list_id\|--all>` | Hierarchical parent-child tree view |
+| `clist` / `container` | `c` | `cum c <list_id>` | Container hierarchy (Space→Folder→List) |
 | `flat` | `f` | `cum f <list_id>` | Flat list view |
 | `filter` | `fil` | `cum fil <list_id> [--status\|--priority\|--tags\|--assignee]` | Filtered task view |
 | `detail` | `d` | `cum d <task_id> [list_id]` | Detailed single task view |
 | `stats` | `st` | `cum st <list_id>` | Task statistics & distribution |
-| `assigned` | `a` | `cum a [--user-id UID]` | Your assigned tasks, sorted by difficulty |
+| `assigned` | `a` | `cum a [--user-id UID] [--team-id TID]` | Your assigned tasks, sorted by difficulty |
 | `demo` | | `cum demo [--mode MODE]` | Demo mode (no API token required) |
 
 ## Context Management
@@ -98,29 +98,36 @@ cum de <workspace_id> --output-dir ./out  # export
 
 | Command | Short Codes | Usage | Description |
 |---------|-------------|-------|-------------|
-| `task_create` | `tc` | `cum tc <list_id> "name" [options]` | Create new task |
+| `task_create` | `tc` | `cum tc "name" --list <list_id> [options]` | Create new task (name FIRST!) |
 | `task_update` | `tu` | `cum tu <task_id> [options]` | Update task properties |
-| `task_delete` | `td` | `cum td <task_id>` | Delete task |
+| `task_delete` | `td` | `cum td <task_id> [--force]` | Delete task |
 | `task_assign` | `ta` | `cum ta <task_id> <user_id> [...]` | Assign users to task |
 | `task_unassign` | `tua` | `cum tua <task_id> <user_id> [...]` | Remove assignees |
 | `task_set_status` | `tss` | `cum tss <task_id> [...] <status>` | Change task status (validates subtasks) |
 | `task_set_priority` | `tsp` | `cum tsp <task_id> <priority>` | Set priority (1-4 or name) |
 | `task_set_tags` | `tst` | `cum tst <task_id> <--add\|--remove\|--set> <tags...>` | Manage task tags |
-| `task_add_dependency` | `tad` | `cum tad <task_id> <depends_on_id>` | Add dependency |
-| `task_remove_dependency` | `trd` | `cum trd <task_id> <dependency_id>` | Remove dependency |
+| `task_add_dependency` | `tad` | `cum tad <task_id> --waiting-on\|--blocking <task_id>` | Add dependency |
+| `task_remove_dependency` | `trd` | `cum trd <task_id> --waiting-on\|--blocking <task_id>` | Remove dependency |
 | `task_add_link` | `tal` | `cum tal <task_id> <linked_task_id>` | Link tasks |
-| `task_remove_link` | `trl` | `cum trl <task_id> <link_id>` | Unlink tasks |
+| `task_remove_link` | `trl` | `cum trl <task_id> <linked_task_id>` | Unlink tasks |
 
 ### Task Create Options
 
+**IMPORTANT**: Task name comes FIRST as a positional argument!
+
 ```bash
+cum tc "Task Name" --list <list_id> [options]
+cum tc "Task Name" --parent <parent_id> [options]  # For subtasks
+
+Options:
+--list LIST_ID              # List to create task in (or "current")
+--parent TASK_ID           # Create as subtask (no --list needed if parent provided)
 --description TEXT          # Task description (text)
 --description-file PATH     # Task description (from file)
 --status STATUS            # Initial status
 --priority {1|2|3|4|urgent|high|normal|low}
 --tags TAG [...]           # Tags to add
 --assignees USER_ID [...]  # Assign users (defaults to context assignee)
---parent TASK_ID           # Create as subtask
 ```
 
 **Note**: `--description` and `--description-file` are mutually exclusive.
@@ -233,8 +240,9 @@ cum a                                            # Your assigned tasks
 cum st current                                   # Task statistics
 
 # Create and manage tasks (using short codes!)
-cum tc current "New feature"                     # Auto-assigned to default assignee
-cum tc current "Feature" --description-file spec.md  # With description from file
+cum tc "New feature" --list current              # Auto-assigned to default assignee
+cum tc "Feature" --list current --description-file spec.md  # With description from file
+cum tc "Subtask" --parent <parent_id>            # Create subtask
 cum tu current --description-file updated_spec.md    # Update from file
 cum tss current "in progress"                    # Set status
 cum tst current --add bug critical               # Add tags
