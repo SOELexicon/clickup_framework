@@ -912,19 +912,26 @@ class TaskDetailFormatter:
         return "\n".join(lines)
 
     def _format_comments(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format comments section."""
-        comments = task.get('comments', [])
-        if not comments:
+        """Format comments section - shows newest comments first."""
+        all_comments = task.get('comments', [])
+        if not all_comments:
             return ""
 
         lines = []
-        header = f"💬 Comments ({len(comments)}):"
+        header = f"💬 Comments ({len(all_comments)}):"
         if options.colorize_output:
             header = colorize(header, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
         lines.append(header)
 
-        # Show up to 5 most recent comments
-        for comment in comments[:5]:
+        # Sort by date descending (newest first) and show up to 5 most recent comments
+        sorted_comments = sorted(
+            all_comments,
+            key=lambda c: c.get('date', 0) if isinstance(c.get('date'), (int, float)) else 0,
+            reverse=True
+        )
+        comments = sorted_comments[:5]
+
+        for comment in comments:
             if isinstance(comment, dict):
                 author = comment.get('user', {}).get('username', 'Unknown') if isinstance(comment.get('user'), dict) else comment.get('user', 'Unknown')
                 date = comment.get('date', '')
@@ -943,8 +950,8 @@ class TaskDetailFormatter:
                     for line in text.split('\n'):
                         lines.append(f"  {line}")
 
-        if len(comments) > 5:
-            more_line = f"\n  ... and {len(comments) - 5} more comments"
+        if len(all_comments) > 5:
+            more_line = f"\n  ... and {len(all_comments) - 5} more comments"
             if options.colorize_output:
                 more_line = colorize(more_line, TextColor.BRIGHT_BLACK)
             lines.append(more_line)

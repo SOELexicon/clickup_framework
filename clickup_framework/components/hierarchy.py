@@ -349,6 +349,15 @@ class TaskHierarchyFormatter:
             root_tasks = [t for t in root_tasks if not self._is_completed(t)]
         # If include_completed is True, show all tasks (no filtering)
 
+        # Check if there are any tasks to display after filtering
+        if not root_tasks:
+            if options.show_closed_only:
+                return "No closed tasks found."
+            elif not options.include_completed:
+                return "No open tasks found. Use --include-completed to show all tasks."
+            else:
+                return "No tasks found."
+
         # Define functions for tree building
         def format_fn(task):
             return self.formatter.format_task(task, options)

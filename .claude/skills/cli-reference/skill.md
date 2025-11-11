@@ -1,12 +1,34 @@
 ---
-description: Complete command reference for the ClickUp Framework CLI (`cum`) with all shortcuts, options, examples, and usage patterns
+name: clickup-cli-reference
+description: Complete command reference for the ClickUp Framework CLI (cum) with all shortcuts, options, examples, and usage patterns
+tags: [clickup, cli, reference, commands]
 ---
+
+# ClickUp Framework CLI Reference
 
 Quick reference for the ClickUp Framework CLI (`cum` / `clickup`)
 
-## IMPORTANT: Command Invocation
+## Installation
 
-When executing ClickUp Framework commands, you MUST use the appropriate invocation method:
+### Install from GitHub (Latest)
+```bash
+pip install --upgrade --force-reinstall git+https://github.com/SOELexicon/clickup_framework.git
+```
+
+### Verify Installation
+```bash
+cum --version
+# or
+clickup --version
+```
+
+### Required: API Token Setup
+```bash
+export CLICKUP_API_TOKEN="your_token_here"
+# Or add to ~/.bashrc or ~/.zshrc for persistence
+```
+
+## Command Invocation
 
 **In Development Environment (working in the repo):**
 ```bash
@@ -25,13 +47,6 @@ clickup <command> [args]
 2. If NOT available (returns empty/error), use: `python -m clickup_framework.cli`
 3. If available, use: `cum`
 
-**Installation (if needed):**
-```bash
-pip install --upgrade --force-reinstall git+https://github.com/SOELexicon/clickup_framework.git
-```
-
-**For the rest of this document, examples show `cum` but replace with `python -m clickup_framework.cli` if in dev environment.**
-
 ## Quick Reference: All Short Codes
 
 **View:** `h` `ls` `l` `c` `f` `fil` `d` `st` `a`
@@ -39,36 +54,6 @@ pip install --upgrade --force-reinstall git+https://github.com/SOELexicon/clicku
 **Tasks:** `tc` `tu` `td` `ta` `tua` `tss` `tsp` `tst` `tad` `trd` `tal` `trl`
 **Comments:** `ca` `cl` `cu` `cd`
 **Docs:** `dl` `dg` `dc` `du` `de` `di` `pl` `pc` `pu`
-
-<details>
-<summary>Examples (click to expand)</summary>
-
-```bash
-# View commands
-cum h current          # hierarchy
-cum c current          # container view
-cum fil current --status "in progress"
-cum st current         # stats
-
-# Task management
-cum tc current "New task"     # create
-cum tu <task_id> --name "Updated"  # update
-cum td <task_id>              # delete
-cum tss <task_id> "done"      # set status
-cum tsp <task_id> urgent      # set priority
-
-# Comments
-cum ca <task_id> "Great work!"   # add comment
-cum cl <task_id>                 # list comments
-
-# Docs
-cum dl <workspace_id>         # list docs
-cum dc <workspace_id> "Title" # create doc
-cum de <workspace_id> --output-dir ./out  # export
-```
-</details>
-
----
 
 ## View Commands
 
@@ -287,4 +272,48 @@ Settings stored in `~/.clickup_context.json`:
 Enable tab completion for bash/zsh (if argcomplete installed):
 ```bash
 eval "$(register-python-argcomplete cum)"
+```
+
+## Troubleshooting
+
+### Command not found: cum
+```bash
+# Reinstall the package
+pip install --upgrade --force-reinstall git+https://github.com/SOELexicon/clickup_framework.git
+
+# Or use the module directly
+python -m clickup_framework.cli --help
+```
+
+### API Token Issues
+```bash
+# Check if token is set
+echo $CLICKUP_API_TOKEN
+
+# Set it permanently in ~/.bashrc or ~/.zshrc
+echo 'export CLICKUP_API_TOKEN="your_token_here"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Permission Errors
+```bash
+# Use virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate
+pip install git+https://github.com/SOELexicon/clickup_framework.git
+```
+
+## Getting Help
+
+```bash
+# General help
+cum --help
+
+# Command-specific help
+cum <command> --help
+
+# Examples
+cum tc --help
+cum h --help
+cum tss --help
 ```
