@@ -18,6 +18,9 @@ def hierarchy_command(args):
     # Check if --all flag is set
     show_all = getattr(args, 'show_all', False)
 
+    # Get the include_completed flag once for use throughout
+    include_closed = getattr(args, 'include_completed', False)
+
     # Validate that either list_id or --all is provided
     if not show_all and not args.list_id:
         print("Error: Either provide a container ID or use --all to show all workspace tasks", file=sys.stderr)
@@ -35,8 +38,12 @@ def hierarchy_command(args):
             print("Error: No workspace ID set. Use 'cum set workspace <team_id>' first.", file=sys.stderr)
             sys.exit(1)
 
-        result = client.get_team_tasks(team_id, subtasks=True, include_closed=False)
-        tasks = result.get('tasks', [])
+        # Fetch all pages of tasks from the workspace
+        tasks = _fetch_all_pages(
+            lambda **p: client.get_team_tasks(team_id, **p),
+            subtasks=True,
+            include_closed=include_closed
+        )
         list_id = None
         container_name = None
     else:
@@ -54,19 +61,21 @@ def hierarchy_command(args):
             # Fetch all tasks from all lists in the space
             space_data = container['data']
             container_name = space_data.get('name', 'Space')
-            tasks = _get_tasks_from_space(client, space_data)
+            tasks = _get_tasks_from_space(client, space_data, include_closed)
             list_id = None
         elif container_type == 'folder':
             # Fetch all tasks from all lists in the folder
             folder_data = container['data']
             container_name = folder_data.get('name', 'Folder')
-            tasks = _get_tasks_from_folder(client, folder_data)
+            tasks = _get_tasks_from_folder(client, folder_data, include_closed)
             list_id = None
         else:  # container_type == 'list'
-            # Fetch tasks from the single list
+            # Fetch all pages of tasks from the single list
             list_id = container_id
-            result = client.get_list_tasks(list_id)
-            tasks = result.get('tasks', [])
+            tasks = _fetch_all_pages(
+                lambda **p: client.get_list_tasks(list_id, **p),
+                include_closed=include_closed
+            )
             container_name = None
 
     options = create_format_options(args)
@@ -91,26 +100,61 @@ def hierarchy_command(args):
     print(output)
 
 
-def _get_tasks_from_lists(client, lists):
+def _fetch_all_pages(fetch_func, **params):
+    """
+    Fetch all pages of results from a paginated API endpoint.
+
+    Args:
+        fetch_func: Function to call for fetching (e.g., client.get_list_tasks)
+        **params: Parameters to pass to the fetch function
+
+    Returns:
+        List of all tasks from all pages
+    """
+    all_tasks = []
+    page = 0
+    last_page = False
+
+    while not last_page:
+        try:
+            result = fetch_func(page=page, **params)
+            tasks = result.get('tasks', [])
+            all_tasks.extend(tasks)
+            last_page = result.get('last_page', True)
+            page += 1
+        except Exception as e:
+            # If pagination fails, log and break
+            logger.warning(f"Pagination stopped at page {page}: {e}")
+            break
+
+    return all_tasks
+
+
+def _get_tasks_from_lists(client, lists, include_closed=False):
     """
     Fetch tasks from a list of list objects.
-    
+
     Args:
         client: ClickUpClient instance
         lists: List of list objects with 'id' field
-    
+        include_closed: Whether to include closed/completed tasks
+
     Returns:
         List of tasks from all lists
     """
     from clickup_framework.exceptions import ClickUpNotFoundError, ClickUpAuthError
-    
+
     tasks = []
     for list_item in lists:
         list_id = list_item.get('id')
         if list_id:
             try:
-                result = client.get_list_tasks(list_id)
-                tasks.extend(result.get('tasks', []))
+                # Fetch all pages for this list
+                list_tasks = _fetch_all_pages(
+                    lambda **p: client.get_list_tasks(list_id, **p),
+                    include_closed=include_closed
+                )
+                tasks.extend(list_tasks)
             except (ClickUpNotFoundError, ClickUpAuthError) as e:
                 # Log known errors but continue with other lists
                 logger.debug(f"Failed to fetch tasks from list {list_id}: {e}")
@@ -120,7 +164,7 @@ def _get_tasks_from_lists(client, lists):
     return tasks
 
 
-def _get_tasks_from_space(client, space_data):
+def _get_tasks_from_space(client, space_data, include_closed=False):
     """Fetch all tasks from all lists within a space."""
     tasks = []
 
@@ -128,19 +172,19 @@ def _get_tasks_from_space(client, space_data):
     folders = space_data.get('folders', [])
     for folder in folders:
         lists = folder.get('lists', [])
-        tasks.extend(_get_tasks_from_lists(client, lists))
+        tasks.extend(_get_tasks_from_lists(client, lists, include_closed))
 
     # Get folderless lists (lists directly under space)
     lists = space_data.get('lists', [])
-    tasks.extend(_get_tasks_from_lists(client, lists))
+    tasks.extend(_get_tasks_from_lists(client, lists, include_closed))
 
     return tasks
 
 
-def _get_tasks_from_folder(client, folder_data):
+def _get_tasks_from_folder(client, folder_data, include_closed=False):
     """Fetch all tasks from all lists within a folder."""
     lists = folder_data.get('lists', [])
-    return _get_tasks_from_lists(client, lists)
+    return _get_tasks_from_lists(client, lists, include_closed)
 
 
 def register_command(subparsers):
