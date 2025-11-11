@@ -25,7 +25,14 @@ def task_create_command(args):
     try:
         list_id = context.resolve_id('list', args.list_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': 'task_create', 'provided_list_id': args.list_id})
+        # Provide helpful error message if "current" is used without setting context
+        error_context = {
+            'command': 'task_create',
+            'provided_list_id': args.list_id,
+            'current_workspace': context.get_current_workspace() or 'Not set',
+            'current_list': context.get_current_list() or 'Not set',
+        }
+        handle_cli_error(e, error_context)
 
     # Build task data
     task_data = {'name': args.name}
@@ -59,7 +66,30 @@ def task_create_command(args):
             task_data['status'] = args.status
 
     if args.priority is not None:
-        task_data['priority'] = args.priority
+        # Map priority names to numbers if needed
+        priority_map = {
+            'urgent': 1,
+            'high': 2,
+            'normal': 3,
+            'low': 4
+        }
+
+        priority = args.priority
+        if isinstance(priority, str) and priority.lower() in priority_map:
+            priority = priority_map[priority.lower()]
+        elif isinstance(priority, str):
+            try:
+                priority = int(priority)
+            except ValueError:
+                print(f"Error: Invalid priority '{priority}'. Use 1-4 or urgent/high/normal/low", file=sys.stderr)
+                sys.exit(1)
+
+        # Validate priority range
+        if priority not in [1, 2, 3, 4]:
+            print(f"Error: Priority must be 1-4 (1=urgent, 2=high, 3=normal, 4=low). Got: {priority}", file=sys.stderr)
+            sys.exit(1)
+
+        task_data['priority'] = priority
 
     if args.tags:
         task_data['tags'] = args.tags
@@ -74,6 +104,12 @@ def task_create_command(args):
 
     if args.parent:
         task_data['parent'] = args.parent
+
+    if args.custom_task_ids:
+        task_data['custom_task_ids'] = args.custom_task_ids
+
+    if args.check_required_custom_fields is not None:
+        task_data['check_required_custom_fields'] = args.check_required_custom_fields
 
     # Create the task
     try:
@@ -650,10 +686,15 @@ def register_command(subparsers):
     description_group.add_argument('--description', help='Task description')
     description_group.add_argument('--description-file', help='Read task description from file')
     task_create_parser.add_argument('--status', help='Task status')
-    task_create_parser.add_argument('--priority', type=int, help='Task priority (1-4)')
+    task_create_parser.add_argument('--priority', help='Task priority (1-4 or urgent/high/normal/low)')
     task_create_parser.add_argument('--tags', nargs='+', help='Tags to add')
     task_create_parser.add_argument('--assignees', nargs='+', help='Assignee IDs')
     task_create_parser.add_argument('--parent', help='Parent task ID')
+    task_create_parser.add_argument('--custom-task-ids', dest='custom_task_ids', action='store_true',
+                                    help='Use custom task IDs (requires workspace setting enabled)')
+    task_create_parser.add_argument('--check-required-custom-fields', dest='check_required_custom_fields',
+                                    type=lambda x: x.lower() == 'true', metavar='true|false',
+                                    help='Check required custom fields (default: true)')
     task_create_parser.set_defaults(func=task_create_command)
 
     # Task update
