@@ -384,7 +384,7 @@ class TaskHierarchyFormatter:
             messages.append(orphaned_info)
 
         if messages:
-            return "".join(messages) + tree_output
+            return "\n".join(messages) + "\n" + tree_output
         else:
             return tree_output
 
