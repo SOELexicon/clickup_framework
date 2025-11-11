@@ -187,14 +187,18 @@ def hierarchy_command(args):
             print(status_line)
             print()  # Empty line for spacing
 
-    header = args.header if hasattr(args, 'header') and args.header else None
-    if show_all and not header:
-        header = "All Workspace Tasks"
-    elif container_name and not header:
-        header = container_name
+    # Determine header for display
+    header = getattr(args, "header", None)
+    if not header:
+        if show_all:
+            header = "All Workspace Tasks"
+        elif container_name:
+            header = f"Tasks in {container_name}"
+        else:
+            header = "Tasks"
 
-    output = display.hierarchy_view(tasks, options, header)
-
+    # Use hierarchy view to show tasks with header
+    output = display.hierarchy_view(tasks, options, header=header)
     print(output)
 
 
