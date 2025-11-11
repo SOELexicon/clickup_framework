@@ -536,7 +536,6 @@ class TestIntegration:
             }
         ]
 
-        call_count = [0]
 
         def mock_get_team_tasks(*args, **kwargs):
             page = kwargs.get('page', 0)
