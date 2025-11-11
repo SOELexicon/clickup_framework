@@ -4,7 +4,9 @@ import sys
 import os
 import platform
 import subprocess
+import re
 from pathlib import Path
+from typing import Optional, Tuple
 from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -372,6 +374,362 @@ def update_cum_command(args):
     sys.exit(0 if failed_count == 0 else 1)
 
 
+# ============================================================================
+# Version Bump Functions (from scripts/bump_version.py)
+# ============================================================================
+
+def run_git_command(cmd: list, capture_output: bool = True) -> subprocess.CompletedProcess:
+    """Run a git command and return the result."""
+    return subprocess.run(
+        cmd,
+        capture_output=capture_output,
+        text=True,
+        check=False
+    )
+
+
+def get_latest_tag() -> Optional[str]:
+    """Get the latest version tag from git."""
+    result = run_git_command(['git', 'tag', '-l', '--sort=-v:refname'])
+
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+
+    # Get the first tag (most recent)
+    tags = result.stdout.strip().split('\n')
+    for tag in tags:
+        # Match semantic versioning pattern
+        if re.match(r'^\d+\.\d+\.\d+', tag):
+            return tag
+
+    return None
+
+
+def parse_version(version_str: str) -> Tuple[int, int, int, str]:
+    """
+    Parse a version string into components.
+    Returns (major, minor, patch, suffix)
+    """
+    # Remove 'v' prefix if present
+    version_str = version_str.lstrip('v')
+
+    # Match version pattern with optional suffix
+    match = re.match(r'^(\d+)\.(\d+)\.(\d+)(.*)', version_str)
+
+    if not match:
+        raise ValueError(f"Invalid version format: {version_str}")
+
+    major, minor, patch, suffix = match.groups()
+    return int(major), int(minor), int(patch), suffix or ''
+
+
+def format_version(major: int, minor: int, patch: int, suffix: str = '') -> str:
+    """Format version components into a version string."""
+    return f"{major}.{minor}.{patch}{suffix}"
+
+
+def increment_version(version_str: str, increment_type: str) -> str:
+    """
+    Increment a version string.
+
+    Args:
+        version_str: Current version (e.g., "1.2.3")
+        increment_type: One of "major", "minor", "patch"
+
+    Returns:
+        New version string
+    """
+    major, minor, patch, suffix = parse_version(version_str)
+
+    if increment_type == 'major':
+        major += 1
+        minor = 0
+        patch = 0
+    elif increment_type == 'minor':
+        minor += 1
+        patch = 0
+    elif increment_type == 'patch':
+        patch += 1
+    else:
+        raise ValueError(f"Invalid increment type: {increment_type}")
+
+    # Remove suffix for incremented versions
+    return format_version(major, minor, patch)
+
+
+def create_and_push_tag(version: str, push: bool = True, use_color: bool = True) -> bool:
+    """
+    Create a git tag and optionally push it to origin.
+
+    Args:
+        version: Version string (e.g., "1.0.0")
+        push: Whether to push the tag to origin
+        use_color: Whether to use colored output
+
+    Returns:
+        True if successful, False otherwise
+    """
+    tag_name = f"v{version}" if not version.startswith('v') else version
+
+    # Create the tag
+    print()
+    msg = f"Creating tag: {tag_name}"
+    if use_color:
+        print(colorize(msg, TextColor.BRIGHT_YELLOW))
+    else:
+        print(msg)
+
+    result = run_git_command(['git', 'tag', '-a', tag_name, '-m', f'Release {version}'])
+
+    if result.returncode != 0:
+        error_msg = f"Error creating tag: {result.stderr}"
+        if use_color:
+            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
+        return False
+
+    success_msg = f"✓ Tag {tag_name} created successfully"
+    if use_color:
+        print(colorize(success_msg, TextColor.BRIGHT_GREEN))
+    else:
+        print(success_msg)
+
+    if push:
+        # Push the tag to origin
+        msg = "Pushing tag to origin..."
+        if use_color:
+            print(colorize(msg, TextColor.BRIGHT_YELLOW))
+        else:
+            print(msg)
+
+        result = run_git_command(['git', 'push', 'origin', tag_name])
+
+        if result.returncode != 0:
+            error_msg = f"Error pushing tag: {result.stderr}"
+            if use_color:
+                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+                print(colorize(f"You can manually push with: git push origin {tag_name}", TextColor.YELLOW))
+            else:
+                print(error_msg, file=sys.stderr)
+                print(f"You can manually push with: git push origin {tag_name}")
+            return False
+
+        success_msg = f"✓ Tag {tag_name} pushed to origin"
+        if use_color:
+            print(colorize(success_msg, TextColor.BRIGHT_GREEN))
+        else:
+            print(success_msg)
+
+    return True
+
+
+def interactive_bump(use_color: bool = True) -> Optional[str]:
+    """Interactive version bump - prompts user for increment type."""
+    current_version = get_latest_tag()
+
+    print("=" * 60)
+    title = "Version Bump Tool"
+    if use_color:
+        print(colorize(title, TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+    else:
+        print(title)
+    print("=" * 60)
+    print()
+
+    if current_version:
+        msg = f"Current version: {current_version}"
+        if use_color:
+            print(colorize(msg, TextColor.BRIGHT_WHITE))
+        else:
+            print(msg)
+    else:
+        msg = "No version tags found. Starting from 0.0.0"
+        if use_color:
+            print(colorize(msg, TextColor.YELLOW))
+        else:
+            print(msg)
+        current_version = "0.0.0"
+
+    print()
+    print("How would you like to increment the version?")
+    print()
+
+    major, minor, patch, _ = parse_version(current_version)
+
+    option1 = f"  1. Major (breaking changes)     -> {format_version(major + 1, 0, 0)}"
+    option2 = f"  2. Minor (new features)          -> {format_version(major, minor + 1, 0)}"
+    option3 = f"  3. Patch (bug fixes)             -> {format_version(major, minor, patch + 1)}"
+
+    if use_color:
+        print(colorize(option1, TextColor.BRIGHT_WHITE))
+        print(colorize(option2, TextColor.BRIGHT_WHITE))
+        print(colorize(option3, TextColor.BRIGHT_WHITE))
+    else:
+        print(option1)
+        print(option2)
+        print(option3)
+
+    print("  4. Custom version")
+    print("  5. Cancel")
+    print()
+
+    choice = input("Enter your choice (1-5): ").strip()
+
+    if choice == '1':
+        new_version = increment_version(current_version, 'major')
+    elif choice == '2':
+        new_version = increment_version(current_version, 'minor')
+    elif choice == '3':
+        new_version = increment_version(current_version, 'patch')
+    elif choice == '4':
+        custom = input("Enter custom version (e.g., 1.0.0-alpha): ").strip()
+        try:
+            # Validate the version
+            parse_version(custom)
+            new_version = custom
+        except ValueError as e:
+            error_msg = f"Error: {e}"
+            if use_color:
+                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+            else:
+                print(error_msg, file=sys.stderr)
+            return None
+    elif choice == '5':
+        if use_color:
+            print(colorize("Cancelled.", TextColor.YELLOW))
+        else:
+            print("Cancelled.")
+        return None
+    else:
+        error_msg = "Invalid choice."
+        if use_color:
+            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
+        return None
+
+    print()
+    msg = f"New version will be: {new_version}"
+    if use_color:
+        print(colorize(msg, TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+    else:
+        print(msg)
+
+    confirm = input("Confirm? (y/n): ").strip().lower()
+
+    if confirm != 'y':
+        if use_color:
+            print(colorize("Cancelled.", TextColor.YELLOW))
+        else:
+            print("Cancelled.")
+        return None
+
+    return new_version
+
+
+def update_version_command(args):
+    """Update the project version by creating a new git tag."""
+    context = get_context_manager()
+    use_color = context.get_ansi_output()
+
+    # Check if we're in a git repository
+    result = run_git_command(['git', 'rev-parse', '--git-dir'])
+    if result.returncode != 0:
+        error_msg = "Error: Not in a git repository"
+        if use_color:
+            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
+        sys.exit(1)
+
+    # Determine new version
+    new_version = None
+
+    # Handle quick increment flags
+    if hasattr(args, 'major') and args.major:
+        increment_type = 'major'
+    elif hasattr(args, 'minor') and args.minor:
+        increment_type = 'minor'
+    elif hasattr(args, 'patch') and args.patch:
+        increment_type = 'patch'
+    else:
+        increment_type = None
+
+    # Handle specific version argument
+    if hasattr(args, 'version') and args.version:
+        try:
+            parse_version(args.version)
+            new_version = args.version
+            msg = f"Setting version to: {new_version}"
+            if use_color:
+                print(colorize(msg, TextColor.BRIGHT_CYAN))
+            else:
+                print(msg)
+        except ValueError as e:
+            error_msg = f"Error: {e}"
+            if use_color:
+                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+            else:
+                print(error_msg, file=sys.stderr)
+            sys.exit(1)
+    elif increment_type:
+        current_version = get_latest_tag()
+        if not current_version:
+            msg = "No version tags found. Creating initial version 0.1.0"
+            if use_color:
+                print(colorize(msg, TextColor.YELLOW))
+            else:
+                print(msg)
+            new_version = "0.1.0"
+        else:
+            new_version = increment_version(current_version, increment_type)
+            msg = f"Bumping {increment_type} version: {current_version} -> {new_version}"
+            if use_color:
+                print(colorize(msg, TextColor.BRIGHT_CYAN))
+            else:
+                print(msg)
+    else:
+        # Interactive mode
+        new_version = interactive_bump(use_color)
+
+    if not new_version:
+        sys.exit(1)
+
+    # Check for --no-push flag
+    no_push = hasattr(args, 'no_push') and args.no_push
+
+    # Create and push the tag
+    success = create_and_push_tag(new_version, push=not no_push, use_color=use_color)
+
+    if success:
+        print()
+        print("=" * 60)
+        success_msg = f"✓ Version {new_version} tagged successfully!"
+        if use_color:
+            print(colorize(success_msg, TextColor.BRIGHT_GREEN, TextStyle.BOLD))
+        else:
+            print(success_msg)
+
+        if not no_push:
+            push_msg = "✓ Tag pushed to origin"
+            if use_color:
+                print(colorize(push_msg, TextColor.BRIGHT_GREEN))
+            else:
+                print(push_msg)
+
+        print()
+        update_msg = "Run 'cum update cum' to update to the new version."
+        if use_color:
+            print(colorize(update_msg, TextColor.BRIGHT_YELLOW))
+        else:
+            print(update_msg)
+        print("=" * 60)
+        sys.exit(0)
+    else:
+        sys.exit(1)
+
+
 def register_command(subparsers):
     """Register update command."""
     # Update command
@@ -383,3 +741,33 @@ def register_command(subparsers):
     update_cum_parser = update_subparsers.add_parser('cum',
                                                      help='Update cum tool from git and reinstall')
     update_cum_parser.set_defaults(func=update_cum_command)
+
+    # Update version (bump version)
+    update_version_parser = update_subparsers.add_parser('version',
+                                                         help='Bump project version and create git tag')
+    update_version_parser.add_argument(
+        'version',
+        nargs='?',
+        help='Specific version to set (e.g., 1.0.0)'
+    )
+    update_version_parser.add_argument(
+        '--major',
+        action='store_true',
+        help='Increment major version'
+    )
+    update_version_parser.add_argument(
+        '--minor',
+        action='store_true',
+        help='Increment minor version'
+    )
+    update_version_parser.add_argument(
+        '--patch',
+        action='store_true',
+        help='Increment patch version'
+    )
+    update_version_parser.add_argument(
+        '--no-push',
+        action='store_true',
+        help='Create tag locally but do not push to origin'
+    )
+    update_version_parser.set_defaults(func=update_version_command)
