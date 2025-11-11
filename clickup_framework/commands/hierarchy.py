@@ -193,7 +193,12 @@ def hierarchy_command(args):
     elif container_name and not header:
         header = container_name
 
-    output = display.hierarchy_view(tasks, options, header)
+    # Use container view for --all to show organizational hierarchy
+    # Use parent-child hierarchy view for specific containers
+    if show_all:
+        output = display.container_view(tasks, options)
+    else:
+        output = display.hierarchy_view(tasks, options, header)
 
     print(output)
 
