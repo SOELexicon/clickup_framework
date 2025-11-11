@@ -63,20 +63,27 @@ def get_python_from_script(script_path):
 
     # On Windows, try to find python.exe in the expected locations first
     if platform.system() == "Windows":
-        # On Windows, look for python.exe in Scripts parent dir
-        if 'Scripts' in script_dir or 'scripts' in script_dir:
-            parent_dir = os.path.dirname(script_dir)
-            python_exe = os.path.join(parent_dir, 'python.exe')
+        # Check multiple parent directory levels for python.exe
+        # This handles cases like C:\Python\Scr\bin\cum.exe -> C:\Python\python.exe
+        current_dir = script_dir
+        for _ in range(4):  # Check up to 4 levels up
+            parent_dir = os.path.dirname(current_dir)
+            if not parent_dir or parent_dir == current_dir:
+                break
+
+            # Check for python.exe and python3.exe in parent directory
+            for python_name in ['python.exe', 'python3.exe']:
+                python_exe = os.path.join(parent_dir, python_name)
+                if os.path.isfile(python_exe):
+                    return python_exe
+
+            current_dir = parent_dir
+
+        # Also check in same directory as cum.exe
+        for python_name in ['python.exe', 'python3.exe']:
+            python_exe = os.path.join(script_dir, python_name)
             if os.path.isfile(python_exe):
                 return python_exe
-
-        # Also check if we can find python.exe by looking at the script
-        # On Windows, cum might be cum.exe, and we need to find python.exe
-        # Try the parent directory
-        parent_dir = os.path.dirname(script_dir)
-        python_exe = os.path.join(parent_dir, 'python.exe')
-        if os.path.isfile(python_exe):
-            return python_exe
 
         # As a last resort on Windows, try to use 'python' from PATH
         # This will find the python that would be used in the same environment
