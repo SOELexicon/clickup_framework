@@ -14,6 +14,7 @@ from clickup_framework.utils.text import strip_markdown
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.tree import TreeFormatter
 from clickup_framework.components.task_formatter import RichTaskFormatter
+from clickup_framework.components.dependency_analyzer import DependencyAnalyzer
 
 
 class TaskDetailFormatter:
@@ -29,8 +30,14 @@ class TaskDetailFormatter:
     - Checklists, attachments, comments
     """
 
-    def __init__(self):
-        """Initialize the detail formatter."""
+    def __init__(self, client=None):
+        """
+        Initialize the detail formatter.
+
+        Args:
+            client: Optional ClickUpClient for fetching related tasks
+        """
+        self.client = client
         self.section_separator = "─" * 60
         self.task_formatter = RichTaskFormatter()
 
@@ -83,6 +90,13 @@ class TaskDetailFormatter:
             relationship_tree = self._format_relationship_tree(task, all_tasks, options)
             if relationship_tree:
                 sections.append(relationship_tree)
+
+        # Dependency analysis - comprehensive dependency and relationship analysis
+        if all_tasks:
+            analyzer = DependencyAnalyzer(self.client)
+            dependency_analysis = analyzer.analyze_dependencies(task, all_tasks, options)
+            if dependency_analysis:
+                sections.append(dependency_analysis)
 
         # Checklists
         checklists = self._format_checklists(task, options)
