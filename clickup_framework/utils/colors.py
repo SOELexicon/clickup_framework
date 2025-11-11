@@ -12,9 +12,9 @@ from typing import Optional
 
 
 # Check if colors should be disabled
-NO_COLOR = os.environ.get('NO_COLOR') is not None
-FORCE_COLOR = os.environ.get('FORCE_COLOR') is not None
-HAS_TTY = sys.stdout.isatty() if hasattr(sys.stdout, 'isatty') else False
+NO_COLOR = os.environ.get("NO_COLOR") is not None
+FORCE_COLOR = os.environ.get("FORCE_COLOR") is not None
+HAS_TTY = sys.stdout.isatty() if hasattr(sys.stdout, "isatty") else False
 
 # Determine if we should use colors - enable by default unless explicitly disabled
 USE_COLORS = not NO_COLOR
@@ -22,6 +22,7 @@ USE_COLORS = not NO_COLOR
 
 class TextColor(Enum):
     """Text color ANSI codes."""
+
     BLACK = "\033[30m"
     RED = "\033[31m"
     GREEN = "\033[32m"
@@ -43,6 +44,7 @@ class TextColor(Enum):
 
 class TextStyle(Enum):
     """Text style ANSI codes."""
+
     BOLD = "\033[1m"
     DIM = "\033[2m"
     ITALIC = "\033[3m"
@@ -54,7 +56,7 @@ def colorize(
     text: str,
     color: Optional[TextColor] = None,
     style: Optional[TextStyle] = None,
-    force: bool = False
+    force: bool = False,
 ) -> str:
     """
     Apply color and style to text for terminal output.
@@ -68,7 +70,16 @@ def colorize(
     Returns:
         Colorized text string with ANSI codes (if colors are enabled)
     """
-    if (not USE_COLORS and not force) or (color is None and style is None):
+    # Check HIDE_ANSI environment variable directly alongside NO_COLOR
+    # This avoids circular dependency with ContextManager
+    should_use_colors = USE_COLORS
+    if not force:
+        # If HIDE_ANSI is set to '1', disable colors (consistent with NO_COLOR behavior)
+        hide_ansi = os.environ.get("HIDE_ANSI", "").strip()
+        if hide_ansi == "1":
+            should_use_colors = False
+
+    if (not should_use_colors and not force) or (color is None and style is None):
         return text
 
     codes = []
@@ -91,8 +102,8 @@ def strip_ansi(text: str) -> str:
     Returns:
         Text with ANSI codes removed
     """
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    return ansi_escape.sub('', text)
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def status_to_code(status: str) -> str:
@@ -204,13 +215,13 @@ def container_color(container_type: str) -> TextColor:
     """
     container_type = str(container_type).lower()
 
-    if container_type == 'workspace':
+    if container_type == "workspace":
         return TextColor.BRIGHT_MAGENTA
-    elif container_type == 'space':
+    elif container_type == "space":
         return TextColor.BRIGHT_BLUE
-    elif container_type == 'folder':
+    elif container_type == "folder":
         return TextColor.BRIGHT_CYAN
-    elif container_type == 'list':
+    elif container_type == "list":
         return TextColor.BRIGHT_YELLOW
     else:
         return TextColor.WHITE
@@ -259,7 +270,7 @@ TASK_TYPE_EMOJI = {
     "test": "🧪",
     "security": "🛡️",
     "project": "📂",
-    "milestone": "🏁"
+    "milestone": "🏁",
 }
 
 
