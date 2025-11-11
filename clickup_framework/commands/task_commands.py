@@ -14,6 +14,36 @@ from clickup_framework.utils.status_mapper import (
     format_available_statuses,
     suggest_status,
 )
+from clickup_framework.automation.config import load_automation_config
+from clickup_framework.automation.parent_updater import ParentTaskAutomationEngine
+from clickup_framework.automation.models import ParentUpdateResult
+
+
+def display_automation_result(result: ParentUpdateResult, custom_comment: str = None):
+    """
+    Display automation result to the user.
+
+    Args:
+        result: ParentUpdateResult from automation engine
+        custom_comment: Optional custom comment from user
+    """
+    if result.skip_reason == "parent_already_active":
+        print(f"\nℹ️  Parent task already active (status: {result.old_status})")
+        print(f"  No update needed for: {result.parent_task_name} [{result.parent_task_id}]")
+    elif result.update_successful:
+        print(f"\n🔄 Auto-Update: Parent task updated")
+        print(f"  Task: {result.parent_task_name} [{result.parent_task_id}]")
+        print(f"  Status: {result.old_status} → {result.new_status}")
+        if result.comment_posted:
+            print(f"  Comment: Posted automation notice")
+        print(f"  Latency: {result.latency_ms}ms")
+    else:
+        # Failed automation
+        print(f"\n⚠️  Warning: Automatic parent update failed")
+        print(f"  Parent task: {result.parent_task_name} [{result.parent_task_id}]")
+        if result.error_message:
+            print(f"  Error: {result.error_message}")
+        print(f"  {colorize('→ You may need to manually update the parent task', TextColor.BRIGHT_YELLOW)}")
 
 
 def task_create_command(args):
@@ -323,6 +353,15 @@ def task_set_status_command(args):
     context = get_context_manager()
     client = ClickUpClient()
 
+    # Load automation configuration
+    automation_config = load_automation_config()
+    automation_engine = ParentTaskAutomationEngine(automation_config, client)
+
+    # Check for automation flags
+    skip_automation = getattr(args, 'no_parent_update', False)
+    force_automation = getattr(args, 'update_parent', False)
+    custom_comment = getattr(args, 'parent_comment', None)
+
     # Resolve all task IDs
     task_ids = []
     for tid in args.task_ids:
@@ -337,6 +376,7 @@ def task_set_status_command(args):
     success_count = 0
     failed_count = 0
     errors_by_type = defaultdict(list)  # {(error_message, status_code): [task_ids]}
+    parent_updates = {}  # Track which parents have been updated
 
     for task_id in task_ids:
         # Get task details to check for subtasks
@@ -399,6 +439,11 @@ def task_set_status_command(args):
                 continue
 
             # No mismatched subtasks, proceed with update
+            # Get old status for automation tracking
+            old_status = task.get('status', {})
+            if isinstance(old_status, dict):
+                old_status = old_status.get('status', '')
+
             updated_task = client.update_task(task_id, status=args.status)
 
             success_msg = ANSIAnimations.success_message(f"Status updated")
@@ -408,6 +453,27 @@ def task_set_status_command(args):
 
             if subtasks:
                 print(f"Subtasks: {len(subtasks)} subtask(s) also have status '{args.status}'")
+
+            # Handle parent automation
+            parent_id = task.get('parent')
+            if parent_id:
+                # Check if we've already updated this parent (for batching multiple subtasks)
+                if parent_id not in parent_updates:
+                    event = automation_engine.handle_status_update(
+                        task_id=task_id,
+                        old_status=old_status,
+                        new_status=args.status,
+                        force_update=force_automation,
+                        skip_automation=skip_automation
+                    )
+
+                    # Display automation result
+                    if event.automation_triggered and event.automation_result:
+                        display_automation_result(event.automation_result, custom_comment)
+                        parent_updates[parent_id] = True
+                else:
+                    # Parent already updated by another subtask
+                    print(f"\nℹ️  Parent already updated (skipped for this subtask)")
 
             if len(task_ids) > 1:
                 print()  # Extra spacing between tasks
@@ -758,6 +824,12 @@ def register_command(subparsers):
                                                     help='Set task status')
     task_set_status_parser.add_argument('task_ids', nargs='+', help='Task ID(s) (or "current")')
     task_set_status_parser.add_argument('status', help='New status')
+    task_set_status_parser.add_argument('--no-parent-update', action='store_true',
+                                        help='Skip automatic parent task update')
+    task_set_status_parser.add_argument('--update-parent', action='store_true',
+                                        help='Force parent update even if automation disabled')
+    task_set_status_parser.add_argument('--parent-comment', type=str,
+                                        help='Custom comment to post on parent task')
     task_set_status_parser.set_defaults(func=task_set_status_command)
 
     # Task set priority
