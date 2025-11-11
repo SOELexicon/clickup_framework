@@ -352,9 +352,20 @@ class ContextManager:
         """
         Get whether ANSI color output is enabled.
 
+        Checks in order:
+        1. Environment variable HIDE_ANSI (if set to '1', disables ANSI)
+        2. Context setting 'ansi_output'
+        3. Default: False
+
         Returns:
             True if ANSI output is enabled, False otherwise (default: False)
         """
+        # Check environment variable first - if HIDE_ANSI=1, disable ANSI
+        hide_ansi = os.environ.get('HIDE_ANSI', '').strip()
+        if hide_ansi == '1':
+            return False
+
+        # Otherwise use context setting
         return self._context.get('ansi_output', False)
 
     def clear_all(self) -> None:
