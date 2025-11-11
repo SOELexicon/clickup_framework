@@ -23,14 +23,30 @@ def detail_command(args):
     task = client.get_task(task_id)
 
     # Get all tasks from the list for relationship context
+    # If list_id not provided, extract it from the task
     if args.list_id:
         try:
             list_id = context.resolve_id('list', args.list_id)
-            result = client.get_list_tasks(list_id)
-            all_tasks = result.get('tasks', [])
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+    else:
+        # Extract list ID from the task object
+        list_data = task.get('list')
+        if list_data:
+            list_id = list_data.get('id') if isinstance(list_data, dict) else list_data
+        else:
+            list_id = None
+
+    # Fetch all tasks from the list if we have a list ID
+    if list_id:
+        try:
+            result = client.get_list_tasks(list_id)
+            all_tasks = result.get('tasks', [])
+        except Exception as e:
+            # If we can't fetch list tasks, just show task without relationships
+            print(f"Warning: Could not fetch list tasks: {e}", file=sys.stderr)
+            all_tasks = None
     else:
         all_tasks = None
 
