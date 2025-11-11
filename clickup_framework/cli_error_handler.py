@@ -98,12 +98,28 @@ def _format_auth_error(error: ClickUpAuthError, context: Dict, use_color: bool) 
             "Get your token from: https://app.clickup.com/settings/apps",
         ]
     elif "team not authorized" in error_msg.lower():
+        # Extract workspace ID from context if available
+        workspace_id = context.get('current_workspace')
+        list_id = context.get('list_id')
+
         suggestions = [
-            "Verify the workspace/team ID is correct",
+            "This usually means your API token doesn't have access to the specified workspace/list",
             "Check that your API token has access to this workspace",
-            "Ensure you're using the correct workspace: cum set workspace <workspace_id>",
-            "List available workspaces: cum hierarchy --all",
         ]
+
+        # Add specific suggestions based on what's in the context
+        if workspace_id and workspace_id != 'Not set':
+            suggestions.append(f"Current workspace: {workspace_id} - verify this is correct")
+
+        if list_id:
+            suggestions.append(f"List ID: {list_id} - verify you have access to this list")
+
+        suggestions.extend([
+            "Set correct workspace: cum set workspace <workspace_id>",
+            "List available workspaces: cum hierarchy --all",
+            "Verify your API token at: https://app.clickup.com/settings/apps",
+            "Make sure the API token has workspace permissions enabled",
+        ])
     elif "invalid" in error_msg.lower() or "expired" in error_msg.lower():
         suggestions = [
             "Check that your API token is correct and not expired",

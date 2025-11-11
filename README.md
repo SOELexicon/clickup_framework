@@ -294,7 +294,8 @@ for task in result['tasks']:
 new_task = client.create_task(
     list_id="list_id",
     name="New Task",
-    description="Task description"
+    description="Task description",
+    priority=1  # 1=Urgent, 2=High, 3=Normal, 4=Low
 )
 client.update_task(task_id="task_id", status="in progress")
 ```

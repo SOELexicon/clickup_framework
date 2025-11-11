@@ -74,7 +74,7 @@ def show_command_tree():
             ("clear_current [clear]", "[type]", "Clear one or all context resources"),
         ],
         "✅ Task Management": [
-            ("task_create [tc]", "<list_id> <name> [OPTIONS]", "Create new task with optional description/tags/assignees"),
+            ("task_create [tc]", "<list_id> <name> [OPTIONS]", "Create new task (priority: 1-4 or urgent/high/normal/low)"),
             ("task_update [tu]", "<task_id> [OPTIONS]", "Update task name/description/status/priority/tags"),
             ("task_delete [td]", "<task_id> [--force]", "Delete task with confirmation prompt"),
             ("task_assign [ta]", "<task_id> <user_id> [...]", "Assign one or more users to task"),
