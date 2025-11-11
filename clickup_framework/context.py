@@ -132,9 +132,13 @@ class ContextManager:
         Get the current list ID.
 
         Returns:
-            Current list ID or None if not set
+            Current list ID from context, or from CLICKUP_DEFAULT_LIST env var, or None if neither is set
         """
-        return self._context.get('current_list')
+        # First try context, then environment variable
+        list_id = self._context.get('current_list')
+        if not list_id:
+            list_id = os.environ.get('CLICKUP_DEFAULT_LIST')
+        return list_id
 
     def set_current_space(self, space_id: str) -> None:
         """
@@ -192,9 +196,13 @@ class ContextManager:
         Get the current workspace/team ID.
 
         Returns:
-            Current workspace/team ID or None if not set
+            Current workspace/team ID from context, or from CLICKUP_DEFAULT_WORKSPACE env var, or None if neither is set
         """
-        return self._context.get('current_workspace')
+        # First try context, then environment variable
+        workspace_id = self._context.get('current_workspace')
+        if not workspace_id:
+            workspace_id = os.environ.get('CLICKUP_DEFAULT_WORKSPACE')
+        return workspace_id
 
     def clear_current_task(self) -> None:
         """Clear the current task ID."""
@@ -308,9 +316,19 @@ class ContextManager:
         Get the default assignee user ID.
 
         Returns:
-            Default assignee user ID or 68483025 if not set
+            Default assignee user ID from context, or from CLICKUP_DEFAULT_ASSIGNEE env var, or None if neither is set
         """
-        return self._context.get('default_assignee', 68483025)
+        # First try context, then environment variable
+        assignee_id = self._context.get('default_assignee')
+        if not assignee_id:
+            env_assignee = os.environ.get('CLICKUP_DEFAULT_ASSIGNEE')
+            if env_assignee:
+                try:
+                    assignee_id = int(env_assignee)
+                except ValueError:
+                    # If env var is not a valid integer, ignore it
+                    pass
+        return assignee_id
 
     def clear_default_assignee(self) -> None:
         """Clear the default assignee."""
