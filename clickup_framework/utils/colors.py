@@ -121,23 +121,60 @@ def status_to_code(status: str) -> str:
 
     status_lower = str(status).lower().strip()
 
-    # Common status mappings
+    # Comprehensive status mappings for common ClickUp workflows
     status_map = {
+        # Starting states
         "to do": "TDO",
         "todo": "TDO",
         "open": "OPN",
+        "backlog": "BLG",
+        "ready": "RDY",
+        # Active work states
         "in progress": "PRG",
         "in development": "DEV",
+        "in dev": "DEV",
+        "wip": "WIP",
+        "working": "WRK",
+        # Testing states
+        "testing": "TST",
+        "test": "TST",
+        "qa": "QA ",
+        "validation": "VAL",
+        "validating": "VAL",
+        # Review states
         "in review": "REV",
+        "review": "REV",
+        "approval": "APR",
+        "pending approval": "PND",
+        "awaiting approval": "AWA",
+        # Accepted states
+        "accepted": "ACC",
+        "approved": "APP",
+        "ready to deploy": "RTD",
+        # Committed states
+        "committed": "CMT",
+        "comitted": "CMT",  # Common typo
+        "deploying": "DPL",
+        "staging": "STG",
+        # Complete states
         "complete": "CMP",
         "completed": "CMP",
         "done": "DON",
         "closed": "CLS",
+        "resolved": "RES",
+        "finished": "FIN",
+        # Rejected states
+        "rejected": "REJ",
+        "declined": "DEC",
+        "cancelled": "CAN",
+        "canceled": "CAN",
+        "abandoned": "ABD",
+        # Blocked states
         "blocked": "BLK",
         "block": "BLK",
-        "testing": "TST",
-        "backlog": "BLG",
-        "ready": "RDY",
+        "on hold": "HLD",
+        "waiting": "WAI",
+        "paused": "PAU",
     }
 
     # Check if we have a mapping
@@ -152,6 +189,17 @@ def status_color(status: str) -> TextColor:
     """
     Get the appropriate color for a task status.
 
+    Provides comprehensive color mapping for common ClickUp statuses:
+    - Open/To Do: Yellow (starting state)
+    - In Progress/Development: Bright Blue (active work)
+    - Testing/QA: Cyan (quality assurance)
+    - Review/Approval: Magenta (awaiting decision)
+    - Accepted: Bright Cyan (approved)
+    - Committed: Blue (committed to deployment)
+    - Complete/Closed: Bright Green (finished)
+    - Rejected: Red (declined)
+    - Blocked: Bright Red (blocked)
+
     Args:
         status: Task status string
 
@@ -163,14 +211,34 @@ def status_color(status: str) -> TextColor:
 
     status_lower = str(status).lower().strip()
 
-    if status_lower in ("to do", "todo", "open"):
+    # Starting/Queued states
+    if status_lower in ("to do", "todo", "open", "backlog", "ready"):
         return TextColor.YELLOW
-    elif status_lower in ("in progress", "in development", "in review"):
+    # Active work states
+    elif status_lower in ("in progress", "in development", "in dev", "wip", "working"):
         return TextColor.BRIGHT_BLUE
-    elif status_lower in ("complete", "completed", "done", "closed"):
+    # Testing/QA states
+    elif status_lower in ("testing", "test", "qa", "validation", "validating"):
+        return TextColor.CYAN
+    # Review/Approval states
+    elif status_lower in ("in review", "review", "approval", "pending approval", "awaiting approval"):
+        return TextColor.MAGENTA
+    # Accepted/Approved states
+    elif status_lower in ("accepted", "approved", "ready to deploy"):
+        return TextColor.BRIGHT_CYAN
+    # Committed/Deployment states
+    elif status_lower in ("committed", "comitted", "deploying", "staging"):
+        return TextColor.BLUE
+    # Complete states
+    elif status_lower in ("complete", "completed", "done", "closed", "resolved", "finished"):
         return TextColor.BRIGHT_GREEN
-    elif status_lower in ("blocked", "block"):
+    # Rejected/Cancelled states
+    elif status_lower in ("rejected", "declined", "cancelled", "canceled", "abandoned"):
+        return TextColor.RED
+    # Blocked states
+    elif status_lower in ("blocked", "block", "on hold", "waiting", "paused"):
         return TextColor.BRIGHT_RED
+    # Default fallback
     else:
         return TextColor.WHITE
 
