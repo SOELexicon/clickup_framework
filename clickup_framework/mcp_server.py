@@ -191,6 +191,30 @@ async def handle_call_tool(
         elif name == "clickup_remove_task_link":
             return await handle_remove_task_link(client, arguments)
 
+        elif name == "clickup_bulk_create_tasks":
+            return await handle_bulk_create_tasks(client, arguments)
+
+        elif name == "clickup_bulk_update_tasks":
+            return await handle_bulk_update_tasks(client, arguments)
+
+        elif name == "clickup_get_list_tasks":
+            return await handle_get_list_tasks(client, arguments)
+
+        elif name == "clickup_search_tasks":
+            return await handle_search_tasks(client, arguments)
+
+        elif name == "clickup_get_workspace_hierarchy":
+            return await handle_get_workspace_hierarchy(client, arguments)
+
+        elif name == "clickup_add_checklist":
+            return await handle_add_checklist(client, arguments)
+
+        elif name == "clickup_update_checklist_item":
+            return await handle_update_checklist_item(client, arguments)
+
+        elif name == "clickup_set_custom_field":
+            return await handle_set_custom_field(client, arguments)
+
         else:
             raise ValueError(f"Unknown tool: {name}")
 
@@ -646,6 +670,232 @@ async def handle_remove_task_link(client: ClickUpClient, arguments: dict) -> lis
     tasks_api.remove_link(task_id, linked_task_id)
 
     return [types.TextContent(type="text", text=f"✓ Unlinked tasks: {task_id} <-> {linked_task_id}")]
+
+
+async def handle_bulk_create_tasks(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Bulk create tasks."""
+    list_id = resolve_resource_id(arguments["list_id"], "list")
+    tasks_data = arguments["tasks"]
+
+    tasks_api = TasksAPI(client)
+    created_tasks = []
+    failed_tasks = []
+
+    for i, task_data in enumerate(tasks_data, 1):
+        try:
+            task = tasks_api.create_task(
+                list_id=list_id,
+                name=task_data["name"],
+                description=task_data.get("description"),
+                status=task_data.get("status"),
+                priority=task_data.get("priority"),
+                tags=task_data.get("tags"),
+                assignees=task_data.get("assignees"),
+                parent=task_data.get("parent")
+            )
+            created_tasks.append(f"✓ Task {i}: {task['name']} (ID: {task['id']})")
+        except Exception as e:
+            failed_tasks.append(f"✗ Task {i} ({task_data['name']}): {str(e)}")
+
+    result = f"Bulk Create Results:\n"
+    result += f"Created: {len(created_tasks)}/{len(tasks_data)}\n"
+    result += f"Failed: {len(failed_tasks)}/{len(tasks_data)}\n\n"
+
+    if created_tasks:
+        result += "Created Tasks:\n" + "\n".join(created_tasks) + "\n\n"
+
+    if failed_tasks:
+        result += "Failed Tasks:\n" + "\n".join(failed_tasks)
+
+    return [types.TextContent(type="text", text=result)]
+
+
+async def handle_bulk_update_tasks(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Bulk update tasks."""
+    task_ids = arguments["task_ids"]
+    updates = arguments["updates"]
+
+    tasks_api = TasksAPI(client)
+    updated_tasks = []
+    failed_tasks = []
+
+    # Map priority strings to numbers
+    priority_map = {"urgent": 1, "high": 2, "normal": 3, "low": 4}
+    if "priority" in updates:
+        pri = updates["priority"]
+        updates["priority"] = priority_map.get(pri.lower(), int(pri) if pri.isdigit() else 3)
+
+    for task_id in task_ids:
+        try:
+            # Handle tag operations separately
+            if "add_tags" in updates:
+                for tag in updates["add_tags"]:
+                    tasks_api.add_tag(task_id, tag)
+            if "remove_tags" in updates:
+                for tag in updates["remove_tags"]:
+                    tasks_api.remove_tag(task_id, tag)
+
+            # Apply other updates
+            update_payload = {k: v for k, v in updates.items() if k not in ["add_tags", "remove_tags"]}
+            if update_payload:
+                tasks_api.update_task(task_id, **update_payload)
+
+            updated_tasks.append(f"✓ Updated task: {task_id}")
+        except Exception as e:
+            failed_tasks.append(f"✗ Failed to update {task_id}: {str(e)}")
+
+    result = f"Bulk Update Results:\n"
+    result += f"Updated: {len(updated_tasks)}/{len(task_ids)}\n"
+    result += f"Failed: {len(failed_tasks)}/{len(task_ids)}\n\n"
+
+    if updated_tasks:
+        result += "\n".join(updated_tasks) + "\n\n"
+
+    if failed_tasks:
+        result += "Failures:\n" + "\n".join(failed_tasks)
+
+    return [types.TextContent(type="text", text=result)]
+
+
+async def handle_get_list_tasks(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Get all tasks from a list."""
+    list_id = resolve_resource_id(arguments["list_id"], "list")
+    include_closed = arguments.get("include_closed", False)
+    subtasks = arguments.get("subtasks", True)
+    detail_level = arguments.get("detail_level", "summary")
+
+    # Build query params
+    params = {
+        "archived": False,
+        "subtasks": subtasks,
+        "include_closed": include_closed
+    }
+
+    result = client.get_list_tasks(list_id, **params)
+    tasks = result.get("tasks", [])
+
+    # Format tasks
+    output = f"Tasks in list {list_id}:\n"
+    output += f"Total: {len(tasks)} tasks\n\n"
+
+    formatter = TaskFormatter()
+    for i, task in enumerate(tasks, 1):
+        formatted = formatter.format(task, detail_level=detail_level)
+        output += f"{i}. {formatted}\n"
+        if detail_level != "minimal":
+            output += "\n"
+
+    return [types.TextContent(type="text", text=output)]
+
+
+async def handle_search_tasks(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Search tasks across workspace."""
+    workspace_id = resolve_resource_id(arguments["workspace_id"], "workspace")
+    query = arguments["query"]
+    detail_level = arguments.get("detail_level", "summary")
+
+    result = client.search(workspace_id, query)
+    tasks = result.get("tasks", [])
+
+    output = f"Search results for '{query}':\n"
+    output += f"Found: {len(tasks)} tasks\n\n"
+
+    formatter = TaskFormatter()
+    for i, task in enumerate(tasks, 1):
+        formatted = formatter.format(task, detail_level=detail_level)
+        output += f"{i}. {formatted}\n"
+        if detail_level != "minimal":
+            output += "\n"
+
+    return [types.TextContent(type="text", text=output)]
+
+
+async def handle_get_workspace_hierarchy(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Get workspace hierarchy."""
+    workspace_id = arguments["workspace_id"]
+
+    hierarchy = client.get_workspace_hierarchy(workspace_id)
+
+    # Format hierarchy
+    output = f"Workspace Hierarchy (ID: {workspace_id}):\n\n"
+
+    for space in hierarchy.get("teams", [{}])[0].get("spaces", []):
+        space_name = space.get("name", "Unnamed Space")
+        space_id = space.get("id")
+        output += f"📁 Space: {space_name} (ID: {space_id})\n"
+
+        for folder in space.get("folders", []):
+            folder_name = folder.get("name", "Unnamed Folder")
+            folder_id = folder.get("id")
+            output += f"  📂 Folder: {folder_name} (ID: {folder_id})\n"
+
+            for list_item in folder.get("lists", []):
+                list_name = list_item.get("name", "Unnamed List")
+                list_id = list_item.get("id")
+                output += f"    📋 List: {list_name} (ID: {list_id})\n"
+
+        # Lists without folders
+        for list_item in space.get("lists", []):
+            list_name = list_item.get("name", "Unnamed List")
+            list_id = list_item.get("id")
+            output += f"  📋 List: {list_name} (ID: {list_id})\n"
+
+        output += "\n"
+
+    return [types.TextContent(type="text", text=output)]
+
+
+async def handle_add_checklist(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Add checklist to task."""
+    task_id = arguments["task_id"]
+    checklist_name = arguments["checklist_name"]
+    items = arguments.get("items", [])
+
+    # Create checklist
+    checklist = client.create_checklist(task_id, checklist_name)
+    checklist_id = checklist["id"]
+
+    # Add items
+    for item_name in items:
+        client.create_checklist_item(checklist_id, item_name)
+
+    result = f"✓ Created checklist: {checklist_name}\n"
+    result += f"  Checklist ID: {checklist_id}\n"
+    result += f"  Items added: {len(items)}"
+
+    return [types.TextContent(type="text", text=result)]
+
+
+async def handle_update_checklist_item(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Update checklist item."""
+    checklist_id = arguments["checklist_id"]
+    checklist_item_id = arguments["checklist_item_id"]
+    resolved = arguments["resolved"]
+
+    client.update_checklist_item(checklist_id, checklist_item_id, resolved=resolved)
+
+    status = "completed" if resolved else "reopened"
+    result = f"✓ Checklist item {status}\n"
+    result += f"  Checklist ID: {checklist_id}\n"
+    result += f"  Item ID: {checklist_item_id}"
+
+    return [types.TextContent(type="text", text=result)]
+
+
+async def handle_set_custom_field(client: ClickUpClient, arguments: dict) -> list[types.TextContent]:
+    """Set custom field value."""
+    task_id = arguments["task_id"]
+    field_id = arguments["field_id"]
+    value = arguments["value"]
+
+    client.set_custom_field(task_id, field_id, value)
+
+    result = f"✓ Set custom field\n"
+    result += f"  Task ID: {task_id}\n"
+    result += f"  Field ID: {field_id}\n"
+    result += f"  Value: {value}"
+
+    return [types.TextContent(type="text", text=result)]
 
 
 async def async_main():
