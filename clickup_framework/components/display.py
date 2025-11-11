@@ -47,7 +47,7 @@ class DisplayManager:
         """
         self.client = client
         self.task_formatter = RichTaskFormatter()
-        self.hierarchy_formatter = TaskHierarchyFormatter(self.task_formatter)
+        self.hierarchy_formatter = TaskHierarchyFormatter(self.task_formatter, client)
         self.container_formatter = ContainerHierarchyFormatter(self.task_formatter)
         self.detail_formatter = TaskDetailFormatter()
         self.filter = TaskFilter()
