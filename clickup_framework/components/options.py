@@ -135,7 +135,7 @@ class FormatOptions:
             show_type_emoji=True,
             show_descriptions=True,
             show_dates=True,
-            show_comments=3,
+            show_comments=5,
             show_relationships=True,
             include_completed=True
         )
