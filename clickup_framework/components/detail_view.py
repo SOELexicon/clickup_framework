@@ -11,6 +11,7 @@ from clickup_framework.utils.colors import (
     get_task_emoji, TASK_TYPE_EMOJI, USE_COLORS
 )
 from clickup_framework.utils.text import strip_markdown
+from clickup_framework.utils.markdown_renderer import render_markdown
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.tree import TreeFormatter
 from clickup_framework.components.task_formatter import RichTaskFormatter
@@ -398,15 +399,10 @@ class TaskDetailFormatter:
         return "\n".join(lines) if lines else ""
 
     def _format_description(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format full task description."""
+        """Format full task description with markdown rendering."""
         description = task.get('description', '').strip()
         if not description:
             return ""
-
-        # Strip markdown formatting when ANSI colors are enabled
-        # because terminals don't render markdown, only ANSI codes
-        if options.colorize_output or USE_COLORS:
-            description = strip_markdown(description)
 
         lines = []
         header = "📝 Description:"
@@ -415,9 +411,14 @@ class TaskDetailFormatter:
         lines.append(header)
         lines.append("")
 
-        # Show full description (not truncated)
+        # Render markdown to ANSI formatting
+        if options.colorize_output or USE_COLORS:
+            rendered = render_markdown(description, options.colorize_output)
+        else:
+            rendered = strip_markdown(description)
+
         # Add indentation for readability
-        for line in description.split('\n'):
+        for line in rendered.split('\n'):
             lines.append(f"  {line}")
 
         return "\n".join(lines)
