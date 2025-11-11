@@ -113,6 +113,7 @@ def create_format_options(args) -> FormatOptions:
         show_dates=getattr(args, 'show_dates', False),
         show_comments=getattr(args, 'show_comments', 0),
         include_completed=getattr(args, 'include_completed', False),
+        show_closed_only=getattr(args, 'show_closed_only', False),
         show_type_emoji=getattr(args, 'show_emoji', True),
         description_length=description_length
     )
@@ -140,6 +141,8 @@ def add_common_args(subparser):
                          help='Show N comments per task')
     subparser.add_argument('--include-completed', action='store_true',
                          help='Include completed tasks')
+    subparser.add_argument('-sc', '--show-closed', dest='show_closed_only', action='store_true',
+                         help='Show ONLY closed tasks')
     subparser.add_argument('--no-emoji', dest='show_emoji', action='store_false',
                          help='Hide task type emojis')
 
