@@ -158,8 +158,8 @@ cum tss current "Complete"
 
 ### Example 3: Creating a subtask
 ```bash
-# Create subtask in current list
-cum tc current "Subtask name" --parent <parent_task_id> --status "In Development"
+# Create subtask with parent (no --list needed)
+cum tc "Subtask name" --parent <parent_task_id> --status "In Development"
 ```
 
 ## Pro Tips

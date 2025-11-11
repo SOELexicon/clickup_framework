@@ -420,18 +420,25 @@ cum clear_current  # Clears everything
 
 Create a new task with full options support.
 
+**IMPORTANT**: Task name comes FIRST as a positional argument, then use flags for list/parent!
+
 ```bash
-cum task_create <list_id> "Task name" [options]
+cum task_create "Task name" --list <list_id> [options]
+cum tc "Task name" --list <list_id> [options]  # Short code
 
 # Examples:
-cum task_create current "Implement feature X"
-cum task_create 901517404278 "Bug fix" --description "Fix login issue" --priority urgent
-cum task_create current "New task" --status "in progress" --tags bug critical
-cum task_create current "Subtask" --parent 86c6e0q06
-cum task_create current "Feature" --description-file spec.md  # Load description from file
+cum tc "Implement feature X" --list current
+cum tc "Bug fix" --list 901517404278 --description "Fix login issue" --priority urgent
+cum tc "New task" --list current --status "in progress" --tags bug critical
+cum tc "Subtask" --parent 86c6e0q06  # Create subtask (no --list needed)
+cum tc "Feature" --list current --description-file spec.md  # Load description from file
 ```
 
+**Arguments**:
+- `name` - Task name (required, positional argument - comes FIRST!)
+
 **Options**:
+- `--list LIST_ID` - List ID to create task in (or "current"). Not required if --parent is provided.
 - `--description TEXT` - Task description (plain text)
 - `--description-file PATH` - Load task description from file (supports markdown)
 - `--status STATUS` - Initial status
@@ -1571,8 +1578,8 @@ Track the overall implementation progress: [CLI Command Implementation](https://
 - ✅ Add/list/update/delete comments (with file input support)
 - ✅ Task dependencies (waiting-on and blocking relationships)
 - ✅ Task links (general task relationships)
-- 🚧 Create/delete checklists (planned)
-- 🚧 Manage checklist items (planned)
+- ✅ Create/delete checklists
+- ✅ Manage checklist items
 
 ### Phase 4: Docs & Pages (✅ Complete)
 - ✅ List/create/get docs
@@ -1584,12 +1591,12 @@ Track the overall implementation progress: [CLI Command Implementation](https://
 - 🚧 List operations
 - 🚧 Workspace/space/folder management
 
-### Phase 6: Advanced Features (🚧 Planned)
-- 🚧 Custom fields
-- 🚧 Time tracking
-- 🚧 View management
-- 🚧 Attachments
-- 🚧 Checklists
+### Phase 5: Advanced Features (Mixed)
+- ✅ Custom fields (fully implemented)
+- ✅ Checklists (fully implemented)
+- 🚧 Time tracking (planned)
+- 🚧 View management (planned)
+- 🚧 Attachments (planned)
 
 ---
 
