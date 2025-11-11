@@ -87,19 +87,32 @@ def get_python_from_script(script_path):
             if os.path.isfile(python_exe):
                 return python_exe
 
-        # As a last resort on Windows, try to use 'python' from PATH
-        # This will find the python that would be used in the same environment
-        try:
-            result = subprocess.run(
-                ['python', '--version'],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if result.returncode == 0:
-                return 'python'
-        except Exception:
-            pass
+        # As a last resort on Windows, try to find python in PATH using where.exe
+        # Try multiple Python command names
+        for python_cmd in ['py', 'python', 'python3']:
+            try:
+                # First verify the command works
+                result = subprocess.run(
+                    [python_cmd, '--version'],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if result.returncode == 0:
+                    # Now get the actual path using where.exe
+                    where_result = subprocess.run(
+                        ['where.exe', python_cmd],
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if where_result.returncode == 0:
+                        # Get the first path from the output
+                        python_path = where_result.stdout.strip().split('\n')[0].strip()
+                        if os.path.isfile(python_path):
+                            return python_path
+            except Exception:
+                continue
     else:
         # On Unix, try to read the shebang
         try:
