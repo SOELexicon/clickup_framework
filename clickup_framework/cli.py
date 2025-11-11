@@ -20,6 +20,7 @@ Examples:
 import argparse
 import sys
 import os
+import re
 from clickup_framework import get_context_manager, __version__
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -31,6 +32,134 @@ try:
     ARGCOMPLETE_AVAILABLE = True
 except ImportError:
     ARGCOMPLETE_AVAILABLE = False
+
+
+class ImprovedArgumentParser(argparse.ArgumentParser):
+    """Custom ArgumentParser with better error messages for common mistakes."""
+
+    def error(self, message):
+        """Override error method to provide more helpful messages."""
+        # Get the original command line args for analysis
+        argv = sys.argv[1:]
+
+        # Detect task_create specific errors
+        if len(argv) >= 2 and argv[0] in ['task_create', 'tc']:
+            # Check if "unrecognized arguments" error occurred
+            if 'unrecognized arguments' in message:
+                # Extract the problematic arguments
+                match = re.search(r'unrecognized arguments?: (.+)', message)
+                if match:
+                    unrecognized_args = match.group(1)
+
+                    # Check if first argument (after command) looks like an ID (all numeric)
+                    if len(argv) >= 2 and argv[1].isdigit():
+                        task_or_list_id = argv[1]
+
+                        # Build helpful error message
+                        context = get_context_manager()
+                        use_color = context.get_ansi_output()
+
+                        if use_color:
+                            error_header = colorize("Error: Invalid task_create syntax", TextColor.BRIGHT_RED, TextStyle.BOLD)
+                            print(f"\n{error_header}", file=sys.stderr)
+                            print(colorize("─" * 60, TextColor.BRIGHT_BLACK), file=sys.stderr)
+                        else:
+                            print("\nError: Invalid task_create syntax", file=sys.stderr)
+                            print("─" * 60, file=sys.stderr)
+
+                        print(f"\nYou provided: cum tc {task_or_list_id} {unrecognized_args}...", file=sys.stderr)
+                        print("\nThe task NAME must come first, not the task/list ID.", file=sys.stderr)
+
+                        if use_color:
+                            print(f"\n{colorize('Correct usage:', TextColor.BRIGHT_GREEN, TextStyle.BOLD)}", file=sys.stderr)
+                        else:
+                            print("\nCorrect usage:", file=sys.stderr)
+
+                        # Show examples based on what they might be trying to do
+                        examples = []
+
+                        # If ID looks like it might be a parent task ID
+                        if len(task_or_list_id) > 10:  # Typical task IDs are longer
+                            if use_color:
+                                comment = colorize('# Create a subtask under parent:', TextColor.BRIGHT_BLACK)
+                                task_name = colorize('"Task Name"', TextColor.BRIGHT_YELLOW)
+                                parent_flag = colorize('--parent', TextColor.BRIGHT_CYAN)
+                                desc_flag = colorize('--description', TextColor.BRIGHT_CYAN)
+                                desc_value = colorize('"Description"', TextColor.BRIGHT_YELLOW)
+                                examples.append(
+                                    f"  {comment}\n"
+                                    f"  cum tc {task_name} {parent_flag} {task_or_list_id} {desc_flag} {desc_value}"
+                                )
+                            else:
+                                examples.append(
+                                    f"  # Create a subtask under parent:\n"
+                                    f'  cum tc "Task Name" --parent {task_or_list_id} --description "Description"'
+                                )
+
+                        # Show list-based creation example
+                        if use_color:
+                            comment1 = colorize('# Create task in a list:', TextColor.BRIGHT_BLACK)
+                            task_name1 = colorize('"Task Name"', TextColor.BRIGHT_YELLOW)
+                            list_flag = colorize('--list', TextColor.BRIGHT_CYAN)
+                            desc_flag1 = colorize('--description', TextColor.BRIGHT_CYAN)
+                            desc_value1 = colorize('"Description"', TextColor.BRIGHT_YELLOW)
+                            examples.append(
+                                f"  {comment1}\n"
+                                f"  cum tc {task_name1} {list_flag} {task_or_list_id} {desc_flag1} {desc_value1}"
+                            )
+
+                            comment2 = colorize('# Create task in current list:', TextColor.BRIGHT_BLACK)
+                            task_name2 = colorize('"Task Name"', TextColor.BRIGHT_YELLOW)
+                            list_current = colorize('--list current', TextColor.BRIGHT_CYAN)
+                            desc_flag2 = colorize('--description', TextColor.BRIGHT_CYAN)
+                            desc_value2 = colorize('"Description"', TextColor.BRIGHT_YELLOW)
+                            examples.append(
+                                f"  {comment2}\n"
+                                f"  cum tc {task_name2} {list_current} {desc_flag2} {desc_value2}"
+                            )
+                        else:
+                            examples.append(
+                                f"  # Create task in a list:\n"
+                                f'  cum tc "Task Name" --list {task_or_list_id} --description "Description"'
+                            )
+                            examples.append(
+                                f"  # Create task in current list:\n"
+                                f'  cum tc "Task Name" --list current --description "Description"'
+                            )
+
+                        for example in examples:
+                            print(example, file=sys.stderr)
+
+                        if use_color:
+                            key_header = colorize('Key points:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+                            pos_arg = colorize('positional argument', TextColor.BRIGHT_YELLOW)
+                            parent_example = colorize('--parent <task_id>', TextColor.BRIGHT_CYAN)
+                            list_example = colorize('--list <list_id>', TextColor.BRIGHT_CYAN)
+                            quote_example = colorize('"Like this"', TextColor.BRIGHT_YELLOW)
+                            print(f"\n{key_header}", file=sys.stderr)
+                            print(f"  • Task name is a {pos_arg} (comes first)", file=sys.stderr)
+                            print(f"  • Use {parent_example} to create a subtask", file=sys.stderr)
+                            print(f"  • Use {list_example} to specify the list", file=sys.stderr)
+                            print(f"  • Always quote task names with spaces: {quote_example}", file=sys.stderr)
+                        else:
+                            print("\nKey points:", file=sys.stderr)
+                            print("  • Task name is a positional argument (comes first)", file=sys.stderr)
+                            print("  • Use --parent <task_id> to create a subtask", file=sys.stderr)
+                            print("  • Use --list <list_id> to specify the list", file=sys.stderr)
+                            print('  • Always quote task names with spaces: "Like this"', file=sys.stderr)
+
+                        if use_color:
+                            print(f"\n{colorize('For more help:', TextColor.BRIGHT_WHITE)}", file=sys.stderr)
+                            print(f"  {colorize('cum tc --help', TextColor.BRIGHT_GREEN)}", file=sys.stderr)
+                        else:
+                            print("\nFor more help:", file=sys.stderr)
+                            print("  cum tc --help", file=sys.stderr)
+
+                        print("", file=sys.stderr)
+                        sys.exit(2)
+
+        # Fall back to default error handling
+        super().error(message)
 
 
 def show_command_tree():
@@ -190,7 +319,7 @@ def main():
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-    parser = argparse.ArgumentParser(
+    parser = ImprovedArgumentParser(
         description='ClickUp Framework CLI - Beautiful hierarchical task displays',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=False,  # Disable default help to use custom tree view
