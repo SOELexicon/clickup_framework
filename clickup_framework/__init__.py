@@ -13,6 +13,10 @@ Usage:
     formatted_task = tasks.get(task_id, detail_level="summary")
 """
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 # Get version from setuptools_scm generated file
 try:
     from clickup_framework._version import version as __version__
