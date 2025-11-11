@@ -183,7 +183,11 @@ def priority_color(priority) -> TextColor:
         priority: Task priority (1-4, with 1 being highest)
 
     Returns:
-        TextColor for the priority
+        TextColor for the priority according to requirements:
+        - P1 (Urgent): Bright Red
+        - P2 (High): Yellow
+        - P3 (Normal): White
+        - P4 (Low): Gray
     """
     if isinstance(priority, str):
         try:
@@ -192,13 +196,13 @@ def priority_color(priority) -> TextColor:
             return TextColor.WHITE
 
     if priority == 1:
-        return TextColor.BRIGHT_RED  # Urgent
+        return TextColor.BRIGHT_RED  # P1 - Urgent
     elif priority == 2:
-        return TextColor.BRIGHT_YELLOW  # High
+        return TextColor.YELLOW  # P2 - High
     elif priority == 3:
-        return TextColor.BRIGHT_BLUE  # Normal
+        return TextColor.WHITE  # P3 - Normal
     elif priority == 4:
-        return TextColor.BRIGHT_GREEN  # Low
+        return TextColor.BRIGHT_BLACK  # P4 - Low (gray)
     else:
         return TextColor.WHITE
 
@@ -253,6 +257,83 @@ def completion_color(completed: int, total: int) -> TextColor:
         return TextColor.YELLOW  # Yellow for partially complete
     else:
         return TextColor.BRIGHT_RED  # Red for barely started
+
+
+# Task status icon mapping
+STATUS_ICON_MAP = {
+    # Todo/Open states
+    "to do": "⬜",
+    "todo": "⬜",
+    "open": "⬜",
+    "backlog": "📋",
+    "ready": "🔵",
+
+    # In progress states
+    "in progress": "🔄",
+    "in development": "⚙️",
+    "in dev": "⚙️",
+    "in review": "👀",
+    "active": "▶️",
+    "working": "💼",
+    "started": "🟡",
+
+    # Complete states
+    "complete": "✅",
+    "completed": "✅",
+    "done": "✅",
+    "closed": "✅",
+
+    # Blocked states
+    "blocked": "🚫",
+    "block": "🚫",
+
+    # Testing states
+    "testing": "🧪",
+    "qa": "🔍",
+
+    # Other states
+    "on hold": "⏸️",
+    "paused": "⏸️",
+    "cancelled": "❌",
+    "canceled": "❌",
+}
+
+
+def get_status_icon(status: str, fallback_to_code: bool = True) -> str:
+    """
+    Get the icon/emoji for a task status.
+
+    Args:
+        status: The task status string
+        fallback_to_code: If True, falls back to 3-letter code when no icon is found
+
+    Returns:
+        Icon/emoji for the status, or 3-letter code if fallback is enabled
+
+    Examples:
+        >>> get_status_icon("in progress")
+        '🔄'
+        >>> get_status_icon("to do")
+        '⬜'
+        >>> get_status_icon("custom status", fallback_to_code=True)
+        'CUS'
+    """
+    if not status:
+        return "❓" if not fallback_to_code else "UNK"
+
+    # Normalize status
+    status_lower = str(status).lower().strip()
+
+    # Check if we have a direct mapping
+    if status_lower in STATUS_ICON_MAP:
+        return STATUS_ICON_MAP[status_lower]
+
+    # Fallback to code if requested
+    if fallback_to_code:
+        return status_to_code(status)
+
+    # Otherwise return a generic marker
+    return "◻️"
 
 
 # Task type emoji mapping

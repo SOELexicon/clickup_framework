@@ -23,6 +23,7 @@ class FormatOptions:
         show_tags: Whether to show task tags
         tag_style: Style for tag display ('brackets', 'hash', 'colored')
         show_type_emoji: Whether to show task type emojis
+        show_status_icon: Whether to show status icons/emojis
         show_descriptions: Whether to show task descriptions
         show_dates: Whether to show task dates (created, updated, due)
         show_comments: Number of recent comments to show (0 to hide)
@@ -33,6 +34,7 @@ class FormatOptions:
         description_length: Maximum length for displayed descriptions
         show_container_diff: Whether to show container differences
         trace: Whether to show detailed debug traces
+        max_depth: Maximum depth for hierarchy display (None = unlimited)
     """
 
     colorize_output: bool = True
@@ -41,6 +43,7 @@ class FormatOptions:
     show_tags: bool = True
     tag_style: str = "colored"
     show_type_emoji: bool = True
+    show_status_icon: bool = True
     show_descriptions: bool = False
     show_dates: bool = False
     show_comments: int = 0
@@ -51,6 +54,7 @@ class FormatOptions:
     description_length: int = 100
     show_container_diff: bool = True
     trace: bool = False
+    max_depth: Optional[int] = None
 
     @classmethod
     def from_dict(cls, options_dict: Dict[str, Any]) -> 'FormatOptions':

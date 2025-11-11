@@ -93,6 +93,11 @@ def create_format_options(args) -> FormatOptions:
 
         # Override colorize based on context setting
         options.colorize_output = default_colorize
+
+        # Override max_depth if specified
+        if hasattr(args, 'depth') and args.depth is not None:
+            options.max_depth = args.depth
+
         return options
 
     # Otherwise build from individual flags
@@ -115,7 +120,8 @@ def create_format_options(args) -> FormatOptions:
         include_completed=getattr(args, 'include_completed', False),
         show_closed_only=getattr(args, 'show_closed_only', False),
         show_type_emoji=getattr(args, 'show_emoji', True),
-        description_length=description_length
+        description_length=description_length,
+        max_depth=getattr(args, 'depth', None)
     )
 
 
@@ -236,7 +242,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         task = client.get_task(id_or_current)
         list_id = task.get('list', {}).get('id')
         if list_id:
-            return {'type': 'list', 'id': list_id}
+            return {'type': 'task', 'id': id_or_current, 'data': task, 'list_id': list_id}
         else:
             raise ValueError(f"Task {id_or_current} does not have a valid list ID")
     except ClickUpAuthError as e:
