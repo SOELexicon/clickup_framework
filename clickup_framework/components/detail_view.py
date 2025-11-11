@@ -412,8 +412,10 @@ class TaskDetailFormatter:
         lines.append("")
 
         # Render markdown to ANSI formatting
-        if options.colorize_output or USE_COLORS:
-            rendered = render_markdown(description, options.colorize_output)
+        # Use colorization if either option is enabled or USE_COLORS is True
+        should_colorize = options.colorize_output or USE_COLORS
+        if should_colorize:
+            rendered = render_markdown(description, colorize_output=True)
         else:
             rendered = strip_markdown(description)
 
