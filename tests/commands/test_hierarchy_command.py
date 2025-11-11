@@ -11,7 +11,7 @@ Tests cover:
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import argparse
 import sys
 from io import StringIO
