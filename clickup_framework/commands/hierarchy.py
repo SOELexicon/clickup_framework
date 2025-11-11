@@ -187,18 +187,8 @@ def hierarchy_command(args):
             print(status_line)
             print()  # Empty line for spacing
 
-    header = args.header if hasattr(args, 'header') and args.header else None
-    if show_all and not header:
-        header = "All Workspace Tasks"
-    elif container_name and not header:
-        header = container_name
-
-    # Use container view for --all to show organizational hierarchy
-    # Use parent-child hierarchy view for specific containers
-    if show_all:
-        output = display.container_view(tasks, options)
-    else:
-        output = display.hierarchy_view(tasks, options, header)
+    # Always use container view to show organizational hierarchy (Space > Folder > List)
+    output = display.container_view(tasks, options)
 
     print(output)
 
