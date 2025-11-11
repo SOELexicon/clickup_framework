@@ -200,11 +200,19 @@ class RichTaskFormatter:
                     date_str = colorize(date_str, TextColor.CYAN)
                 additional_lines.append(f"  {date_str}")
 
-        # Comments
+        # Comments - Show newest first
         if options.show_comments > 0 and task.get('comments'):
-            comments = task['comments'][:options.show_comments]
+            all_comments = task['comments']
+            # Sort by date descending (newest first)
+            sorted_comments = sorted(
+                all_comments,
+                key=lambda c: c.get('date', 0) if isinstance(c.get('date'), (int, float)) else 0,
+                reverse=True
+            )
+            comments = sorted_comments[:options.show_comments]
+
             if comments:
-                comment_str = f"💬 Comments ({len(comments)}):"
+                comment_str = f"💬 Comments ({len(all_comments)}):"
                 if options.colorize_output:
                     comment_str = colorize(comment_str, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
                 additional_lines.append(f"  {comment_str}")

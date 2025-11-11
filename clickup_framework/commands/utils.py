@@ -143,8 +143,8 @@ def add_common_args(subparser):
                          help='Show full descriptions without truncation (implies --show-descriptions)')
     subparser.add_argument('--show-dates', action='store_true',
                          help='Show task dates')
-    subparser.add_argument('--show-comments', type=int, default=0, metavar='N',
-                         help='Show N comments per task')
+    subparser.add_argument('--show-comments', type=int, default=5, metavar='N',
+                         help='Show N most recent comments per task (default: 5, set to 0 to hide)')
     subparser.add_argument('--include-completed', action='store_true',
                          help='Include completed tasks')
     subparser.add_argument('-sc', '--show-closed', dest='show_closed_only', action='store_true',
