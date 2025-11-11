@@ -19,13 +19,12 @@ from clickup_framework.automation.parent_updater import ParentTaskAutomationEngi
 from clickup_framework.automation.models import ParentUpdateResult
 
 
-def display_automation_result(result: ParentUpdateResult, custom_comment: str = None):
+def display_automation_result(result: ParentUpdateResult):
     """
     Display automation result to the user.
 
     Args:
         result: ParentUpdateResult from automation engine
-        custom_comment: Optional custom comment from user
     """
     if result.skip_reason == "parent_already_active":
         print(f"\nℹ️  Parent task already active (status: {result.old_status})")
@@ -360,7 +359,6 @@ def task_set_status_command(args):
     # Check for automation flags
     skip_automation = getattr(args, 'no_parent_update', False)
     force_automation = getattr(args, 'update_parent', False)
-    custom_comment = getattr(args, 'parent_comment', None)
 
     # Resolve all task IDs
     task_ids = []
@@ -469,7 +467,7 @@ def task_set_status_command(args):
 
                     # Display automation result
                     if event.automation_triggered and event.automation_result:
-                        display_automation_result(event.automation_result, custom_comment)
+                        display_automation_result(event.automation_result)
                         parent_updates[parent_id] = True
                 else:
                     # Parent already updated by another subtask
@@ -828,8 +826,6 @@ def register_command(subparsers):
                                         help='Skip automatic parent task update')
     task_set_status_parser.add_argument('--update-parent', action='store_true',
                                         help='Force parent update even if automation disabled')
-    task_set_status_parser.add_argument('--parent-comment', type=str,
-                                        help='Custom comment to post on parent task')
     task_set_status_parser.set_defaults(func=task_set_status_command)
 
     # Task set priority
