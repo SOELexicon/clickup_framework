@@ -11,6 +11,7 @@ from clickup_framework.utils.colors import (
     TextColor, TextStyle, USE_COLORS
 )
 from clickup_framework.utils.text import truncate, strip_markdown
+from clickup_framework.utils.datetime import format_timestamp
 
 
 class RichTaskFormatter:
@@ -127,11 +128,14 @@ class RichTaskFormatter:
         if options.show_dates:
             date_parts = []
             if task.get('date_created'):
-                date_parts.append(f"Created: {task['date_created']}")
+                formatted_created = format_timestamp(task['date_created'], include_time=False)
+                date_parts.append(f"Created: {formatted_created}")
             if task.get('date_updated'):
-                date_parts.append(f"Updated: {task['date_updated']}")
+                formatted_updated = format_timestamp(task['date_updated'], include_time=False)
+                date_parts.append(f"Updated: {formatted_updated}")
             if task.get('due_date'):
-                date_parts.append(f"Due: {task['due_date']}")
+                formatted_due = format_timestamp(task['due_date'], include_time=False)
+                date_parts.append(f"Due: {formatted_due}")
 
             if date_parts:
                 date_str = f"📅 {' | '.join(date_parts)}"

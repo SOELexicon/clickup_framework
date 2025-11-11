@@ -173,12 +173,23 @@ def hierarchy_command(args):
             list_id_for_fetch = container['list_id']
             container_name = task_data.get('name', 'Task')
 
-            # Fetch all tasks from the list to get complete parent-child relationships
-            all_tasks = _fetch_all_pages(
+            # Fetch all tasks from the list - need BOTH root tasks and subtasks
+            # ClickUp API: without 'subtasks' param returns root tasks, with it returns subtasks
+            root_tasks = _fetch_all_pages(
                 lambda **p: client.get_list_tasks(list_id_for_fetch, **p),
-                subtasks=True,
                 include_closed=include_closed
             )
+            subtask_list = _fetch_all_pages(
+                lambda **p: client.get_list_tasks(list_id_for_fetch, **p),
+                subtasks='true',
+                include_closed=include_closed
+            )
+
+            # Merge both lists and deduplicate by task ID
+            task_map = {}
+            for task in root_tasks + subtask_list:
+                task_map[task['id']] = task
+            all_tasks = list(task_map.values())
 
             # Filter to only include the specified task and its descendants
             tasks = _filter_task_and_descendants(all_tasks, container_id)
