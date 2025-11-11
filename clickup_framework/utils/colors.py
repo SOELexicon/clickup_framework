@@ -68,16 +68,12 @@ def colorize(
     Returns:
         Colorized text string with ANSI codes (if colors are enabled)
     """
-    # Check context manager for ANSI setting (respects HIDE_ANSI env var)
+    # Check HIDE_ANSI environment variable directly for performance
     should_use_colors = USE_COLORS
     if not force:
-        try:
-            from clickup_framework import get_context_manager
-            context = get_context_manager()
-            should_use_colors = context.get_ansi_output()
-        except (ImportError, Exception):
-            # Fall back to global USE_COLORS if context manager unavailable
-            pass
+        # If HIDE_ANSI is set, disable colors
+        if os.environ.get("HIDE_ANSI") is not None:
+            should_use_colors = False
 
     if (not should_use_colors and not force) or (color is None and style is None):
         return text
