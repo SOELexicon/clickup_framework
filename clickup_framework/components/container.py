@@ -4,7 +4,7 @@ Container Hierarchy Formatter Module
 Organizes and formats tasks by their container hierarchy (workspace → space → folder → list).
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from collections import defaultdict
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.task_formatter import RichTaskFormatter
@@ -214,13 +214,127 @@ class ContainerHierarchyFormatter:
 
         return lines
 
+    def _organize_tasks_by_parent(
+        self,
+        tasks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Organize tasks into parent-child hierarchy.
+
+        Args:
+            tasks: Flat list of tasks
+
+        Returns:
+            List of root tasks with nested children in _children attribute
+        """
+        # Build task map
+        task_map = {task['id']: task for task in tasks if task.get('id')}
+
+        # Initialize children lists
+        for task in tasks:
+            task['_children'] = []
+
+        # Find root tasks and build children lists
+        root_tasks = []
+        for task in tasks:
+            parent_id = task.get('parent')
+            if not parent_id or parent_id not in task_map:
+                # This is a root task (no parent or parent not in list)
+                root_tasks.append(task)
+            else:
+                # Add as child to parent
+                task_map[parent_id]['_children'].append(task)
+
+        # Sort children by priority and name
+        def sort_tasks(task_list):
+            return sorted(task_list, key=lambda t: (
+                self._get_priority_value(t),
+                t.get('name', '').lower()
+            ))
+
+        # Sort root tasks
+        root_tasks = sort_tasks(root_tasks)
+
+        # Recursively sort all children
+        def sort_children_recursive(task):
+            if '_children' in task and task['_children']:
+                task['_children'] = sort_tasks(task['_children'])
+                for child in task['_children']:
+                    sort_children_recursive(child)
+
+        for task in root_tasks:
+            sort_children_recursive(task)
+
+        return root_tasks
+
+    def _format_task_with_subtasks(
+        self,
+        task: Dict[str, Any],
+        options: FormatOptions,
+        prefix: str,
+        is_last: bool
+    ) -> List[str]:
+        """
+        Format a task and its subtasks recursively.
+
+        Args:
+            task: Task to format
+            options: Format options
+            prefix: Prefix for indentation
+            is_last: Whether this is the last sibling
+
+        Returns:
+            List of formatted lines
+        """
+        lines = []
+        task_branch = "└─" if is_last else "├─"
+
+        # Format the task itself
+        formatted_task = self.formatter.format_task(task, options)
+        formatted_lines = formatted_task.split('\n')
+
+        # Add the first line with branch character
+        lines.append(f"{prefix}{task_branch}{formatted_lines[0]}")
+
+        # Add remaining lines with proper indentation for multi-line content
+        if len(formatted_lines) > 1:
+            if is_last:
+                continuation_prefix = prefix + "  "  # No vertical line
+            else:
+                continuation_prefix = prefix + "│ "  # Continue vertical line
+
+            for line in formatted_lines[1:]:
+                lines.append(f"{continuation_prefix}{line}")
+
+        # Format children (subtasks)
+        children = task.get('_children', [])
+        if children:
+            # Determine the prefix for children
+            if is_last:
+                child_prefix = prefix + "  "  # No vertical line from parent
+            else:
+                child_prefix = prefix + "│ "  # Continue vertical line from parent
+
+            # Format each child
+            for i, child in enumerate(children):
+                is_last_child = (i == len(children) - 1)
+                child_lines = self._format_task_with_subtasks(
+                    child,
+                    options,
+                    child_prefix,
+                    is_last_child
+                )
+                lines.extend(child_lines)
+
+        return lines
+
     def _format_list(
         self,
         list_data: Dict[str, Any],
         options: FormatOptions,
         is_last: bool
     ) -> List[str]:
-        """Format a list and its tasks."""
+        """Format a list and its tasks with subtask hierarchy."""
         lines = []
         list_name = list_data['name']
         tasks = list_data['tasks']
@@ -238,30 +352,20 @@ class ContainerHierarchyFormatter:
         branch = "└─" if is_last else "├─"
         lines.append(f"{branch}{list_line}")
 
-        # Format tasks
-        for i, task in enumerate(tasks):
-            is_last_task = (i == len(tasks) - 1)
-            task_branch = "└─" if is_last_task else "├─"
+        # Organize tasks by parent-child hierarchy
+        root_tasks = self._organize_tasks_by_parent(tasks)
 
-            formatted_task = self.formatter.format_task(task, options)
-            prefix = "  " if is_last else "│ "
-
-            # Handle multi-line formatted content
-            formatted_lines = formatted_task.split('\n')
-
-            # Add the first line with branch character
-            lines.append(f"{prefix}{task_branch}{formatted_lines[0]}")
-
-            # Add remaining lines with proper indentation
-            if len(formatted_lines) > 1:
-                # Calculate the continuation prefix for multi-line task content
-                if is_last_task:
-                    continuation_prefix = prefix + "  "  # No vertical line
-                else:
-                    continuation_prefix = prefix + "│ "  # Continue vertical line
-
-                for line in formatted_lines[1:]:
-                    lines.append(f"{continuation_prefix}{line}")
+        # Format each root task and its subtasks
+        prefix = "  " if is_last else "│ "
+        for i, task in enumerate(root_tasks):
+            is_last_task = (i == len(root_tasks) - 1)
+            task_lines = self._format_task_with_subtasks(
+                task,
+                options,
+                prefix,
+                is_last_task
+            )
+            lines.extend(task_lines)
 
         return lines
 
@@ -298,3 +402,46 @@ class ContainerHierarchyFormatter:
         status = task.get('status', {})
         status_name = status.get('status') if isinstance(status, dict) else status
         return str(status_name).lower() in ('complete', 'completed', 'closed', 'done')
+
+    @staticmethod
+    def _get_priority_value(task: Dict[str, Any]) -> int:
+        """
+        Get numeric priority value (1=urgent, 4=low, 5=no priority).
+
+        Args:
+            task: Task dictionary
+
+        Returns:
+            Numeric priority value for sorting
+        """
+        priority = task.get('priority', {})
+
+        # Extract priority value from dict or use direct value
+        if isinstance(priority, dict):
+            priority_val = priority.get('priority')
+        else:
+            priority_val = priority
+
+        # Handle None or empty priority (no priority set)
+        if priority_val is None or priority_val == '':
+            return 5  # No priority - sort last
+
+        # Handle string priority names
+        if isinstance(priority_val, str):
+            # Check if it's a numeric string first
+            if priority_val.isdigit():
+                return int(priority_val)
+
+            priority_map = {
+                'urgent': 1,
+                'high': 2,
+                'normal': 3,
+                'low': 4
+            }
+            return priority_map.get(priority_val.lower(), 5)
+
+        # Try to convert to int
+        try:
+            return int(priority_val)
+        except (ValueError, TypeError):
+            return 5  # Default to no priority
