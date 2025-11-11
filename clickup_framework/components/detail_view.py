@@ -238,16 +238,15 @@ class TaskDetailFormatter:
         workspace_id = None
         list_id = None
 
+        # Get workspace ID from task's team_id field (not from space)
+        workspace_id = task.get('team_id')
+
         if task.get('space'):
             space = task['space']
             if isinstance(space, dict):
                 space_name = space.get('name', '')
-                space_id = space.get('id', '')
                 if space_name:
                     parts.append(space_name)
-                # Track workspace ID (space ID is the workspace ID)
-                if space_id:
-                    workspace_id = space_id
             else:
                 parts.append(str(space))
 
