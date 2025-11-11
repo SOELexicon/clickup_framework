@@ -18,14 +18,21 @@ clickup task_create <list_id> "<task_name>" [OPTIONS]
 
 ### Optional
 - `--description TEXT` - Detailed description of the task (text)
-- `--description-file PATH` - Detailed description of the task (from file)
+- `--description-file PATH` - Detailed description of the task (from file - supports markdown!)
 - `--status TEXT` - Initial status (must be valid for the list)
-- `--priority INT` - Priority level (1=Urgent, 2=High, 3=Normal, 4=Low)
+- `--priority {1|2|3|4|urgent|high|normal|low}` - Priority level (number or name string)
+  - Numbers: 1=Urgent, 2=High, 3=Normal, 4=Low
+  - Strings: urgent, high, normal, low (case-insensitive)
 - `--tags TAG [TAG ...]` - One or more tags to add to the task
 - `--assignees ID [ID ...]` - User IDs to assign to the task
 - `--parent ID` - Parent task ID (creates this as a subtask)
+- `--custom-task-ids` - Enable custom task IDs (requires workspace setting)
+- `--check-required-custom-fields true|false` - Check required custom fields (default: true)
 
-**Note**: `--description` and `--description-file` are mutually exclusive.
+**Notes**:
+- `--description` and `--description-file` are mutually exclusive
+- Description files can be markdown (.md) - ClickUp renders markdown in task descriptions
+- Priority accepts both numbers (1-4) and names (urgent/high/normal/low)
 
 ## Examples
 
@@ -41,11 +48,20 @@ clickup task_create 901517404274 "Implement OAuth" \
 
 ### Task with Full Options
 ```bash
+# Using priority as number
 clickup task_create 901517404274 "API Endpoint Development" \
   --description "Create RESTful API endpoints for user management" \
   --status "in development" \
   --priority 1 \
   --tags "backend" "api" "urgent" \
+  --assignees 12345678
+
+# Using priority as string (more readable!)
+clickup task_create 901517404274 "API Endpoint Development" \
+  --description-file api_spec.md \
+  --status "in development" \
+  --priority urgent \
+  --tags "backend" "api" \
   --assignees 12345678
 ```
 
@@ -117,17 +133,56 @@ Error creating task: ClickUp API Error 400: Status does not exist
 
 - Task name is required and cannot be empty
 - Status must exist in the target list's workflow
-- Priority values: 1 (Urgent), 2 (High), 3 (Normal), 4 (Low)
+- **Priority values:**
+  - **Numbers:** 1 (Urgent), 2 (High), 3 (Normal), 4 (Low)
+  - **Strings:** urgent, high, normal, low (case-insensitive)
+  - Both forms work identically - use whichever is more readable for your use case
 - Assignees must be valid user IDs with access to the workspace
 - When using `--parent`, the parent task must exist in the same list
-- Use `--description-file` to read descriptions from files (supports markdown, text, etc.)
-- File paths can be absolute or relative to current working directory
-- Files must be readable text files (UTF-8 encoding)
+- **Description files:**
+  - Use `--description-file` to read descriptions from files
+  - **Supports markdown** (.md files) - ClickUp renders markdown in task descriptions
+  - Supports headers, lists, code blocks, links, bold, italic, etc.
+  - File paths can be absolute or relative to current working directory
+  - Files must be readable text files (UTF-8 encoding)
+- **Custom task IDs:**
+  - Use `--custom-task-ids` if your workspace has custom task ID setting enabled
+  - This allows tasks to have custom alphanumeric IDs instead of ClickUp's default IDs
+- **Required custom fields:**
+  - Use `--check-required-custom-fields false` to skip validation of required custom fields
+  - Useful when creating tasks programmatically that will be completed later
 
 ## Validation
 
 - ✓ List ID must exist
 - ✓ Status must be valid for the list (if provided)
-- ✓ Priority must be 1-4 (if provided)
+- ✓ Priority must be 1-4 or urgent/high/normal/low (if provided)
+- ✓ Priority strings are case-insensitive
 - ✓ Parent task must exist (if provided)
 - ✓ Assignee IDs must be valid (if provided)
+- ✓ Description files must exist and be readable (if provided)
+
+## Examples with Priority Strings
+
+```bash
+# Create urgent task with markdown description
+cum tc current "Critical Security Fix" \
+  --description-file security-patch.md \
+  --priority urgent \
+  --tags security critical
+
+# Create high priority feature with parent
+cum tc current "Implement OAuth" \
+  --priority high \
+  --parent 86c6ce9gg \
+  --assignees 12345678
+
+# Create normal priority task (default)
+cum tc current "Update documentation" \
+  --priority normal \
+  --tags docs
+
+# Case insensitive priority
+cum tc current "Low priority cleanup" \
+  --priority LOW  # Works just like 'low' or 4
+```

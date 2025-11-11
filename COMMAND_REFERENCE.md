@@ -91,16 +91,21 @@ cum de <workspace_id> --output-dir ./out  # export
 ### Task Create Options
 
 ```bash
---description TEXT          # Task description (text)
---description-file PATH     # Task description (from file)
---status STATUS            # Initial status
---priority {1|2|3|4|urgent|high|normal|low}
---tags TAG [...]           # Tags to add
---assignees USER_ID [...]  # Assign users (defaults to context assignee)
---parent TASK_ID           # Create as subtask
+--description TEXT                         # Task description (text)
+--description-file PATH                    # Task description (from file - supports markdown!)
+--status STATUS                            # Initial status
+--priority {1|2|3|4|urgent|high|normal|low}  # Priority (number or name)
+--tags TAG [...]                           # Tags to add
+--assignees USER_ID [...]                  # Assign users (defaults to context assignee)
+--parent TASK_ID                           # Create as subtask
+--custom-task-ids                          # Use custom task IDs (requires workspace setting)
+--check-required-custom-fields true|false  # Check required custom fields (default: true)
 ```
 
-**Note**: `--description` and `--description-file` are mutually exclusive.
+**Notes**:
+- `--description` and `--description-file` are mutually exclusive
+- `--description-file` supports markdown (.md) files - ClickUp renders markdown in task descriptions
+- Priority can be specified as number (1-4) or name (urgent/high/normal/low)
 
 ### Task Update Options
 
@@ -172,12 +177,16 @@ comment_text               # Direct text input
 
 ## Priority Values
 
-| Value | Alias |
-|-------|-------|
-| `1` | `urgent` |
-| `2` | `high` |
-| `3` | `normal` |
-| `4` | `low` |
+Priority can be specified as either a number or a name string:
+
+| Value | Alias | Usage Examples |
+|-------|-------|----------------|
+| `1` | `urgent` | `--priority 1` or `--priority urgent` |
+| `2` | `high` | `--priority 2` or `--priority high` |
+| `3` | `normal` | `--priority 3` or `--priority normal` |
+| `4` | `low` | `--priority 4` or `--priority low` |
+
+Both forms are case-insensitive (`urgent`, `URGENT`, `Urgent` all work).
 
 ## Status Codes (3-Letter)
 
@@ -211,9 +220,11 @@ cum st current                                   # Task statistics
 
 # Create and manage tasks (using short codes!)
 cum tc current "New feature"                     # Auto-assigned to default assignee
-cum tc current "Feature" --description-file spec.md  # With description from file
+cum tc current "Feature" --description-file spec.md --priority urgent  # Markdown file + urgent priority
+cum tc current "Bug Fix" --priority high --parent 86c6xyz  # High priority subtask
 cum tu current --description-file updated_spec.md    # Update from file
 cum tss current "in progress"                    # Set status
+cum tsp current urgent                           # Set priority (accepts urgent/high/normal/low or 1-4)
 cum tst current --add bug critical               # Add tags
 cum td <task_id>                                 # Delete task
 

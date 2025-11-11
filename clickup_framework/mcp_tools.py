@@ -576,4 +576,209 @@ def get_all_tools() -> list[types.Tool]:
                 "required": ["task_id", "linked_task_id"]
             }
         ),
+
+        # Bulk Operations
+        types.Tool(
+            name="clickup_bulk_create_tasks",
+            description="Create multiple tasks at once (bulk operation)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "list_id": {
+                        "type": "string",
+                        "description": "List ID to create tasks in"
+                    },
+                    "tasks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "description": {"type": "string"},
+                                "status": {"type": "string"},
+                                "priority": {"type": "string"},
+                                "tags": {"type": "array", "items": {"type": "string"}},
+                                "assignees": {"type": "array", "items": {"type": "integer"}},
+                                "parent": {"type": "string"}
+                            },
+                            "required": ["name"]
+                        },
+                        "description": "Array of task objects to create"
+                    }
+                },
+                "required": ["list_id", "tasks"]
+            }
+        ),
+
+        types.Tool(
+            name="clickup_bulk_update_tasks",
+            description="Update multiple tasks with the same changes (bulk operation)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of task IDs to update"
+                    },
+                    "updates": {
+                        "type": "object",
+                        "properties": {
+                            "status": {"type": "string"},
+                            "priority": {"type": "string"},
+                            "tags": {"type": "array", "items": {"type": "string"}},
+                            "add_tags": {"type": "array", "items": {"type": "string"}},
+                            "remove_tags": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "description": "Updates to apply to all tasks"
+                    }
+                },
+                "required": ["task_ids", "updates"]
+            }
+        ),
+
+        # List Operations
+        types.Tool(
+            name="clickup_get_list_tasks",
+            description="Get all tasks from a list (raw task data, not formatted view)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "list_id": {
+                        "type": "string",
+                        "description": "List ID"
+                    },
+                    "include_closed": {
+                        "type": "boolean",
+                        "description": "Include completed/closed tasks",
+                        "default": False
+                    },
+                    "subtasks": {
+                        "type": "boolean",
+                        "description": "Include subtasks",
+                        "default": True
+                    },
+                    "detail_level": {
+                        "type": "string",
+                        "enum": ["minimal", "summary", "detailed", "full"],
+                        "description": "Level of detail for each task",
+                        "default": "summary"
+                    }
+                },
+                "required": ["list_id"]
+            }
+        ),
+
+        # Search
+        types.Tool(
+            name="clickup_search_tasks",
+            description="Search for tasks across workspace using keywords",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "workspace_id": {
+                        "type": "string",
+                        "description": "Workspace/team ID (use 'current' for current workspace)"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search query string"
+                    },
+                    "detail_level": {
+                        "type": "string",
+                        "enum": ["minimal", "summary", "detailed", "full"],
+                        "description": "Level of detail",
+                        "default": "summary"
+                    }
+                },
+                "required": ["workspace_id", "query"]
+            }
+        ),
+
+        # Workspace Operations
+        types.Tool(
+            name="clickup_get_workspace_hierarchy",
+            description="Get complete workspace hierarchy (spaces, folders, lists)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "workspace_id": {
+                        "type": "string",
+                        "description": "Workspace/team ID"
+                    }
+                },
+                "required": ["workspace_id"]
+            }
+        ),
+
+        # Checklists
+        types.Tool(
+            name="clickup_add_checklist",
+            description="Add a checklist to a task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "Task ID"
+                    },
+                    "checklist_name": {
+                        "type": "string",
+                        "description": "Checklist name/title"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of checklist item names"
+                    }
+                },
+                "required": ["task_id", "checklist_name"]
+            }
+        ),
+
+        types.Tool(
+            name="clickup_update_checklist_item",
+            description="Update a checklist item (mark as complete/incomplete)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "checklist_id": {
+                        "type": "string",
+                        "description": "Checklist ID"
+                    },
+                    "checklist_item_id": {
+                        "type": "string",
+                        "description": "Checklist item ID"
+                    },
+                    "resolved": {
+                        "type": "boolean",
+                        "description": "Mark as complete (true) or incomplete (false)"
+                    }
+                },
+                "required": ["checklist_id", "checklist_item_id", "resolved"]
+            }
+        ),
+
+        # Custom Fields
+        types.Tool(
+            name="clickup_set_custom_field",
+            description="Set a custom field value on a task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "Task ID"
+                    },
+                    "field_id": {
+                        "type": "string",
+                        "description": "Custom field ID"
+                    },
+                    "value": {
+                        "description": "Field value (type depends on field type)"
+                    }
+                },
+                "required": ["task_id", "field_id", "value"]
+            }
+        ),
     ]
