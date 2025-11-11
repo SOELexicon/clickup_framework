@@ -28,9 +28,6 @@ class AutomationConfig:
         max_retries: Maximum retry attempts
         log_automation_events: Whether to log all automation events
         verbose_output: Show detailed automation output in CLI
-
-    Change History:
-        v1.0.0 - Initial implementation
     """
 
     enabled: bool = True
