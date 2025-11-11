@@ -8,9 +8,10 @@ from typing import Dict, Any, Optional
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.utils.colors import (
     colorize, status_color, status_to_code, priority_color, get_task_emoji,
-    TextColor, TextStyle, USE_COLORS
+    get_status_icon, TextColor, TextStyle, USE_COLORS
 )
 from clickup_framework.utils.text import truncate, strip_markdown
+from clickup_framework.utils.datetime import format_timestamp
 
 
 class RichTaskFormatter:
@@ -19,6 +20,40 @@ class RichTaskFormatter:
 
     Provides methods to format task information with various levels of detail.
     """
+
+    @staticmethod
+    def _count_subtasks(task: Dict[str, Any]) -> tuple[int, int]:
+        """
+        Recursively count total and completed subtasks.
+
+        Args:
+            task: Task dictionary with potential '_children' property
+
+        Returns:
+            Tuple of (completed_count, total_count)
+        """
+        children = task.get('_children', [])
+        if not children:
+            return (0, 0)
+
+        total = len(children)
+        completed = 0
+
+        for child in children:
+            # Check if child is completed
+            status = child.get('status', {})
+            status_name = status.get('status') if isinstance(status, dict) else status
+            status_lower = str(status_name).lower().strip() if status_name else ''
+
+            if status_lower in ('complete', 'completed', 'done', 'closed'):
+                completed += 1
+
+            # Recursively count grandchildren
+            child_completed, child_total = RichTaskFormatter._count_subtasks(child)
+            completed += child_completed
+            total += child_total
+
+        return (completed, total)
 
     @staticmethod
     def format_task(task: Dict[str, Any], options: Optional[FormatOptions] = None) -> str:
@@ -54,18 +89,26 @@ class RichTaskFormatter:
         status = task.get('status', {})
         status_name = status.get('status') if isinstance(status, dict) else status
 
-        # Add status code at the beginning of task name
-        status_code = status_to_code(status_name or '')
-        status_code_str = f"[{status_code}]"
-        if options.colorize_output:
-            status_code_str = colorize(status_code_str, status_color(status_name))
+        # Determine status indicator (icon or code)
+        if options.show_status_icon:
+            # Use icon/emoji for status
+            status_indicator = get_status_icon(status_name or '', fallback_to_code=True)
+        else:
+            # Use 3-letter code
+            status_code = status_to_code(status_name or '')
+            status_indicator = f"[{status_code}]"
 
-        # Add task name with status code prefix
+        # Colorize status indicator if enabled
+        if options.colorize_output:
+            status_indicator = colorize(status_indicator, status_color(status_name))
+
+        # Add task name with status indicator prefix
         name = task.get('name', 'Untitled')
-        full_name = f"{status_code_str} {name}"
         if options.colorize_output:
             color = status_color(status_name)
-            full_name = f"{status_code_str} {colorize(name, color)}"
+            full_name = f"{status_indicator} {colorize(name, color)}"
+        else:
+            full_name = f"{status_indicator} {name}"
         parts.append(full_name)
 
         # Add priority (if not default)
@@ -87,6 +130,21 @@ class RichTaskFormatter:
             if options.colorize_output:
                 priority_str = colorize(priority_str, priority_color(priority_val))
             parts.append(priority_str)
+
+        # Add subtask count aggregation (for tasks with children)
+        completed_count, total_count = RichTaskFormatter._count_subtasks(task)
+        if total_count > 0:
+            subtask_str = f"({completed_count}/{total_count} complete)"
+            if options.colorize_output:
+                # Color based on completion ratio
+                if completed_count == total_count:
+                    subtask_color = TextColor.BRIGHT_GREEN
+                elif completed_count >= total_count / 2:
+                    subtask_color = TextColor.YELLOW
+                else:
+                    subtask_color = TextColor.BRIGHT_RED
+                subtask_str = colorize(subtask_str, subtask_color)
+            parts.append(subtask_str)
 
         # Combine the main line
         main_line = ' '.join(parts)
@@ -127,11 +185,14 @@ class RichTaskFormatter:
         if options.show_dates:
             date_parts = []
             if task.get('date_created'):
-                date_parts.append(f"Created: {task['date_created']}")
+                formatted_created = format_timestamp(task['date_created'], include_time=False)
+                date_parts.append(f"Created: {formatted_created}")
             if task.get('date_updated'):
-                date_parts.append(f"Updated: {task['date_updated']}")
+                formatted_updated = format_timestamp(task['date_updated'], include_time=False)
+                date_parts.append(f"Updated: {formatted_updated}")
             if task.get('due_date'):
-                date_parts.append(f"Due: {task['due_date']}")
+                formatted_due = format_timestamp(task['due_date'], include_time=False)
+                date_parts.append(f"Due: {formatted_due}")
 
             if date_parts:
                 date_str = f"📅 {' | '.join(date_parts)}"

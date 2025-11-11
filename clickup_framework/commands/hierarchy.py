@@ -167,6 +167,33 @@ def hierarchy_command(args):
             container_name = folder_data.get('name', 'Folder')
             tasks = _get_tasks_from_folder(client, folder_data, include_closed)
             list_id = None
+        elif container_type == 'task':
+            # Fetch task and all its subtasks recursively
+            task_data = container['data']
+            list_id_for_fetch = container['list_id']
+            container_name = task_data.get('name', 'Task')
+
+            # Fetch all tasks from the list - need BOTH root tasks and subtasks
+            # ClickUp API: without 'subtasks' param returns root tasks, with it returns subtasks
+            root_tasks = _fetch_all_pages(
+                lambda **p: client.get_list_tasks(list_id_for_fetch, **p),
+                include_closed=include_closed
+            )
+            subtask_list = _fetch_all_pages(
+                lambda **p: client.get_list_tasks(list_id_for_fetch, **p),
+                subtasks='true',
+                include_closed=include_closed
+            )
+
+            # Merge both lists and deduplicate by task ID
+            task_map = {}
+            for task in root_tasks + subtask_list:
+                task_map[task['id']] = task
+            all_tasks = list(task_map.values())
+
+            # Filter to only include the specified task and its descendants
+            tasks = _filter_task_and_descendants(all_tasks, container_id)
+            list_id = None
         else:  # container_type == 'list'
             # Fetch all pages of tasks from the single list
             list_id = container_id
@@ -417,6 +444,58 @@ def _get_tasks_from_folder(client, folder_data, include_closed=False):
     return _get_tasks_from_lists(client, lists, include_closed)
 
 
+def _filter_task_and_descendants(all_tasks, root_task_id):
+    """
+    Filter tasks to only include a specific task and all its descendants.
+
+    Recursively finds all subtasks, sub-subtasks, etc. of the specified root task.
+
+    Args:
+        all_tasks (list): Complete list of all tasks from the list
+        root_task_id (str): ID of the root task to start from
+
+    Returns:
+        list: List containing only the root task and all its descendants
+
+    Examples:
+        Given task hierarchy:
+            Task A [root_task_id]
+            ├─ Task B (subtask of A)
+            │  └─ Task C (subtask of B)
+            └─ Task D (subtask of A)
+
+        Returns: [Task A, Task B, Task C, Task D]
+
+    Notes:
+        - Handles arbitrary nesting depth
+        - Preserves all descendants regardless of status
+        - Returns empty list if root task not found
+    """
+    # Build a map of task_id -> task for quick lookup
+    task_map = {task['id']: task for task in all_tasks}
+
+    # Check if root task exists
+    if root_task_id not in task_map:
+        logger.warning(f"Root task {root_task_id} not found in task list")
+        return []
+
+    # Recursively collect all descendants
+    def collect_descendants(task_id, collected):
+        """Recursively collect a task and all its descendants."""
+        if task_id in task_map:
+            task = task_map[task_id]
+            collected.append(task)
+
+            # Find all children of this task
+            for potential_child in all_tasks:
+                if potential_child.get('parent') == task_id:
+                    collect_descendants(potential_child['id'], collected)
+
+    result = []
+    collect_descendants(root_task_id, result)
+    return result
+
+
 def register_command(subparsers):
     """
     Register the hierarchy command and its aliases with the CLI argument parser.
@@ -466,6 +545,8 @@ def register_command(subparsers):
     hierarchy_parser.add_argument('--header', help='Custom header text')
     hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
                                  help='Show all tasks from the entire workspace')
+    hierarchy_parser.add_argument('--depth', type=int, metavar='N',
+                                 help='Limit hierarchy display to N levels deep')
     add_common_args(hierarchy_parser)
     hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -475,6 +556,8 @@ def register_command(subparsers):
     h_parser.add_argument('--header', help='Custom header text')
     h_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
+    h_parser.add_argument('--depth', type=int, metavar='N',
+                         help='Limit hierarchy display to N levels deep')
     add_common_args(h_parser)
     h_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -484,6 +567,8 @@ def register_command(subparsers):
     list_parser.add_argument('--header', help='Custom header text')
     list_parser.add_argument('--all', dest='show_all', action='store_true',
                             help='Show all tasks from the entire workspace')
+    list_parser.add_argument('--depth', type=int, metavar='N',
+                            help='Limit hierarchy display to N levels deep')
     add_common_args(list_parser)
     list_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -493,6 +578,8 @@ def register_command(subparsers):
     ls_parser.add_argument('--header', help='Custom header text')
     ls_parser.add_argument('--all', dest='show_all', action='store_true',
                           help='Show all tasks from the entire workspace')
+    ls_parser.add_argument('--depth', type=int, metavar='N',
+                          help='Limit hierarchy display to N levels deep')
     add_common_args(ls_parser)
     ls_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -502,5 +589,7 @@ def register_command(subparsers):
     l_parser.add_argument('--header', help='Custom header text')
     l_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
+    l_parser.add_argument('--depth', type=int, metavar='N',
+                         help='Limit hierarchy display to N levels deep')
     add_common_args(l_parser)
     l_parser.set_defaults(func=hierarchy_command, preset='full')
