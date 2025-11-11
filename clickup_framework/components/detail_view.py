@@ -236,6 +236,7 @@ class TaskDetailFormatter:
         """Format container hierarchy (Space > Folder > List) with IDs."""
         parts = []
         workspace_id = None
+        folder_id = None
         list_id = None
 
         if task.get('space'):
@@ -255,6 +256,7 @@ class TaskDetailFormatter:
             folder = task['folder']
             if isinstance(folder, dict):
                 folder_name = folder.get('name', '')
+                folder_id = folder.get('id', '')
                 if folder_name:
                     parts.append(folder_name)
             else:
@@ -284,13 +286,19 @@ class TaskDetailFormatter:
 
         lines.append(f"{label} {hierarchy}")
 
-        # Add workspace ID and list ID on separate lines if show_ids is enabled
+        # Add workspace ID, folder ID, and list ID on separate lines if show_ids is enabled
         if options.show_ids:
             if workspace_id:
                 ws_label = "Workspace ID:"
                 if options.colorize_output:
                     ws_label = colorize(ws_label, TextColor.BRIGHT_BLACK)
                 lines.append(f"{ws_label} {workspace_id}")
+
+            if folder_id:
+                folder_label = "Folder ID:"
+                if options.colorize_output:
+                    folder_label = colorize(folder_label, TextColor.BRIGHT_BLACK)
+                lines.append(f"{folder_label} {folder_id}")
 
             if list_id:
                 list_label = "List ID:"
