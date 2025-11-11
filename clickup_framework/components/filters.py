@@ -125,20 +125,35 @@ class TaskFilter:
         return filtered
 
     @staticmethod
-    def filter_completed(tasks: List[Dict[str, Any]], include_completed: bool = False) -> List[Dict[str, Any]]:
+    def filter_completed(tasks: List[Dict[str, Any]], include_completed: bool = False, show_closed_only: bool = False) -> List[Dict[str, Any]]:
         """
         Filter tasks by completion status.
 
         Args:
             tasks: List of tasks
-            include_completed: Whether to include completed tasks
+            include_completed: Whether to include completed tasks along with open tasks
+            show_closed_only: Whether to show ONLY closed tasks
 
         Returns:
             Filtered list of tasks
         """
+        # If show_closed_only is True, return only closed tasks
+        if show_closed_only:
+            filtered = []
+            for task in tasks:
+                status = task.get('status', {})
+                status_name = status.get('status') if isinstance(status, dict) else status
+                is_completed = str(status_name).lower() in ('complete', 'completed', 'closed', 'done')
+
+                if is_completed:
+                    filtered.append(task)
+            return filtered
+
+        # If include_completed is True, return all tasks
         if include_completed:
             return tasks
 
+        # Default: return only open tasks
         filtered = []
         for task in tasks:
             status = task.get('status', {})

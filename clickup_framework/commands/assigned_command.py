@@ -68,18 +68,41 @@ def assigned_tasks_command(args):
             print(f"Error fetching workspaces: {e}", file=sys.stderr)
             sys.exit(1)
 
+    # Get the include_completed and show_closed_only flags
+    include_completed = getattr(args, 'include_completed', False)
+    show_closed_only = getattr(args, 'show_closed_only', False)
+
+    # Determine if we need to fetch closed tasks from the API
+    # We need closed tasks if either include_completed or show_closed_only is True
+    include_closed = include_completed or show_closed_only
+
     # Fetch tasks assigned to user
     try:
         result = client.get_team_tasks(
             team_id,
             assignees=[user_id],
             subtasks=True,
-            include_closed=False
+            include_closed=include_closed
         )
         tasks = result.get('tasks', [])
     except Exception as e:
         print(f"Error fetching tasks: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Filter tasks based on completion status
+    def is_task_completed(task):
+        """Check if a task is completed."""
+        status = task.get('status', {})
+        status_name = status.get('status') if isinstance(status, dict) else status
+        return str(status_name).lower() in ('complete', 'completed', 'closed', 'done')
+
+    if show_closed_only:
+        # Show ONLY closed tasks
+        tasks = [t for t in tasks if is_task_completed(t)]
+    elif not include_completed:
+        # Show only open tasks (default behavior)
+        tasks = [t for t in tasks if not is_task_completed(t)]
+    # If include_completed is True, show all tasks (no filtering)
 
     if not tasks:
         print(f"No tasks found assigned to user {user_id}")
@@ -314,4 +337,8 @@ def register_command(subparsers):
                                 help='User ID to filter tasks (defaults to configured default assignee)')
     assigned_parser.add_argument('--team-id', dest='team_id',
                                 help='Team/workspace ID (defaults to current workspace)')
+    assigned_parser.add_argument('--include-completed', action='store_true',
+                                help='Include completed tasks')
+    assigned_parser.add_argument('-sc', '--show-closed', dest='show_closed_only', action='store_true',
+                                help='Show ONLY closed tasks')
     assigned_parser.set_defaults(func=assigned_tasks_command)

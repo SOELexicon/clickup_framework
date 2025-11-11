@@ -99,8 +99,13 @@ class TaskHierarchyFormatter:
         )
 
         # Filter by completion if needed
-        if not options.include_completed:
+        if options.show_closed_only:
+            # Show ONLY closed tasks
+            root_tasks = [t for t in root_tasks if self._is_completed(t)]
+        elif not options.include_completed:
+            # Show only open tasks (default behavior)
             root_tasks = [t for t in root_tasks if not self._is_completed(t)]
+        # If include_completed is True, show all tasks (no filtering)
 
         # Define functions for tree building
         def format_fn(task):
@@ -108,8 +113,13 @@ class TaskHierarchyFormatter:
 
         def get_children_fn(task):
             children = task.get('_children', [])
-            if not options.include_completed:
+            if options.show_closed_only:
+                # Show ONLY closed tasks
+                children = [c for c in children if self._is_completed(c)]
+            elif not options.include_completed:
+                # Show only open tasks (default behavior)
                 children = [c for c in children if not self._is_completed(c)]
+            # If include_completed is True, show all children (no filtering)
             return sorted(children, key=lambda t: (
                 self._get_priority_value(t),
                 t.get('name', '').lower()
