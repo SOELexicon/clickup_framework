@@ -21,18 +21,34 @@ def task_create_command(args):
     context = get_context_manager()
     client = ClickUpClient()
 
-    # Resolve "current" to actual list ID
-    try:
-        list_id = context.resolve_id('list', args.list_id)
-    except ValueError as e:
-        # Provide helpful error message if "current" is used without setting context
-        error_context = {
-            'command': 'task_create',
-            'provided_list_id': args.list_id,
-            'current_workspace': context.get_current_workspace() or 'Not set',
-            'current_list': context.get_current_list() or 'Not set',
-        }
-        handle_cli_error(e, error_context)
+    # If parent task is provided, get list_id from parent
+    if args.parent:
+        try:
+            parent_task = client.get_task(args.parent)
+            list_id = parent_task['list']['id']
+            print(f"ℹ️  Using list from parent task: {parent_task['list']['name']} [{list_id}]")
+        except Exception as e:
+            error_context = {
+                'command': 'task_create',
+                'parent_task_id': args.parent,
+            }
+            handle_cli_error(e, error_context)
+    elif args.list_id:
+        # Resolve "current" to actual list ID
+        try:
+            list_id = context.resolve_id('list', args.list_id)
+        except ValueError as e:
+            # Provide helpful error message if "current" is used without setting context
+            error_context = {
+                'command': 'task_create',
+                'provided_list_id': args.list_id,
+                'current_workspace': context.get_current_workspace() or 'Not set',
+                'current_list': context.get_current_list() or 'Not set',
+            }
+            handle_cli_error(e, error_context)
+    else:
+        print("Error: Either list_id or --parent must be provided", file=sys.stderr)
+        sys.exit(1)
 
     # Build task data
     task_data = {'name': args.name}
@@ -680,8 +696,8 @@ def register_command(subparsers):
     # Task create
     task_create_parser = subparsers.add_parser('task_create', aliases=['tc'],
                                                 help='Create a new task')
-    task_create_parser.add_argument('list_id', help='List ID to create task in (or "current")')
     task_create_parser.add_argument('name', help='Task name')
+    task_create_parser.add_argument('--list', dest='list_id', help='List ID to create task in (or "current"). Not required if --parent is provided.')
     description_group = task_create_parser.add_mutually_exclusive_group()
     description_group.add_argument('--description', help='Task description')
     description_group.add_argument('--description-file', help='Read task description from file')
