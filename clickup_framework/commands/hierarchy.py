@@ -545,6 +545,8 @@ def register_command(subparsers):
     hierarchy_parser.add_argument('--header', help='Custom header text')
     hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
                                  help='Show all tasks from the entire workspace')
+    hierarchy_parser.add_argument('--depth', type=int, metavar='N',
+                                 help='Limit hierarchy display to N levels deep')
     add_common_args(hierarchy_parser)
     hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -554,6 +556,8 @@ def register_command(subparsers):
     h_parser.add_argument('--header', help='Custom header text')
     h_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
+    h_parser.add_argument('--depth', type=int, metavar='N',
+                         help='Limit hierarchy display to N levels deep')
     add_common_args(h_parser)
     h_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -563,6 +567,8 @@ def register_command(subparsers):
     list_parser.add_argument('--header', help='Custom header text')
     list_parser.add_argument('--all', dest='show_all', action='store_true',
                             help='Show all tasks from the entire workspace')
+    list_parser.add_argument('--depth', type=int, metavar='N',
+                            help='Limit hierarchy display to N levels deep')
     add_common_args(list_parser)
     list_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -572,6 +578,8 @@ def register_command(subparsers):
     ls_parser.add_argument('--header', help='Custom header text')
     ls_parser.add_argument('--all', dest='show_all', action='store_true',
                           help='Show all tasks from the entire workspace')
+    ls_parser.add_argument('--depth', type=int, metavar='N',
+                          help='Limit hierarchy display to N levels deep')
     add_common_args(ls_parser)
     ls_parser.set_defaults(func=hierarchy_command, preset='full')
 
@@ -581,5 +589,7 @@ def register_command(subparsers):
     l_parser.add_argument('--header', help='Custom header text')
     l_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
+    l_parser.add_argument('--depth', type=int, metavar='N',
+                         help='Limit hierarchy display to N levels deep')
     add_common_args(l_parser)
     l_parser.set_defaults(func=hierarchy_command, preset='full')

@@ -24,10 +24,12 @@ class TreeFormatter:
         format_fn: Callable[[Dict[str, Any]], str],
         get_children_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
         prefix: str = "",
-        is_last: bool = True
+        is_last: bool = True,
+        current_depth: int = 0,
+        max_depth: Optional[int] = None
     ) -> List[str]:
         """
-        Recursively build a tree structure from hierarchical items.
+        Recursively build a tree structure from hierarchical items with optional depth limiting.
 
         Args:
             items: List of items to display
@@ -35,6 +37,8 @@ class TreeFormatter:
             get_children_fn: Function to get children of an item
             prefix: Current indentation prefix
             is_last: Whether this is the last item in its level
+            current_depth: Current depth in the tree (0 = root level)
+            max_depth: Maximum depth to display (None = unlimited)
 
         Returns:
             List of formatted lines
@@ -71,21 +75,35 @@ class TreeFormatter:
             children = get_children_fn(item)
 
             if children:
-                # Calculate the prefix for children
-                if is_last_item:
-                    child_prefix = prefix + "  "  # No vertical line
-                else:
-                    child_prefix = prefix + "│ "  # Continue vertical line
+                # Check if we've reached max depth
+                if max_depth is not None and current_depth >= max_depth:
+                    # Show truncation message
+                    if is_last_item:
+                        truncate_prefix = prefix + "  "
+                    else:
+                        truncate_prefix = prefix + "│ "
 
-                # Recursively format children
-                child_lines = TreeFormatter.build_tree(
-                    children,
-                    format_fn,
-                    get_children_fn,
-                    child_prefix,
-                    False
-                )
-                lines.extend(child_lines)
+                    hidden_count = len(children)
+                    truncate_msg = f"  ... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
+                    lines.append(f"{truncate_prefix}{truncate_msg}")
+                else:
+                    # Calculate the prefix for children
+                    if is_last_item:
+                        child_prefix = prefix + "  "  # No vertical line
+                    else:
+                        child_prefix = prefix + "│ "  # Continue vertical line
+
+                    # Recursively format children
+                    child_lines = TreeFormatter.build_tree(
+                        children,
+                        format_fn,
+                        get_children_fn,
+                        child_prefix,
+                        False,
+                        current_depth + 1,
+                        max_depth
+                    )
+                    lines.extend(child_lines)
 
         return lines
 
@@ -94,16 +112,18 @@ class TreeFormatter:
         items: List[Dict[str, Any]],
         format_fn: Callable[[Dict[str, Any]], str],
         get_children_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
-        header: Optional[str] = None
+        header: Optional[str] = None,
+        max_depth: Optional[int] = None
     ) -> str:
         """
-        Render items as a tree structure.
+        Render items as a tree structure with optional depth limiting.
 
         Args:
             items: List of root items
             format_fn: Function to format each item
             get_children_fn: Function to get children of an item
             header: Optional header to display before the tree
+            max_depth: Maximum depth to display (None = unlimited)
 
         Returns:
             Complete tree as a string
@@ -114,7 +134,12 @@ class TreeFormatter:
             lines.append(header)
             lines.append("")
 
-        tree_lines = TreeFormatter.build_tree(items, format_fn, get_children_fn)
+        tree_lines = TreeFormatter.build_tree(
+            items,
+            format_fn,
+            get_children_fn,
+            max_depth=max_depth
+        )
         lines.extend(tree_lines)
 
         return "\n".join(lines)
