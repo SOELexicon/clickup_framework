@@ -233,23 +233,42 @@ class TaskDetailFormatter:
         return "\n".join(lines)
 
     def _format_container_info(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format container hierarchy (Space > Folder > List)."""
+        """Format container hierarchy (Space > Folder > List) with IDs."""
         parts = []
+        workspace_id = None
+        list_id = None
 
         if task.get('space'):
-            space_name = task['space'].get('name') if isinstance(task['space'], dict) else str(task['space'])
-            if space_name:
-                parts.append(space_name)
+            space = task['space']
+            if isinstance(space, dict):
+                space_name = space.get('name', '')
+                space_id = space.get('id', '')
+                if space_name:
+                    parts.append(space_name)
+                # Track workspace ID (space ID is the workspace ID)
+                if space_id:
+                    workspace_id = space_id
+            else:
+                parts.append(str(space))
 
         if task.get('folder'):
-            folder_name = task['folder'].get('name') if isinstance(task['folder'], dict) else str(task['folder'])
-            if folder_name:
-                parts.append(folder_name)
+            folder = task['folder']
+            if isinstance(folder, dict):
+                folder_name = folder.get('name', '')
+                if folder_name:
+                    parts.append(folder_name)
+            else:
+                parts.append(str(folder))
 
         if task.get('list'):
-            list_name = task['list'].get('name') if isinstance(task['list'], dict) else str(task['list'])
-            if list_name:
-                parts.append(list_name)
+            list_obj = task['list']
+            if isinstance(list_obj, dict):
+                list_name = list_obj.get('name', '')
+                list_id = list_obj.get('id', '')
+                if list_name:
+                    parts.append(list_name)
+            else:
+                parts.append(str(list_obj))
 
         if not parts:
             return ""
@@ -264,6 +283,19 @@ class TaskDetailFormatter:
             hierarchy = colorize(hierarchy, TextColor.CYAN)
 
         lines.append(f"{label} {hierarchy}")
+
+        # Add workspace ID and list ID on separate lines
+        if workspace_id:
+            ws_label = "Workspace ID:"
+            if options.colorize_output:
+                ws_label = colorize(ws_label, TextColor.BRIGHT_BLACK)
+            lines.append(f"{ws_label} {workspace_id}")
+
+        if list_id:
+            list_label = "List ID:"
+            if options.colorize_output:
+                list_label = colorize(list_label, TextColor.BRIGHT_BLACK)
+            lines.append(f"{list_label} {list_id}")
 
         return "\n".join(lines)
 
