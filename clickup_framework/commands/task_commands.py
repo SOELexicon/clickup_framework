@@ -187,6 +187,9 @@ def task_update_command(args):
     if args.priority is not None:
         updates['priority'] = args.priority
 
+    if args.parent:
+        updates['parent'] = args.parent
+
     if args.add_tags:
         # Get current task to append tags
         task = client.get_task(task_id)
@@ -725,6 +728,7 @@ def register_command(subparsers):
     task_update_parser.add_argument('--priority', type=int, help='New task priority (1-4)')
     task_update_parser.add_argument('--add-tags', nargs='+', help='Tags to add')
     task_update_parser.add_argument('--remove-tags', nargs='+', help='Tags to remove')
+    task_update_parser.add_argument('--parent', help='New parent task ID')
     task_update_parser.set_defaults(func=task_update_command)
 
     # Task delete
