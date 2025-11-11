@@ -284,18 +284,19 @@ class TaskDetailFormatter:
 
         lines.append(f"{label} {hierarchy}")
 
-        # Add workspace ID and list ID on separate lines
-        if workspace_id:
-            ws_label = "Workspace ID:"
-            if options.colorize_output:
-                ws_label = colorize(ws_label, TextColor.BRIGHT_BLACK)
-            lines.append(f"{ws_label} {workspace_id}")
+        # Add workspace ID and list ID on separate lines if show_ids is enabled
+        if options.show_ids:
+            if workspace_id:
+                ws_label = "Workspace ID:"
+                if options.colorize_output:
+                    ws_label = colorize(ws_label, TextColor.BRIGHT_BLACK)
+                lines.append(f"{ws_label} {workspace_id}")
 
-        if list_id:
-            list_label = "List ID:"
-            if options.colorize_output:
-                list_label = colorize(list_label, TextColor.BRIGHT_BLACK)
-            lines.append(f"{list_label} {list_id}")
+            if list_id:
+                list_label = "List ID:"
+                if options.colorize_output:
+                    list_label = colorize(list_label, TextColor.BRIGHT_BLACK)
+                lines.append(f"{list_label} {list_id}")
 
         return "\n".join(lines)
 
