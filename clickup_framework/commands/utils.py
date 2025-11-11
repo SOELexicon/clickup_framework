@@ -236,7 +236,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         task = client.get_task(id_or_current)
         list_id = task.get('list', {}).get('id')
         if list_id:
-            return {'type': 'list', 'id': list_id}
+            return {'type': 'task', 'id': id_or_current, 'data': task, 'list_id': list_id}
         else:
             raise ValueError(f"Task {id_or_current} does not have a valid list ID")
     except ClickUpAuthError as e:
