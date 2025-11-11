@@ -87,19 +87,32 @@ def get_python_from_script(script_path):
             if os.path.isfile(python_exe):
                 return python_exe
 
-        # As a last resort on Windows, try to use 'python' from PATH
-        # This will find the python that would be used in the same environment
-        try:
-            result = subprocess.run(
-                ['python', '--version'],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if result.returncode == 0:
-                return 'python'
-        except Exception:
-            pass
+        # As a last resort on Windows, try to find python in PATH using where.exe
+        # Try multiple Python command names
+        for python_cmd in ['py', 'python', 'python3']:
+            try:
+                # First verify the command works
+                result = subprocess.run(
+                    [python_cmd, '--version'],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if result.returncode == 0:
+                    # Now get the actual path using where.exe
+                    where_result = subprocess.run(
+                        ['where.exe', python_cmd],
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if where_result.returncode == 0:
+                        # Get the first path from the output
+                        python_path = where_result.stdout.strip().split('\n')[0].strip()
+                        if os.path.isfile(python_path):
+                            return python_path
+            except Exception:
+                continue
     else:
         # On Unix, try to read the shebang
         try:
@@ -633,14 +646,42 @@ def update_version_command(args):
     context = get_context_manager()
     use_color = context.get_ansi_output()
 
+    # Check if git is available
+    try:
+        git_check = subprocess.run(
+            ['git', '--version'],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if git_check.returncode != 0:
+            error_msg = "Error: git command not found. Please install git and try again."
+            if use_color:
+                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+            else:
+                print(error_msg, file=sys.stderr)
+            sys.stderr.flush()
+            sys.exit(1)
+    except FileNotFoundError:
+        error_msg = "Error: git command not found. Please install git and try again."
+        if use_color:
+            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
     # Check if we're in a git repository
     result = run_git_command(['git', 'rev-parse', '--git-dir'])
     if result.returncode != 0:
         error_msg = "Error: Not in a git repository"
         if use_color:
             print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+            print(colorize("This command must be run from within the clickup_framework git repository.", TextColor.YELLOW), file=sys.stderr)
         else:
             print(error_msg, file=sys.stderr)
+            print("This command must be run from within the clickup_framework git repository.", file=sys.stderr)
+        sys.stderr.flush()
         sys.exit(1)
 
     # Determine new version
@@ -672,6 +713,7 @@ def update_version_command(args):
                 print(colorize(error_msg, TextColor.RED), file=sys.stderr)
             else:
                 print(error_msg, file=sys.stderr)
+            sys.stderr.flush()
             sys.exit(1)
     elif increment_type:
         current_version = get_latest_tag()
@@ -691,6 +733,12 @@ def update_version_command(args):
                 print(msg)
     else:
         # Interactive mode
+        if use_color:
+            print(colorize("No version specified. Starting interactive mode...", TextColor.BRIGHT_YELLOW))
+        else:
+            print("No version specified. Starting interactive mode...")
+        print()
+        sys.stdout.flush()
         new_version = interactive_bump(use_color)
 
     if not new_version:

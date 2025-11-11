@@ -391,6 +391,7 @@ def show_command_tree():
         "🎨 Configuration": [
             ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
             ("update cum", "", "Update cum tool from git and reinstall"),
+            ("update version", "[VERSION] [--major|--minor|--patch]", "Bump project version and create git tag"),
         ],
     }
 
@@ -477,7 +478,6 @@ def main():
     parser = ImprovedArgumentParser(
         description='ClickUp Framework CLI - Beautiful hierarchical task displays',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=False,  # Disable default help to use custom tree view
         epilog="""
 Examples:
   # Show hierarchy view
