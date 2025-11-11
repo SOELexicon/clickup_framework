@@ -58,3 +58,6 @@ exclude = ["scripts*", "tests*"]
 write_to = "clickup_framework/_version.py"
 version_scheme = "post-release"
 local_scheme = "no-local-version"
+fallback_version = "1.6.0"
+# Custom tag regex to strip invalid suffixes like '-cum'
+tag_regex = "^(?:v)?(?P<version>[^-]+)(?:-.*)?$"
