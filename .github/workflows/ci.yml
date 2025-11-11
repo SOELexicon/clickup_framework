@@ -108,9 +108,8 @@ jobs:
     name: 📸 Display Component Tests
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' &&
-       (inputs.run_screenshots == 'true' || inputs.run_screenshots == true))
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.run_screenshots == 'true' || inputs.run_screenshots == true)
     permissions:
       contents: read
       issues: write
