@@ -139,7 +139,6 @@ class ParentTaskAutomationEngine:
         """
         start_time = datetime.now()
         parent_id = subtask.get('parent')
-        subtask_id = subtask['id']
         subtask_name = subtask.get('name', 'Unknown')
 
         try:
