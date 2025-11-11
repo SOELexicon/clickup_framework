@@ -17,18 +17,18 @@ class StatusMatcher:
     Handles variations in status naming across ClickUp workspaces.
     Uses string similarity and predefined aliases for matching.
 
-    Variables:
-        _alias_map: Dict mapping canonical statuses to aliases
-        _similarity_threshold: Minimum similarity score for fuzzy match
+    Attributes:
+        config (AutomationConfig): Automation configuration object.
+        _alias_map (Dict[str, List[str]]): Map of canonical statuses to common aliases.
+        _similarity_threshold (float): Minimum similarity score for fuzzy match.
 
-    Functions:
-        is_development_status()
-        is_inactive_status()
-        normalize_status()
-        fuzzy_match()
+    Examples:
+        >>> matcher = StatusMatcher(config)
+        >>> matcher.is_development_status("in dev")
+        True
 
-    Change History:
-        v1.0.0 - Initial implementation with Levenshtein distance
+    Notes:
+        - Designed for flexible status matching in automation workflows.
     """
 
     def __init__(self, config: AutomationConfig):
