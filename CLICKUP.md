@@ -18,6 +18,7 @@ Complete command-line interface for the ClickUp Framework with beautiful hierarc
 - [Checklist Commands (Implemented)](#checklist-commands-)
 - [Relationship Commands (Implemented)](#relationship-commands-)
 - [Custom Field Commands (Implemented)](#custom-field-commands-)
+- [Git Integration (Overflow Workflows) (Implemented)](#git-integration-overflow-workflows-)
 - [List Commands (Planned)](#list-commands-planned-)
 - [Workspace/Space/Folder Commands (Planned)](#workspacespacefolders-commands-planned-)
 - [Docs Commands (Implemented)](#docs-commands-)
@@ -1153,6 +1154,178 @@ All ClickUp custom field types are supported:
 | `currency` | Money value | 99.99 |
 | `rating` | Star rating | 4 (★★★★☆) |
 | `location` | Location text | "San Francisco, CA" |
+
+---
+
+## Git Integration (Overflow Workflows) ✅
+
+> **Status**: Phase 1 Complete (Workflow 0)
+> **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6fpedh)
+
+Git Overflow provides automated Git + ClickUp workflow integration, replacing 8-12 manual steps with a single command.
+
+**What it does**:
+1. Stages all changes
+2. Creates commit with your message
+3. Pushes to remote (optional)
+4. Posts commit info to ClickUp task
+5. Updates task status automatically
+6. Links commit to task
+
+### `overflow` - Automated Git + ClickUp Workflow
+
+**Current Status**: ✅ **Workflow 0 (Direct Commit) Implemented**
+
+**Basic Usage**:
+```bash
+# Using current task (set with `cum set task <task_id>`)
+cum overflow "Commit message"
+
+# Specify task explicitly
+cum overflow "Commit message" --task TASK_ID
+
+# Test without making changes
+cum overflow "Commit message" --dry-run
+
+# Commit without pushing
+cum overflow "Commit message" --no-push
+
+# Git operations only (skip ClickUp updates)
+cum overflow "Commit message" --no-clickup
+```
+
+**Advanced Usage**:
+```bash
+# Set task status
+cum overflow "Complete feature X" --status "complete"
+
+# Set priority and tags
+cum overflow "Fix critical bug" --priority urgent --tags bug critical
+
+# Combine options
+cum overflow "WIP: Testing new feature" --no-push --status "in progress" --dry-run
+```
+
+**Options**:
+- `--task`, `-t` - Task ID (default: use current task)
+- `--type` - Workflow type: `0/direct` (default), `1/pr`, `2/wip`, `3/hotfix`, `4/merge`
+- `--no-push` - Don't push to remote
+- `--no-clickup` - Skip ClickUp updates
+- `--dry-run` - Test mode (no changes)
+- `--status` - Set task status (e.g., "in progress", "complete")
+- `--priority` - Set priority: `urgent`, `high`, `normal`, `low`
+- `--tags` - Add tags (space-separated)
+- `--verbose`, `-v` - Show detailed error information
+
+**Output Example**:
+```
+📋 Task: 86c6fpeen
+💬 Message: Implement overflow CLI command
+🔀 Workflow: DIRECT_COMMIT (Type 0)
+📤 Push: Yes
+🔗 Update ClickUp: Yes
+
+⏳ Executing workflow...
+
+✅ Workflow completed successfully!
+
+📝 Commit: a612a7a
+👤 Author: Developer <dev@example.com>
+📁 Files changed: 5
+   +392 -16
+📤 Pushed to claude/feature-branch
+🔗 https://github.com/owner/repo/commit/a612a7a
+
+🔗 ClickUp updated:
+   ✓ Comment posted
+   ✓ Status set to 'in progress'
+
+⏱️  Duration: 2.45s
+```
+
+**Configuration**:
+
+Create `.overflow.yaml` in your repository root to customize behavior:
+
+```yaml
+# Status mapping
+status_mapping:
+  on_commit: "in progress"    # Status after commit
+  on_push: "in progress"      # Status after push
+  on_pr_create: "in review"   # Status when PR created
+  on_complete: "closed"       # Status when merged
+
+# Workflow defaults
+auto_push: true               # Push by default
+auto_update_clickup: true     # Update ClickUp by default
+
+# Comment templates
+commit_comment_template: |
+  ✅ **Committed: {commit_sha_short}**
+  
+  📝 {commit_message}
+  
+  📊 **Changes:** {files_changed|length} files changed
+    • +{additions} additions, -{deletions} deletions
+  
+  🔗 [View Commit]({commit_url})
+```
+
+**Workflow Types** (Phase 2+ - Coming Soon):
+- **Workflow 0** (✅ Implemented): Direct commit to current branch
+- **Workflow 1** (🚧 Planned): Create pull request / merge request  
+- **Workflow 2** (🚧 Planned): Branch and WIP commit
+- **Workflow 3** (🚧 Planned): Hotfix workflow
+- **Workflow 4** (🚧 Planned): Merge and mark complete
+
+**Examples**:
+
+```bash
+# Daily workflow - commit and update task
+cum set task 86c6fpeen
+cum overflow "Add overflow command to CLI"
+
+# Quick WIP commit without pushing
+cum overflow "WIP: Debugging issue" --no-push
+
+# Complete a task
+cum overflow "Complete Sprint 1.3" --status "complete"
+
+# Hotfix with high priority
+cum overflow "Fix critical auth bug" --priority urgent --tags hotfix security
+
+# Test what would happen
+cum overflow "Test commit message" --dry-run
+
+# Specific task without setting context
+cum overflow "Update documentation" --task 86c6fpee9
+
+# Git only (no ClickUp token available)
+cum overflow "Update README" --no-clickup
+```
+
+**Error Handling**:
+
+The command handles common errors gracefully:
+- **No current task**: Prompts to set task or use `--task`
+- **ClickUp auth failure**: Continues with Git operations only
+- **Git errors**: Shows clear error messages with context
+- **Network issues**: Retries with exponential backoff
+
+**Integration with cum Commands**:
+
+```bash
+# Typical workflow
+cum set task 86c6fpeen          # Set current task
+cum d current                    # View task details
+# ... make code changes ...
+cum overflow "Implement feature" # Commit, push, and update ClickUp
+```
+
+**Performance**:
+- Typical execution: 2-5 seconds (including Git push and ClickUp updates)
+- Dry run: <0.1 seconds
+- Network retry: Automatic with exponential backoff
 
 ---
 
