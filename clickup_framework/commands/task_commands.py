@@ -430,6 +430,21 @@ def task_set_status_command(args):
             task = client.get_task(task_id)
             list_id = task['list']['id']
 
+            # Get list data for status mapping
+            list_data = client.get_list(list_id)
+            available_statuses = get_available_statuses(list_data)
+
+            # Map user's status to actual status
+            target_status = map_status(args.status, available_statuses)
+
+            # If mapping failed, try original status (will error if invalid)
+            if not target_status:
+                target_status = args.status
+            else:
+                # Show user if we mapped their status
+                if target_status.lower() != args.status.lower():
+                    print(f"ℹ️  Mapped status '{args.status}' → '{target_status}'")
+
             # Get all tasks in the list to find subtasks
             result = client.get_list_tasks(list_id, subtasks='true')
             all_tasks = result.get('tasks', [])
@@ -443,16 +458,16 @@ def task_set_status_command(args):
                 subtask_status = subtask.get('status', {})
                 if isinstance(subtask_status, dict):
                     subtask_status = subtask_status.get('status', '')
-                if subtask_status.lower() != args.status.lower():
+                if subtask_status.lower() != target_status.lower():
                     mismatched_subtasks.append(subtask)
 
             # If there are mismatched subtasks, show them and skip this task
             if mismatched_subtasks:
                 print(ANSIAnimations.warning_message(
-                    f"Cannot set status to '{args.status}' for task '{task['name']}' - {len(mismatched_subtasks)} subtask(s) have different status"
+                    f"Cannot set status to '{target_status}' for task '{task['name']}' - {len(mismatched_subtasks)} subtask(s) have different status"
                 ))
                 print(f"\nTask: {colorize(task['name'], TextColor.BRIGHT_CYAN)} [{task_id}]")
-                print(f"Target status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}\n")
+                print(f"Target status: {colorize(target_status, TextColor.BRIGHT_YELLOW)}\n")
 
                 # Display subtasks in formatted tree view
                 print(colorize("Subtasks requiring status update:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
@@ -490,15 +505,15 @@ def task_set_status_command(args):
             if isinstance(old_status, dict):
                 old_status = old_status.get('status', '')
 
-            updated_task = client.update_task(task_id, status=args.status)
+            updated_task = client.update_task(task_id, status=target_status)
 
             success_msg = ANSIAnimations.success_message(f"Status updated")
             print(success_msg)
             print(f"\nTask: {updated_task['name']} [{task_id}]")
-            print(f"New status: {colorize(args.status, TextColor.BRIGHT_YELLOW)}")
+            print(f"New status: {colorize(target_status, TextColor.BRIGHT_YELLOW)}")
 
             if subtasks:
-                print(f"Subtasks: {len(subtasks)} subtask(s) also have status '{args.status}'")
+                print(f"Subtasks: {len(subtasks)} subtask(s) also have status '{target_status}'")
 
             # Handle parent automation
             parent_id = task.get('parent')
@@ -508,7 +523,7 @@ def task_set_status_command(args):
                     event = automation_engine.handle_status_update(
                         task_id=task_id,
                         old_status=old_status,
-                        new_status=args.status,
+                        new_status=target_status,
                         force_update=force_automation,
                         skip_automation=skip_automation
                     )

@@ -131,25 +131,14 @@ class DocsAPI:
         return self.client.get_doc(workspace_id, doc_id)
 
     # Page operations
-    def get_doc_pages_list(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
-        """
-        Get page listing/index for a doc.
-
-        Args:
-            workspace_id: Workspace/team ID
-            doc_id: Doc ID
-
-        Returns:
-            Page listing data
-
-        Example:
-            page_list = docs.get_doc_pages_list("90151898946", "abc123")
-        """
-        return self.client.get_doc_pages_list(workspace_id, doc_id)
-
     def get_doc_pages(self, workspace_id: str, doc_id: str, **params) -> List[Dict[str, Any]]:
         """
         Get all pages belonging to a doc.
+
+        Note: The ClickUp API currently returns pages in a flat list without
+        hierarchical structure. Pages do not include parent_id or child
+        relationship fields, making it impossible to reconstruct the page
+        hierarchy tree that exists in the ClickUp web interface.
 
         Args:
             workspace_id: Workspace/team ID
@@ -157,12 +146,18 @@ class DocsAPI:
             **params: Additional query parameters
 
         Returns:
-            List of page dicts
+            List of page dicts (flat list, not hierarchical)
 
         Example:
             pages = docs.get_doc_pages("90151898946", "abc123")
             for page in pages:
                 print(page['name'])
+
+        Known Limitation:
+            - Cannot display nested subpage hierarchy (up to 5 levels deep)
+            - Cannot show parent-child relationships between pages
+            - Cannot indicate current page location in hierarchy
+            This is a ClickUp API v3 limitation, not a framework limitation.
         """
         return self.client.get_doc_pages(workspace_id, doc_id, **params)
 
@@ -293,9 +288,30 @@ class DocsAPI:
         doc = self.create_doc(workspace_id, doc_name, **doc_data)
         doc_id = doc['id']
 
+        # Check if ClickUp created an initial blank page
+        existing_pages = self.get_doc_pages(workspace_id, doc_id)
+
         # Create pages
         created_pages = []
-        for page_data in pages:
+        for i, page_data in enumerate(pages):
+            # If there's an existing blank page and this is the first custom page,
+            # update it instead of creating a new one
+            if i == 0 and existing_pages and len(existing_pages) == 1:
+                initial_page = existing_pages[0]
+                # Check if it's a blank/default page (no name or name is None)
+                if not initial_page.get('name') or initial_page.get('name') == 'None' or initial_page.get('name').strip() == '':
+                    # Update the existing blank page
+                    page = self.update_page(
+                        workspace_id=workspace_id,
+                        doc_id=doc_id,
+                        page_id=initial_page['id'],
+                        name=page_data['name'],
+                        content=page_data.get('content', '')
+                    )
+                    created_pages.append(page)
+                    continue
+
+            # Create new page
             page = self.create_page(
                 workspace_id=workspace_id,
                 doc_id=doc_id,

@@ -6,6 +6,7 @@ from pathlib import Path
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.utils.text import unescape_content
 
 
 def doc_list_command(args):
@@ -123,6 +124,8 @@ def doc_get_command(args):
             if hasattr(args, 'preview') and args.preview:
                 content = page.get('content', '')
                 if content:
+                    # Unescape content from ClickUp API
+                    content = unescape_content(content)
                     # Show first 150 chars
                     preview = content[:150].replace('\n', ' ')
                     if len(content) > 150:
@@ -293,7 +296,9 @@ def doc_export_command(args):
                     # Write page content
                     with open(page_file, 'w', encoding='utf-8') as pf:
                         pf.write(f"# {page_name}\n\n")
-                        pf.write(page.get('content', ''))
+                        # Unescape content from ClickUp API before writing
+                        content = unescape_content(page.get('content', ''))
+                        pf.write(content)
 
                     print(f"Exported: {page_file}")
 
@@ -336,7 +341,9 @@ def doc_export_command(args):
                     # Write page content
                     with open(page_file, 'w', encoding='utf-8') as pf:
                         pf.write(f"# {page_name}\n\n")
-                        pf.write(page.get('content', ''))
+                        # Unescape content from ClickUp API before writing
+                        content = unescape_content(page.get('content', ''))
+                        pf.write(content)
 
                     print(f"Exported: {page_file}")
 
