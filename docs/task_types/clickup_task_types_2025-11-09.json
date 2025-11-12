@@ -1,0 +1,202 @@
+[
+  {
+    "id": 1,
+    "name": "milestone",
+    "name_plural": "milestones",
+    "description": "",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 3,
+    "name": "form_response",
+    "name_plural": "form_responses",
+    "description": "",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 4,
+    "name": "meeting_note",
+    "name_plural": "meeting_notes",
+    "description": "",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1001,
+    "name": "Feature",
+    "name_plural": "Feature Requests",
+    "description": "New functionality or capability being added to the system. Use for user-facing features, API endpoints, or significant enhancements.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1002,
+    "name": "Bug",
+    "name_plural": "Bugs",
+    "description": "Software defect or unexpected behavior that needs to be fixed. Use for errors, crashes, incorrect behavior, or quality issues.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1003,
+    "name": "Goal",
+    "name_plural": "Goals",
+    "description": "Measurable objective with defined success criteria. Use for setting goals, objectives, or targets.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1004,
+    "name": "Project",
+    "name_plural": "Projects",
+    "description": "Project-level container for related work with multiple subtasks and milestones. Use for organizing large initiatives or project planning.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1005,
+    "name": "User Story",
+    "name_plural": "User Stories",
+    "description": "User story or feature story describing functionality from a user perspective. Use for user-facing features or product requirements.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1006,
+    "name": "Objective",
+    "name_plural": "Objectives",
+    "description": "Objective for organizing and tracking work. Use this task type to categorize and manage objective work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1007,
+    "name": "Requirement",
+    "name_plural": "Requirements",
+    "description": "Requirement for organizing and tracking work. Use this task type to categorize and manage requirement work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1008,
+    "name": "Account",
+    "name_plural": "Accounts",
+    "description": "Manage client or customer account details and interactions. Use for account management, customer relations, or account-related work.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1009,
+    "name": "Request",
+    "name_plural": "Requests",
+    "description": "Request for organizing and tracking work. Use this task type to categorize and manage request work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1010,
+    "name": "Resource",
+    "name_plural": "Resources",
+    "description": "Resource for organizing and tracking work. Use this task type to categorize and manage resource work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1011,
+    "name": "Content",
+    "name_plural": "Contents",
+    "description": "Content for organizing and tracking work. Use this task type to categorize and manage content work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1012,
+    "name": "Warning",
+    "name_plural": "Warnings",
+    "description": "Warning for organizing and tracking work. Use this task type to categorize and manage warning work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1013,
+    "name": "Project File",
+    "name_plural": "Project Files",
+    "description": "Project-level container for related work with multiple subtasks and milestones. Use for organizing large initiatives or project planning.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1014,
+    "name": "Error",
+    "name_plural": "Errors",
+    "description": "Error for organizing and tracking work. Use this task type to categorize and manage error work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1015,
+    "name": "Lesson Learned",
+    "name_plural": "Lessons Learned",
+    "description": "Lesson Learned for organizing and tracking work. Use this task type to categorize and manage lesson learned work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1016,
+    "name": "Test Result",
+    "name_plural": "Test Results",
+    "description": "Testing activities including unit tests, integration tests, or manual testing. Use for test development, test execution, or quality verification.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1017,
+    "name": "Pull Request",
+    "name_plural": "Pull Requests",
+    "description": "Pull Request for organizing and tracking work. Use this task type to categorize and manage pull request work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1018,
+    "name": "Actions Run",
+    "name_plural": "Actions Runs",
+    "description": "Actions Run for organizing and tracking work. Use this task type to categorize and manage actions run work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1019,
+    "name": "Commit",
+    "name_plural": "Commits",
+    "description": "Commit for organizing and tracking work. Use this task type to categorize and manage commit work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1020,
+    "name": "Command",
+    "name_plural": "Commands",
+    "description": "Command for organizing and tracking work. Use this task type to categorize and manage command work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1021,
+    "name": "Branch",
+    "name_plural": "Branch",
+    "description": "Branch for organizing and tracking work. Use this task type to categorize and manage branch work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  },
+  {
+    "id": 1022,
+    "name": "trest",
+    "name_plural": "test",
+    "description": "trest for organizing and tracking work. Use this task type to categorize and manage trest work items.",
+    "icon": "circle",
+    "icon_source": "fas"
+  }
+]
