@@ -1,8 +1,10 @@
 """Checklist management commands for ClickUp Framework CLI."""
 
 import sys
+import json
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.resources.tasks import TasksAPI
+from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
@@ -274,6 +276,184 @@ def checklist_list_command(args):
         sys.exit(1)
 
 
+def checklist_template_list_command(args):
+    """List available checklist templates."""
+    template_manager = ChecklistTemplateManager()
+
+    try:
+        templates = template_manager.list_templates()
+
+        if not templates:
+            print("\nNo checklist templates found.")
+            print("\nTemplates are loaded from:")
+            print(f"  1. {ChecklistTemplateManager.DEFAULT_TEMPLATES_FILE}")
+            print(f"  2. {ChecklistTemplateManager.USER_TEMPLATES_FILE}")
+            return
+
+        print(f"\n{colorize('Available Checklist Templates', TextStyle.BOLD)}\n")
+
+        for template_name in templates:
+            template = template_manager.get_template(template_name)
+            item_count = len(template.get('items', []))
+            description = template.get('description', 'No description')
+
+            print(f"  {colorize(template_name, TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+            print(f"    {description}")
+            print(f"    Items: {item_count}\n")
+
+        print(f"Use {colorize('cum checklist template show <name>', TextColor.BRIGHT_BLACK)} to view template details")
+        print(f"Use {colorize('cum checklist template apply <task_id> <name>', TextColor.BRIGHT_BLACK)} to apply template to a task")
+
+    except Exception as e:
+        print(f"Error listing templates: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def checklist_template_show_command(args):
+    """Show details of a checklist template."""
+    template_manager = ChecklistTemplateManager()
+
+    try:
+        template = template_manager.get_template(args.template_name)
+
+        if not template:
+            print(f"Error: Template '{args.template_name}' not found", file=sys.stderr)
+            print(f"\nUse {colorize('cum checklist template list', TextColor.BRIGHT_BLACK)} to see available templates")
+            sys.exit(1)
+
+        # Display template details
+        print(f"\n{colorize('Template:', TextStyle.BOLD)} {colorize(args.template_name, TextColor.BRIGHT_CYAN)}")
+        print(f"{colorize('Name:', TextStyle.BOLD)} {template.get('name', args.template_name)}")
+
+        if 'description' in template:
+            print(f"{colorize('Description:', TextStyle.BOLD)} {template['description']}")
+
+        items = template.get('items', [])
+        print(f"\n{colorize('Items:', TextStyle.BOLD)} ({len(items)})\n")
+
+        for i, item in enumerate(items, 1):
+            item_name = item.get('name', 'Unnamed')
+            print(f"  {i}. {item_name}")
+
+            if 'assignee' in item and item['assignee']:
+                print(f"     Assignee: {item['assignee']}")
+
+        if args.json:
+            print(f"\n{colorize('JSON:', TextStyle.BOLD)}")
+            print(json.dumps(template, indent=2))
+
+    except Exception as e:
+        print(f"Error showing template: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def checklist_template_apply_command(args):
+    """Apply a checklist template to a task."""
+    context = get_context_manager()
+    client = ClickUpClient()
+    template_manager = ChecklistTemplateManager()
+
+    # Resolve task ID
+    try:
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Apply template
+    try:
+        result = template_manager.apply_template(client, task_id, args.template_name)
+
+        checklist = result['checklist']
+        items = result['items']
+        template_name = result['template_name']
+
+        success_msg = ANSIAnimations.success_message(f"Template '{template_name}' applied successfully")
+        print(f"\n{success_msg}")
+        print(f"\nChecklist: {colorize(checklist['name'], TextColor.BRIGHT_CYAN)}")
+        print(f"Checklist ID: {colorize(checklist['id'], TextColor.BRIGHT_GREEN)}")
+        print(f"Items created: {len(items)}")
+
+        if args.verbose:
+            print(f"\nTask ID: {task_id}")
+            print(f"\nCreated items:")
+            for item_data in items:
+                if 'checklist' in item_data and 'items' in item_data['checklist']:
+                    for item in item_data['checklist']['items']:
+                        print(f"  - {item.get('name', 'Unnamed')}")
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except ClickUpAPIError as e:
+        print(f"Error applying template: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def checklist_clone_command(args):
+    """Clone checklists from one task to another."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Resolve task IDs
+    try:
+        source_task_id = context.resolve_id('task', args.source_task_id)
+        target_task_id = context.resolve_id('task', args.target_task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if source_task_id == target_task_id:
+        print("Error: Source and target tasks must be different", file=sys.stderr)
+        sys.exit(1)
+
+    # Get source task checklists
+    try:
+        source_task = client.get_task(source_task_id)
+        checklists = source_task.get('checklists', [])
+
+        if not checklists:
+            print(f"No checklists found on source task {source_task_id}")
+            return
+
+        print(f"\nCloning {len(checklists)} checklist(s) from task {source_task_id} to {target_task_id}...")
+
+        cloned_count = 0
+        for checklist in checklists:
+            checklist_name = checklist.get('name', 'Unnamed')
+            items = checklist.get('items', [])
+
+            # Create checklist on target task
+            result = client.create_checklist(target_task_id, checklist_name)
+            new_checklist_id = result['checklist']['id']
+
+            # Clone items
+            for item in items:
+                item_name = item.get('name', '')
+                if not item_name:
+                    continue
+
+                item_data = {}
+                # Note: Not cloning assignees or resolved status by default
+                # Items start fresh on the new task
+
+                client.create_checklist_item(new_checklist_id, item_name, **item_data)
+
+            cloned_count += 1
+            print(f"  ✓ Cloned: {colorize(checklist_name, TextColor.BRIGHT_CYAN)} ({len(items)} items)")
+
+        success_msg = ANSIAnimations.success_message(f"Successfully cloned {cloned_count} checklist(s)")
+        print(f"\n{success_msg}")
+
+        if args.verbose:
+            print(f"\nSource Task: {source_task_id}")
+            print(f"Target Task: {target_task_id}")
+
+    except ClickUpAPIError as e:
+        print(f"Error cloning checklists: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def register_command(subparsers):
     """Register checklist commands."""
     # Create checklist subcommand group
@@ -373,3 +553,52 @@ def register_command(subparsers):
     item_delete_parser.add_argument('item_id', help='Item ID')
     item_delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
     item_delete_parser.set_defaults(func=checklist_item_delete_command)
+
+    # checklist template list
+    template_list_parser = checklist_subparsers.add_parser(
+        'template',
+        help='Manage checklist templates',
+        description='List, show, and apply checklist templates'
+    )
+    template_subparsers = template_list_parser.add_subparsers(dest='template_command', help='Template command')
+
+    # template list
+    tpl_list_parser = template_subparsers.add_parser(
+        'list',
+        aliases=['ls'],
+        help='List available checklist templates',
+        description='List all available checklist templates'
+    )
+    tpl_list_parser.set_defaults(func=checklist_template_list_command)
+
+    # template show
+    tpl_show_parser = template_subparsers.add_parser(
+        'show',
+        help='Show template details',
+        description='Show details of a specific checklist template'
+    )
+    tpl_show_parser.add_argument('template_name', help='Template name')
+    tpl_show_parser.add_argument('--json', action='store_true', help='Output template as JSON')
+    tpl_show_parser.set_defaults(func=checklist_template_show_command)
+
+    # template apply
+    tpl_apply_parser = template_subparsers.add_parser(
+        'apply',
+        help='Apply template to task',
+        description='Apply a checklist template to a task'
+    )
+    tpl_apply_parser.add_argument('task_id', help='Task ID (or "current")')
+    tpl_apply_parser.add_argument('template_name', help='Template name')
+    tpl_apply_parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed output')
+    tpl_apply_parser.set_defaults(func=checklist_template_apply_command)
+
+    # checklist clone
+    clone_parser = checklist_subparsers.add_parser(
+        'clone',
+        help='Clone checklists from one task to another',
+        description='Clone all checklists from source task to target task'
+    )
+    clone_parser.add_argument('source_task_id', help='Source task ID (or "current")')
+    clone_parser.add_argument('target_task_id', help='Target task ID')
+    clone_parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed output')
+    clone_parser.set_defaults(func=checklist_clone_command)
