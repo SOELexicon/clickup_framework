@@ -21,7 +21,6 @@ See [scripts/import_cli_docs.sh](../../scripts/import_cli_docs.sh) for more opti
 
 ---
 
-
 ## Quick Navigation
 
 - [View Commands](#view-commands) - Display tasks in various formats
