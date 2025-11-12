@@ -154,7 +154,8 @@ class TaskHierarchyFormatter:
                 parent_task = self.client.get_task(parent_id)
 
                 if parent_task and parent_task.get('id'):
-                    # Successfully fetched parent, add to task_map
+                    # Successfully fetched parent, add to task_map and initialize _children
+                    parent_task['_children'] = []
                     task_map[parent_id] = parent_task
                     logger.info(f"Successfully fetched parent: {parent_task.get('name', parent_id)}")
 
@@ -376,13 +377,17 @@ class TaskHierarchyFormatter:
                 t.get('name', '').lower()
             ))
 
-        # Render the tree with optional depth limit
+        # Render the tree with optional depth limit and root connector
+        # Show root connector when viewing a specific highlighted task
+        show_root_connector = options.highlight_task_id is not None
+
         tree_output = TreeFormatter.render(
             root_tasks,
             format_fn,
             get_children_fn,
             header,
-            max_depth=options.max_depth
+            max_depth=options.max_depth,
+            show_root_connector=show_root_connector
         )
 
         # Prepend warnings and info messages

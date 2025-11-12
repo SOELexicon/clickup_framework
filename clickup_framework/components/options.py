@@ -55,6 +55,7 @@ class FormatOptions:
     show_container_diff: bool = True
     trace: bool = False
     max_depth: Optional[int] = None
+    highlight_task_id: Optional[str] = None  # ID of task to highlight (for hierarchy view)
 
     @classmethod
     def from_dict(cls, options_dict: Dict[str, Any]) -> 'FormatOptions':

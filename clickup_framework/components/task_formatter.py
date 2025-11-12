@@ -72,11 +72,27 @@ class RichTaskFormatter:
 
         parts = []
 
+        # Check if this is the highlighted task
+        is_highlighted = False
+        if options.highlight_task_id and task.get('id') == options.highlight_task_id:
+            is_highlighted = True
+            # Add animated visual indicator for the highlighted task
+            if options.colorize_output:
+                # Use blinking/bold arrow to draw attention
+                indicator = colorize("👉", TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+            else:
+                indicator = "👉"
+            parts.append(indicator)
+
         # Add task ID if requested
         if options.show_ids and task.get('id'):
             id_str = f"[{task['id']}]"
             if options.colorize_output:
-                id_str = colorize(id_str, TextColor.BRIGHT_BLACK)
+                if is_highlighted:
+                    # Highlight the ID more prominently
+                    id_str = colorize(id_str, TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+                else:
+                    id_str = colorize(id_str, TextColor.BRIGHT_BLACK)
             parts.append(id_str)
 
         # Add task type emoji
@@ -180,6 +196,16 @@ class RichTaskFormatter:
             # Handle multi-line descriptions with proper indentation
             for desc_line in desc.split('\n'):
                 additional_lines.append(f"    {desc_line}")
+
+        # Attachments
+        if task.get('attachments'):
+            attachments = task['attachments']
+            if attachments:
+                attachment_count = len(attachments)
+                attachment_str = f"📎 {attachment_count} attachment{'s' if attachment_count != 1 else ''}"
+                if options.colorize_output:
+                    attachment_str = colorize(attachment_str, TextColor.BRIGHT_MAGENTA)
+                additional_lines.append(f"  {attachment_str}")
 
         # Dates
         if options.show_dates:

@@ -205,6 +205,12 @@ def hierarchy_command(args):
 
     options = create_format_options(args)
 
+    # Set target task ID for highlighting (when viewing specific task)
+    target_task_id = None
+    if not show_all and args.list_id and container_type == 'task':
+        target_task_id = container_id
+        options.highlight_task_id = target_task_id
+
     # Show available statuses (only for single list view)
     if list_id:
         colorize_val = getattr(args, 'colorize', None)
@@ -214,8 +220,10 @@ def hierarchy_command(args):
             print(status_line)
             print()  # Empty line for spacing
 
-    # Determine header for display
+    # Determine header for display and add container information
     header = getattr(args, "header", None)
+    container_info_lines = []
+
     if not header:
         if show_all:
             header = "All Workspace Tasks"
@@ -224,8 +232,53 @@ def hierarchy_command(args):
         else:
             header = "Tasks"
 
+    # Add container path information when viewing a specific task or container
+    if not show_all and args.list_id:
+        # Get the first task to extract container information
+        if tasks and container_type == 'task':
+            first_task = tasks[0]  # This is the root task we're viewing
+
+            # Build container path
+            location_parts = []
+            if first_task.get('space'):
+                space = first_task['space']
+                space_name = space.get('name', '') if isinstance(space, dict) else str(space)
+                if space_name:
+                    location_parts.append(space_name)
+
+            if first_task.get('folder'):
+                folder = first_task['folder']
+                folder_name = folder.get('name', '') if isinstance(folder, dict) else str(folder)
+                if folder_name:
+                    location_parts.append(folder_name)
+
+            if first_task.get('list'):
+                list_obj = first_task['list']
+                list_name = list_obj.get('name', '') if isinstance(list_obj, dict) else str(list_obj)
+                if list_name:
+                    location_parts.append(list_name)
+
+            if location_parts:
+                colorize_val = getattr(args, 'colorize', None)
+                use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
+
+                location_path = " > ".join(location_parts)
+                if use_color:
+                    from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+                    container_info_lines.append(colorize("📍 Location:", TextColor.BRIGHT_WHITE, TextStyle.BOLD) +
+                                                 f" {colorize(location_path, TextColor.CYAN)}")
+                else:
+                    container_info_lines.append(f"📍 Location: {location_path}")
+
+                container_info_lines.append("")  # Empty line for spacing
+
     # Use hierarchy view to show tasks with header
     output = display.hierarchy_view(tasks, options, header=header)
+
+    # Prepend container information if available
+    if container_info_lines:
+        output = "\n".join(container_info_lines) + output
+
     print(output)
 
 

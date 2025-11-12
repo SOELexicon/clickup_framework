@@ -113,10 +113,11 @@ class TreeFormatter:
         format_fn: Callable[[Dict[str, Any]], str],
         get_children_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
         header: Optional[str] = None,
-        max_depth: Optional[int] = None
+        max_depth: Optional[int] = None,
+        show_root_connector: bool = False
     ) -> str:
         """
-        Render items as a tree structure with optional depth limiting.
+        Render items as a tree structure with optional depth limiting and root connector.
 
         Args:
             items: List of root items
@@ -124,6 +125,7 @@ class TreeFormatter:
             get_children_fn: Function to get children of an item
             header: Optional header to display before the tree
             max_depth: Maximum depth to display (None = unlimited)
+            show_root_connector: If True, adds a vertical connector from header to root
 
         Returns:
             Complete tree as a string
@@ -132,7 +134,10 @@ class TreeFormatter:
 
         if header:
             lines.append(header)
-            lines.append("")
+            if show_root_connector:
+                lines.append("│")  # Add connecting line from header to tree
+            else:
+                lines.append("")
 
         tree_lines = TreeFormatter.build_tree(
             items,
