@@ -80,20 +80,22 @@ class TreeFormatter:
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
                     # Show truncation message
+                    # Truncate prefix should align with continuation
                     if is_last_item:
-                        truncate_prefix = prefix + "  "
+                        truncate_prefix = prefix + "    "
                     else:
-                        truncate_prefix = prefix + "│ "
+                        truncate_prefix = prefix + "  │ "
 
                     hidden_count = len(children)
-                    truncate_msg = f"  ... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
+                    truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
                     lines.append(f"{truncate_prefix}{truncate_msg}")
                 else:
                     # Calculate the prefix for children
+                    # The 2-space offset comes from branch characters (├─, └─) being 2 chars wide
                     if is_last_item:
-                        child_prefix = prefix + "  "  # No vertical line
+                        child_prefix = prefix + "  "  # No vertical line for last item's children
                     else:
-                        child_prefix = prefix + "│ "  # Continue vertical line
+                        child_prefix = prefix + "│ "  # Continue vertical line to connect siblings
 
                     # Recursively format children
                     child_lines = TreeFormatter.build_tree(
