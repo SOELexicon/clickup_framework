@@ -216,9 +216,17 @@ class TaskHierarchyFormatter:
         # Detect circular references
         circular_task_ids = self._detect_circular_references(task_map)
 
+        # Get all tasks including any fetched parents
+        all_tasks = list(task_map.values())
+
+        # Initialize _children for all tasks (including fetched parents)
+        for task in all_tasks:
+            if '_children' not in task:
+                task['_children'] = []
+
         # Find root tasks (no parent, parent not in list, or part of circular reference)
         root_tasks = []
-        for task in tasks:
+        for task in all_tasks:
             parent_id = task.get('parent')
             task_id = task.get('id')
 
@@ -229,11 +237,8 @@ class TaskHierarchyFormatter:
                 if include_orphaned or not parent_id:
                     root_tasks.append(task)
 
-        # Build children lists for each task
-        for task in tasks:
-            task['_children'] = []
-
-        for task in tasks:
+        # Build children relationships
+        for task in all_tasks:
             parent_id = task.get('parent')
             task_id = task.get('id')
 
