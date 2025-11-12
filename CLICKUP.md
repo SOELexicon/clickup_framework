@@ -81,7 +81,9 @@ The CLI supports reading longer content from files for task descriptions and com
 - `task_update --description-file PATH` - Update task description from file
 
 **Comment Management**:
+- `comment_add "text"` - Add comment with direct text (positional argument)
 - `comment_add --comment-file PATH` - Add comment from file
+- `comment_update "text"` - Update comment with direct text (positional argument)
 - `comment_update --comment-file PATH` - Update comment from file
 
 ### Examples
@@ -93,15 +95,25 @@ cum task_create current "Implement feature" --description-file spec.md
 # Update task description from file
 cum task_update current --description-file updated_spec.md
 
+# Add comment with direct text (recommended)
+cum comment_add current "Great work on this feature!"
+
 # Add comment from file
 cum comment_add current --comment-file feedback.md
+
+# Update comment with direct text (recommended)
+cum comment_update abc123 "Updated feedback after review"
 
 # Update comment from file
 cum comment_update abc123 --comment-file revised_notes.md
 ```
 
 **Notes**:
-- File input options (`--description-file`, `--comment-file`) are mutually exclusive with their text counterparts (`--description`, `comment_text`)
+- File input options (`--description-file`, `--comment-file`) are mutually exclusive with their text counterparts
+  - For tasks: `--description` flag
+  - For comments: positional `text` argument (no flag needed!)
+- Comment text can be passed directly without any flag (e.g., `cum ca <task_id> "text"`)
+- Use `--comment-file` for longer content or when maintaining comments in version control
 - Files can contain any text format, including markdown
 - Files are read with UTF-8 encoding
 - Useful for maintaining task specifications and documentation in version control
