@@ -60,19 +60,20 @@ class TreeFormatter:
             # Add the first line with branch character
             lines.append(f"{prefix}{branch}{formatted_lines[0]}")
 
+            # Get children to determine if we need to continue vertical line
+            children = get_children_fn(item)
+
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
                 # Calculate the continuation prefix
-                if is_last_item:
+                # Show vertical line if: not last item OR has children
+                if is_last_item and not children:
                     continuation_prefix = prefix + "  "  # No vertical line
                 else:
                     continuation_prefix = prefix + "│ "  # Continue vertical line
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
-
-            # Get children
-            children = get_children_fn(item)
 
             if children:
                 # Check if we've reached max depth
