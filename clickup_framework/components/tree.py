@@ -66,11 +66,12 @@ class TreeFormatter:
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
                 # Calculate the continuation prefix
+                # Continuation should align with where children will be (add 2 spaces for branch)
                 # Show vertical line if: not last item OR has children
                 if is_last_item and not children:
-                    continuation_prefix = prefix + "  "  # No vertical line
+                    continuation_prefix = prefix + "    "  # No vertical line, extra spaces for alignment
                 else:
-                    continuation_prefix = prefix + "│ "  # Continue vertical line
+                    continuation_prefix = prefix + "  │ "  # Continue vertical line with proper alignment
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
