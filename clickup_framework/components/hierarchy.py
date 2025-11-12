@@ -154,7 +154,8 @@ class TaskHierarchyFormatter:
                 parent_task = self.client.get_task(parent_id)
 
                 if parent_task and parent_task.get('id'):
-                    # Successfully fetched parent, add to task_map
+                    # Successfully fetched parent, add to task_map and initialize _children
+                    parent_task['_children'] = []
                     task_map[parent_id] = parent_task
                     logger.info(f"Successfully fetched parent: {parent_task.get('name', parent_id)}")
 
@@ -215,9 +216,17 @@ class TaskHierarchyFormatter:
         # Detect circular references
         circular_task_ids = self._detect_circular_references(task_map)
 
+        # Get all tasks including any fetched parents
+        all_tasks = list(task_map.values())
+
+        # Initialize _children for all tasks (including fetched parents)
+        for task in all_tasks:
+            if '_children' not in task:
+                task['_children'] = []
+
         # Find root tasks (no parent, parent not in list, or part of circular reference)
         root_tasks = []
-        for task in tasks:
+        for task in all_tasks:
             parent_id = task.get('parent')
             task_id = task.get('id')
 
@@ -228,11 +237,8 @@ class TaskHierarchyFormatter:
                 if include_orphaned or not parent_id:
                     root_tasks.append(task)
 
-        # Build children lists for each task
-        for task in tasks:
-            task['_children'] = []
-
-        for task in tasks:
+        # Build children relationships
+        for task in all_tasks:
             parent_id = task.get('parent')
             task_id = task.get('id')
 
@@ -336,6 +342,14 @@ class TaskHierarchyFormatter:
             include_orphaned=not options.hide_orphaned
         )
 
+        # Wrap in container hierarchy if requested
+        if options.show_containers and options.container_info and root_tasks:
+            from clickup_framework.commands.hierarchy import _wrap_tasks_in_containers
+            use_color = options.container_info.get('use_color', True)
+            wrapped = _wrap_tasks_in_containers(root_tasks, use_color)
+            if wrapped:
+                root_tasks = wrapped
+
         # Check for warnings and info messages
         circular_warning = self.get_circular_reference_warnings()
         orphaned_info = self.get_orphaned_task_info()
@@ -376,13 +390,17 @@ class TaskHierarchyFormatter:
                 t.get('name', '').lower()
             ))
 
-        # Render the tree with optional depth limit
+        # Render the tree with optional depth limit and root connector
+        # Show root connector when viewing a specific highlighted task
+        show_root_connector = options.highlight_task_id is not None
+
         tree_output = TreeFormatter.render(
             root_tasks,
             format_fn,
             get_children_fn,
             header,
-            max_depth=options.max_depth
+            max_depth=options.max_depth,
+            show_root_connector=show_root_connector
         )
 
         # Prepend warnings and info messages
