@@ -1,8 +1,52 @@
 # ClickUp Framework Development Workflows
 
-**Document Version:** 1.0
+**Document Version:** 2.1 (Role-based Organization)
 **Date:** 2025-11-12
 **Purpose:** Reusable workflow templates for ClickUp Framework development and testing
+
+---
+
+## Organization by Role
+
+This documentation is organized by **role and context** to help you quickly find the right workflow for your work. Workflows are available both locally (this file) and in ClickUp (doc 2kyqhku2-7595).
+
+### ClickUp Doc Structure
+
+The ClickUp doc "Task Management Flows" (2kyqhku2-7595) has been organized with role-based category pages:
+
+**Category Overview Pages:**
+- **Developer Workflows** [2kyqhku2-9035] - Bug investigation, slash commands
+- **Testing Workflows** [2kyqhku2-9055] - Manual testing, API testing
+- **Documentation Workflows** [2kyqhku2-9075] - Workflow refinement, spec creation
+- **DevOps Workflows** [2kyqhku2-9095] - Git workflow, file attachments
+- **Project Management Workflows** [2kyqhku2-9115] - Task creation, workflow integration
+
+**Detailed Workflow Pages:**
+- All detailed workflows (sections 1-8 below) are also available as individual pages
+- Total: 14 pages (5 category pages + 9 detailed workflow pages)
+
+### Quick Navigation
+
+**For Developers:**
+- Section 3: Issue Investigation & Root Cause Analysis
+- Section 8: Slash Commands (/investigate-bug, /fix-bug, /refine-workflows)
+- `.claude/commands/investigate-bug.md`, `.claude/commands/fix-bug.md`
+
+**For Testers:**
+- Section 1: Manual Testing & Issue Identification
+- Section 6: API Testing & Validation
+
+**For Documentation:**
+- Section 4: Spec Documentation Creation
+- `.claude/commands/refine-workflows.md`
+
+**For DevOps:**
+- Section 5: Git Development & Commit
+- Section 7: File Attachment & Upload
+
+**For Project Managers:**
+- Section 2: Hierarchical Task Creation
+- Section 4: Spec Documentation Creation
 
 ---
 
@@ -16,6 +60,28 @@
 6. [API Testing & Validation Workflow](#6-api-testing--validation-workflow)
 7. [File Attachment & Upload Workflow](#7-file-attachment--upload-workflow)
 8. [Using Slash Commands for Bug Investigation](#8-using-slash-commands-for-bug-investigation)
+
+---
+
+## Version History
+
+**Version 2.1 - 2025-11-12**
+- Reorganized ClickUp doc by role/context
+- Created 5 category overview pages (Developer, Testing, Documentation, DevOps, PM)
+- Added role-based navigation to local documentation
+- Updated document structure section
+
+**Version 2.0 - 2025-11-XX**
+- Added `/refine-workflows` slash command
+- Created comprehensive slash commands documentation
+- Updated all workflows with detailed guidance
+- Added Mermaid diagrams throughout
+
+**Version 1.0 - Initial Release**
+- 8 core workflows documented
+- Local and ClickUp documentation created
+- Hierarchical task creation methodology
+- Testing summary example
 
 ---
 
