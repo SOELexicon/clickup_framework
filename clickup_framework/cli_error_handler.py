@@ -18,6 +18,8 @@ from clickup_framework.exceptions import (
 )
 from clickup_framework.utils.error_formatter import ErrorFormatter
 from clickup_framework.context import get_context_manager
+from clickup_framework.utils.workspace_tree import display_workspace_tree_on_access_error
+from clickup_framework import ClickUpClient
 
 
 def handle_cli_error(error: Exception, context_info: Optional[Dict[str, Any]] = None) -> None:
@@ -101,6 +103,17 @@ def _format_auth_error(error: ClickUpAuthError, context: Dict, use_color: bool) 
         # Extract workspace ID from context if available
         workspace_id = context.get('current_workspace')
         list_id = context.get('list_id')
+
+        # Try to display workspace tree to help user find accessible lists
+        if workspace_id and workspace_id != 'Not set':
+            try:
+                client = ClickUpClient()
+                display_workspace_tree_on_access_error(client, workspace_id)
+                # Return early since we've shown the tree - don't show regular error format
+                sys.exit(1)
+            except Exception:
+                # If tree display fails, fall back to regular error handling
+                pass
 
         suggestions = [
             "This usually means your API token doesn't have access to the specified workspace/list",
