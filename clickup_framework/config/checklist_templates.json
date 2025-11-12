@@ -1,0 +1,352 @@
+{
+  "templates": {
+    "code_review": {
+      "name": "Code Review Checklist",
+      "description": "Standard code review checklist for pull requests",
+      "items": [
+        {
+          "name": "Code follows project style guide and conventions"
+        },
+        {
+          "name": "Tests are included and passing"
+        },
+        {
+          "name": "Documentation is updated (README, inline comments, etc.)"
+        },
+        {
+          "name": "No security vulnerabilities introduced"
+        },
+        {
+          "name": "Error handling is appropriate"
+        },
+        {
+          "name": "Performance considerations addressed"
+        },
+        {
+          "name": "Backward compatibility maintained"
+        },
+        {
+          "name": "Code is well-structured and maintainable"
+        }
+      ]
+    },
+    "deployment": {
+      "name": "Deployment Checklist",
+      "description": "Standard deployment workflow checklist",
+      "items": [
+        {
+          "name": "Backup database and critical data"
+        },
+        {
+          "name": "Run all tests locally"
+        },
+        {
+          "name": "Review and merge pull request"
+        },
+        {
+          "name": "Deploy to staging environment"
+        },
+        {
+          "name": "Verify staging deployment"
+        },
+        {
+          "name": "Run smoke tests on staging"
+        },
+        {
+          "name": "Deploy to production"
+        },
+        {
+          "name": "Monitor logs and metrics for errors"
+        },
+        {
+          "name": "Verify production deployment"
+        },
+        {
+          "name": "Update deployment documentation"
+        }
+      ]
+    },
+    "testing": {
+      "name": "Testing Checklist",
+      "description": "Comprehensive testing checklist",
+      "items": [
+        {
+          "name": "Unit tests written and passing"
+        },
+        {
+          "name": "Integration tests written and passing"
+        },
+        {
+          "name": "Edge cases tested"
+        },
+        {
+          "name": "Error handling tested"
+        },
+        {
+          "name": "Performance testing completed"
+        },
+        {
+          "name": "Security testing completed"
+        },
+        {
+          "name": "Browser/platform compatibility verified"
+        },
+        {
+          "name": "Accessibility requirements met"
+        }
+      ]
+    },
+    "bug_fix": {
+      "name": "Bug Fix Checklist",
+      "description": "Checklist for fixing and verifying bug fixes",
+      "items": [
+        {
+          "name": "Root cause identified and documented"
+        },
+        {
+          "name": "Fix implemented"
+        },
+        {
+          "name": "Regression test added"
+        },
+        {
+          "name": "Manual testing completed"
+        },
+        {
+          "name": "Related code reviewed for similar issues"
+        },
+        {
+          "name": "Documentation updated if needed"
+        },
+        {
+          "name": "Fix verified in staging"
+        },
+        {
+          "name": "Stakeholders notified"
+        }
+      ]
+    },
+    "feature": {
+      "name": "Feature Development Checklist",
+      "description": "Checklist for developing new features",
+      "items": [
+        {
+          "name": "Requirements documented and approved"
+        },
+        {
+          "name": "Technical design completed"
+        },
+        {
+          "name": "API/interface defined"
+        },
+        {
+          "name": "Implementation completed"
+        },
+        {
+          "name": "Unit tests written"
+        },
+        {
+          "name": "Integration tests written"
+        },
+        {
+          "name": "Documentation written"
+        },
+        {
+          "name": "Code review completed"
+        },
+        {
+          "name": "QA testing completed"
+        },
+        {
+          "name": "Feature flag configured (if applicable)"
+        },
+        {
+          "name": "Stakeholder demo completed"
+        }
+      ]
+    },
+    "security_review": {
+      "name": "Security Review Checklist",
+      "description": "Security-focused code review checklist",
+      "items": [
+        {
+          "name": "Input validation implemented"
+        },
+        {
+          "name": "SQL injection prevention verified"
+        },
+        {
+          "name": "XSS prevention verified"
+        },
+        {
+          "name": "CSRF protection implemented"
+        },
+        {
+          "name": "Authentication/authorization checked"
+        },
+        {
+          "name": "Sensitive data encrypted"
+        },
+        {
+          "name": "Secrets not hardcoded"
+        },
+        {
+          "name": "Dependencies scanned for vulnerabilities"
+        },
+        {
+          "name": "Security headers configured"
+        },
+        {
+          "name": "Logging excludes sensitive data"
+        }
+      ]
+    },
+    "release": {
+      "name": "Release Checklist",
+      "description": "Pre-release verification checklist",
+      "items": [
+        {
+          "name": "Version number updated"
+        },
+        {
+          "name": "Changelog updated"
+        },
+        {
+          "name": "All tests passing"
+        },
+        {
+          "name": "Documentation reviewed and updated"
+        },
+        {
+          "name": "Breaking changes documented"
+        },
+        {
+          "name": "Migration guide created (if needed)"
+        },
+        {
+          "name": "Release notes drafted"
+        },
+        {
+          "name": "Demo/screenshots prepared"
+        },
+        {
+          "name": "Stakeholders notified"
+        },
+        {
+          "name": "Monitoring/alerting configured"
+        },
+        {
+          "name": "Rollback plan prepared"
+        }
+      ]
+    },
+    "onboarding": {
+      "name": "Developer Onboarding Checklist",
+      "description": "Checklist for onboarding new developers",
+      "items": [
+        {
+          "name": "Development environment set up"
+        },
+        {
+          "name": "Access to repositories granted"
+        },
+        {
+          "name": "Access to tools and services granted"
+        },
+        {
+          "name": "Architecture documentation reviewed"
+        },
+        {
+          "name": "Code style guide reviewed"
+        },
+        {
+          "name": "Development workflow explained"
+        },
+        {
+          "name": "First task assigned"
+        },
+        {
+          "name": "Team introductions completed"
+        },
+        {
+          "name": "Questions and concerns addressed"
+        }
+      ]
+    },
+    "api_integration": {
+      "name": "API Integration Checklist",
+      "description": "Checklist for integrating external APIs",
+      "items": [
+        {
+          "name": "API documentation reviewed"
+        },
+        {
+          "name": "Authentication implemented"
+        },
+        {
+          "name": "Rate limiting handled"
+        },
+        {
+          "name": "Error handling implemented"
+        },
+        {
+          "name": "Retry logic implemented"
+        },
+        {
+          "name": "Timeout handling configured"
+        },
+        {
+          "name": "Request/response logging added"
+        },
+        {
+          "name": "API credentials stored securely"
+        },
+        {
+          "name": "Integration tests written"
+        },
+        {
+          "name": "Monitoring and alerting configured"
+        }
+      ]
+    },
+    "database_migration": {
+      "name": "Database Migration Checklist",
+      "description": "Safe database migration checklist",
+      "items": [
+        {
+          "name": "Migration script reviewed"
+        },
+        {
+          "name": "Backup strategy verified"
+        },
+        {
+          "name": "Rollback plan prepared"
+        },
+        {
+          "name": "Tested on development database"
+        },
+        {
+          "name": "Tested on staging database"
+        },
+        {
+          "name": "Performance impact assessed"
+        },
+        {
+          "name": "Downtime window scheduled (if needed)"
+        },
+        {
+          "name": "Stakeholders notified"
+        },
+        {
+          "name": "Migration executed"
+        },
+        {
+          "name": "Data integrity verified"
+        },
+        {
+          "name": "Application functionality verified"
+        }
+      ]
+    }
+  }
+}

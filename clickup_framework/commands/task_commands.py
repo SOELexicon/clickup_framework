@@ -17,6 +17,7 @@ from clickup_framework.utils.status_mapper import (
 from clickup_framework.automation.config import load_automation_config
 from clickup_framework.automation.parent_updater import ParentTaskAutomationEngine
 from clickup_framework.automation.models import ParentUpdateResult
+from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
 
 
 def display_automation_result(result: ParentUpdateResult):
@@ -165,6 +166,53 @@ def task_create_command(args):
         print(success_msg)
         print(f"\nTask ID: {colorize(task['id'], TextColor.BRIGHT_GREEN)}")
         print(f"URL: {task['url']}")
+
+        # Apply checklist templates if provided
+        if hasattr(args, 'checklist_template') and args.checklist_template:
+            print(f"\n{colorize('Applying checklist templates...', TextStyle.BOLD)}")
+            template_manager = ChecklistTemplateManager()
+
+            for template_name in args.checklist_template:
+                try:
+                    result = template_manager.apply_template(client, task['id'], template_name)
+                    checklist = result['checklist']
+                    items = result['items']
+                    print(f"  ✓ Applied template: {colorize(template_name, TextColor.BRIGHT_CYAN)} ({len(items)} items)")
+                except ValueError as e:
+                    print(f"  ✗ Error applying template '{template_name}': {e}", file=sys.stderr)
+                except ClickUpAPIError as e:
+                    print(f"  ✗ Error applying template '{template_name}': {e}", file=sys.stderr)
+
+        # Clone checklists from source task if provided
+        if hasattr(args, 'clone_checklists_from') and args.clone_checklists_from:
+            print(f"\n{colorize('Cloning checklists...', TextStyle.BOLD)}")
+            try:
+                source_task_id = context.resolve_id('task', args.clone_checklists_from)
+                source_task = client.get_task(source_task_id)
+                checklists = source_task.get('checklists', [])
+
+                if checklists:
+                    for checklist in checklists:
+                        checklist_name = checklist.get('name', 'Unnamed')
+                        items = checklist.get('items', [])
+
+                        # Create checklist on new task
+                        result = client.create_checklist(task['id'], checklist_name)
+                        new_checklist_id = result['checklist']['id']
+
+                        # Clone items
+                        for item in items:
+                            item_name = item.get('name', '')
+                            if item_name:
+                                client.create_checklist_item(new_checklist_id, item_name)
+
+                        print(f"  ✓ Cloned checklist: {colorize(checklist_name, TextColor.BRIGHT_CYAN)} ({len(items)} items)")
+                else:
+                    print(f"  No checklists found on source task {source_task_id}")
+            except ValueError as e:
+                print(f"  ✗ Error cloning checklists: {e}", file=sys.stderr)
+            except ClickUpAPIError as e:
+                print(f"  ✗ Error cloning checklists: {e}", file=sys.stderr)
 
     except Exception as e:
         # If it's a status error, try to get available statuses for the error message
@@ -778,6 +826,10 @@ def register_command(subparsers):
     task_create_parser.add_argument('--check-required-custom-fields', dest='check_required_custom_fields',
                                     type=lambda x: x.lower() == 'true', metavar='true|false',
                                     help='Check required custom fields (default: true)')
+    task_create_parser.add_argument('--checklist-template', action='append', metavar='TEMPLATE',
+                                    help='Apply checklist template(s) to the task. Can be used multiple times. Use "cum checklist template list" to see available templates.')
+    task_create_parser.add_argument('--clone-checklists-from', metavar='TASK_ID',
+                                    help='Clone all checklists from the specified task ID (or "current")')
     task_create_parser.set_defaults(func=task_create_command)
 
     # Task update
