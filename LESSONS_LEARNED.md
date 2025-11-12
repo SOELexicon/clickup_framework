@@ -59,6 +59,62 @@ cum tc --parent 86c6g88be "Fix: Pipe alignment breaks..." --description "..."
 
 ---
 
+## Session: 2025-11-12 - Pipe Alignment Bug Fix
+
+### Lesson 2: Understand Visual Structure Context When Fixing Display Issues
+
+**Problem:**
+Vertical pipes (│) in hierarchy tree display broke alignment on detail lines (descriptions, dates), creating visual discontinuity.
+
+**Initial Approach (WRONG):**
+```python
+# Conditional logic based on whether item is last
+if is_last_item and not children:
+    branch_continuation = "  "  # No pipe for last items
+else:
+    branch_continuation = "│ "  # Show pipe
+```
+
+**What I Learned:**
+The bug wasn't about WHETHER to show pipes - it was about UNDERSTANDING CONTEXT:
+- **Detail lines are PART of the current item** - they should always show continuation pipes
+- **Sibling transitions** are where pipes should end (when moving to next item at same level)
+- The same conditional logic can't apply to both contexts
+
+**Correct Solution:**
+```python
+# Detail lines ALWAYS show continuation (they're part of current item)
+branch_continuation = "│ "  # Always for detail lines
+
+# Only use spacing when transitioning between siblings
+# (handled separately in child rendering logic)
+```
+
+**Key Insight:**
+> "When fixing display/formatting bugs, understand the SEMANTIC MEANING of each visual element. Detail content belongs to its parent item and should maintain visual association. Don't apply sibling-level logic to parent-child relationships."
+
+**Debugging Approach That Worked:**
+1. **Visual inspection first:** Used `cum h 86c6g88be` to see actual output
+2. **Pattern analysis:** Identified which lines were correct vs incorrect
+3. **Semantic understanding:** Recognized detail lines are different from siblings
+4. **Test-driven:** Created test_pipe_alignment.py to detect the issue
+5. **Iterative refinement:** Fixed one context at a time
+
+**Prevention Strategy:**
+- When working with hierarchical display logic, clearly distinguish between:
+  - **Vertical relationships:** parent → child → grandchild (maintain pipes)
+  - **Horizontal relationships:** sibling → sibling (pipes can end)
+  - **Detail content:** always part of parent (maintain pipes)
+- Test with real, complex data structures with multiple depth levels
+- Visual verification is essential for UI/display bugs
+
+**Impact:**
+- Major: Visual clarity of hierarchy command significantly improved
+- All tree displays now maintain perfect pipe alignment
+- Better UX for understanding task relationships
+
+---
+
 ## Best Practices Reinforced
 
 ### CLI Command Discovery
