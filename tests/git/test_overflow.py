@@ -243,18 +243,50 @@ class TestWorkflowResult(unittest.TestCase):
 class TestExecuteOverflowWorkflow(unittest.TestCase):
     """Tests for execute_overflow_workflow function."""
 
-    def test_not_implemented(self):
-        """Test that execute_overflow_workflow raises NotImplementedError."""
+    def test_dry_run_workflow_0(self):
+        """Test Workflow 0 in dry run mode."""
         context = OverflowContext(
-            task_id="test",
-            task_url="https://test.com"
+            task_id="test123",
+            task_url="https://app.clickup.com/t/test123",
+            commit_message="Test commit",
+            dry_run=True
         )
 
-        with self.assertRaises(NotImplementedError) as ctx:
-            execute_overflow_workflow(context)
+        result = execute_overflow_workflow(context)
 
-        self.assertIn("not yet implemented", str(ctx.exception))
-        self.assertIn("Sprint 1.2", str(ctx.exception))
+        self.assertTrue(result.success)
+        self.assertEqual(result.workflow_type, WorkflowType.DIRECT_COMMIT)
+        self.assertIn("DRY RUN", result.warnings[0])
+        self.assertTrue(result.metadata.get("dry_run"))
+
+    def test_workflow_0_missing_commit_message(self):
+        """Test that Workflow 0 fails without commit message."""
+        context = OverflowContext(
+            task_id="test123",
+            task_url="https://app.clickup.com/t/test123",
+            commit_message=""  # Empty message
+        )
+
+        result = execute_overflow_workflow(context)
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "Commit message is required")
+
+    def test_unimplemented_workflow_types(self):
+        """Test that non-Workflow-0 types return not implemented."""
+        for workflow_type in [WorkflowType.PULL_REQUEST, WorkflowType.WIP_BRANCH,
+                              WorkflowType.HOTFIX, WorkflowType.MERGE_COMPLETE]:
+            context = OverflowContext(
+                task_id="test123",
+                task_url="https://app.clickup.com/t/test123",
+                commit_message="Test",
+                workflow_type=workflow_type
+            )
+
+            result = execute_overflow_workflow(context)
+
+            self.assertFalse(result.success)
+            self.assertIn("not yet implemented", result.error)
 
 
 if __name__ == '__main__':
