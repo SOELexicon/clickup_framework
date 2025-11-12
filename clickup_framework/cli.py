@@ -452,12 +452,16 @@ def show_command_tree():
 
     print()
     if use_color:
-        help_text = colorize("For detailed help on any command:", TextColor.BRIGHT_WHITE)
-        example = colorize("cum <command> --help", TextColor.BRIGHT_GREEN)
+        help_text = colorize("For detailed help:", TextColor.BRIGHT_WHITE)
+        general_help = colorize("cum -h", TextColor.BRIGHT_GREEN)
+        or_text = colorize(" or ", TextColor.BRIGHT_BLACK)
+        cmd_help = colorize("cum <command> --help", TextColor.BRIGHT_GREEN)
     else:
-        help_text = "For detailed help on any command:"
-        example = "cum <command> --help"
-    print(f"{help_text} {example}")
+        help_text = "For detailed help:"
+        general_help = "cum -h"
+        or_text = " or "
+        cmd_help = "cum <command> --help"
+    print(f"{help_text} {general_help}{or_text}{cmd_help}")
 
 
 def main():
