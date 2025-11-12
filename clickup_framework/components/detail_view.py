@@ -400,7 +400,8 @@ class TaskDetailFormatter:
 
     def _format_description(self, task: Dict[str, Any], options: FormatOptions) -> str:
         """Format full task description with markdown rendering."""
-        description = task.get('description', '').strip()
+        description = task.get('description') or ''
+        description = description.strip()
         if not description:
             return ""
 
