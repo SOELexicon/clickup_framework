@@ -15,6 +15,7 @@
 5. [Git Development & Commit Workflow](#5-git-development--commit-workflow)
 6. [API Testing & Validation Workflow](#6-api-testing--validation-workflow)
 7. [File Attachment & Upload Workflow](#7-file-attachment--upload-workflow)
+8. [Using Slash Commands for Bug Investigation](#8-using-slash-commands-for-bug-investigation)
 
 ---
 
@@ -1718,3 +1719,308 @@ print(json.dumps(result, indent=2))
 **End of Workflow Documentation**
 
 For questions or improvements, create a task or update this document.
+
+---
+
+## 8. Using Slash Commands for Bug Investigation
+
+### Purpose
+Claude slash commands provide guided workflows for common development tasks. Use them to ensure you follow best practices consistently.
+
+### Available Slash Commands
+
+#### `/investigate-bug` - Systematic Bug Investigation
+Comprehensive workflow for investigating and documenting bugs.
+
+**When to use:**
+- A bug has been reported
+- Need to identify root cause
+- Before implementing a fix
+
+**What it does:**
+- Guides through reproduction steps
+- Helps locate relevant code
+- Prompts for API testing
+- Structures root cause documentation
+- Proposes solutions with pros/cons
+
+**Usage:**
+```
+/investigate-bug
+```
+Then follow the prompts in the expanded workflow.
+
+#### `/fix-bug` - Bug Fix Implementation
+Step-by-step guide for implementing and testing bug fixes.
+
+**When to use:**
+- Root cause analysis is complete
+- Ready to implement fix
+- Need testing checklist
+
+**What it does:**
+- Reviews investigation findings
+- Guides implementation
+- Provides testing checklist
+- Structures commit messages
+- Updates task status
+
+**Usage:**
+```
+/fix-bug
+```
+Follow the implementation workflow.
+
+### Slash Command Files Location
+```
+.claude/commands/
+├── investigate-bug.md    # Investigation workflow
+└── fix-bug.md           # Fix implementation workflow
+```
+
+### Complete Bug Fix Workflow with Slash Commands
+
+```mermaid
+graph TD
+    A[Bug Reported] --> B["/investigate-bug"]
+    B --> C[Systematic Investigation]
+    C --> D[Root Cause Identified]
+    D --> E[Document Findings in Task]
+    E --> F["/fix-bug"]
+    F --> G[Implement Fix]
+    G --> H[Test Thoroughly]
+    H --> I[Commit & Push]
+    I --> J[Update Tasks]
+    J --> K[Bug Fixed]
+```
+
+### Example: Using Slash Commands for Bug Fix
+
+**Scenario:** Page hierarchy not displaying
+
+**Step 1: Investigation**
+```
+User: There's an issue with page hierarchy not showing. Can you investigate?
+AI: /investigate-bug
+```
+
+*The AI follows the investigation workflow:*
+1. ✅ Reproduces issue with `cum doc_get`
+2. ✅ Checks API response for `parent_id` field
+3. ✅ Locates code in `doc_commands.py:67-138`
+4. ✅ Identifies root cause: No tree building logic
+5. ✅ Documents findings with file locations
+6. ✅ Proposes solutions with recommendations
+
+**Step 2: Implementation**
+```
+User: Looks good. Please implement the fix.
+AI: /fix-bug
+```
+
+*The AI follows the fix workflow:*
+1. ✅ Reviews investigation findings
+2. ✅ Creates fix branch
+3. ✅ Implements tree-building logic
+4. ✅ Tests with multiple scenarios
+5. ✅ Commits with descriptive message
+6. ✅ Updates all related tasks
+7. ✅ Creates verification checklist
+
+### Workflow Checklist Integration
+
+Both slash commands include built-in checklists to ensure nothing is missed:
+
+**Investigation Checklist** (from `/investigate-bug`):
+- [ ] Issue reproduced consistently
+- [ ] Error messages/output captured
+- [ ] Relevant code located and read
+- [ ] API tested directly
+- [ ] Root cause identified with evidence
+- [ ] File locations documented
+- [ ] Solutions proposed with pros/cons
+- [ ] Implementation plan created
+- [ ] Testing strategy defined
+
+**Implementation Checklist** (from `/fix-bug`):
+- [ ] Root cause addressed (not just symptoms)
+- [ ] Code follows project style
+- [ ] Comments explain reasoning
+- [ ] Original scenario tested ✓
+- [ ] Edge cases tested ✓
+- [ ] Regression tests passing ✓
+- [ ] Integration tests passing ✓
+- [ ] Documentation updated
+- [ ] Commit message descriptive
+- [ ] Changes pushed successfully
+- [ ] All subtasks updated
+- [ ] Parent task updated
+- [ ] Verification checklist created
+
+### Benefits of Slash Commands
+
+1. **Consistency**: Same workflow every time
+2. **Completeness**: Built-in checklists prevent missed steps
+3. **Documentation**: Structured output for task comments
+4. **Best Practices**: Incorporates learned patterns
+5. **Training**: New developers follow proven workflows
+6. **Quality**: Ensures thorough investigation and testing
+
+### Customizing Slash Commands
+
+Slash commands are markdown files that can be customized:
+
+**Location:** `.claude/commands/*.md`
+
+**To customize:**
+1. Edit the markdown file
+2. Add/remove steps
+3. Update checklists
+4. Add project-specific guidance
+5. Changes apply immediately
+
+**Example customization:**
+```markdown
+# .claude/commands/investigate-bug.md
+
+## Phase 1: Reproduction & Documentation
+
+### Custom Step: Check Monitoring Dashboard
+Before reproducing locally, check monitoring:
+- Error rate graphs
+- User reports
+- Recent deployments
+
+[Rest of workflow...]
+```
+
+### Creating New Slash Commands
+
+**Steps:**
+1. Create `.claude/commands/your-command.md`
+2. Write workflow in markdown
+3. Include step-by-step instructions
+4. Add code examples and checklists
+5. Use immediately with `/your-command`
+
+**Template:**
+```markdown
+# Your Command Title
+
+Description of what this command does and when to use it.
+
+## Phase 1: First Major Step
+
+Instructions for this phase...
+
+### Sub-step 1.1
+Detailed instructions...
+
+```bash
+# Example commands
+cum some-command
+```
+
+## Phase 2: Next Major Step
+
+More instructions...
+
+## Checklist
+
+Before completing:
+- [ ] Item 1
+- [ ] Item 2
+- [ ] Item 3
+
+## Deliverables
+
+What you should have when done:
+1. Thing 1
+2. Thing 2
+```
+
+### Integration with Other Workflows
+
+Slash commands integrate seamlessly with other workflows:
+
+**With Manual Testing Workflow:**
+```
+1. Manual Testing discovers bug
+2. /investigate-bug to analyze
+3. Create subtasks from findings
+4. /fix-bug for each subtask
+5. Update parent task with results
+```
+
+**With Git Workflow:**
+```
+1. /investigate-bug identifies issue
+2. Document findings
+3. /fix-bug implements solution
+4. Git workflow: branch, commit, push
+5. PR with investigation + fix documentation
+```
+
+**With API Testing Workflow:**
+```
+1. API Testing finds discrepancy
+2. /investigate-bug for root cause
+3. API testing validates fix
+4. /fix-bug implements correction
+5. API testing confirms resolution
+```
+
+---
+
+## Appendix: Slash Command Reference
+
+### Quick Command List
+
+| Command | Purpose | When to Use |
+|---------|---------|-------------|
+| `/investigate-bug` | Systematic bug investigation | Bug reported, need root cause |
+| `/fix-bug` | Guided fix implementation | Investigation complete, ready to fix |
+
+### Command Outputs
+
+**`/investigate-bug` produces:**
+- Reproduction steps
+- Code locations with line numbers
+- API test results
+- Root cause analysis
+- Proposed solutions
+- Implementation plan
+- Testing strategy
+
+**`/fix-bug` produces:**
+- Implementation code
+- Test results
+- Commit with descriptive message
+- Updated task comments
+- Verification checklist
+
+### Command Best Practices
+
+1. **Always complete investigation before fixing**
+   - Run `/investigate-bug` first
+   - Document findings thoroughly
+   - Get root cause confirmation
+   - Then run `/fix-bug`
+
+2. **Follow the entire workflow**
+   - Don't skip steps
+   - Complete all checklists
+   - Document everything
+   - Update all tasks
+
+3. **Customize for your project**
+   - Add project-specific steps
+   - Include team conventions
+   - Reference your docs/tools
+   - Keep updated
+
+4. **Use in combination**
+   - Slash commands + manual workflows
+   - Slash commands + automation scripts
+   - Slash commands + team process
+
