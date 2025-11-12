@@ -113,6 +113,151 @@ class RichTaskFormatter:
                     id_str = colorize(id_str, TextColor.BRIGHT_BLACK)
             parts.append(id_str)
 
+        # Add dependency and blocker indicators
+        dependencies = task.get('dependencies', [])
+        if dependencies:
+            # Count different types of dependencies
+            waiting_on = []  # Tasks this task depends on (is waiting for)
+            blocking = []    # Tasks this task is blocking
+
+            for dep in dependencies:
+                if isinstance(dep, dict):
+                    dep_task_id = dep.get('task_id')
+                    dep_type = dep.get('type', 'waiting_on')  # Default to waiting_on
+
+                    if dep_type == 'waiting_on':
+                        waiting_on.append(dep_task_id)
+                    elif dep_type == 'blocking':
+                        blocking.append(dep_task_id)
+                elif isinstance(dep, str):
+                    # If just a string, assume it's waiting_on
+                    waiting_on.append(dep)
+
+            # Show dependency indicators
+            dep_indicators = []
+
+            if waiting_on:
+                count = len(waiting_on)
+                if options.colorize_output:
+                    # Use emoji or colored text
+                    indicator = colorize(f"⏳{count}", TextColor.YELLOW)
+                else:
+                    indicator = f"D:{count}"
+                dep_indicators.append(indicator)
+
+            if blocking:
+                count = len(blocking)
+                if options.colorize_output:
+                    # Use emoji or colored text
+                    indicator = colorize(f"🚫{count}", TextColor.RED)
+                else:
+                    indicator = f"B:{count}"
+                dep_indicators.append(indicator)
+
+            if dep_indicators:
+                parts.append(" ".join(dep_indicators))
+
+        # Add linked tasks indicator
+        linked_tasks = task.get('linked_tasks', [])
+        if linked_tasks:
+            count = len(linked_tasks)
+            if options.colorize_output:
+                indicator = colorize(f"🔗{count}", TextColor.CYAN)
+            else:
+                indicator = f"L:{count}"
+            parts.append(indicator)
+
+        # Add assignee indicator
+        assignees = task.get('assignees', [])
+        if assignees:
+            if options.colorize_output:
+                # Show initials or count
+                if len(assignees) == 1:
+                    # Show first assignee's initials
+                    assignee = assignees[0]
+                    username = assignee.get('username', '')
+                    initials = ''.join([c[0].upper() for c in username.split('_')[:2]]) if username else '?'
+                    indicator = colorize(f"👤{initials}", TextColor.BLUE)
+                else:
+                    # Show count if multiple
+                    indicator = colorize(f"👥{len(assignees)}", TextColor.BLUE)
+            else:
+                indicator = f"A:{len(assignees)}"
+            parts.append(indicator)
+
+        # Add due date warning (if overdue or due soon)
+        due_date = task.get('due_date')
+        if due_date:
+            from datetime import datetime, timezone
+            try:
+                # ClickUp returns due_date as milliseconds timestamp
+                if isinstance(due_date, str):
+                    due_timestamp = int(due_date) / 1000
+                else:
+                    due_timestamp = due_date / 1000
+
+                due_dt = datetime.fromtimestamp(due_timestamp, tz=timezone.utc)
+                now = datetime.now(timezone.utc)
+                days_until_due = (due_dt - now).days
+
+                if days_until_due < 0:
+                    # Overdue
+                    if options.colorize_output:
+                        indicator = colorize(f"🔴{abs(days_until_due)}d", TextColor.RED, TextStyle.BOLD)
+                    else:
+                        indicator = f"OVERDUE:{abs(days_until_due)}d"
+                    parts.append(indicator)
+                elif days_until_due == 0:
+                    # Due today
+                    if options.colorize_output:
+                        indicator = colorize("📅TODAY", TextColor.YELLOW, TextStyle.BOLD)
+                    else:
+                        indicator = "DUE:TODAY"
+                    parts.append(indicator)
+                elif days_until_due <= 3:
+                    # Due soon
+                    if options.colorize_output:
+                        indicator = colorize(f"⚠️{days_until_due}d", TextColor.YELLOW)
+                    else:
+                        indicator = f"DUE:{days_until_due}d"
+                    parts.append(indicator)
+            except (ValueError, TypeError):
+                pass  # Skip if date parsing fails
+
+        # Add time tracking indicator
+        time_estimate = task.get('time_estimate')
+        time_spent = task.get('time_spent', 0)
+        if time_estimate or time_spent:
+            if time_estimate and time_spent:
+                # Show both: spent/estimate
+                hours_estimate = time_estimate / 3600000  # Convert ms to hours
+                hours_spent = time_spent / 3600000
+                if options.colorize_output:
+                    if hours_spent > hours_estimate:
+                        # Over budget
+                        indicator = colorize(f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.RED)
+                    else:
+                        indicator = colorize(f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.GREEN)
+                else:
+                    indicator = f"T:{hours_spent:.1f}/{hours_estimate:.1f}h"
+                parts.append(indicator)
+            elif time_estimate:
+                # Only estimate
+                hours_estimate = time_estimate / 3600000
+                if options.colorize_output:
+                    indicator = colorize(f"⏱️{hours_estimate:.1f}h", TextColor.CYAN)
+                else:
+                    indicator = f"T:{hours_estimate:.1f}h"
+                parts.append(indicator)
+            elif time_spent:
+                # Only spent time
+                hours_spent = time_spent / 3600000
+                if options.colorize_output:
+                    indicator = colorize(f"⏱️{hours_spent:.1f}h", TextColor.YELLOW)
+                else:
+                    indicator = f"T:{hours_spent:.1f}h"
+                parts.append(indicator)
+
         # Add task type emoji
         if options.show_type_emoji:
             task_type = task.get('custom_type') or 'task'
