@@ -2,6 +2,25 @@
 
 Complete command reference for the `cum` (ClickUp Unified Manager) CLI tool.
 
+## Import to ClickUp Docs
+
+You can import this entire documentation structure into ClickUp Docs using the automated import script:
+
+```bash
+# Import to your workspace
+./scripts/import_cli_docs.sh [workspace_id]
+
+# Or with custom options
+./scripts/import_cli_docs.sh --doc-name "CLI Reference v2.0"
+
+# Check prerequisites first
+./scripts/import_cli_docs.sh --check
+```
+
+See [scripts/import_cli_docs.sh](../../scripts/import_cli_docs.sh) for more options.
+
+---
+
 ## Quick Navigation
 
 - [View Commands](#view-commands) - Display tasks in various formats

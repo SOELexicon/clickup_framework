@@ -1,4 +1,79 @@
-# Display Component Scripts
+# ClickUp Framework Scripts
+
+Utility scripts for ClickUp Framework development and documentation.
+
+---
+
+## Documentation Import
+
+### `import_cli_docs.sh`
+
+Import the CLI command reference documentation to ClickUp Docs in bulk.
+
+**Usage:**
+```bash
+# Import to current/default workspace
+./scripts/import_cli_docs.sh
+
+# Import to specific workspace
+./scripts/import_cli_docs.sh 90151898946
+
+# Custom doc name
+./scripts/import_cli_docs.sh --doc-name "CLI Reference v2.0"
+
+# Check prerequisites without importing
+./scripts/import_cli_docs.sh --check
+
+# Show help
+./scripts/import_cli_docs.sh --help
+```
+
+**Requirements:**
+- ClickUp Framework installed (`cum` command available)
+- `CLICKUP_API_TOKEN` environment variable set
+- Workspace ID (provided, in context, or via `CLICKUP_DEFAULT_WORKSPACE`)
+
+**What it does:**
+1. Validates prerequisites (cum command, API token, docs directory)
+2. Sets workspace context
+3. Imports all markdown files from `docs/cli/` directory
+4. Creates a single ClickUp Doc with all pages
+5. Returns the Doc ID for reference
+
+**Output:**
+- Creates ClickUp Doc with 8 pages:
+  - Index (main page with all shortcodes)
+  - View Commands
+  - Task Management Commands
+  - Comment Management Commands
+  - Docs Management Commands
+  - Context Management Commands
+  - Configuration Commands
+  - Advanced Commands
+- Saves Doc ID to `.last_imported_doc_id` file
+
+**Options:**
+- `-h, --help` - Show help message
+- `-d, --doc-name NAME` - Custom doc name (default: "CLI Command Reference")
+- `-n, --nested` - Use nested directory structure
+- `-c, --check` - Check prerequisites only
+
+**Example workflow:**
+```bash
+# Check everything is ready
+./scripts/import_cli_docs.sh --check
+
+# Import to workspace
+./scripts/import_cli_docs.sh 90151898946
+
+# View the imported doc
+DOC_ID=$(cat .last_imported_doc_id)
+cum doc_get current $DOC_ID
+```
+
+---
+
+## Display Component Scripts
 
 Scripts for generating visual examples and screenshots of the display components.
 

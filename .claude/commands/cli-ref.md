@@ -310,6 +310,28 @@ cum tc "Setup API" --checklist-template "api-setup" --priority high
 
 ---
 
+## Import to ClickUp Docs
+
+You can import this entire documentation structure into ClickUp Docs:
+
+```bash
+# Quick import (uses default workspace)
+./scripts/import_cli_docs.sh
+
+# Import to specific workspace
+./scripts/import_cli_docs.sh 90151898946
+
+# Custom doc name
+./scripts/import_cli_docs.sh --doc-name "CLI Reference v2.0"
+
+# Check prerequisites first
+./scripts/import_cli_docs.sh --check
+```
+
+The script will import all 8 documentation pages as a single ClickUp Doc that you can share with your team.
+
+---
+
 ## Documentation Quick Links
 
 - **[Full Index](../../docs/cli/INDEX.md)** - All commands and shortcodes
