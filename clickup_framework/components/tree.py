@@ -75,7 +75,8 @@ class TreeFormatter:
                 branch_continuation = "│ "  # Always show continuation for detail lines
 
                 # Then add detail indentation marker
-                detail_indent = "  │ "  # Indent + pipe to show it's detail content
+                # Use extra spacing to ensure detail content is clearly indented beyond child level
+                detail_indent = "    │ "  # 4 spaces + pipe + space for clear visual separation
 
                 # Combine: prefix (ancestor pipes) + branch continuation + detail indent
                 continuation_prefix = prefix + branch_continuation + detail_indent
@@ -89,17 +90,20 @@ class TreeFormatter:
                     # Show truncation message with same alignment as detail lines
                     # Always use "│ " for consistency with detail line formatting
                     branch_continuation = "│ "
-                    truncate_prefix = prefix + branch_continuation + "  │ "
+                    truncate_prefix = prefix + branch_continuation + "    │ "  # Match detail indent (4 spaces)
 
                     hidden_count = len(children)
                     truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
                     lines.append(f"{truncate_prefix}{truncate_msg}")
                 else:
                     # Calculate the prefix for children
-                    # IMPORTANT: Always maintain vertical pipes for visual continuity
-                    # Even if parent is last item, children should show pipe alignment
-                    # This ensures detail lines (descriptions, dates) maintain proper alignment
-                    child_prefix = prefix + "│ "  # Always continue vertical line for alignment
+                    # IMPORTANT: Only show pipe if parent is NOT the last item
+                    # This allows siblings below the parent to connect properly
+                    # If parent is last (└─), no pipe needed - no more siblings coming
+                    if is_last_item:
+                        child_prefix = prefix + "  "  # No pipe for last item's children
+                    else:
+                        child_prefix = prefix + "│ "  # Pipe to connect to siblings below parent
 
                     # Recursively format children
                     child_lines = TreeFormatter.build_tree(
