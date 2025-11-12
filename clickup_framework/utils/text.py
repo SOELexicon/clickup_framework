@@ -203,6 +203,37 @@ def indent(text: str, level: int = 1, char: str = "  ") -> str:
     return "\n".join(prefix + line for line in lines)
 
 
+def unescape_content(text: str) -> str:
+    """
+    Unescape content from ClickUp API.
+
+    ClickUp API may return content with escaped newlines (\\n) and other
+    escape sequences. This function converts them to actual characters.
+
+    Args:
+        text: Text with escaped characters
+
+    Returns:
+        Text with unescaped characters
+
+    Examples:
+        >>> unescape_content("Hello\\nWorld")
+        'Hello\nWorld'
+        >>> unescape_content("Line 1\\n\\nLine 2")
+        'Line 1\n\nLine 2'
+    """
+    if not text:
+        return ""
+
+    # Replace escaped newlines with actual newlines
+    # Handle both \\n (double-escaped) and \n (single-escaped as string)
+    text = text.replace('\\n', '\n')
+    text = text.replace('\\r', '\r')
+    text = text.replace('\\t', '\t')
+
+    return text
+
+
 def format_user_list(users: List[dict], max_users: int = 5) -> str:
     """
     Format list of user objects to names.
