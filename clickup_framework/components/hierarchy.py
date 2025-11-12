@@ -337,6 +337,14 @@ class TaskHierarchyFormatter:
             include_orphaned=not options.hide_orphaned
         )
 
+        # Wrap in container hierarchy if requested
+        if options.show_containers and options.container_info and root_tasks:
+            from clickup_framework.commands.hierarchy import _wrap_tasks_in_containers
+            use_color = options.container_info.get('use_color', True)
+            wrapped = _wrap_tasks_in_containers(root_tasks, use_color)
+            if wrapped:
+                root_tasks = wrapped
+
         # Check for warnings and info messages
         circular_warning = self.get_circular_reference_warnings()
         orphaned_info = self.get_orphaned_task_info()

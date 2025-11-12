@@ -36,10 +36,23 @@ class RichTaskFormatter:
         if not children:
             return (0, 0)
 
-        total = len(children)
+        # Filter out container nodes when counting
+        actual_tasks = [c for c in children if not c.get('_is_container')]
+        if not actual_tasks:
+            # If only containers, recurse into them
+            total = 0
+            completed = 0
+            for child in children:
+                if child.get('_is_container'):
+                    child_completed, child_total = RichTaskFormatter._count_subtasks(child)
+                    completed += child_completed
+                    total += child_total
+            return (completed, total)
+
+        total = len(actual_tasks)
         completed = 0
 
-        for child in children:
+        for child in actual_tasks:
             # Check if child is completed
             status = child.get('status', {})
             status_name = status.get('status') if isinstance(status, dict) else status
@@ -69,6 +82,11 @@ class RichTaskFormatter:
         """
         if options is None:
             options = FormatOptions()
+
+        # Check if this is a container node (workspace/folder/list)
+        if task.get('_is_container'):
+            # Simple formatting for containers - just return the name
+            return task.get('name', 'Unknown Container')
 
         parts = []
 

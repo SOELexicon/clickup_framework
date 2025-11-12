@@ -220,10 +220,8 @@ def hierarchy_command(args):
             print(status_line)
             print()  # Empty line for spacing
 
-    # Determine header for display and add container information
+    # Determine header for display
     header = getattr(args, "header", None)
-    container_info_lines = []
-
     if not header:
         if show_all:
             header = "All Workspace Tasks"
@@ -232,54 +230,112 @@ def hierarchy_command(args):
         else:
             header = "Tasks"
 
-    # Add container path information when viewing a specific task or container
-    if not show_all and args.list_id:
-        # Get the first task to extract container information
-        if tasks and container_type == 'task':
-            first_task = tasks[0]  # This is the root task we're viewing
-
-            # Build container path
-            location_parts = []
-            if first_task.get('space'):
-                space = first_task['space']
-                space_name = space.get('name', '') if isinstance(space, dict) else str(space)
-                if space_name:
-                    location_parts.append(space_name)
-
-            if first_task.get('folder'):
-                folder = first_task['folder']
-                folder_name = folder.get('name', '') if isinstance(folder, dict) else str(folder)
-                if folder_name:
-                    location_parts.append(folder_name)
-
-            if first_task.get('list'):
-                list_obj = first_task['list']
-                list_name = list_obj.get('name', '') if isinstance(list_obj, dict) else str(list_obj)
-                if list_name:
-                    location_parts.append(list_name)
-
-            if location_parts:
-                colorize_val = getattr(args, 'colorize', None)
-                use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
-
-                location_path = " > ".join(location_parts)
-                if use_color:
-                    from clickup_framework.utils.colors import colorize, TextColor, TextStyle
-                    container_info_lines.append(colorize("📍 Location:", TextColor.BRIGHT_WHITE, TextStyle.BOLD) +
-                                                 f" {colorize(location_path, TextColor.CYAN)}")
-                else:
-                    container_info_lines.append(f"📍 Location: {location_path}")
-
-                container_info_lines.append("")  # Empty line for spacing
+    # Build container hierarchy tree when viewing a specific task
+    show_containers = not show_all and args.list_id and tasks and container_type == 'task'
+    if show_containers:
+        colorize_val = getattr(args, 'colorize', None)
+        use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
+        # Store container info for later wrapping
+        options.show_containers = True
+        options.container_info = {
+            'space': tasks[0].get('space') if tasks else None,
+            'folder': tasks[0].get('folder') if tasks else None,
+            'list': tasks[0].get('list') if tasks else None,
+            'use_color': use_color
+        }
 
     # Use hierarchy view to show tasks with header
     output = display.hierarchy_view(tasks, options, header=header)
 
-    # Prepend container information if available
-    if container_info_lines:
-        output = "\n".join(container_info_lines) + output
-
     print(output)
+
+
+def _wrap_tasks_in_containers(tasks, use_color=True):
+    """
+    Wrap tasks in a container hierarchy showing workspace > folder > list.
+
+    Args:
+        tasks: List of tasks to wrap
+        use_color: Whether to use color in container names
+
+    Returns:
+        List containing a single root container node with nested children
+    """
+    if not tasks:
+        return None
+
+    from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+
+    # Get container info from first task
+    first_task = tasks[0]
+
+    # Build container hierarchy from bottom up
+    # Start with the tasks as the deepest level
+    current_children = tasks
+
+    # Wrap in list container
+    if first_task.get('list'):
+        list_obj = first_task['list']
+        list_name = list_obj.get('name', 'Unknown List') if isinstance(list_obj, dict) else str(list_obj)
+
+        if use_color:
+            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+        else:
+            list_display = f"{list_name} (list)"
+
+        list_node = {
+            'id': 'container_list',
+            'name': list_display,
+            'custom_type': 'container',
+            '_children': current_children,
+            '_is_container': True
+        }
+        current_children = [list_node]
+
+    # Wrap in folder container (if exists)
+    if first_task.get('folder'):
+        folder = first_task['folder']
+        folder_name = folder.get('name', 'Unknown Folder') if isinstance(folder, dict) else str(folder)
+
+        if use_color:
+            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD) + colorize(" (folder)", TextColor.BRIGHT_BLACK)
+        else:
+            folder_display = f"{folder_name} (folder)"
+
+        folder_node = {
+            'id': 'container_folder',
+            'name': folder_display,
+            'custom_type': 'container',
+            '_children': current_children,
+            '_is_container': True
+        }
+        current_children = [folder_node]
+
+    # Wrap in workspace container (only if we have a name)
+    if first_task.get('space'):
+        space = first_task['space']
+        if isinstance(space, dict):
+            space_name = space.get('name', '')
+        else:
+            space_name = str(space)
+
+        # Only add workspace node if we have a name
+        if space_name:
+            if use_color:
+                space_display = colorize(space_name, TextColor.BRIGHT_MAGENTA, TextStyle.BOLD) + colorize(" (workspace)", TextColor.BRIGHT_BLACK)
+            else:
+                space_display = f"{space_name} (workspace)"
+
+            space_node = {
+                'id': 'container_workspace',
+                'name': space_display,
+                'custom_type': 'container',
+                '_children': current_children,
+                '_is_container': True
+            }
+            current_children = [space_node]
+
+    return current_children
 
 
 def _fetch_all_pages(fetch_func, **params):

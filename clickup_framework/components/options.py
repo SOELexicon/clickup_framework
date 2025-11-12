@@ -56,6 +56,8 @@ class FormatOptions:
     trace: bool = False
     max_depth: Optional[int] = None
     highlight_task_id: Optional[str] = None  # ID of task to highlight (for hierarchy view)
+    show_containers: bool = False  # Whether to show container hierarchy (workspace/folder/list)
+    container_info: Optional[Dict[str, Any]] = field(default=None)  # Container information for building tree
 
     @classmethod
     def from_dict(cls, options_dict: Dict[str, Any]) -> 'FormatOptions':
