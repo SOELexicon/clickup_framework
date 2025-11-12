@@ -17,6 +17,7 @@ from .text import (
     clean_html,
     indent,
     format_user_list,
+    unescape_content,
 )
 from .error_formatter import (
     ErrorFormatter,
@@ -39,6 +40,7 @@ __all__ = [
     "clean_html",
     "indent",
     "format_user_list",
+    "unescape_content",
     # error formatting
     "ErrorFormatter",
     "format_error",

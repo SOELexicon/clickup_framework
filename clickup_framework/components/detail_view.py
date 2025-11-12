@@ -10,7 +10,7 @@ from clickup_framework.utils.colors import (
     colorize, status_color, priority_color, TextColor, TextStyle,
     get_task_emoji, TASK_TYPE_EMOJI, USE_COLORS
 )
-from clickup_framework.utils.text import strip_markdown
+from clickup_framework.utils.text import strip_markdown, unescape_content
 from clickup_framework.utils.markdown_renderer import render_markdown
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.tree import TreeFormatter
@@ -403,6 +403,9 @@ class TaskDetailFormatter:
         description = task.get('description', '').strip()
         if not description:
             return ""
+
+        # Unescape content from ClickUp API (converts \\n to actual newlines)
+        description = unescape_content(description)
 
         lines = []
         header = "📝 Description:"

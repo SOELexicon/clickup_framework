@@ -552,10 +552,6 @@ class ClickUpClient:
         """Get doc by ID."""
         return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}")
 
-    def get_doc_pages_list(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
-        """Get page listing/index for a doc."""
-        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/list")
-
     def get_doc_pages(self, workspace_id: str, doc_id: str, **params) -> Dict[str, Any]:
         """Get all pages belonging to a doc."""
         return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages", params=params)
