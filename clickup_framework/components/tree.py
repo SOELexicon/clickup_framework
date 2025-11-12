@@ -60,38 +60,42 @@ class TreeFormatter:
             # Add the first line with branch character
             lines.append(f"{prefix}{branch}{formatted_lines[0]}")
 
+            # Get children to determine if we need to continue vertical line
+            children = get_children_fn(item)
+
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
                 # Calculate the continuation prefix
-                if is_last_item:
-                    continuation_prefix = prefix + "  "  # No vertical line
+                # Continuation should align with where children will be (add 2 spaces for branch)
+                # Show vertical line if: not last item OR has children
+                if is_last_item and not children:
+                    continuation_prefix = prefix + "    "  # No vertical line, extra spaces for alignment
                 else:
-                    continuation_prefix = prefix + "│ "  # Continue vertical line
+                    continuation_prefix = prefix + "  │ "  # Continue vertical line with proper alignment
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
-
-            # Get children
-            children = get_children_fn(item)
 
             if children:
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
                     # Show truncation message
+                    # Truncate prefix should align with continuation
                     if is_last_item:
-                        truncate_prefix = prefix + "  "
+                        truncate_prefix = prefix + "    "
                     else:
-                        truncate_prefix = prefix + "│ "
+                        truncate_prefix = prefix + "  │ "
 
                     hidden_count = len(children)
-                    truncate_msg = f"  ... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
+                    truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
                     lines.append(f"{truncate_prefix}{truncate_msg}")
                 else:
                     # Calculate the prefix for children
+                    # The 2-space offset comes from branch characters (├─, └─) being 2 chars wide
                     if is_last_item:
-                        child_prefix = prefix + "  "  # No vertical line
+                        child_prefix = prefix + "  "  # No vertical line for last item's children
                     else:
-                        child_prefix = prefix + "│ "  # Continue vertical line
+                        child_prefix = prefix + "│ "  # Continue vertical line to connect siblings
 
                     # Recursively format children
                     child_lines = TreeFormatter.build_tree(
@@ -113,10 +117,11 @@ class TreeFormatter:
         format_fn: Callable[[Dict[str, Any]], str],
         get_children_fn: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
         header: Optional[str] = None,
-        max_depth: Optional[int] = None
+        max_depth: Optional[int] = None,
+        show_root_connector: bool = False
     ) -> str:
         """
-        Render items as a tree structure with optional depth limiting.
+        Render items as a tree structure with optional depth limiting and root connector.
 
         Args:
             items: List of root items
@@ -124,6 +129,7 @@ class TreeFormatter:
             get_children_fn: Function to get children of an item
             header: Optional header to display before the tree
             max_depth: Maximum depth to display (None = unlimited)
+            show_root_connector: If True, adds a vertical connector from header to root
 
         Returns:
             Complete tree as a string
@@ -132,7 +138,10 @@ class TreeFormatter:
 
         if header:
             lines.append(header)
-            lines.append("")
+            if show_root_connector:
+                lines.append("│")  # Add connecting line from header to tree
+            else:
+                lines.append("")
 
         tree_lines = TreeFormatter.build_tree(
             items,
