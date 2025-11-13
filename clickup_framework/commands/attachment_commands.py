@@ -66,6 +66,11 @@ def attachment_create_command(args):
             if result.get('url'):
                 print(f"URL: {result['url']}")
 
+        # Show helpful tip
+        from clickup_framework.components.tips import show_tip
+        show_tips_enabled = getattr(args, 'show_tips', True)
+        show_tip('attachment', use_color=use_color, enabled=show_tips_enabled)
+
     except Exception as e:
         error_msg = str(e)
         if "404" in error_msg:
