@@ -44,6 +44,15 @@ class TreeFormatter:
 
         Returns:
             List of formatted lines
+
+        Changelog:
+            2025-11-13: Fixed formatting to use proper 4-space indentation
+                       - Prior attempt used "├─" (2 chars) + no space = content too close
+                       - Prior attempt used "  │ " (space+space+pipe+space) = misaligned pipes
+                       - Prior attempt used "│ " (pipe+space) = only 2 chars for child indent
+                       Issue: Indentation not multiple of 4, unclosed branches, misaligned pipes
+                       Fix: Changed to "├── " (4 chars), "│   " (4 chars), "    " (4 spaces)
+                       Result: Consistent 4-char widths, proper branch closure, aligned pipes
         """
         lines = []
 
@@ -177,6 +186,14 @@ class TreeFormatter:
 
         Returns:
             List of formatted lines
+
+        Changelog:
+            2025-11-13: Fixed formatting to match build_tree consistency
+                       - Prior attempt used "├─" and "└─" (2 chars) without proper spacing
+                       - Prior attempt used "│ " (2 chars) and "  " (2 spaces) for children
+                       Issue: Inconsistent with build_tree, alignment problems
+                       Fix: Changed to "├── " and "└── " (4 chars), "│   " and "    " (4 chars)
+                       Result: Consistent with build_tree, proper 4-char indentation
         """
         lines = []
 
