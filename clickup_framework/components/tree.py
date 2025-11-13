@@ -12,10 +12,12 @@ class TreeFormatter:
     Formats hierarchical data as tree structures with box-drawing characters.
 
     Uses Unicode box-drawing characters for visual hierarchy:
-        ├─ Branch (not last item)
-        └─ Last branch
-        │  Vertical continuation
-           Empty space (for completed branches)
+        ├──  Branch (not last item)
+        └──  Last branch
+        │    Vertical continuation
+             Empty space (for completed branches)
+
+    All indentation uses consistent 4-character widths for proper alignment.
     """
 
     @staticmethod
@@ -48,8 +50,8 @@ class TreeFormatter:
         for i, item in enumerate(items):
             is_last_item = (i == len(items) - 1)
 
-            # Determine the branch character
-            branch = "└─" if is_last_item else "├─"
+            # Determine the branch character (with proper spacing: 2 dashes + space)
+            branch = "└── " if is_last_item else "├── "
 
             # Format the current item
             formatted = format_fn(item)
@@ -65,13 +67,12 @@ class TreeFormatter:
 
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
-                # Calculate the continuation prefix
-                # Continuation should align with where children will be (add 2 spaces for branch)
+                # Calculate the continuation prefix (4 chars: pipe + 3 spaces or 4 spaces)
                 # Show vertical line if: not last item OR has children
                 if is_last_item and not children:
-                    continuation_prefix = prefix + "    "  # No vertical line, extra spaces for alignment
+                    continuation_prefix = prefix + "    "  # No vertical line, 4 spaces for alignment
                 else:
-                    continuation_prefix = prefix + "  │ "  # Continue vertical line with proper alignment
+                    continuation_prefix = prefix + "│   "  # Continue vertical line (pipe + 3 spaces)
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
@@ -80,22 +81,21 @@ class TreeFormatter:
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
                     # Show truncation message
-                    # Truncate prefix should align with continuation
+                    # Truncate prefix should align with continuation (4 chars)
                     if is_last_item:
                         truncate_prefix = prefix + "    "
                     else:
-                        truncate_prefix = prefix + "  │ "
+                        truncate_prefix = prefix + "│   "
 
                     hidden_count = len(children)
                     truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
                     lines.append(f"{truncate_prefix}{truncate_msg}")
                 else:
-                    # Calculate the prefix for children
-                    # The 2-space offset comes from branch characters (├─, └─) being 2 chars wide
+                    # Calculate the prefix for children (4 chars: pipe + 3 spaces or 4 spaces)
                     if is_last_item:
-                        child_prefix = prefix + "  "  # No vertical line for last item's children
+                        child_prefix = prefix + "    "  # 4 spaces, no vertical line for last item's children
                     else:
-                        child_prefix = prefix + "│ "  # Continue vertical line to connect siblings
+                        child_prefix = prefix + "│   "  # Pipe + 3 spaces to continue vertical line
 
                     # Recursively format children
                     child_lines = TreeFormatter.build_tree(
@@ -183,18 +183,18 @@ class TreeFormatter:
         for i, container in enumerate(containers):
             is_last_container = (i == len(containers) - 1)
 
-            # Determine the branch character
-            branch = "└─" if is_last_container else "├─"
+            # Determine the branch character (with proper spacing: 2 dashes + space)
+            branch = "└── " if is_last_container else "├── "
 
             # Format the container
             formatted_container = format_container_fn(container)
             lines.append(f"{prefix}{branch}{formatted_container}")
 
-            # Calculate prefix for children
+            # Calculate prefix for children (4 chars: pipe + 3 spaces or 4 spaces)
             if is_last_container:
-                child_prefix = prefix + "  "
+                child_prefix = prefix + "    "  # 4 spaces
             else:
-                child_prefix = prefix + "│ "
+                child_prefix = prefix + "│   "  # Pipe + 3 spaces
 
             # Get sub-containers
             sub_containers = get_sub_containers_fn(container)
@@ -216,7 +216,7 @@ class TreeFormatter:
                 for j, item in enumerate(items):
                     is_last_item = (j == len(items) - 1) and not sub_containers
 
-                    item_branch = "└─" if is_last_item else "├─"
+                    item_branch = "└── " if is_last_item else "├── "
                     formatted_item = format_item_fn(item)
                     lines.append(f"{child_prefix}{item_branch}{formatted_item}")
 
