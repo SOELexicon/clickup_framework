@@ -76,17 +76,27 @@ else
 fi
 echo ""
 
-# Step 6: Install pre-commit hooks
-echo "🪝 Installing pre-commit framework hooks..."
+# Step 6: Note about pre-commit integration
+echo "🪝 Pre-commit framework integration..."
 if [ -f ".pre-commit-config.yaml" ]; then
-    pre-commit install
-    echo -e "${GREEN}✓ Pre-commit framework hooks installed${NC}"
+    echo -e "${GREEN}✓ Pre-commit config found${NC}"
+    echo "  Our custom hook in .githooks/pre-commit will run pre-commit automatically"
+    echo "  No need to run 'pre-commit install' (would conflict with core.hooksPath)"
 else
-    echo -e "${YELLOW}⚠️  .pre-commit-config.yaml not found, skipping...${NC}"
+    echo -e "${YELLOW}⚠️  .pre-commit-config.yaml not found${NC}"
 fi
 echo ""
 
-# Step 7: Run pre-commit on all files (optional)
+# Step 7: Install pre-commit hooks in the environment
+echo "📥 Installing pre-commit hook environments..."
+if pre-commit install-hooks 2>/dev/null; then
+    echo -e "${GREEN}✓ Pre-commit hook environments installed${NC}"
+else
+    echo -e "${YELLOW}⚠️  Will install on first run${NC}"
+fi
+echo ""
+
+# Step 8: Run pre-commit on all files (optional)
 echo "🧪 Testing pre-commit hooks..."
 read -p "Do you want to run pre-commit on all files now? (y/n) " -n 1 -r
 echo
@@ -109,9 +119,15 @@ echo -e "${GREEN}✓ Git hooks setup complete!${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
 echo ""
 echo "What's installed:"
-echo "  • Pre-commit framework hooks (format, lint, etc.)"
-echo "  • Custom pre-commit hook in .githooks/pre-commit"
+echo "  • Pre-commit framework (black, flake8, isort, etc.)"
+echo "  • Custom git hook in .githooks/pre-commit"
+echo "  • Git configured to use .githooks/ directory"
 echo "  • Development dependencies (pytest, black, flake8, etc.)"
+echo ""
+echo "How it works:"
+echo "  • Git will run .githooks/pre-commit before each commit"
+echo "  • The hook automatically runs pre-commit framework checks"
+echo "  • Checks include: formatting, linting, file validation"
 echo ""
 echo "To manually run pre-commit checks:"
 echo "  pre-commit run --all-files"
