@@ -198,7 +198,10 @@ jobs:
     name: 📊 Report to ClickUp
     runs-on: ubuntu-latest
     needs: [test, display-tests]
-    if: always()  # Run even if previous jobs failed
+    if: |
+      always() &&
+      github.ref_name == 'master' &&
+      (needs.test.result == 'failure' || needs.display-tests.result == 'failure')
 
     steps:
     - name: Checkout code
