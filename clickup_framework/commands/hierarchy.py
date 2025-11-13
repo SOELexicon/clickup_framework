@@ -160,12 +160,20 @@ def hierarchy_command(args):
             space_data = container['data']
             container_name = space_data.get('name', 'Space')
             tasks = _get_tasks_from_space(client, space_data, include_closed)
+            # Wrap tasks in folder/list containers to show space structure
+            colorize_val = getattr(args, 'colorize', None)
+            use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
+            tasks = _wrap_space_tasks_in_containers(tasks, space_data, use_color)
             list_id = None
         elif container_type == 'folder':
             # Fetch all tasks from all lists in the folder
             folder_data = container['data']
             container_name = folder_data.get('name', 'Folder')
             tasks = _get_tasks_from_folder(client, folder_data, include_closed)
+            # Wrap tasks in list containers to show folder structure
+            colorize_val = getattr(args, 'colorize', None)
+            use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
+            tasks = _wrap_folder_tasks_in_lists(tasks, folder_data, use_color)
             list_id = None
         elif container_type == 'task':
             # Fetch task and all its subtasks recursively
@@ -342,6 +350,213 @@ def _wrap_tasks_in_containers(tasks, use_color=True):
             current_children = [space_node]
 
     return current_children
+
+
+def _wrap_space_tasks_in_containers(tasks, space_data, use_color=True):
+    """
+    Wrap tasks in folder/list container nodes to show space structure.
+
+    When viewing a space, this groups tasks by their folder and list,
+    creating container nodes for each folder and list.
+
+    Args:
+        tasks: List of tasks from the space
+        space_data: Space metadata containing folder and list information
+        use_color: Whether to use color in container names
+
+    Returns:
+        List of folder/list container nodes with tasks as children
+    """
+    if not tasks:
+        return []
+
+    from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+    from collections import defaultdict
+
+    # Get context for color settings
+    context = get_context_manager()
+    if use_color is None:
+        use_color = context.get_ansi_output()
+
+    # Group tasks by folder and list
+    tasks_by_folder_and_list = defaultdict(lambda: defaultdict(list))
+    folderless_tasks_by_list = defaultdict(list)
+
+    for task in tasks:
+        folder_info = task.get('folder', {})
+        list_info = task.get('list', {})
+
+        # Get folder ID
+        if isinstance(folder_info, dict):
+            folder_id = folder_info.get('id')
+        else:
+            folder_id = str(folder_info) if folder_info else None
+
+        # Get list ID
+        if isinstance(list_info, dict):
+            list_id = list_info.get('id')
+        else:
+            list_id = str(list_info) if list_info else None
+
+        if folder_id and list_id:
+            # Task is in a folder
+            tasks_by_folder_and_list[folder_id][list_id].append(task)
+        elif list_id:
+            # Task is in a folderless list
+            folderless_tasks_by_list[list_id].append(task)
+
+    # Build metadata lookups
+    folders_metadata = {fld.get('id'): fld for fld in space_data.get('folders', [])}
+    all_lists_metadata = {}
+
+    # Get lists from folders
+    for folder in space_data.get('folders', []):
+        for lst in folder.get('lists', []):
+            all_lists_metadata[lst.get('id')] = lst
+
+    # Get folderless lists
+    for lst in space_data.get('lists', []):
+        all_lists_metadata[lst.get('id')] = lst
+
+    # Create container nodes
+    container_nodes = []
+
+    # Create folder containers with list containers inside
+    for folder_id, lists_in_folder in tasks_by_folder_and_list.items():
+        folder_meta = folders_metadata.get(folder_id, {})
+        folder_name = folder_meta.get('name', 'Unknown Folder')
+
+        # Format folder display name
+        if use_color:
+            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD) + colorize(" (folder)", TextColor.BRIGHT_BLACK)
+        else:
+            folder_display = f"{folder_name} (folder)"
+
+        # Create list containers for this folder
+        list_containers = []
+        for list_id, list_tasks in lists_in_folder.items():
+            list_meta = all_lists_metadata.get(list_id, {})
+            list_name = list_meta.get('name', 'Unknown List')
+
+            if use_color:
+                list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+            else:
+                list_display = f"{list_name} (list)"
+
+            list_node = {
+                'id': f'container_list_{list_id}',
+                'name': list_display,
+                'custom_type': 'container',
+                '_children': list_tasks,
+                '_is_container': True
+            }
+            list_containers.append(list_node)
+
+        # Sort lists within folder
+        list_containers.sort(key=lambda x: x['name'])
+
+        # Create folder container
+        folder_node = {
+            'id': f'container_folder_{folder_id}',
+            'name': folder_display,
+            'custom_type': 'container',
+            '_children': list_containers,
+            '_is_container': True
+        }
+        container_nodes.append(folder_node)
+
+    # Create folderless list containers
+    for list_id, list_tasks in folderless_tasks_by_list.items():
+        list_meta = all_lists_metadata.get(list_id, {})
+        list_name = list_meta.get('name', 'Unknown List')
+
+        if use_color:
+            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+        else:
+            list_display = f"{list_name} (list)"
+
+        list_node = {
+            'id': f'container_list_{list_id}',
+            'name': list_display,
+            'custom_type': 'container',
+            '_children': list_tasks,
+            '_is_container': True
+        }
+        container_nodes.append(list_node)
+
+    # Sort containers by name for consistent display
+    container_nodes.sort(key=lambda x: x['name'])
+
+    return container_nodes
+
+
+def _wrap_folder_tasks_in_lists(tasks, folder_data, use_color=True):
+    """
+    Wrap tasks in list container nodes to show folder structure.
+
+    When viewing a folder, this groups tasks by their list and creates
+    container nodes for each list, making the folder structure visible.
+
+    Args:
+        tasks: List of tasks from the folder
+        folder_data: Folder metadata containing list information
+        use_color: Whether to use color in container names
+
+    Returns:
+        List of list container nodes with tasks as children
+    """
+    if not tasks:
+        return []
+
+    from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+    from collections import defaultdict
+
+    # Get context for color settings
+    context = get_context_manager()
+    if use_color is None:
+        use_color = context.get_ansi_output()
+
+    # Group tasks by list ID
+    tasks_by_list = defaultdict(list)
+    for task in tasks:
+        list_info = task.get('list', {})
+        if isinstance(list_info, dict):
+            list_id = list_info.get('id')
+        else:
+            list_id = str(list_info) if list_info else None
+
+        if list_id:
+            tasks_by_list[list_id].append(task)
+
+    # Create list container nodes
+    list_containers = []
+    lists_metadata = {lst.get('id'): lst for lst in folder_data.get('lists', [])}
+
+    for list_id, list_tasks in tasks_by_list.items():
+        # Get list name from folder metadata
+        list_meta = lists_metadata.get(list_id, {})
+        list_name = list_meta.get('name', 'Unknown List')
+
+        # Format list display name
+        if use_color:
+            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+        else:
+            list_display = f"{list_name} (list)"
+
+        # Create container node for this list
+        list_node = {
+            'id': f'container_list_{list_id}',
+            'name': list_display,
+            'custom_type': 'container',
+            '_children': list_tasks,
+            '_is_container': True
+        }
+        list_containers.append(list_node)
+
+    # Sort list containers by list name for consistent display
+    list_containers.sort(key=lambda x: x['name'])
+
+    return list_containers
 
 
 def _fetch_all_pages(fetch_func, **params):
