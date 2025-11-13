@@ -594,4 +594,3 @@ clickup_framework/
   - Configuration (2)
   - Checklists (7 subcommands)
   - Advanced Features (custom fields, automation, git overflow)
-

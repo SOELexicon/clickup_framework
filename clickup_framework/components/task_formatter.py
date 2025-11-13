@@ -4,14 +4,22 @@ Rich Task Formatter Module
 Provides enhanced formatting for individual tasks with emojis, colors, and detailed information.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.utils.colors import (
-    colorize, status_color, status_to_code, priority_color, get_task_emoji,
-    get_status_icon, TextColor, TextStyle, USE_COLORS
+    USE_COLORS,
+    TextColor,
+    TextStyle,
+    colorize,
+    get_status_icon,
+    get_task_emoji,
+    priority_color,
+    status_color,
+    status_to_code,
 )
-from clickup_framework.utils.text import truncate, strip_markdown
 from clickup_framework.utils.datetime import format_timestamp
+from clickup_framework.utils.text import strip_markdown, truncate
 
 
 class RichTaskFormatter:
@@ -32,18 +40,18 @@ class RichTaskFormatter:
         Returns:
             Tuple of (completed_count, total_count)
         """
-        children = task.get('_children', [])
+        children = task.get("_children", [])
         if not children:
             return (0, 0)
 
         # Filter out container nodes when counting
-        actual_tasks = [c for c in children if not c.get('_is_container')]
+        actual_tasks = [c for c in children if not c.get("_is_container")]
         if not actual_tasks:
             # If only containers, recurse into them
             total = 0
             completed = 0
             for child in children:
-                if child.get('_is_container'):
+                if child.get("_is_container"):
                     child_completed, child_total = RichTaskFormatter._count_subtasks(child)
                     completed += child_completed
                     total += child_total
@@ -54,11 +62,11 @@ class RichTaskFormatter:
 
         for child in actual_tasks:
             # Check if child is completed
-            status = child.get('status', {})
-            status_name = status.get('status') if isinstance(status, dict) else status
-            status_lower = str(status_name).lower().strip() if status_name else ''
+            status = child.get("status", {})
+            status_name = status.get("status") if isinstance(status, dict) else status
+            status_lower = str(status_name).lower().strip() if status_name else ""
 
-            if status_lower in ('complete', 'completed', 'done', 'closed'):
+            if status_lower in ("complete", "completed", "done", "closed"):
                 completed += 1
 
             # Recursively count grandchildren
@@ -84,15 +92,15 @@ class RichTaskFormatter:
             options = FormatOptions()
 
         # Check if this is a container node (workspace/folder/list)
-        if task.get('_is_container'):
+        if task.get("_is_container"):
             # Simple formatting for containers - just return the name
-            return task.get('name', 'Unknown Container')
+            return task.get("name", "Unknown Container")
 
         parts = []
 
         # Check if this is the highlighted task
         is_highlighted = False
-        if options.highlight_task_id and task.get('id') == options.highlight_task_id:
+        if options.highlight_task_id and task.get("id") == options.highlight_task_id:
             is_highlighted = True
             # Add animated visual indicator for the highlighted task
             if options.colorize_output:
@@ -103,7 +111,7 @@ class RichTaskFormatter:
             parts.append(indicator)
 
         # Add task ID if requested
-        if options.show_ids and task.get('id'):
+        if options.show_ids and task.get("id"):
             id_str = f"[{task['id']}]"
             if options.colorize_output:
                 if is_highlighted:
@@ -114,20 +122,20 @@ class RichTaskFormatter:
             parts.append(id_str)
 
         # Add dependency and blocker indicators
-        dependencies = task.get('dependencies', [])
+        dependencies = task.get("dependencies", [])
         if dependencies:
             # Count different types of dependencies
             waiting_on = []  # Tasks this task depends on (is waiting for)
-            blocking = []    # Tasks this task is blocking
+            blocking = []  # Tasks this task is blocking
 
             for dep in dependencies:
                 if isinstance(dep, dict):
-                    dep_task_id = dep.get('task_id')
-                    dep_type = dep.get('type', 'waiting_on')  # Default to waiting_on
+                    dep_task_id = dep.get("task_id")
+                    dep_type = dep.get("type", "waiting_on")  # Default to waiting_on
 
-                    if dep_type == 'waiting_on':
+                    if dep_type == "waiting_on":
                         waiting_on.append(dep_task_id)
-                    elif dep_type == 'blocking':
+                    elif dep_type == "blocking":
                         blocking.append(dep_task_id)
                 elif isinstance(dep, str):
                     # If just a string, assume it's waiting_on
@@ -158,7 +166,7 @@ class RichTaskFormatter:
                 parts.append(" ".join(dep_indicators))
 
         # Add linked tasks indicator
-        linked_tasks = task.get('linked_tasks', [])
+        linked_tasks = task.get("linked_tasks", [])
         if linked_tasks:
             count = len(linked_tasks)
             if options.colorize_output:
@@ -168,15 +176,19 @@ class RichTaskFormatter:
             parts.append(indicator)
 
         # Add assignee indicator
-        assignees = task.get('assignees', [])
+        assignees = task.get("assignees", [])
         if assignees:
             if options.colorize_output:
                 # Show initials or count
                 if len(assignees) == 1:
                     # Show first assignee's initials
                     assignee = assignees[0]
-                    username = assignee.get('username', '')
-                    initials = ''.join([c[0].upper() for c in username.split('_')[:2]]) if username else '?'
+                    username = assignee.get("username", "")
+                    initials = (
+                        "".join([c[0].upper() for c in username.split("_")[:2]])
+                        if username
+                        else "?"
+                    )
                     indicator = colorize(f"👤{initials}", TextColor.BLUE)
                 else:
                     # Show count if multiple
@@ -186,9 +198,10 @@ class RichTaskFormatter:
             parts.append(indicator)
 
         # Add due date warning (if overdue or due soon)
-        due_date = task.get('due_date')
+        due_date = task.get("due_date")
         if due_date:
             from datetime import datetime, timezone
+
             try:
                 # ClickUp returns due_date as milliseconds timestamp
                 if isinstance(due_date, str):
@@ -203,7 +216,9 @@ class RichTaskFormatter:
                 if days_until_due < 0:
                     # Overdue
                     if options.colorize_output:
-                        indicator = colorize(f"🔴{abs(days_until_due)}d", TextColor.RED, TextStyle.BOLD)
+                        indicator = colorize(
+                            f"🔴{abs(days_until_due)}d", TextColor.RED, TextStyle.BOLD
+                        )
                     else:
                         indicator = f"OVERDUE:{abs(days_until_due)}d"
                     parts.append(indicator)
@@ -225,8 +240,8 @@ class RichTaskFormatter:
                 pass  # Skip if date parsing fails
 
         # Add time tracking indicator
-        time_estimate = task.get('time_estimate')
-        time_spent = task.get('time_spent', 0)
+        time_estimate = task.get("time_estimate")
+        time_spent = task.get("time_spent", 0)
         if time_estimate or time_spent:
             if time_estimate and time_spent:
                 # Show both: spent/estimate
@@ -235,9 +250,13 @@ class RichTaskFormatter:
                 if options.colorize_output:
                     if hours_spent > hours_estimate:
                         # Over budget
-                        indicator = colorize(f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.RED)
+                        indicator = colorize(
+                            f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.RED
+                        )
                     else:
-                        indicator = colorize(f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.GREEN)
+                        indicator = colorize(
+                            f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.GREEN
+                        )
                 else:
                     indicator = f"T:{hours_spent:.1f}/{hours_estimate:.1f}h"
                 parts.append(indicator)
@@ -260,21 +279,21 @@ class RichTaskFormatter:
 
         # Add task type emoji
         if options.show_type_emoji:
-            task_type = task.get('custom_type') or 'task'
+            task_type = task.get("custom_type") or "task"
             emoji = get_task_emoji(task_type)
             parts.append(emoji)
 
         # Get status for both code and color
-        status = task.get('status', {})
-        status_name = status.get('status') if isinstance(status, dict) else status
+        status = task.get("status", {})
+        status_name = status.get("status") if isinstance(status, dict) else status
 
         # Determine status indicator (icon or code)
         if options.show_status_icon:
             # Use icon/emoji for status
-            status_indicator = get_status_icon(status_name or '', fallback_to_code=True)
+            status_indicator = get_status_icon(status_name or "", fallback_to_code=True)
         else:
             # Use 3-letter code
-            status_code = status_to_code(status_name or '')
+            status_code = status_to_code(status_name or "")
             status_indicator = f"[{status_code}]"
 
         # Colorize status indicator if enabled
@@ -282,7 +301,7 @@ class RichTaskFormatter:
             status_indicator = colorize(status_indicator, status_color(status_name))
 
         # Add task name with status indicator prefix
-        name = task.get('name', 'Untitled')
+        name = task.get("name", "Untitled")
         if options.colorize_output:
             color = status_color(status_name)
             full_name = f"{status_indicator} {colorize(name, color)}"
@@ -291,18 +310,13 @@ class RichTaskFormatter:
         parts.append(full_name)
 
         # Add priority (if not default)
-        priority = task.get('priority')
-        if priority and priority.get('priority') != '4':
-            priority_val = priority.get('priority', '4')
+        priority = task.get("priority")
+        if priority and priority.get("priority") != "4":
+            priority_val = priority.get("priority", "4")
 
             # Map string priorities to numbers
             if isinstance(priority_val, str):
-                priority_map = {
-                    'urgent': '1',
-                    'high': '2',
-                    'normal': '3',
-                    'low': '4'
-                }
+                priority_map = {"urgent": "1", "high": "2", "normal": "3", "low": "4"}
                 priority_val = priority_map.get(priority_val.lower(), priority_val)
 
             priority_str = f"(P{priority_val})"
@@ -326,14 +340,14 @@ class RichTaskFormatter:
             parts.append(subtask_str)
 
         # Combine the main line
-        main_line = ' '.join(parts)
+        main_line = " ".join(parts)
 
         # Add additional sections if requested
         additional_lines = []
 
         # Tags
-        if options.show_tags and task.get('tags'):
-            tags = [tag.get('name') for tag in task['tags'] if tag.get('name')]
+        if options.show_tags and task.get("tags"):
+            tags = [tag.get("name") for tag in task["tags"] if tag.get("name")]
             if tags:
                 tag_str = f"🏷️  Tags: {', '.join(tags)}"
                 if options.colorize_output:
@@ -341,8 +355,8 @@ class RichTaskFormatter:
                 additional_lines.append(f"  {tag_str}")
 
         # Description
-        if options.show_descriptions and task.get('description'):
-            desc = task['description']
+        if options.show_descriptions and task.get("description"):
+            desc = task["description"]
 
             # Strip markdown formatting when ANSI colors are enabled
             # because terminals don't render markdown, only ANSI codes
@@ -351,21 +365,23 @@ class RichTaskFormatter:
 
             if len(desc) > options.description_length:
                 desc = truncate(desc, options.description_length)
-            desc_str = f"📝 Description:"
+            desc_str = "📝 Description:"
             if options.colorize_output:
                 desc_str = colorize(desc_str, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
             additional_lines.append(f"  {desc_str}")
 
             # Handle multi-line descriptions with proper indentation
-            for desc_line in desc.split('\n'):
+            for desc_line in desc.split("\n"):
                 additional_lines.append(f"    {desc_line}")
 
         # Attachments
-        if task.get('attachments'):
-            attachments = task['attachments']
+        if task.get("attachments"):
+            attachments = task["attachments"]
             if attachments:
                 attachment_count = len(attachments)
-                attachment_str = f"📎 {attachment_count} attachment{'s' if attachment_count != 1 else ''}"
+                attachment_str = (
+                    f"📎 {attachment_count} attachment{'s' if attachment_count != 1 else ''}"
+                )
                 if options.colorize_output:
                     attachment_str = colorize(attachment_str, TextColor.BRIGHT_MAGENTA)
                 additional_lines.append(f"  {attachment_str}")
@@ -373,14 +389,14 @@ class RichTaskFormatter:
         # Dates
         if options.show_dates:
             date_parts = []
-            if task.get('date_created'):
-                formatted_created = format_timestamp(task['date_created'], include_time=False)
+            if task.get("date_created"):
+                formatted_created = format_timestamp(task["date_created"], include_time=False)
                 date_parts.append(f"Created: {formatted_created}")
-            if task.get('date_updated'):
-                formatted_updated = format_timestamp(task['date_updated'], include_time=False)
+            if task.get("date_updated"):
+                formatted_updated = format_timestamp(task["date_updated"], include_time=False)
                 date_parts.append(f"Updated: {formatted_updated}")
-            if task.get('due_date'):
-                formatted_due = format_timestamp(task['due_date'], include_time=False)
+            if task.get("due_date"):
+                formatted_due = format_timestamp(task["due_date"], include_time=False)
                 date_parts.append(f"Due: {formatted_due}")
 
             if date_parts:
@@ -390,15 +406,15 @@ class RichTaskFormatter:
                 additional_lines.append(f"  {date_str}")
 
         # Comments - Show newest first
-        if options.show_comments > 0 and task.get('comments'):
-            all_comments = task['comments']
+        if options.show_comments > 0 and task.get("comments"):
+            all_comments = task["comments"]
             # Sort by date descending (newest first)
             sorted_comments = sorted(
                 all_comments,
-                key=lambda c: c.get('date', 0) if isinstance(c.get('date'), (int, float)) else 0,
-                reverse=True
+                key=lambda c: c.get("date", 0) if isinstance(c.get("date"), (int, float)) else 0,
+                reverse=True,
             )
-            comments = sorted_comments[:options.show_comments]
+            comments = sorted_comments[: options.show_comments]
 
             if comments:
                 comment_str = f"💬 Comments ({len(all_comments)}):"
@@ -407,8 +423,8 @@ class RichTaskFormatter:
                 additional_lines.append(f"  {comment_str}")
 
                 for comment in comments:
-                    user = comment.get('user', {}).get('username', 'Unknown')
-                    text = comment.get('comment_text', '')
+                    user = comment.get("user", {}).get("username", "Unknown")
+                    text = comment.get("comment_text", "")
                     if len(text) > 50:
                         text = truncate(text, 50)
                     additional_lines.append(f"    {user}: {text}")
@@ -416,9 +432,9 @@ class RichTaskFormatter:
         # Relationships
         if options.show_relationships:
             relationships = []
-            if task.get('dependencies'):
+            if task.get("dependencies"):
                 relationships.append(f"Depends on: {len(task['dependencies'])} task(s)")
-            if task.get('linked_tasks'):
+            if task.get("linked_tasks"):
                 relationships.append(f"Linked: {len(task['linked_tasks'])} task(s)")
 
             if relationships:
@@ -428,23 +444,23 @@ class RichTaskFormatter:
                 additional_lines.append(f"  {rel_str}")
 
         # Custom Fields - Show Difficulty Score if set
-        custom_fields = task.get('custom_fields', [])
+        custom_fields = task.get("custom_fields", [])
         for cf in custom_fields:
             # Check for Difficulty Score field (exact match or prefix/suffix)
-            field_name = cf.get('name', '')
+            field_name = cf.get("name", "")
             field_name_lower = field_name.lower()
-            # Match only if field name starts/ends with difficulty/score or is exactly "difficulty" or "score"
+            # Match if field name starts/ends with difficulty/score or is exact match
             is_difficulty_field = (
-                field_name_lower == 'difficulty' or 
-                field_name_lower == 'score' or
-                field_name_lower.startswith('difficulty ') or
-                field_name_lower.startswith('score ') or
-                field_name_lower.endswith(' difficulty') or
-                field_name_lower.endswith(' score')
+                field_name_lower == "difficulty"
+                or field_name_lower == "score"
+                or field_name_lower.startswith("difficulty ")
+                or field_name_lower.startswith("score ")
+                or field_name_lower.endswith(" difficulty")
+                or field_name_lower.endswith(" score")
             )
             if is_difficulty_field:
-                value = cf.get('value')
-                if value is not None and value != '':
+                value = cf.get("value")
+                if value is not None and value != "":
                     # Format the difficulty score
                     if isinstance(value, (int, float)):
                         # Show as colored score based on difficulty level
@@ -457,7 +473,9 @@ class RichTaskFormatter:
 
                         score_str = f"⚙️  {field_name}: {value}"
                         if options.colorize_output:
-                            score_str = f"⚙️  {field_name}: {colorize(str(value), color, TextStyle.BOLD)}"
+                            score_str = (
+                                f"⚙️  {field_name}: {colorize(str(value), color, TextStyle.BOLD)}"
+                            )
                         additional_lines.append(f"  {score_str}")
                     else:
                         # Non-numeric custom field value
