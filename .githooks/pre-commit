@@ -1,0 +1,44 @@
+#!/bin/bash
+# Pre-commit hook for ClickUp Framework
+# This hook runs before each commit to ensure code quality
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if pre-commit is installed
+if command -v pre-commit &> /dev/null; then
+    echo "📋 Running pre-commit hooks (format, lint)..."
+    if ! pre-commit run --files $(git diff --cached --name-only); then
+        echo -e "${RED}❌ Pre-commit hooks failed${NC}"
+        echo "Run 'git commit --no-verify' to skip hooks (not recommended)"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Pre-commit hooks passed${NC}"
+else
+    echo -e "${YELLOW}⚠️  pre-commit not installed. Install with: pip install pre-commit${NC}"
+fi
+
+# Optional: Run quick tests (uncomment to enable)
+# Disabled by default as it can slow down commits
+# You can enable this by uncommenting the lines below
+
+# echo "🧪 Running quick tests..."
+# if ! python tests/run_tests.py --verbose; then
+#     echo -e "${RED}❌ Tests failed${NC}"
+#     echo "Fix the failing tests before committing"
+#     echo "Run 'git commit --no-verify' to skip tests (not recommended)"
+#     exit 1
+# fi
+# echo -e "${GREEN}✓ All tests passed${NC}"
+
+echo -e "${GREEN}✓ All pre-commit checks passed!${NC}"
+echo ""
+
+exit 0

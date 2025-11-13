@@ -4,6 +4,63 @@ Utility scripts for ClickUp Framework development and documentation.
 
 ---
 
+## Development Setup
+
+### `setup_hooks.sh`
+
+Install and configure git hooks for code quality and testing.
+
+**Usage:**
+```bash
+# Run from project root
+./scripts/setup_hooks.sh
+```
+
+**What it does:**
+1. Installs `pre-commit` framework if not already installed
+2. Installs development dependencies from `requirements-dev.txt`
+3. Configures git to use `.githooks/` directory for custom hooks
+4. Makes hook scripts executable
+5. Installs pre-commit framework hooks
+6. Optionally runs hooks on all files to test
+
+**Hooks installed:**
+- **Pre-commit framework hooks:**
+  - Trailing whitespace removal
+  - End-of-file fixer
+  - YAML/JSON/TOML validation
+  - Large file detection
+  - Merge conflict detection
+  - Code formatting with Black
+  - Linting with flake8
+  - Import sorting with isort
+
+- **Custom pre-commit hook (`.githooks/pre-commit`):**
+  - Runs pre-commit framework hooks automatically
+  - Optional: Can run tests before commit (disabled by default for speed)
+
+**Configuration files:**
+- `.pre-commit-config.yaml` - Pre-commit framework configuration
+- `.githooks/pre-commit` - Custom git hook script
+- `requirements-dev.txt` - Development dependencies
+
+**Manual commands:**
+```bash
+# Run hooks on all files
+pre-commit run --all-files
+
+# Run hooks on staged files only
+pre-commit run
+
+# Update hook versions
+pre-commit autoupdate
+
+# Bypass hooks (not recommended)
+git commit --no-verify
+```
+
+---
+
 ## Documentation Import
 
 ### `import_cli_docs.sh`
