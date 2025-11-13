@@ -181,6 +181,10 @@ def add_common_args(subparser):
     subparser.add_argument(
         "--no-emoji", dest="show_emoji", action="store_false", help="Hide task type emojis"
     )
+    subparser.add_argument(
+        "--no-tips", dest="show_tips", action="store_false", default=True,
+        help="Disable helpful tips at end of output"
+    )
 
 
 def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None) -> dict:

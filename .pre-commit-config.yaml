@@ -43,14 +43,13 @@ repos:
       - id: isort
         args: ['--profile=black', '--line-length=100']
 
-# Optional: Run tests before commit (commented out for speed)
-# To enable: uncomment the section below
-# Note: This can slow down commits, so we run tests in CI instead
-#  - repo: local
-#    hooks:
-#      - id: run-tests
-#        name: Run tests
-#        entry: python tests/run_tests.py
-#        language: system
-#        pass_filenames: false
-#        stages: [commit]
+  # Tree validation tests (critical for display integrity)
+  - repo: local
+    hooks:
+      - id: validate-tree-display
+        name: Validate tree pipe rendering
+        entry: python scripts/validate_tree_display.py
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
