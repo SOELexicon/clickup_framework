@@ -1,4 +1,175 @@
-# Display Component Scripts
+# ClickUp Framework Scripts
+
+Utility scripts for ClickUp Framework development and documentation.
+
+---
+
+## Documentation Import
+
+### `import_cli_docs.sh`
+
+Import the CLI command reference documentation to ClickUp Docs in bulk.
+
+**Usage:**
+```bash
+# Import to current/default workspace
+./scripts/import_cli_docs.sh
+
+# Import to specific workspace
+./scripts/import_cli_docs.sh 90151898946
+
+# Custom doc name
+./scripts/import_cli_docs.sh --doc-name "CLI Reference v2.0"
+
+# Check prerequisites without importing
+./scripts/import_cli_docs.sh --check
+
+# Show help
+./scripts/import_cli_docs.sh --help
+```
+
+**Requirements:**
+- ClickUp Framework installed (`cum` command available)
+- `CLICKUP_API_TOKEN` environment variable set
+- Workspace ID (provided, in context, or via `CLICKUP_DEFAULT_WORKSPACE`)
+
+**What it does:**
+1. Validates prerequisites (cum command, API token, docs directory)
+2. Sets workspace context
+3. Imports all markdown files from `docs/cli/` directory
+4. Creates a single ClickUp Doc with all pages
+5. Returns the Doc ID for reference
+
+**Output:**
+- Creates ClickUp Doc with 8 pages:
+  - Index (main page with all shortcodes)
+  - View Commands
+  - Task Management Commands
+  - Comment Management Commands
+  - Docs Management Commands
+  - Context Management Commands
+  - Configuration Commands
+  - Advanced Commands
+- Saves Doc ID to `.last_imported_doc_id` file
+
+**Options:**
+- `-h, --help` - Show help message
+- `-d, --doc-name NAME` - Custom doc name (default: "CLI Command Reference")
+- `-n, --nested` - Use nested directory structure
+- `-c, --check` - Check prerequisites only
+
+**Example workflow:**
+```bash
+# Check everything is ready
+./scripts/import_cli_docs.sh --check
+
+# Import to workspace
+./scripts/import_cli_docs.sh 90151898946
+
+# View the imported doc
+DOC_ID=$(cat .last_imported_doc_id)
+cum doc_get current $DOC_ID
+```
+
+---
+
+## Test Failure Reporting
+
+### `report_test_failures_to_clickup.py`
+
+Parse test results and create ClickUp bug report tasks only for test failures.
+
+**Usage:**
+```bash
+# Run after tests to report failures
+python scripts/report_test_failures_to_clickup.py
+```
+
+**Requirements:**
+- ClickUp Framework installed
+- `CLICKUP_API_TOKEN` environment variable set
+- Test report file (default: `test_report.json`)
+
+**What it does:**
+1. Parses pytest JSON report (`test_report.json`)
+2. Extracts failed/errored tests
+3. Identifies the command and args from test nodeid
+4. Creates bug report tasks in ClickUp with:
+   - Test failure details
+   - Command and args that failed
+   - Error traceback
+   - Reproduction steps
+   - Investigation checklist
+5. Tags bugs with: `bug`, `test-failure`, `cmd-{command}`, branch name
+6. Avoids creating duplicate bug reports
+
+**Environment variables:**
+- `CLICKUP_API_TOKEN` - ClickUp API token (required)
+- `CLICKUP_BUG_LIST_ID` - List ID for bug reports (default: "901517412318")
+- `GITHUB_REPOSITORY` - Repository name (for GitHub Actions)
+- `GITHUB_REF_NAME` - Branch name (for GitHub Actions)
+- `GITHUB_SHA` - Commit hash (for GitHub Actions)
+- `TEST_REPORT_PATH` - Path to test report JSON (default: "test_report.json")
+
+**Example output:**
+```
+📋 Test Failure Report to ClickUp
+================================================================================
+Repository: clickup_framework
+Branch: main
+Commit: abc12345
+Report: test_report.json
+
+🔍 Parsing test results...
+⚠️  Found 2 test failure(s)
+
+Processing: tests/commands/test_hierarchy.py::test_hierarchy_with_invalid_id
+  Command: hierarchy
+  Args: with invalid id
+  Outcome: failed
+  ✓ Bug task created: 86c6xyz123
+    URL: https://app.clickup.com/t/86c6xyz123
+
+SUMMARY
+================================================================================
+Test failures found: 2
+Bug tasks created: 2
+Bug tasks skipped (already exist): 0
+```
+
+**Integration with CI/CD:**
+
+The script is automatically run by GitHub Actions when tests fail. See `.github/workflows/ci.yml`:
+
+```yaml
+- name: Report Test Failures to ClickUp
+  if: failure()  # Only run if tests failed
+  env:
+    CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+    CLICKUP_BUG_LIST_ID: ${{ secrets.CLICKUP_BUG_LIST_ID }}
+  run: |
+    python scripts/report_test_failures_to_clickup.py
+```
+
+**Bug task format:**
+
+Each bug task includes:
+- 🐛 Emoji prefix
+- Test nodeid
+- Command and args
+- Error traceback
+- Reproduction steps
+- Investigation checklist
+- Auto-tagged with command and branch
+
+**Archived Scripts:**
+
+See `scripts/archive/` for deprecated scripts:
+- `post_commits_to_clickup.py` - Replaced by test failure reporting system
+
+---
+
+## Display Component Scripts
 
 Scripts for generating visual examples and screenshots of the display components.
 
