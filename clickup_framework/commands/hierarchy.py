@@ -249,6 +249,12 @@ def hierarchy_command(args):
 
     print(output)
 
+    # Show helpful tip
+    from clickup_framework.components.tips import show_tip
+    show_tips_enabled = getattr(args, 'show_tips', True)
+    use_color = options.colorize_output
+    show_tip('hierarchy', use_color=use_color, enabled=show_tips_enabled)
+
 
 def _wrap_tasks_in_containers(tasks, use_color=True):
     """

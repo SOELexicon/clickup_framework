@@ -214,6 +214,12 @@ def task_create_command(args):
             except ClickUpAPIError as e:
                 print(f"  ✗ Error cloning checklists: {e}", file=sys.stderr)
 
+        # Show helpful tip
+        from clickup_framework.components.tips import show_tip
+        show_tips_enabled = getattr(args, 'show_tips', True)
+        use_color = context.get_ansi_output()
+        show_tip('task_create', use_color=use_color, enabled=show_tips_enabled)
+
     except Exception as e:
         # If it's a status error, try to get available statuses for the error message
         error_context = {
