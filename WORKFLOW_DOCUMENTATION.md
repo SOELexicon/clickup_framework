@@ -2089,4 +2089,3 @@ Slash commands integrate seamlessly with other workflows:
    - Slash commands + manual workflows
    - Slash commands + automation scripts
    - Slash commands + team process
-

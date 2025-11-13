@@ -1,11 +1,12 @@
 """Utility functions for CLI commands."""
 
-import sys
 import logging
+import sys
 from pathlib import Path
+
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import FormatOptions
-from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.utils.colors import TextColor, TextStyle, colorize
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,6 @@ def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = Tru
         Formatted string showing available statuses
     """
     from clickup_framework.utils.colors import status_color as get_status_color
-    import sys
 
     try:
         context = get_context_manager()
@@ -42,7 +42,7 @@ def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = Tru
             list_data = client.get_list(list_id)
             context.cache_list_metadata(list_id, list_data)
 
-        statuses = list_data.get('statuses', [])
+        statuses = list_data.get("statuses", [])
 
         if not statuses:
             return ""
@@ -50,7 +50,7 @@ def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = Tru
         # Format status display
         status_parts = []
         for status in statuses:
-            status_name = status.get('status', 'Unknown')
+            status_name = status.get("status", "Unknown")
 
             if use_color:
                 # Use our status color mapping
@@ -62,7 +62,10 @@ def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = Tru
         status_line = " → ".join(status_parts)
 
         if use_color:
-            header = colorize("Available Statuses:", TextColor.BRIGHT_BLUE, TextStyle.BOLD) + f" {status_line}"
+            header = (
+                colorize("Available Statuses:", TextColor.BRIGHT_BLUE, TextStyle.BOLD)
+                + f" {status_line}"
+            )
         else:
             header = f"Available Statuses: {status_line}"
 
@@ -79,14 +82,14 @@ def create_format_options(args) -> FormatOptions:
     default_colorize = context.get_ansi_output()
 
     # Use preset if specified
-    if hasattr(args, 'preset') and args.preset:
-        if args.preset == 'minimal':
+    if hasattr(args, "preset") and args.preset:
+        if args.preset == "minimal":
             options = FormatOptions.minimal()
-        elif args.preset == 'summary':
+        elif args.preset == "summary":
             options = FormatOptions.summary()
-        elif args.preset == 'detailed':
+        elif args.preset == "detailed":
             options = FormatOptions.detailed()
-        elif args.preset == 'full':
+        elif args.preset == "full":
             options = FormatOptions.full()
         else:
             options = FormatOptions()
@@ -95,62 +98,89 @@ def create_format_options(args) -> FormatOptions:
         options.colorize_output = default_colorize
 
         # Override max_depth if specified
-        if hasattr(args, 'depth') and args.depth is not None:
+        if hasattr(args, "depth") and args.depth is not None:
             options.max_depth = args.depth
 
         return options
 
     # Otherwise build from individual flags
-    colorize_val = getattr(args, 'colorize', None)
+    colorize_val = getattr(args, "colorize", None)
     if colorize_val is None:
         colorize_val = default_colorize
 
     # Handle full descriptions flag
-    full_descriptions = getattr(args, 'full_descriptions', False)
-    show_descriptions = getattr(args, 'show_descriptions', False) or full_descriptions
+    full_descriptions = getattr(args, "full_descriptions", False)
+    show_descriptions = getattr(args, "show_descriptions", False) or full_descriptions
     description_length = 10000 if full_descriptions else 500
 
     return FormatOptions(
         colorize_output=colorize_val,
-        show_ids=getattr(args, 'show_ids', False),
-        show_tags=getattr(args, 'show_tags', True),
+        show_ids=getattr(args, "show_ids", False),
+        show_tags=getattr(args, "show_tags", True),
         show_descriptions=show_descriptions,
-        show_dates=getattr(args, 'show_dates', False),
-        show_comments=getattr(args, 'show_comments', 0),
-        include_completed=getattr(args, 'include_completed', False),
-        show_closed_only=getattr(args, 'show_closed_only', False),
-        show_type_emoji=getattr(args, 'show_emoji', True),
+        show_dates=getattr(args, "show_dates", False),
+        show_comments=getattr(args, "show_comments", 0),
+        include_completed=getattr(args, "include_completed", False),
+        show_closed_only=getattr(args, "show_closed_only", False),
+        show_type_emoji=getattr(args, "show_emoji", True),
         description_length=description_length,
-        max_depth=getattr(args, 'depth', None)
+        max_depth=getattr(args, "depth", None),
     )
 
 
 def add_common_args(subparser):
     """Add common formatting arguments to a command parser."""
-    subparser.add_argument('--preset', choices=['minimal', 'summary', 'detailed', 'full'],
-                         help='Use a preset format configuration')
-    subparser.add_argument('--no-colorize', dest='colorize', action='store_const', const=False, default=None,
-                         help='Disable color output (default: use config setting)')
-    subparser.add_argument('--colorize', dest='colorize', action='store_const', const=True,
-                         help='Enable color output')
-    subparser.add_argument('--show-ids', action='store_true',
-                         help='Show task IDs')
-    subparser.add_argument('--show-tags', action='store_true', default=True,
-                         help='Show task tags (default: true)')
-    subparser.add_argument('--show-descriptions', action='store_true',
-                         help='Show task descriptions')
-    subparser.add_argument('-d', '--full-descriptions', dest='full_descriptions', action='store_true',
-                         help='Show full descriptions without truncation (implies --show-descriptions)')
-    subparser.add_argument('--show-dates', action='store_true',
-                         help='Show task dates')
-    subparser.add_argument('--show-comments', type=int, default=5, metavar='N',
-                         help='Show N most recent comments per task (default: 5, set to 0 to hide)')
-    subparser.add_argument('--include-completed', action='store_true',
-                         help='Include completed tasks')
-    subparser.add_argument('-sc', '--show-closed', dest='show_closed_only', action='store_true',
-                         help='Show ONLY closed tasks')
-    subparser.add_argument('--no-emoji', dest='show_emoji', action='store_false',
-                         help='Hide task type emojis')
+    subparser.add_argument(
+        "--preset",
+        choices=["minimal", "summary", "detailed", "full"],
+        help="Use a preset format configuration",
+    )
+    subparser.add_argument(
+        "--no-colorize",
+        dest="colorize",
+        action="store_const",
+        const=False,
+        default=None,
+        help="Disable color output (default: use config setting)",
+    )
+    subparser.add_argument(
+        "--colorize", dest="colorize", action="store_const", const=True, help="Enable color output"
+    )
+    subparser.add_argument("--show-ids", action="store_true", help="Show task IDs")
+    subparser.add_argument(
+        "--show-tags", action="store_true", default=True, help="Show task tags (default: true)"
+    )
+    subparser.add_argument(
+        "--show-descriptions", action="store_true", help="Show task descriptions"
+    )
+    subparser.add_argument(
+        "-d",
+        "--full-descriptions",
+        dest="full_descriptions",
+        action="store_true",
+        help="Show full descriptions without truncation (implies --show-descriptions)",
+    )
+    subparser.add_argument("--show-dates", action="store_true", help="Show task dates")
+    subparser.add_argument(
+        "--show-comments",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Show N most recent comments per task (default: 5, set to 0 to hide)",
+    )
+    subparser.add_argument(
+        "--include-completed", action="store_true", help="Include completed tasks"
+    )
+    subparser.add_argument(
+        "-sc",
+        "--show-closed",
+        dest="show_closed_only",
+        action="store_true",
+        help="Show ONLY closed tasks",
+    )
+    subparser.add_argument(
+        "--no-emoji", dest="show_emoji", action="store_false", help="Hide task type emojis"
+    )
 
 
 def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None) -> dict:
@@ -175,7 +205,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     Raises:
         ValueError: If ID cannot be resolved or is invalid
     """
-    from clickup_framework.exceptions import ClickUpNotFoundError, ClickUpAuthError
+    from clickup_framework.exceptions import ClickUpAuthError, ClickUpNotFoundError
 
     if context is None:
         context = get_context_manager()
@@ -183,10 +213,13 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     # Handle "current" keyword
     if id_or_current.lower() == "current":
         try:
-            list_id = context.resolve_id('list', 'current')
-            return {'type': 'list', 'id': list_id}
+            list_id = context.resolve_id("list", "current")
+            return {"type": "list", "id": list_id}
         except ValueError as e:
-            raise ValueError(f"No current list set. Use 'cum set list <list_id>' first or provide a space/folder/list/task ID.") from e
+            raise ValueError(
+                "No current list set. Use 'cum set list <list_id>' first "
+                "or provide a space/folder/list/task ID."
+            ) from e
 
     # Try each container type in order: space, folder, list, task
     last_error = None
@@ -195,7 +228,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     # Try as space ID
     try:
         space_data = client.get_space(id_or_current)
-        return {'type': 'space', 'id': id_or_current, 'data': space_data}
+        return {"type": "space", "id": id_or_current, "data": space_data}
     except ClickUpAuthError as e:
         last_error = e
         got_auth_error = True
@@ -210,7 +243,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     # Try as folder ID
     try:
         folder_data = client.get_folder(id_or_current)
-        return {'type': 'folder', 'id': id_or_current, 'data': folder_data}
+        return {"type": "folder", "id": id_or_current, "data": folder_data}
     except ClickUpAuthError as e:
         last_error = e
         got_auth_error = True
@@ -225,7 +258,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     # Try as list ID
     try:
         client.get_list(id_or_current)
-        return {'type': 'list', 'id': id_or_current}
+        return {"type": "list", "id": id_or_current}
     except ClickUpAuthError as e:
         last_error = e
         got_auth_error = True
@@ -240,9 +273,9 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     # Try as task ID
     try:
         task = client.get_task(id_or_current)
-        list_id = task.get('list', {}).get('id')
+        list_id = task.get("list", {}).get("id")
         if list_id:
-            return {'type': 'task', 'id': id_or_current, 'data': task, 'list_id': list_id}
+            return {"type": "task", "id": id_or_current, "data": task, "list_id": list_id}
         else:
             raise ValueError(f"Task {id_or_current} does not have a valid list ID")
     except ClickUpAuthError as e:
@@ -264,8 +297,10 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         available_workspaces = []
         try:
             workspaces_data = client.get_authorized_workspaces()
-            teams = workspaces_data.get('teams', [])
-            available_workspaces = [{'id': team.get('id'), 'name': team.get('name')} for team in teams if team.get('id')]
+            teams = workspaces_data.get("teams", [])
+            available_workspaces = [
+                {"id": team.get("id"), "name": team.get("name")} for team in teams if team.get("id")
+            ]
         except Exception:
             # Ignore errors when fetching available workspaces for diagnostics,
             # as this is non-critical and we want to continue error reporting gracefully.
@@ -274,7 +309,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
         # Check if workspace is set
         workspace_id = None
         try:
-            workspace_id = context.resolve_id('workspace', 'current')
+            workspace_id = context.resolve_id("workspace", "current")
         except ValueError:
             # It's expected that resolving the current workspace may fail if none is set.
             # In that case, we treat workspace_id as None and handle it below.
@@ -293,7 +328,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
                 error_msg += "Available workspaces:\n"
                 for ws in available_workspaces:
                     error_msg += f"  - {ws['id']}: {ws['name']}\n"
-                error_msg += f"\nTo set a workspace: cum set workspace <workspace_id>"
+                error_msg += "\nTo set a workspace: cum set workspace <workspace_id>"
             else:
                 error_msg += "To verify your API token is valid, try: cum show"
         else:
@@ -322,7 +357,7 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
                 if available_workspaces:
                     error_msg += "Available workspaces:\n"
                     for ws in available_workspaces:
-                        marker = " (current)" if ws['id'] == workspace_id else ""
+                        marker = " (current)" if ws["id"] == workspace_id else ""
                         error_msg += f"  - {ws['id']}: {ws['name']}{marker}\n"
                     error_msg += "\n"
 
@@ -372,23 +407,27 @@ def resolve_list_id(client: ClickUpClient, id_or_current: str, context=None) -> 
         ValueError: If ID cannot be resolved or is invalid
     """
     import warnings
-    
+
     warnings.warn(
         "resolve_list_id() is deprecated and will be removed in a future version. "
-        "Use resolve_container_id() instead for better flexibility with spaces, folders, and lists.",
+        "Use resolve_container_id() instead for better flexibility with spaces, "
+        "folders, and lists.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
-    
+
     if context is None:
         context = get_context_manager()
 
     # Handle "current" keyword
     if id_or_current.lower() == "current":
         try:
-            return context.resolve_id('list', 'current')
+            return context.resolve_id("list", "current")
         except ValueError as e:
-            raise ValueError(f"No current list set. Use 'cum set list <list_id>' first or provide a list/task ID.") from e
+            raise ValueError(
+                "No current list set. Use 'cum set list <list_id>' first "
+                "or provide a list/task ID."
+            ) from e
 
     # First, try to use it as a list ID
     try:
@@ -402,7 +441,7 @@ def resolve_list_id(client: ClickUpClient, id_or_current: str, context=None) -> 
     # Try to get it as a task ID
     try:
         task = client.get_task(id_or_current)
-        list_id = task.get('list', {}).get('id')
+        list_id = task.get("list", {}).get("id")
         if list_id:
             return list_id
         else:
@@ -439,7 +478,7 @@ def read_text_from_file(file_path: str) -> str:
             print(f"Error: Not a file: {file_path}", file=sys.stderr)
             sys.exit(1)
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             content = f.read()
 
         if not content.strip():
