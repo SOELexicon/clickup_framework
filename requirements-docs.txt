@@ -1,0 +1,18 @@
+# Documentation Generation Requirements
+# Install with: pip install -r requirements-docs.txt
+
+# MkDocs with Material theme (Recommended)
+mkdocs>=1.5.3
+mkdocs-material>=9.5.0
+mkdocstrings[python]>=0.24.0
+
+# Alternative: pdoc (simpler, zero-config)
+# pdoc>=14.0.0
+
+# Alternative: Sphinx (more powerful)
+# sphinx>=7.2.0
+# sphinx-rtd-theme>=2.0.0
+# sphinx-autodoc-typehints>=1.25.0
+
+# Markdown extensions
+pymdown-extensions>=10.7
