@@ -24,7 +24,7 @@ jobs:
     name: 🧪 Run Tests
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'workflow_dispatch' &&
+      github.event_name != 'workflow_dispatch' ||
       (inputs.run_tests == 'true' || inputs.run_tests == true)
 
     steps:
