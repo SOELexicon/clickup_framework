@@ -42,6 +42,28 @@ class TaskDetailFormatter:
         self.section_separator = "─" * 60
         self.task_formatter = RichTaskFormatter()
 
+    def _colorize(
+        self,
+        text: str,
+        color: Optional[TextColor] = None,
+        style: Optional[TextStyle] = None,
+        options: Optional[FormatOptions] = None
+    ) -> str:
+        """
+        Apply color and style to text, respecting format options.
+
+        Args:
+            text: Text to colorize
+            color: Text color to apply
+            style: Text style to apply
+            options: Format options (uses colorize_output to force colors)
+
+        Returns:
+            Colorized text string
+        """
+        force = options.colorize_output if options else False
+        return colorize(text, color, style, force=force)
+
     def format_with_context(
         self,
         task: Dict[str, Any],
@@ -201,7 +223,7 @@ class TaskDetailFormatter:
         title = f"{emoji} {task_name}" if emoji else task_name
 
         if options.colorize_output:
-            title = colorize(title, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+            title = self._colorize(title, TextColor.BRIGHT_WHITE, TextStyle.BOLD, options)
 
         lines.append(title)
         lines.append(self.section_separator)
@@ -210,7 +232,7 @@ class TaskDetailFormatter:
         if task.get('id'):
             id_label = "ID:"
             if options.colorize_output:
-                id_label = colorize(id_label, TextColor.BRIGHT_BLACK)
+                id_label = self._colorize(id_label, TextColor.BRIGHT_BLACK, options=options)
             lines.append(f"{id_label} {task['id']}")
 
         # Status
@@ -218,8 +240,8 @@ class TaskDetailFormatter:
             status = task['status'].get('status', '') if isinstance(task['status'], dict) else str(task['status'])
             status_label = "Status:"
             if options.colorize_output:
-                status_label = colorize(status_label, TextColor.BRIGHT_BLACK)
-                status = colorize(status, status_color(status), TextStyle.BOLD)
+                status_label = self._colorize(status_label, TextColor.BRIGHT_BLACK, options=options)
+                status = self._colorize(status, status_color(status), TextStyle.BOLD, options)
             lines.append(f"{status_label} {status}")
 
         # Priority
@@ -227,8 +249,8 @@ class TaskDetailFormatter:
             priority = task['priority'].get('priority', '') if isinstance(task['priority'], dict) else str(task['priority'])
             priority_label = "Priority:"
             if options.colorize_output:
-                priority_label = colorize(priority_label, TextColor.BRIGHT_BLACK)
-                priority = colorize(priority, priority_color(priority))
+                priority_label = self._colorize(priority_label, TextColor.BRIGHT_BLACK, options=options)
+                priority = self._colorize(priority, priority_color(priority), options=options)
             lines.append(f"{priority_label} {priority}")
 
         # Type
