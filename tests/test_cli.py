@@ -92,20 +92,24 @@ class TestCreateFormatOptions(unittest.TestCase):
 class TestHierarchyCommand(unittest.TestCase):
     """Test hierarchy_command function."""
 
-    @patch('clickup_framework.cli.get_list_statuses', return_value="")
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
-    def test_hierarchy_command_success(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
+    @patch('clickup_framework.commands.hierarchy.get_list_statuses', return_value="")
+    @patch('clickup_framework.commands.hierarchy.resolve_container_id')
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.DisplayManager')
+    def test_hierarchy_command_success(self, mock_display_mgr, mock_context, mock_client, mock_resolve_container, mock_statuses):
         """Test hierarchy command with valid input."""
         # Setup mocks
         mock_context_inst = Mock()
-        mock_context_inst.resolve_id.return_value = 'list_123'
+        mock_context_inst.get_ansi_output.return_value = True
         mock_context.return_value = mock_context_inst
 
         mock_client_inst = Mock()
         mock_client_inst.get_list_tasks.return_value = {'tasks': []}
         mock_client.return_value = mock_client_inst
+
+        # Mock resolve_container_id to return a list type
+        mock_resolve_container.return_value = {'type': 'list', 'id': 'list_123'}
 
         mock_display_inst = Mock()
         mock_display_inst.hierarchy_view.return_value = "Task Hierarchy"
@@ -113,6 +117,7 @@ class TestHierarchyCommand(unittest.TestCase):
 
         args = argparse.Namespace(
             list_id='list_123',
+            show_all=False,
             header=None,
             preset=None,
             colorize=True,
@@ -122,6 +127,7 @@ class TestHierarchyCommand(unittest.TestCase):
             show_dates=False,
             show_comments=0,
             include_completed=False,
+            show_closed_only=False,
             show_emoji=True
         )
 
@@ -134,8 +140,7 @@ class TestHierarchyCommand(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         # Verify
-        mock_context_inst.resolve_id.assert_called_once_with('list', 'list_123')
-        mock_client_inst.get_list_tasks.assert_called_once()
+        mock_resolve_container.assert_called_once()
         mock_display_inst.hierarchy_view.assert_called_once()
         self.assertIn("Task Hierarchy", captured_output.getvalue())
 
@@ -153,10 +158,10 @@ class TestHierarchyCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.cli.get_list_statuses', return_value="")
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.hierarchy.get_list_statuses', return_value="")
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.DisplayManager')
     def test_hierarchy_command_with_all_flag(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
         """Test hierarchy command with --all flag."""
         # Setup mocks
@@ -453,9 +458,9 @@ class TestContextCommands(unittest.TestCase):
 class TestFilterCommand(unittest.TestCase):
     """Test filter_command function."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.filter.ClickUpClient')
+    @patch('clickup_framework.commands.filter.get_context_manager')
+    @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_status(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with status filter."""
         # Setup mocks
@@ -505,9 +510,9 @@ class TestFilterCommand(unittest.TestCase):
 class TestStatsCommand(unittest.TestCase):
     """Test stats_command function."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.stats.ClickUpClient')
+    @patch('clickup_framework.commands.stats.get_context_manager')
+    @patch('clickup_framework.commands.stats.DisplayManager')
     def test_stats_command(self, mock_display_mgr, mock_context, mock_client):
         """Test stats command."""
         # Setup mocks
@@ -540,7 +545,7 @@ class TestMainCLI(unittest.TestCase):
     """Test main CLI entry point."""
 
     @patch('sys.argv', ['cli.py', 'demo', '--mode', 'hierarchy'])
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.demo.DisplayManager')
     def test_main_demo_command(self, mock_display_mgr):
         """Test main CLI with demo command."""
         mock_display_inst = Mock()
