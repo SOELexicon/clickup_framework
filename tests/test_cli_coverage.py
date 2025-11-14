@@ -583,7 +583,7 @@ class TestDemoCommandExtended(unittest.TestCase):
 class TestContextCommandsExtended(unittest.TestCase):
     """Extended tests for context management commands."""
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_set_current_space(self, mock_context):
         """Test set_current command for space."""
         mock_context_inst = Mock()
@@ -605,7 +605,7 @@ class TestContextCommandsExtended(unittest.TestCase):
         mock_context_inst.set_current_space.assert_called_once_with('space_789')
         self.assertIn("Set current space", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_set_current_folder(self, mock_context):
         """Test set_current command for folder."""
         mock_context_inst = Mock()
@@ -627,7 +627,7 @@ class TestContextCommandsExtended(unittest.TestCase):
         mock_context_inst.set_current_folder.assert_called_once_with('folder_999')
         self.assertIn("Set current folder", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_set_current_workspace(self, mock_context):
         """Test set_current command for workspace."""
         mock_context_inst = Mock()
@@ -649,7 +649,7 @@ class TestContextCommandsExtended(unittest.TestCase):
         mock_context_inst.set_current_workspace.assert_called_once_with('workspace_111')
         self.assertIn("Set current workspace", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_set_current_team_alias(self, mock_context):
         """Test set_current command with 'team' alias for workspace."""
         mock_context_inst = Mock()
@@ -670,10 +670,11 @@ class TestContextCommandsExtended(unittest.TestCase):
 
         mock_context_inst.set_current_workspace.assert_called_once_with('team_222')
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.clear_current.get_context_manager')
     def test_clear_current_list(self, mock_context):
         """Test clear_current command for list."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context.return_value = mock_context_inst
 
         args = argparse.Namespace(resource_type='list')
@@ -688,7 +689,7 @@ class TestContextCommandsExtended(unittest.TestCase):
         mock_context_inst.clear_current_list.assert_called_once()
         self.assertIn("Cleared current list", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.clear_current.get_context_manager')
     def test_clear_current_invalid_type(self, mock_context):
         """Test clear_current command with invalid resource type."""
         mock_context.return_value = Mock()
@@ -893,7 +894,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
     """Test assigned_tasks_command function."""
 
     @patch('clickup_framework.commands.assigned_command.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_with_user_and_team(self, mock_context, mock_client):
         """Test assigned command with user-id and team-id provided."""
         mock_context_inst = Mock()
@@ -949,7 +950,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         self.assertIn('Task 1', output)
         self.assertIn('Task 2', output)
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_no_user_id_or_default(self, mock_context):
         """Test assigned command without user-id and no default assignee."""
         mock_context_inst = Mock()
@@ -967,7 +968,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
     @patch('clickup_framework.commands.assigned_command.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_use_default_assignee(self, mock_context, mock_client):
         """Test assigned command using default assignee from context."""
         mock_context_inst = Mock()
@@ -1001,7 +1002,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         )
 
     @patch('clickup_framework.commands.assigned_command.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_no_workspace_no_teams(self, mock_context, mock_client):
         """Test assigned command without workspace ID and no teams available."""
         mock_context_inst = Mock()
@@ -1010,7 +1011,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         mock_context.return_value = mock_context_inst
 
         mock_client_inst = Mock()
-        mock_client_inst.get_workspaces.return_value = {'teams': []}
+        mock_client_inst.get_authorized_workspaces.return_value = {'teams': []}
         mock_client.return_value = mock_client_inst
 
         args = argparse.Namespace(
@@ -1025,7 +1026,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
 
     @patch('builtins.input', return_value='1')
     @patch('clickup_framework.commands.assigned_command.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_interactive_workspace_selection(self, mock_context, mock_client, mock_input):
         """Test assigned command with interactive workspace selection."""
         mock_context_inst = Mock()
@@ -1035,7 +1036,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         mock_context.return_value = mock_context_inst
 
         mock_client_inst = Mock()
-        mock_client_inst.get_workspaces.return_value = {
+        mock_client_inst.get_authorized_workspaces.return_value = {
             'teams': [
                 {'id': 'team_123', 'name': 'My Workspace'},
                 {'id': 'team_456', 'name': 'Other Workspace'}
@@ -1057,7 +1058,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         # Verify workspace list was fetched
-        mock_client_inst.get_workspaces.assert_called_once()
+        mock_client_inst.get_authorized_workspaces.assert_called_once()
         # Verify the selected workspace was used
         mock_client_inst.get_team_tasks.assert_called_once_with(
             'team_123',
@@ -1068,7 +1069,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
 
     @patch('builtins.input', return_value='q')
     @patch('clickup_framework.commands.assigned_command.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_cancel_workspace_selection(self, mock_context, mock_client, mock_input):
         """Test assigned command cancelling workspace selection."""
         mock_context_inst = Mock()
@@ -1078,7 +1079,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         mock_context.return_value = mock_context_inst
 
         mock_client_inst = Mock()
-        mock_client_inst.get_workspaces.return_value = {
+        mock_client_inst.get_authorized_workspaces.return_value = {
             'teams': [
                 {'id': 'team_123', 'name': 'My Workspace'}
             ]
@@ -1096,7 +1097,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         self.assertEqual(cm.exception.code, 0)  # Cancelled, not an error
 
     @patch('clickup_framework.commands.assigned_command.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.assigned_command.get_context_manager')
     def test_assigned_tasks_no_tasks_found(self, mock_context, mock_client):
         """Test assigned command when no tasks are found."""
         mock_context_inst = Mock()
