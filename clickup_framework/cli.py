@@ -27,6 +27,19 @@ from clickup_framework import get_context_manager, __version__
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.cli_error_handler import handle_cli_error
+from clickup_framework.commands.utils import create_format_options
+
+# Import command functions for backward compatibility with tests
+from clickup_framework.commands.hierarchy import hierarchy_command
+from clickup_framework.commands.container import container_command
+from clickup_framework.commands.flat import flat_command
+from clickup_framework.commands.filter import filter_command
+from clickup_framework.commands.detail import detail_command
+from clickup_framework.commands.stats import stats_command
+from clickup_framework.commands.demo import demo_command
+from clickup_framework.commands.set_current import set_current_command
+from clickup_framework.commands.clear_current import clear_current_command
+from clickup_framework.commands.show_current import show_current_command
 
 # Configure logger
 logger = logging.getLogger(__name__)
