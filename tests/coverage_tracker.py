@@ -147,7 +147,30 @@ def _operation_id_to_method_name(operation_id: str) -> str:
     return replacements.get(snake, snake)
 
 
-def print_coverage_report():
+def save_coverage_json(coverage_data: Dict, filename: str = "coverage.json"):
+    """Save coverage data to JSON file."""
+    import json
+    from datetime import datetime
+
+    output = {
+        "timestamp": datetime.now().isoformat(),
+        "summary": {
+            "total_endpoints": coverage_data["total_endpoints"],
+            "covered_count": coverage_data["covered_count"],
+            "uncovered_count": coverage_data["uncovered_count"],
+            "coverage_percentage": coverage_data["coverage_percentage"]
+        },
+        "covered_endpoints": coverage_data["covered"],
+        "uncovered_endpoints": coverage_data["uncovered"]
+    }
+
+    with open(filename, 'w') as f:
+        json.dump(output, f, indent=2)
+
+    print(f"✓ Saved coverage report to {filename}")
+
+
+def print_coverage_report(save_json: bool = True):
     """Print a detailed coverage report."""
     print("=" * 80)
     print("ClickUp Framework API Coverage Report")
@@ -162,6 +185,10 @@ def print_coverage_report():
 
     # Map endpoints to methods
     coverage = map_endpoints_to_methods(endpoints, methods)
+
+    # Save to JSON if requested
+    if save_json:
+        save_coverage_json(coverage)
 
     print(f"\nTotal API Endpoints: {coverage['total_endpoints']}")
     print(f"Covered by Client: {coverage['covered_count']}")
