@@ -205,7 +205,12 @@ class ClickUpClient:
                     if response.status_code == 204:
                         return {}
                     # 200 OK and 201 Created - return response body
-                    return response.json()
+                    # Handle cases where API returns empty body with 200 (some PUT operations)
+                    try:
+                        return response.json()
+                    except (ValueError, requests.exceptions.JSONDecodeError):
+                        # Empty or malformed response body - return empty dict
+                        return {}
 
                 elif response.status_code == 401:
                     # Try fallback token if available and not already attempted
