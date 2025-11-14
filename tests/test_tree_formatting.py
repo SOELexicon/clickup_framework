@@ -72,15 +72,16 @@ class TestTreeFormatting(unittest.TestCase):
 
         self.assertIsNotNone(date_line, "Date line not found in output")
 
-        # Date line should NOT have a pipe character in front of it
-        # It should be indented with spaces only
-        self.assertFalse(date_line.lstrip().startswith('│'),
-                        f"Date line should not start with pipe: {date_line}")
+        # Date line SHOULD have pipe characters to show it belongs to the task above
+        # and continues the tree structure
+        # Format: "    │     📅 Created: 2025-11-14" (for root level with children)
+        self.assertTrue('│' in date_line,
+                        f"Date line should have pipe marker: {date_line}")
 
-        # Date line should be indented (6 spaces after branch prefix)
-        # Format: "      📅 Created: 2025-11-14"
-        self.assertTrue(date_line.startswith('      '),
-                       f"Date line should start with 6 spaces: {repr(date_line)}")
+        # Date line should be properly indented with child_prefix + "│   "
+        # At root level with children, this is "    │     "
+        self.assertTrue(date_line.startswith('    │     '),
+                       f"Date line should start with proper pipe indentation: {repr(date_line)}")
 
     def test_deep_hierarchy_alignment(self):
         """Test that deep hierarchies maintain proper alignment."""
@@ -112,10 +113,10 @@ class TestTreeFormatting(unittest.TestCase):
         # Level 3 should start after 8 chars (├── ... ├── )
 
         for line in lines:
-            # Date lines should not have pipes before them
+            # Date lines SHOULD have pipes before them to show tree structure continuation
             if '📅' in line:
-                self.assertFalse('│' in line[:line.index('📅')],
-                               f"Date line has pipe before date marker: {line}")
+                self.assertTrue('│' in line[:line.index('📅')],
+                               f"Date line should have pipe before date marker: {line}")
 
     def test_last_item_indentation(self):
         """Test that last items use proper spacing without vertical pipes."""
@@ -227,15 +228,16 @@ class TestTreeFormatting(unittest.TestCase):
 
         lines = result.split('\n')
 
-        # Metadata lines should be indented properly
-        # and should NOT have pipes
+        # Metadata lines should be indented properly with pipe to show continuation
+        # For a task without children (last item), the format is:
+        # "    │   Metadata" (4 spaces + pipe + 3 spaces)
         for i, line in enumerate(lines):
             if i > 0 and 'Metadata' in line:
-                # Should be indented with spaces only
-                self.assertTrue(line.startswith('      '),
+                # Should have proper pipe indentation
+                self.assertTrue(line.startswith('    │   '),
                               f"Metadata line {i} not properly indented: {repr(line)}")
-                self.assertFalse('│' in line[:6],
-                               f"Metadata line {i} has pipe in indentation: {repr(line)}")
+                self.assertTrue('│' in line[:8],
+                               f"Metadata line {i} should have pipe in indentation: {repr(line)}")
 
 
 if __name__ == '__main__':

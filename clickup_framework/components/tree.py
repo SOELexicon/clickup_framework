@@ -86,8 +86,8 @@ class TreeFormatter:
                 # Continuation lines (descriptions, dates, etc.) should be indented
                 # to align under the task content, not as tree nodes
                 # These are metadata lines, not tree structure
-                # Use child_prefix to maintain pipe continuity when there are siblings below
-                continuation_prefix = child_prefix + "  "  # child_prefix (4 chars with/without pipe) + 2 spaces
+                # Add pipe + 3 spaces to show metadata belongs to the task above
+                continuation_prefix = child_prefix + "│   "  # Adds vertical pipe for metadata block
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
