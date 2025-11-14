@@ -152,7 +152,7 @@ def stats_command(args):
         print(status_line)
         print()  # Empty line for spacing
 
-    if args.by_type:
+    if getattr(args, 'by_type', False):
         # Show breakdown by type
         type_stats = get_task_type_stats(tasks)
         output = format_type_stats(type_stats)
