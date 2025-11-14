@@ -66,7 +66,7 @@ class HierarchyTestRunner:
         print(f"\n🧪 Test 1: Parent Task Hierarchy (task {task_id})")
         print("=" * 60)
 
-        output = self.run_command(f"cum h {task_id}")
+        output = self.run_command(f"python -m clickup_framework.cli h {task_id}")
 
         # Test container hierarchy display
         self.assert_contains(
@@ -140,7 +140,7 @@ class HierarchyTestRunner:
         print(f"\n🧪 Test 2: Subtask Hierarchy View (task {subtask_id})")
         print("=" * 60)
 
-        output = self.run_command(f"cum h {subtask_id}")
+        output = self.run_command(f"python -m clickup_framework.cli h {subtask_id}")
 
         # Test that parent was fetched
         self.assert_contains(
@@ -231,7 +231,7 @@ class HierarchyTestRunner:
         print(f"\n🧪 Test 3: Tree Line Alignment")
         print("=" * 60)
 
-        output = self.run_command(f"cum h {task_id}")
+        output = self.run_command(f"python -m clickup_framework.cli h {task_id}")
         lines = output.split('\n')
 
         # Find lines with tree branches and check alignment
@@ -273,7 +273,7 @@ class HierarchyTestRunner:
         print(f"\n🧪 Test 4: Status and Emoji Display")
         print("=" * 60)
 
-        output = self.run_command(f"cum h {task_id}")
+        output = self.run_command(f"python -m clickup_framework.cli h {task_id}")
 
         # Test status icons present (⚙️ for in development, ⬜ for open, etc.)
         self.assert_contains(
@@ -301,7 +301,7 @@ class HierarchyTestRunner:
         print(f"\n🧪 Test 5: Subtask Completion Counts")
         print("=" * 60)
 
-        output = self.run_command(f"cum h {task_id}")
+        output = self.run_command(f"python -m clickup_framework.cli h {task_id}")
 
         # Test completion format: (X/Y complete) or (X/Y incomplete)
         self.assert_contains(

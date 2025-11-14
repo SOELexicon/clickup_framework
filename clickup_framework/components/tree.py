@@ -76,9 +76,11 @@ class TreeFormatter:
 
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
-                # For continuation lines of the same item, ALWAYS show the pipe
-                # to indicate these lines belong to this item
-                continuation_prefix = prefix + "│   "  # Continue vertical line (pipe + 3 spaces)
+                # For continuation lines: use pipe for middle children, spaces for last child
+                if is_last_item:
+                    continuation_prefix = prefix + "    "  # 4 spaces (no pipe for last child)
+                else:
+                    continuation_prefix = prefix + "│   "  # Continue vertical line (pipe + 3 spaces)
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
