@@ -76,24 +76,30 @@ class TreeFormatter:
 
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
-                # For continuation lines: use pipe for middle children, spaces for last child
-                if is_last_item:
-                    continuation_prefix = prefix + "    "  # 4 spaces (no pipe for last child)
+                # For continuation lines: align with where children would appear
+                # Note: formatted lines have 2 leading spaces, so we use 6 total chars (4 + pipe + 1)
+                # to account for the 2 built-in spaces, achieving alignment at column (prefix + 8)
+                if is_last_item and not children:
+                    continuation_prefix = prefix + "      "  # 6 spaces (no pipe for last child with no children)
                 else:
-                    continuation_prefix = prefix + "│   "  # Continue vertical line (pipe + 3 spaces)
+                    continuation_prefix = prefix + "    │ "  # 4 spaces + pipe + 1 space (connects to children)
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
 
+            # Add blank separator line before children if there was multi-line content
+            if children and len(formatted_lines) > 1:
+                # Add a blank line with pipe to visually separate description from children
+                lines.append(prefix + "    │")
+
             if children:
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
-                    # Show truncation message
-                    # Truncate prefix should align with continuation (4 chars)
+                    # Show truncation message aligned with where children would appear
                     if is_last_item:
-                        truncate_prefix = prefix + "    "
+                        truncate_prefix = prefix + "      "  # 6 spaces to match child alignment
                     else:
-                        truncate_prefix = prefix + "│   "
+                        truncate_prefix = prefix + "    │ "  # 4 spaces + pipe + 1 space
 
                     hidden_count = len(children)
                     truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
