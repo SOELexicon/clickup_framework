@@ -116,6 +116,18 @@ class TestPipeAlignment(unittest.TestCase):
                         # Pipe moved to child level, which is valid in tree structures
                         continue
 
+                    # Check if we're returning to a shallower level (depth reduction)
+                    # This happens when a branch completes and we return to a parent level
+                    # Find any branch characters at a shallower level than this pipe
+                    has_shallower_branch = any(
+                        char in {'├', '└'} and c < col
+                        for c, char in tree_chars
+                    )
+                    if has_shallower_branch:
+                        # Returning to shallower level - deeper pipes naturally terminate
+                        del active_pipes[col]
+                        continue
+
                     # If we get here, pipe was interrupted unexpectedly
                     # Only report if this line has actual content
                     if line.strip():
