@@ -51,7 +51,7 @@ def create_task(name: str, parent_id: str = None, description: str = None, list_
 
     # Execute command
     print(f"Creating: {name} (parent: {parent_id or 'root'})")
-    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
         print(f"Error creating task: {result.stderr}", file=sys.stderr)
