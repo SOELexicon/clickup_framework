@@ -52,6 +52,10 @@ jobs:
     - name: Run Tests
       env:
         CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+        TEST_WORKSPACE_ID: "90151898946"
+        TEST_SPACE_ID: "90158025753"
+        TEST_LIST_ID: ${{ secrets.TEST_LIST_ID }}
+        TEST_TASK_ID: ${{ secrets.TEST_TASK_ID }}
       run: |
         python tests/run_tests.py --verbose --coverage
 
