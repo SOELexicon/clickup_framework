@@ -42,6 +42,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -e .
+        # Verify critical imports work
+        python -c "import clickup_framework; import pytest; import yaml; import argcomplete"
 
     - name: Run API Coverage Report
       run: |
@@ -211,6 +213,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -e .
+        # Verify critical imports work
+        python -c "import clickup_framework; import yaml"
 
     - name: Download test results artifacts
       uses: actions/download-artifact@v4

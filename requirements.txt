@@ -4,11 +4,15 @@
 # Core dependencies
 requests>=2.31.0
 python-dotenv>=1.0.0
+argcomplete>=3.0.0
+mcp>=1.0.0
+PyYAML>=6.0.0
 setuptools_scm[toml]>=6.2
 
-# Development dependencies
+# Development/Testing dependencies
 pytest>=7.4.0
 pytest-cov>=4.1.0
+pytest-mock>=3.12.0
 
 # Optional: Code quality tools
 # Uncomment if you want to use these tools
