@@ -1,0 +1,256 @@
+{
+  "description": "Comprehensive test structure for ClickUp Framework with 7 levels of task hierarchy",
+  "space_id": "90158025753",
+  "workspace_id": "90151898946",
+  "structure": {
+    "folder": {
+      "name": "[TEST] Framework Test Folder",
+      "description": "Automated test folder for ClickUp Framework"
+    },
+    "list": {
+      "name": "[TEST] Framework Test List",
+      "description": "Test list with complete task hierarchy"
+    },
+    "tasks": [
+      {
+        "name": "[TEST] Project Alpha - Main Deliverable",
+        "description": "Top-level project task with complete 7-level hierarchy",
+        "priority": 1,
+        "status": "in progress",
+        "tags": ["project", "test", "priority"],
+        "comments": [
+          {
+            "text": "This is a test comment on the top-level task"
+          },
+          {
+            "text": "Second comment for testing multiple comments"
+          }
+        ],
+        "subtasks": [
+          {
+            "name": "[TEST] Phase 1 - Planning",
+            "description": "Level 2: Planning phase with detailed breakdown",
+            "priority": 2,
+            "status": "in progress",
+            "tags": ["planning", "phase1"],
+            "comments": [
+              {
+                "text": "Planning phase started - level 2 task"
+              }
+            ],
+            "subtasks": [
+              {
+                "name": "[TEST] Requirements Gathering",
+                "description": "Level 3: Collect and document requirements",
+                "priority": 3,
+                "status": "complete",
+                "tags": ["requirements"],
+                "comments": [
+                  {
+                    "text": "Requirements gathering completed"
+                  }
+                ],
+                "subtasks": [
+                  {
+                    "name": "[TEST] Stakeholder Interviews",
+                    "description": "Level 4: Interview key stakeholders",
+                    "priority": 3,
+                    "status": "complete",
+                    "tags": ["interviews"],
+                    "subtasks": [
+                      {
+                        "name": "[TEST] Interview Engineering Team",
+                        "description": "Level 5: Interview with engineering leads",
+                        "priority": 3,
+                        "status": "complete",
+                        "tags": ["engineering"],
+                        "subtasks": [
+                          {
+                            "name": "[TEST] Prepare Interview Questions",
+                            "description": "Level 6: Draft questions for engineering team",
+                            "priority": 3,
+                            "status": "complete",
+                            "tags": ["preparation"],
+                            "subtasks": [
+                              {
+                                "name": "[TEST] Review Previous Feedback",
+                                "description": "Level 7: Analyze feedback from last quarter",
+                                "priority": 3,
+                                "status": "complete",
+                                "tags": ["review", "feedback"]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "[TEST] Architecture Design",
+                "description": "Level 3: Design system architecture",
+                "priority": 2,
+                "status": "in progress",
+                "tags": ["architecture", "design"],
+                "comments": [
+                  {
+                    "text": "Architecture design in progress"
+                  }
+                ],
+                "subtasks": [
+                  {
+                    "name": "[TEST] Database Schema",
+                    "description": "Level 4: Design database schema",
+                    "priority": 2,
+                    "status": "in progress",
+                    "tags": ["database"],
+                    "subtasks": [
+                      {
+                        "name": "[TEST] Entity Relationship Diagram",
+                        "description": "Level 5: Create ERD",
+                        "priority": 2,
+                        "status": "to do",
+                        "tags": ["erd"]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "[TEST] Phase 2 - Implementation",
+            "description": "Level 2: Development and implementation phase",
+            "priority": 2,
+            "status": "to do",
+            "tags": ["implementation", "phase2"],
+            "subtasks": [
+              {
+                "name": "[TEST] Backend Development",
+                "description": "Level 3: Build backend services",
+                "priority": 2,
+                "status": "to do",
+                "tags": ["backend", "development"],
+                "subtasks": [
+                  {
+                    "name": "[TEST] API Endpoints",
+                    "description": "Level 4: Implement REST API",
+                    "priority": 2,
+                    "status": "to do",
+                    "tags": ["api"],
+                    "subtasks": [
+                      {
+                        "name": "[TEST] User Authentication",
+                        "description": "Level 5: Auth endpoints",
+                        "priority": 1,
+                        "status": "to do",
+                        "tags": ["auth"],
+                        "subtasks": [
+                          {
+                            "name": "[TEST] JWT Token Implementation",
+                            "description": "Level 6: Implement JWT",
+                            "priority": 1,
+                            "status": "to do",
+                            "tags": ["jwt", "security"],
+                            "subtasks": [
+                              {
+                                "name": "[TEST] Token Refresh Logic",
+                                "description": "Level 7: Handle token refresh",
+                                "priority": 1,
+                                "status": "to do",
+                                "tags": ["refresh", "tokens"]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "[TEST] Project Beta - Secondary Feature",
+        "description": "Second top-level task for testing multiple root tasks",
+        "priority": 2,
+        "status": "to do",
+        "tags": ["project", "test", "secondary"],
+        "comments": [
+          {
+            "text": "Beta project comment"
+          }
+        ],
+        "subtasks": [
+          {
+            "name": "[TEST] Beta Feature Research",
+            "description": "Level 2: Research for beta features",
+            "priority": 3,
+            "status": "to do",
+            "tags": ["research"],
+            "subtasks": [
+              {
+                "name": "[TEST] Market Analysis",
+                "description": "Level 3: Analyze market trends",
+                "priority": 3,
+                "status": "to do",
+                "tags": ["market", "analysis"],
+                "subtasks": [
+                  {
+                    "name": "[TEST] Competitor Analysis",
+                    "description": "Level 4: Study competitors",
+                    "priority": 3,
+                    "status": "to do",
+                    "tags": ["competitors"],
+                    "subtasks": [
+                      {
+                        "name": "[TEST] Feature Comparison",
+                        "description": "Level 5: Compare feature sets",
+                        "priority": 3,
+                        "status": "to do",
+                        "tags": ["comparison"],
+                        "subtasks": [
+                          {
+                            "name": "[TEST] Create Comparison Matrix",
+                            "description": "Level 6: Build comparison spreadsheet",
+                            "priority": 3,
+                            "status": "to do",
+                            "tags": ["matrix"],
+                            "subtasks": [
+                              {
+                                "name": "[TEST] Identify Key Metrics",
+                                "description": "Level 7: Define metrics to compare",
+                                "priority": 3,
+                                "status": "to do",
+                                "tags": ["metrics"]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "[TEST] Standalone Task - No Children",
+        "description": "Task without any subtasks for testing leaf nodes",
+        "priority": 3,
+        "status": "to do",
+        "tags": ["standalone", "leaf"],
+        "comments": [
+          {
+            "text": "This task has no children"
+          }
+        ]
+      }
+    ]
+  }
+}
