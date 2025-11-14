@@ -87,12 +87,17 @@ class TreeFormatter:
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
 
-            # Add blank separator line before children if there was multi-line content
-            if children and len(formatted_lines) > 1:
-                # Add a blank line with pipe to visually separate description from children
-                lines.append(prefix + "    │")
-
             if children:
+                # Add blank separator line before children if there was multi-line content
+                if len(formatted_lines) > 1:
+                    # Blank line should align with where children will appear (at child_prefix location)
+                    # Show the continuation pipe structure that leads to children
+                    if is_last_item:
+                        blank_line = prefix + "    │"  # 4 spaces + pipe (no parent continuation)
+                    else:
+                        blank_line = prefix + "│   │"  # pipe + 3 spaces + pipe (parent continuation + child continuation)
+                    lines.append(blank_line)
+
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
                     # Show truncation message aligned with where children would appear
