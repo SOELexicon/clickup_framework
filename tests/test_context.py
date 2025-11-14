@@ -15,6 +15,15 @@ class TestContextManager:
 
     def setup_method(self):
         """Set up test fixtures with temporary context file."""
+        # Save and clear environment variables that might interfere with tests
+        self.saved_env = {}
+        env_vars = ['CLICKUP_DEFAULT_LIST', 'CLICKUP_DEFAULT_WORKSPACE',
+                    'CLICKUP_DEFAULT_SPACE', 'CLICKUP_DEFAULT_FOLDER']
+        for var in env_vars:
+            if var in os.environ:
+                self.saved_env[var] = os.environ[var]
+                del os.environ[var]
+
         # Create a temporary file for testing
         self.temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
         self.temp_file.close()
@@ -22,7 +31,12 @@ class TestContextManager:
         self.context = ContextManager(context_path=self.context_path)
 
     def teardown_method(self):
-        """Clean up temporary files."""
+        """Clean up temporary files and restore environment."""
+        # Restore environment variables
+        for var, value in self.saved_env.items():
+            os.environ[var] = value
+
+        # Clean up temp file
         if os.path.exists(self.context_path):
             os.unlink(self.context_path)
 
