@@ -86,10 +86,10 @@ class TreeFormatter:
                 # Continuation lines (descriptions, dates, etc.) should align with child level
                 # to maintain proper visual connection from parent through content to children
                 # Note: formatted lines have 2 leading spaces, so we add pipe + 1 space
-                if children or not is_last_item:
-                    continuation_prefix = child_prefix + "│ "  # Align with child level + pipe
+                if children:
+                    continuation_prefix = child_prefix + "│ "  # Align with child level + pipe (only if has children)
                 else:
-                    continuation_prefix = child_prefix + "  "  # Align with child level, no pipe for true leaf
+                    continuation_prefix = child_prefix + "  "  # Align with child level, no pipe for leaf tasks
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
