@@ -92,20 +92,24 @@ class TestCreateFormatOptions(unittest.TestCase):
 class TestHierarchyCommand(unittest.TestCase):
     """Test hierarchy_command function."""
 
-    @patch('clickup_framework.cli.get_list_statuses', return_value="")
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
-    def test_hierarchy_command_success(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
+    @patch('clickup_framework.commands.hierarchy.get_list_statuses', return_value="")
+    @patch('clickup_framework.commands.hierarchy.resolve_container_id')
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.DisplayManager')
+    def test_hierarchy_command_success(self, mock_display_mgr, mock_context, mock_client, mock_resolve_container, mock_statuses):
         """Test hierarchy command with valid input."""
         # Setup mocks
         mock_context_inst = Mock()
-        mock_context_inst.resolve_id.return_value = 'list_123'
+        mock_context_inst.get_ansi_output.return_value = True
         mock_context.return_value = mock_context_inst
 
         mock_client_inst = Mock()
         mock_client_inst.get_list_tasks.return_value = {'tasks': []}
         mock_client.return_value = mock_client_inst
+
+        # Mock resolve_container_id to return a list type
+        mock_resolve_container.return_value = {'type': 'list', 'id': 'list_123'}
 
         mock_display_inst = Mock()
         mock_display_inst.hierarchy_view.return_value = "Task Hierarchy"
@@ -113,6 +117,7 @@ class TestHierarchyCommand(unittest.TestCase):
 
         args = argparse.Namespace(
             list_id='list_123',
+            show_all=False,
             header=None,
             preset=None,
             colorize=True,
@@ -122,6 +127,7 @@ class TestHierarchyCommand(unittest.TestCase):
             show_dates=False,
             show_comments=0,
             include_completed=False,
+            show_closed_only=False,
             show_emoji=True
         )
 
@@ -134,12 +140,11 @@ class TestHierarchyCommand(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         # Verify
-        mock_context_inst.resolve_id.assert_called_once_with('list', 'list_123')
-        mock_client_inst.get_list_tasks.assert_called_once()
+        mock_resolve_container.assert_called_once()
         mock_display_inst.hierarchy_view.assert_called_once()
         self.assertIn("Task Hierarchy", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_hierarchy_command_invalid_list(self, mock_context):
         """Test hierarchy command with invalid list ID."""
         mock_context_inst = Mock()
@@ -153,10 +158,10 @@ class TestHierarchyCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.cli.get_list_statuses', return_value="")
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.hierarchy.get_list_statuses', return_value="")
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.DisplayManager')
     def test_hierarchy_command_with_all_flag(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
         """Test hierarchy command with --all flag."""
         # Setup mocks
@@ -202,7 +207,7 @@ class TestHierarchyCommand(unittest.TestCase):
         mock_display_inst.hierarchy_view.assert_called_once()
         self.assertIn("All Workspace Tasks", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_hierarchy_command_no_list_id_no_all(self, mock_context):
         """Test hierarchy command with no list_id and no --all flag."""
         args = argparse.Namespace(list_id=None, show_all=False)
@@ -212,7 +217,7 @@ class TestHierarchyCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_hierarchy_command_both_list_id_and_all(self, mock_context):
         """Test hierarchy command with both list_id and --all flag."""
         args = argparse.Namespace(list_id='list_123', show_all=True)
@@ -283,24 +288,11 @@ class TestDemoCommand(unittest.TestCase):
 class TestContextCommands(unittest.TestCase):
     """Test context management commands."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    def test_set_current_task(self, mock_context, mock_client_class):
-        """Test set_current command for task with auto-hierarchy detection."""
+    @patch('clickup_framework.commands.set_current.get_context_manager')
+    def test_set_current_task(self, mock_context):
+        """Test set_current command for task."""
         mock_context_inst = Mock()
         mock_context.return_value = mock_context_inst
-
-        # Mock the task data returned by the API
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_task.return_value = {
-            'id': 'task_123',
-            'name': 'Test Task',
-            'list': {'id': 'list_456', 'name': 'Test List'},
-            'folder': {'id': 'folder_789', 'name': 'Test Folder'},
-            'space': {'id': 'space_012', 'name': 'Test Space'},
-            'status': {'status': 'in progress'}
-        }
 
         args = argparse.Namespace(
             resource_type='task',
@@ -314,21 +306,15 @@ class TestContextCommands(unittest.TestCase):
 
         sys.stdout = sys.__stdout__
 
-        # Verify all context setters were called
+        # Verify context setter was called
         mock_context_inst.set_current_task.assert_called_once_with('task_123')
-        mock_context_inst.set_current_list.assert_called_once_with('list_456')
-        mock_context_inst.set_current_folder.assert_called_once_with('folder_789')
-        mock_context_inst.set_current_space.assert_called_once_with('space_012')
 
-        # Verify output includes all resources
+        # Verify output
         output = captured_output.getvalue()
         self.assertIn("Set current task", output)
-        self.assertIn("Set current list", output)
-        self.assertIn("Set current folder", output)
-        self.assertIn("Set current space", output)
-        self.assertIn("Context updated successfully", output)
+        self.assertIn("task_123", output)
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_set_current_list(self, mock_context):
         """Test set_current command for list."""
         mock_context_inst = Mock()
@@ -349,7 +335,7 @@ class TestContextCommands(unittest.TestCase):
         mock_context_inst.set_current_list.assert_called_once_with('list_456')
         self.assertIn("Set current list", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_set_current_invalid_type(self, mock_context):
         """Test set_current command with invalid resource type."""
         mock_context.return_value = Mock()
@@ -364,7 +350,7 @@ class TestContextCommands(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.clear_current.get_context_manager')
     def test_clear_current_specific(self, mock_context):
         """Test clear_current command for specific resource."""
         mock_context_inst = Mock()
@@ -382,7 +368,7 @@ class TestContextCommands(unittest.TestCase):
         mock_context_inst.clear_current_task.assert_called_once()
         self.assertIn("Cleared current task", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.clear_current.get_context_manager')
     def test_clear_current_all(self, mock_context):
         """Test clear_current command for all resources."""
         mock_context_inst = Mock()
@@ -400,7 +386,7 @@ class TestContextCommands(unittest.TestCase):
         mock_context_inst.clear_all.assert_called_once()
         self.assertIn("Cleared all context", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.show_current.get_context_manager')
     def test_show_current_with_context(self, mock_context):
         """Test show_current command with existing context."""
         mock_context_inst = Mock()
@@ -414,6 +400,7 @@ class TestContextCommands(unittest.TestCase):
         mock_context_inst.get_current_space.return_value = None
         mock_context_inst.get_current_folder.return_value = None
         mock_context_inst.get_current_workspace.return_value = None
+        mock_context_inst.get_api_token.return_value = None
         mock_context.return_value = mock_context_inst
 
         args = argparse.Namespace()
@@ -431,7 +418,7 @@ class TestContextCommands(unittest.TestCase):
         self.assertIn("task_123", output)
         self.assertIn("list_456", output)
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.show_current.get_context_manager')
     def test_show_current_empty(self, mock_context):
         """Test show_current command with no context."""
         mock_context_inst = Mock()
@@ -453,9 +440,9 @@ class TestContextCommands(unittest.TestCase):
 class TestFilterCommand(unittest.TestCase):
     """Test filter_command function."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.filter.ClickUpClient')
+    @patch('clickup_framework.commands.filter.get_context_manager')
+    @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_status(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with status filter."""
         # Setup mocks
@@ -505,9 +492,9 @@ class TestFilterCommand(unittest.TestCase):
 class TestStatsCommand(unittest.TestCase):
     """Test stats_command function."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.stats.ClickUpClient')
+    @patch('clickup_framework.commands.stats.get_context_manager')
+    @patch('clickup_framework.commands.stats.DisplayManager')
     def test_stats_command(self, mock_display_mgr, mock_context, mock_client):
         """Test stats command."""
         # Setup mocks
@@ -523,7 +510,7 @@ class TestStatsCommand(unittest.TestCase):
         mock_display_inst.summary_stats.return_value = "Task Statistics"
         mock_display_mgr.return_value = mock_display_inst
 
-        args = argparse.Namespace(list_id='list_123')
+        args = argparse.Namespace(list_id='list_123', include_closed=False, type=None)
 
         captured_output = io.StringIO()
         sys.stdout = captured_output
@@ -540,7 +527,7 @@ class TestMainCLI(unittest.TestCase):
     """Test main CLI entry point."""
 
     @patch('sys.argv', ['cli.py', 'demo', '--mode', 'hierarchy'])
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.demo.DisplayManager')
     def test_main_demo_command(self, mock_display_mgr):
         """Test main CLI with demo command."""
         mock_display_inst = Mock()

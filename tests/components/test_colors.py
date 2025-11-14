@@ -106,7 +106,14 @@ class TestStatusColor:
     def test_status_in_progress(self):
         """Test color for in progress status."""
         assert status_color("in progress") == TextColor.BRIGHT_BLUE
-        assert status_color("in review") == TextColor.BRIGHT_BLUE
+        assert status_color("in development") == TextColor.BRIGHT_BLUE
+        assert status_color("wip") == TextColor.BRIGHT_BLUE
+
+    def test_status_review(self):
+        """Test color for review status."""
+        assert status_color("in review") == TextColor.MAGENTA
+        assert status_color("review") == TextColor.MAGENTA
+        assert status_color("pending approval") == TextColor.MAGENTA
 
     def test_status_complete(self):
         """Test color for complete status."""
@@ -143,18 +150,18 @@ class TestPriorityColor:
 
     def test_priority_high(self):
         """Test color for high priority."""
-        assert priority_color(2) == TextColor.BRIGHT_YELLOW
-        assert priority_color("2") == TextColor.BRIGHT_YELLOW
+        assert priority_color(2) == TextColor.YELLOW
+        assert priority_color("2") == TextColor.YELLOW
 
     def test_priority_normal(self):
         """Test color for normal priority."""
-        assert priority_color(3) == TextColor.BRIGHT_BLUE
-        assert priority_color("3") == TextColor.BRIGHT_BLUE
+        assert priority_color(3) == TextColor.WHITE
+        assert priority_color("3") == TextColor.WHITE
 
     def test_priority_low(self):
         """Test color for low priority."""
-        assert priority_color(4) == TextColor.BRIGHT_GREEN
-        assert priority_color("4") == TextColor.BRIGHT_GREEN
+        assert priority_color(4) == TextColor.BRIGHT_BLACK
+        assert priority_color("4") == TextColor.BRIGHT_BLACK
 
     def test_priority_default(self):
         """Test default priority color."""

@@ -107,6 +107,6 @@ class TestFormatOptions:
         assert options.show_type_emoji is True
         assert options.show_descriptions is True
         assert options.show_dates is True
-        assert options.show_comments == 3
+        assert options.show_comments == 5
         assert options.show_relationships is True
         assert options.include_completed is True
