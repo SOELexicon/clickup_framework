@@ -19,6 +19,32 @@ from .exceptions import (
 )
 from .rate_limiter import RateLimiter
 from .context import get_context_manager
+from .apis import (
+    TasksAPI,
+    ListsAPI,
+    FoldersAPI,
+    SpacesAPI,
+    WorkspacesAPI,
+    GoalsAPI,
+    GuestsAPI,
+    TagsAPI,
+    TimeTrackingAPI,
+    TimeTrackingLegacyAPI,
+    MembersAPI,
+    RolesAPI,
+    TemplatesAPI,
+    ChecklistsAPI,
+    CommentsAPI,
+    CustomFieldsAPI,
+    ViewsAPI,
+    WebhooksAPI,
+    DocsAPI,
+    AttachmentsAPI,
+    AuthAPI,
+    UsersAPI,
+    GroupsAPI,
+    SearchAPI,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -91,6 +117,32 @@ class ClickUpClient:
                 "Content-Type": "application/json",
             }
         )
+
+        # Initialize API classes
+        self.tasks = TasksAPI(self)
+        self.lists = ListsAPI(self)
+        self.folders = FoldersAPI(self)
+        self.spaces = SpacesAPI(self)
+        self.workspaces = WorkspacesAPI(self)
+        self.goals = GoalsAPI(self)
+        self.guests = GuestsAPI(self)
+        self.tags = TagsAPI(self)
+        self.time_tracking = TimeTrackingAPI(self)
+        self.time_tracking_legacy = TimeTrackingLegacyAPI(self)
+        self.members = MembersAPI(self)
+        self.roles = RolesAPI(self)
+        self.templates = TemplatesAPI(self)
+        self.checklists = ChecklistsAPI(self)
+        self.comments = CommentsAPI(self)
+        self.custom_fields = CustomFieldsAPI(self)
+        self.views = ViewsAPI(self)
+        self.webhooks = WebhooksAPI(self)
+        self.docs = DocsAPI(self)
+        self.attachments = AttachmentsAPI(self)
+        self.auth = AuthAPI(self)
+        self.users = UsersAPI(self)
+        self.groups = GroupsAPI(self)
+        self.search_api = SearchAPI(self)
 
     def _switch_to_fallback_token(self) -> bool:
         """
@@ -279,182 +331,55 @@ class ClickUpClient:
 
         raise ClickUpAPIError(0, "Max retries exceeded")
 
-    # Task endpoints
+    # Task endpoints - Delegated to TasksAPI
     def get_task(self, task_id: str, **params) -> Dict[str, Any]:
         """Get task by ID."""
-        return self._request("GET", f"task/{task_id}", params=params)
+        return self.tasks.get_task(task_id, **params)
 
     def get_list_tasks(self, list_id: str, **params) -> Dict[str, Any]:
         """Get all tasks in a list."""
-        return self._request("GET", f"list/{list_id}/task", params=params)
+        return self.tasks.get_list_tasks(list_id, **params)
 
     def get_team_tasks(self, team_id: str, **params) -> Dict[str, Any]:
         """Get all tasks in a team/workspace."""
-        return self._request("GET", f"team/{team_id}/task", params=params)
+        return self.tasks.get_team_tasks(team_id, **params)
 
     def create_task(self, list_id: str, **task_data) -> Dict[str, Any]:
         """Create a new task."""
-        return self._request("POST", f"list/{list_id}/task", json=task_data)
+        return self.tasks.create_task(list_id, **task_data)
 
     def update_task(self, task_id: str, **updates) -> Dict[str, Any]:
         """Update a task."""
-        return self._request("PUT", f"task/{task_id}", json=updates)
+        return self.tasks.update_task(task_id, **updates)
 
     def delete_task(self, task_id: str) -> Dict[str, Any]:
         """Delete a task."""
-        return self._request("DELETE", f"task/{task_id}")
+        return self.tasks.delete_task(task_id)
 
-    # List endpoints
-    def get_list(self, list_id: str) -> Dict[str, Any]:
-        """Get list by ID."""
-        return self._request("GET", f"list/{list_id}")
+    def merge_tasks(self, task_id: str, merge_task_id: str, **params) -> Dict[str, Any]:
+        """Merge two tasks."""
+        return self.tasks.merge_tasks(task_id, merge_task_id, **params)
 
-    def create_list(self, folder_id: str, name: str, **list_data) -> Dict[str, Any]:
-        """Create a new list."""
-        data = {"name": name, **list_data}
-        return self._request("POST", f"folder/{folder_id}/list", json=data)
+    def get_task_time_in_status(self, task_id: str, **params) -> Dict[str, Any]:
+        """Get task's time in status."""
+        return self.tasks.get_task_time_in_status(task_id, **params)
 
-    def update_list(self, list_id: str, **updates) -> Dict[str, Any]:
-        """Update a list."""
-        return self._request("PUT", f"list/{list_id}", json=updates)
+    def get_bulk_tasks_time_in_status(self, task_ids: List[str], **params) -> Dict[str, Any]:
+        """Get bulk tasks' time in status."""
+        return self.tasks.get_bulk_tasks_time_in_status(task_ids, **params)
 
-    # Folder endpoints
-    def get_folder(self, folder_id: str) -> Dict[str, Any]:
-        """Get folder by ID."""
-        return self._request("GET", f"folder/{folder_id}")
+    def create_task_from_template(self, list_id: str, template_id: str, **task_data) -> Dict[str, Any]:
+        """Create a task from a template."""
+        return self.tasks.create_task_from_template(list_id, template_id, **task_data)
 
-    def create_folder(self, space_id: str, name: str) -> Dict[str, Any]:
-        """Create a new folder."""
-        return self._request("POST", f"space/{space_id}/folder", json={"name": name})
+    def add_task_tag(self, task_id: str, tag_name: str, **params) -> Dict[str, Any]:
+        """Add a tag to a task."""
+        return self.tags.add_task_tag(task_id, tag_name, **params)
 
-    def update_folder(self, folder_id: str, **updates) -> Dict[str, Any]:
-        """Update a folder."""
-        return self._request("PUT", f"folder/{folder_id}", json=updates)
+    def remove_task_tag(self, task_id: str, tag_name: str, **params) -> Dict[str, Any]:
+        """Remove a tag from a task."""
+        return self.tags.remove_task_tag(task_id, tag_name, **params)
 
-    # Space endpoints
-    def get_space(self, space_id: str) -> Dict[str, Any]:
-        """Get space by ID."""
-        return self._request("GET", f"space/{space_id}")
-
-    def get_team_spaces(self, team_id: str, archived: bool = False) -> Dict[str, Any]:
-        """Get all spaces in a team."""
-        params = {"archived": str(archived).lower()}
-        return self._request("GET", f"team/{team_id}/space", params=params)
-
-    def create_space(self, team_id: str, name: str, **space_data) -> Dict[str, Any]:
-        """Create a new space."""
-        data = {"name": name, **space_data}
-        return self._request("POST", f"team/{team_id}/space", json=data)
-
-    def update_space(self, space_id: str, **updates) -> Dict[str, Any]:
-        """Update a space."""
-        return self._request("PUT", f"space/{space_id}", json=updates)
-
-    def delete_space(self, space_id: str) -> Dict[str, Any]:
-        """Delete a space."""
-        return self._request("DELETE", f"space/{space_id}")
-
-    def get_space_tags(self, space_id: str) -> Dict[str, Any]:
-        """Get all tags in a space."""
-        return self._request("GET", f"space/{space_id}/tag")
-
-    def create_space_tag(self, space_id: str, tag_name: str, tag_fg: str = "#000000", tag_bg: str = "#FFFFFF") -> Dict[str, Any]:
-        """Create a tag in a space."""
-        data = {"tag": {"name": tag_name, "tag_fg": tag_fg, "tag_bg": tag_bg}}
-        return self._request("POST", f"space/{space_id}/tag", json=data)
-
-    # Workspace hierarchy
-    def get_workspace_hierarchy(self, team_id: str) -> Dict[str, Any]:
-        """Get complete workspace hierarchy."""
-        return self._request("GET", f"team/{team_id}")
-
-    # Custom Fields endpoints
-    def get_accessible_custom_fields(self, list_id: str) -> Dict[str, Any]:
-        """Get custom fields accessible from a list."""
-        return self._request("GET", f"list/{list_id}/field")
-
-    def set_custom_field_value(self, task_id: str, field_id: str, value: Any) -> Dict[str, Any]:
-        """Set custom field value on a task."""
-        return self._request("POST", f"task/{task_id}/field/{field_id}", json={"value": value})
-
-    def remove_custom_field_value(self, task_id: str, field_id: str) -> Dict[str, Any]:
-        """Remove custom field value from a task."""
-        return self._request("DELETE", f"task/{task_id}/field/{field_id}")
-
-    # Checklist endpoints
-    def create_checklist(self, task_id: str, name: str) -> Dict[str, Any]:
-        """Create a checklist on a task."""
-        response = self._request("POST", f"task/{task_id}/checklist", json={"name": name})
-        # API returns {'checklist': {...}}, unwrap it
-        return response.get('checklist', response)
-
-    def update_checklist(self, checklist_id: str, **updates) -> Dict[str, Any]:
-        """Update a checklist."""
-        return self._request("PUT", f"checklist/{checklist_id}", json=updates)
-
-    def delete_checklist(self, checklist_id: str) -> Dict[str, Any]:
-        """Delete a checklist."""
-        return self._request("DELETE", f"checklist/{checklist_id}")
-
-    def create_checklist_item(self, checklist_id: str, name: str, **item_data) -> Dict[str, Any]:
-        """Create a checklist item."""
-        data = {"name": name, **item_data}
-        response = self._request("POST", f"checklist/{checklist_id}/checklist_item", json=data)
-        # API returns {'checklist': {...}} with items array, extract the newly created item
-        if 'checklist' in response and 'items' in response['checklist']:
-            items = response['checklist']['items']
-            # Return the last (newest) item which should be the one we just created
-            if items:
-                return items[-1]
-        return response
-
-    def update_checklist_item(self, checklist_id: str, checklist_item_id: str, **updates) -> Dict[str, Any]:
-        """Update a checklist item."""
-        response = self._request("PUT", f"checklist/{checklist_id}/checklist_item/{checklist_item_id}", json=updates)
-        # API returns {'checklist': {...}} with items array, extract the updated item
-        if 'checklist' in response and 'items' in response['checklist']:
-            items = response['checklist']['items']
-            # Find and return the specific item that was updated
-            for item in items:
-                if item.get('id') == checklist_item_id:
-                    return item
-        return response
-
-    def delete_checklist_item(self, checklist_id: str, checklist_item_id: str) -> Dict[str, Any]:
-        """Delete a checklist item."""
-        return self._request("DELETE", f"checklist/{checklist_id}/checklist_item/{checklist_item_id}")
-
-    # Comments
-    def create_task_comment(self, task_id: str, comment_text: str) -> Dict[str, Any]:
-        """Add comment to a task."""
-        response = self._request(
-            "POST", f"task/{task_id}/comment", json={"comment_text": comment_text}
-        )
-        # API response doesn't include comment_text, add it for convenience
-        if 'comment_text' not in response:
-            response['comment_text'] = comment_text
-        return response
-
-    def get_task_comments(self, task_id: str) -> Dict[str, Any]:
-        """Get all comments on a task."""
-        return self._request("GET", f"task/{task_id}/comment")
-
-    # Search
-    def search(self, team_id: str, query: str, **filters) -> Dict[str, Any]:
-        """Search workspace."""
-        params = {"query": query, **filters}
-        return self._request("GET", f"team/{team_id}/search", params=params)
-
-    # Time tracking
-    def get_time_entries(self, team_id: str, **params) -> Dict[str, Any]:
-        """Get time entries."""
-        return self._request("GET", f"team/{team_id}/time_entries", params=params)
-
-    def create_time_entry(self, team_id: str, **entry_data) -> Dict[str, Any]:
-        """Create a time entry."""
-        return self._request("POST", f"team/{team_id}/time_entries", json=entry_data)
-
-    # Task Relationships - Dependencies
     def add_task_dependency(
         self,
         task_id: str,
@@ -462,35 +387,8 @@ class ClickUpClient:
         dependency_of: Optional[str] = None,
         **params
     ) -> Dict[str, Any]:
-        """
-        Add a dependency relationship between tasks.
-
-        Args:
-            task_id: The task to add dependency to
-            depends_on: Task ID that this task depends on (task_id waits for this)
-            dependency_of: Task ID that depends on this task (this blocks dependency_of)
-            **params: Additional query parameters (custom_task_ids, team_id)
-
-        Returns:
-            Empty dict on success
-
-        Note:
-            Only one of depends_on or dependency_of should be provided.
-            - depends_on: Creates "waiting on" relationship (task_id waits for depends_on)
-            - dependency_of: Creates "blocking" relationship (task_id blocks dependency_of)
-        """
-        if not depends_on and not dependency_of:
-            raise ValueError("Either depends_on or dependency_of must be provided")
-        if depends_on and dependency_of:
-            raise ValueError("Only one of depends_on or dependency_of can be provided")
-
-        body = {}
-        if depends_on:
-            body["depends_on"] = depends_on
-        if dependency_of:
-            body["dependency_of"] = dependency_of
-
-        return self._request("POST", f"task/{task_id}/dependency", json=body, params=params)
+        """Add a dependency relationship between tasks."""
+        return self.tasks.add_task_dependency(task_id, depends_on, dependency_of, **params)
 
     def delete_task_dependency(
         self,
@@ -499,51 +397,17 @@ class ClickUpClient:
         dependency_of: Optional[str] = None,
         **params
     ) -> Dict[str, Any]:
-        """
-        Remove a dependency relationship between tasks.
+        """Remove a dependency relationship between tasks."""
+        return self.tasks.delete_task_dependency(task_id, depends_on, dependency_of, **params)
 
-        Args:
-            task_id: The task to remove dependency from
-            depends_on: Task ID to remove from "waiting on" list
-            dependency_of: Task ID to remove from "blocking" list
-            **params: Additional query parameters (custom_task_ids, team_id)
-
-        Returns:
-            Empty dict on success
-
-        Note:
-            Only one of depends_on or dependency_of should be provided.
-        """
-        if not depends_on and not dependency_of:
-            raise ValueError("Either depends_on or dependency_of must be provided")
-
-        query_params = params.copy()
-        if depends_on:
-            query_params["depends_on"] = depends_on
-        if dependency_of:
-            query_params["dependency_of"] = dependency_of
-
-        return self._request("DELETE", f"task/{task_id}/dependency", params=query_params)
-
-    # Task Relationships - Links
     def add_task_link(
         self,
         task_id: str,
         links_to: str,
         **params
     ) -> Dict[str, Any]:
-        """
-        Link two tasks together (simple relationship).
-
-        Args:
-            task_id: The task to link from
-            links_to: The task to link to
-            **params: Additional query parameters (custom_task_ids, team_id)
-
-        Returns:
-            Updated task object with linked_tasks field
-        """
-        return self._request("POST", f"task/{task_id}/link/{links_to}", params=params)
+        """Link two tasks together (simple relationship)."""
+        return self.tasks.add_task_link(task_id, links_to, **params)
 
     def delete_task_link(
         self,
@@ -551,465 +415,547 @@ class ClickUpClient:
         links_to: str,
         **params
     ) -> Dict[str, Any]:
-        """
-        Remove a link between two tasks.
+        """Remove a link between two tasks."""
+        return self.tasks.delete_task_link(task_id, links_to, **params)
 
-        Args:
-            task_id: The task to unlink from
-            links_to: The task to unlink
-            **params: Additional query parameters (custom_task_ids, team_id)
+    # List endpoints - Delegated to ListsAPI
+    def get_list(self, list_id: str) -> Dict[str, Any]:
+        """Get list by ID."""
+        return self.lists.get_list(list_id)
 
-        Returns:
-            Updated task object with linked_tasks field
-        """
-        return self._request("DELETE", f"task/{task_id}/link/{links_to}", params=params)
+    def create_list(self, folder_id: str, name: str, **list_data) -> Dict[str, Any]:
+        """Create a new list."""
+        return self.lists.create_list(folder_id, name, **list_data)
 
-    # Docs API (v3 endpoints)
+    def get_folder_lists(self, folder_id: str, archived: bool = False) -> Dict[str, Any]:
+        """Get all lists in a folder."""
+        return self.lists.get_folder_lists(folder_id, archived)
+
+    def get_space_lists(self, space_id: str, archived: bool = False) -> Dict[str, Any]:
+        """Get folderless lists in a space."""
+        return self.lists.get_space_lists(space_id, archived)
+
+    def create_space_list(self, space_id: str, name: str, **list_data) -> Dict[str, Any]:
+        """Create a folderless list in a space."""
+        return self.lists.create_space_list(space_id, name, **list_data)
+
+    def delete_list(self, list_id: str) -> Dict[str, Any]:
+        """Delete a list."""
+        return self.lists.delete_list(list_id)
+
+    def add_task_to_list(self, list_id: str, task_id: str) -> Dict[str, Any]:
+        """Add a task to a list."""
+        return self.lists.add_task_to_list(list_id, task_id)
+
+    def remove_task_from_list(self, list_id: str, task_id: str) -> Dict[str, Any]:
+        """Remove a task from a list."""
+        return self.lists.remove_task_from_list(list_id, task_id)
+
+    def create_list_from_template_in_folder(self, folder_id: str, template_id: str, **list_data) -> Dict[str, Any]:
+        """Create a list from a template in a folder."""
+        return self.lists.create_list_from_template_in_folder(folder_id, template_id, **list_data)
+
+    def create_list_from_template_in_space(self, space_id: str, template_id: str, **list_data) -> Dict[str, Any]:
+        """Create a list from a template in a space."""
+        return self.lists.create_list_from_template_in_space(space_id, template_id, **list_data)
+
+    def update_list(self, list_id: str, **updates) -> Dict[str, Any]:
+        """Update a list."""
+        return self.lists.update_list(list_id, **updates)
+
+    # Folder endpoints - Delegated to FoldersAPI
+    def get_folder(self, folder_id: str) -> Dict[str, Any]:
+        """Get folder by ID."""
+        return self.folders.get_folder(folder_id)
+
+    def create_folder(self, space_id: str, name: str) -> Dict[str, Any]:
+        """Create a new folder."""
+        return self.folders.create_folder(space_id, name)
+
+    def update_folder(self, folder_id: str, **updates) -> Dict[str, Any]:
+        """Update a folder."""
+        return self.folders.update_folder(folder_id, **updates)
+
+    def get_space_folders(self, space_id: str, archived: bool = False) -> Dict[str, Any]:
+        """Get all folders in a space."""
+        return self.folders.get_space_folders(space_id, archived)
+
+    def delete_folder(self, folder_id: str) -> Dict[str, Any]:
+        """Delete a folder."""
+        return self.folders.delete_folder(folder_id)
+
+    def create_folder_from_template(self, space_id: str, template_id: str, **folder_data) -> Dict[str, Any]:
+        """Create a folder from a template."""
+        return self.folders.create_folder_from_template(space_id, template_id, **folder_data)
+
+    # Space endpoints - Delegated to SpacesAPI
+    def get_space(self, space_id: str) -> Dict[str, Any]:
+        """Get space by ID."""
+        return self.spaces.get_space(space_id)
+
+    def get_team_spaces(self, team_id: str, archived: bool = False) -> Dict[str, Any]:
+        """Get all spaces in a team."""
+        return self.spaces.get_team_spaces(team_id, archived)
+
+    def create_space(self, team_id: str, name: str, **space_data) -> Dict[str, Any]:
+        """Create a new space."""
+        return self.spaces.create_space(team_id, name, **space_data)
+
+    def update_space(self, space_id: str, **updates) -> Dict[str, Any]:
+        """Update a space."""
+        return self.spaces.update_space(space_id, **updates)
+
+    def delete_space(self, space_id: str) -> Dict[str, Any]:
+        """Delete a space."""
+        return self.spaces.delete_space(space_id)
+
+    # Tags - Delegated to TagsAPI
+    def get_space_tags(self, space_id: str) -> Dict[str, Any]:
+        """Get all tags in a space."""
+        return self.tags.get_space_tags(space_id)
+
+    def create_space_tag(self, space_id: str, tag_name: str, tag_fg: str = "#000000", tag_bg: str = "#FFFFFF") -> Dict[str, Any]:
+        """Create a tag in a space."""
+        return self.tags.create_space_tag(space_id, tag_name, tag_fg, tag_bg)
+
+    def update_space_tag(self, space_id: str, tag_name: str, **tag_updates) -> Dict[str, Any]:
+        """Update a tag in a space."""
+        return self.tags.update_space_tag(space_id, tag_name, **tag_updates)
+
+    def delete_space_tag(self, space_id: str, tag_name: str) -> Dict[str, Any]:
+        """Delete a tag from a space."""
+        return self.tags.delete_space_tag(space_id, tag_name)
+
+    # Workspace hierarchy - Delegated to WorkspacesAPI
+    def get_workspace_hierarchy(self, team_id: str) -> Dict[str, Any]:
+        """Get complete workspace hierarchy."""
+        return self.workspaces.get_workspace_hierarchy(team_id)
+
+    # Custom Fields endpoints - Delegated to CustomFieldsAPI
+    def get_accessible_custom_fields(self, list_id: str) -> Dict[str, Any]:
+        """Get custom fields accessible from a list."""
+        return self.custom_fields.get_accessible_custom_fields(list_id)
+
+    def set_custom_field_value(self, task_id: str, field_id: str, value: Any) -> Dict[str, Any]:
+        """Set custom field value on a task."""
+        return self.custom_fields.set_custom_field_value(task_id, field_id, value)
+
+    def remove_custom_field_value(self, task_id: str, field_id: str) -> Dict[str, Any]:
+        """Remove custom field value from a task."""
+        return self.custom_fields.remove_custom_field_value(task_id, field_id)
+
+    # Checklist endpoints - Delegated to ChecklistsAPI
+    def create_checklist(self, task_id: str, name: str) -> Dict[str, Any]:
+        """Create a checklist on a task."""
+        return self.checklists.create_checklist(task_id, name)
+
+    def update_checklist(self, checklist_id: str, **updates) -> Dict[str, Any]:
+        """Update a checklist."""
+        return self.checklists.update_checklist(checklist_id, **updates)
+
+    def delete_checklist(self, checklist_id: str) -> Dict[str, Any]:
+        """Delete a checklist."""
+        return self.checklists.delete_checklist(checklist_id)
+
+    def create_checklist_item(self, checklist_id: str, name: str, **item_data) -> Dict[str, Any]:
+        """Create a checklist item."""
+        return self.checklists.create_checklist_item(checklist_id, name, **item_data)
+
+    def update_checklist_item(self, checklist_id: str, checklist_item_id: str, **updates) -> Dict[str, Any]:
+        """Update a checklist item."""
+        return self.checklists.update_checklist_item(checklist_id, checklist_item_id, **updates)
+
+    def delete_checklist_item(self, checklist_id: str, checklist_item_id: str) -> Dict[str, Any]:
+        """Delete a checklist item."""
+        return self.checklists.delete_checklist_item(checklist_id, checklist_item_id)
+
+    # Comments - Delegated to CommentsAPI
+    def create_task_comment(self, task_id: str, comment_text: str) -> Dict[str, Any]:
+        """Add comment to a task."""
+        return self.comments.create_task_comment(task_id, comment_text)
+
+    def get_task_comments(self, task_id: str) -> Dict[str, Any]:
+        """Get all comments on a task."""
+        return self.comments.get_task_comments(task_id)
+
+    # Members - Delegated to MembersAPI
+    def get_task_members(self, task_id: str) -> Dict[str, Any]:
+        """Get task members."""
+        return self.members.get_task_members(task_id)
+
+    def get_list_members(self, list_id: str) -> Dict[str, Any]:
+        """Get list members."""
+        return self.members.get_list_members(list_id)
+
+    # Search - Delegated to SearchAPI
+    def search(self, team_id: str, query: str, **filters) -> Dict[str, Any]:
+        """Search workspace."""
+        return self.search_api.search(team_id, query, **filters)
+
+    # Time tracking - Delegated to TimeTrackingAPI
+    def get_time_entries(self, team_id: str, **params) -> Dict[str, Any]:
+        """Get time entries."""
+        return self.time_tracking.get_time_entries(team_id, **params)
+
+    def create_time_entry(self, team_id: str, **entry_data) -> Dict[str, Any]:
+        """Create a time entry."""
+        return self.time_tracking.create_time_entry(team_id, **entry_data)
+
+    def get_time_entry(self, team_id: str, timer_id: str) -> Dict[str, Any]:
+        """Get a singular time entry."""
+        return self.time_tracking.get_time_entry(team_id, timer_id)
+
+    def update_time_entry(self, team_id: str, timer_id: str, **updates) -> Dict[str, Any]:
+        """Update a time entry."""
+        return self.time_tracking.update_time_entry(team_id, timer_id, **updates)
+
+    def delete_time_entry(self, team_id: str, timer_id: str) -> Dict[str, Any]:
+        """Delete a time entry."""
+        return self.time_tracking.delete_time_entry(team_id, timer_id)
+
+    def get_time_entry_history(self, team_id: str, timer_id: str) -> Dict[str, Any]:
+        """Get time entry history."""
+        return self.time_tracking.get_time_entry_history(team_id, timer_id)
+
+    def get_current_time_entry(self, team_id: str) -> Dict[str, Any]:
+        """Get running time entry."""
+        return self.time_tracking.get_current_time_entry(team_id)
+
+    def get_time_entry_tags(self, team_id: str) -> Dict[str, Any]:
+        """Get all tags from time entries."""
+        return self.time_tracking.get_time_entry_tags(team_id)
+
+    def add_time_entry_tags(self, team_id: str, **tag_data) -> Dict[str, Any]:
+        """Add tags from time entries."""
+        return self.time_tracking.add_time_entry_tags(team_id, **tag_data)
+
+    def update_time_entry_tags(self, team_id: str, **tag_data) -> Dict[str, Any]:
+        """Change tag names from time entries."""
+        return self.time_tracking.update_time_entry_tags(team_id, **tag_data)
+
+    def delete_time_entry_tags(self, team_id: str, **params) -> Dict[str, Any]:
+        """Remove tags from time entries."""
+        return self.time_tracking.delete_time_entry_tags(team_id, **params)
+
+    def start_time_entry(self, team_id: str, **entry_data) -> Dict[str, Any]:
+        """Start a time entry."""
+        return self.time_tracking.start_time_entry(team_id, **entry_data)
+
+    def stop_time_entry(self, team_id: str, **params) -> Dict[str, Any]:
+        """Stop a time entry."""
+        return self.time_tracking.stop_time_entry(team_id, **params)
+
+    # Docs API (v3 endpoints) - Delegated to DocsAPI
     def get_workspace_docs(self, workspace_id: str, **params) -> Dict[str, Any]:
         """Get all docs in a workspace."""
-        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs", params=params)
+        return self.docs.get_workspace_docs(workspace_id, **params)
 
     def create_doc(self, workspace_id: str, name: str, **doc_data) -> Dict[str, Any]:
         """Create a new doc in workspace."""
-        data = {"name": name, **doc_data}
-        return self._request("POST", f"/v3/workspaces/{workspace_id}/docs", json=data)
+        return self.docs.create_doc(workspace_id, name, **doc_data)
 
     def get_doc(self, workspace_id: str, doc_id: str) -> Dict[str, Any]:
         """Get doc by ID."""
-        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}")
+        return self.docs.get_doc(workspace_id, doc_id)
 
     def get_doc_pages(self, workspace_id: str, doc_id: str, **params) -> Dict[str, Any]:
         """Get all pages belonging to a doc."""
-        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages", params=params)
+        return self.docs.get_doc_pages(workspace_id, doc_id, **params)
 
     def create_page(self, workspace_id: str, doc_id: str, name: str, content: Optional[str] = None, **page_data) -> Dict[str, Any]:
         """Create a new page in a doc."""
-        data = {"name": name}
-        if content:
-            data["content"] = content
-        data.update(page_data)
-        return self._request("POST", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages", json=data)
+        return self.docs.create_page(workspace_id, doc_id, name, content, **page_data)
 
     def get_page(self, workspace_id: str, doc_id: str, page_id: str) -> Dict[str, Any]:
         """Get page by ID."""
-        return self._request("GET", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/{page_id}")
+        return self.docs.get_page(workspace_id, doc_id, page_id)
 
     def update_page(self, workspace_id: str, doc_id: str, page_id: str, **updates) -> Dict[str, Any]:
         """Update a page."""
-        return self._request("PUT", f"/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/{page_id}", json=updates)
+        return self.docs.update_page(workspace_id, doc_id, page_id, **updates)
 
-    # Attachments
+    # Attachments - Delegated to AttachmentsAPI
     def create_task_attachment(self, task_id: str, file_path: str, **params) -> Dict[str, Any]:
-        """
-        Create task attachment by uploading a file.
+        """Create task attachment by uploading a file."""
+        return self.attachments.create_task_attachment(task_id, file_path, **params)
 
-        Args:
-            task_id: Task ID
-            file_path: Path to file to upload
-            **params: Additional query parameters (custom_task_ids, team_id)
-
-        Returns:
-            Attachment info
-
-        Note:
-            This method requires the file to be accessible on the local filesystem.
-        """
-        import os
-        from pathlib import Path
-
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
-
-        file_name = Path(file_path).name
-
-        # Temporarily remove Content-Type header for multipart/form-data
-        original_headers = self.session.headers.copy()
-        self.session.headers.pop('Content-Type', None)
-
-        try:
-            url = f"{self.BASE_URL}/task/{task_id}/attachment"
-            self.rate_limiter.acquire()
-
-            with open(file_path, 'rb') as f:
-                files = {'attachment': (file_name, f)}
-                response = self.session.post(
-                    url,
-                    files=files,
-                    params=params,
-                    timeout=self.timeout
-                )
-
-            if response.status_code in [200, 201]:
-                return response.json()
-            elif response.status_code == 401:
-                # Extract actual error message from API response
-                try:
-                    error_data = response.json()
-                    message = error_data.get("err", error_data.get("error", "Invalid or expired API token"))
-                except:
-                    message = response.text or "Invalid or expired API token"
-                raise ClickUpAuthError(message)
-            elif response.status_code == 404:
-                raise ClickUpNotFoundError("task", task_id)
-            else:
-                try:
-                    error_data = response.json()
-                    message = error_data.get("err", error_data.get("error", "Unknown error"))
-                except:
-                    message = response.text or "Unknown error"
-                raise ClickUpAPIError(response.status_code, message)
-        finally:
-            # Restore Content-Type header
-            self.session.headers.update(original_headers)
-
-    # Authorization
+    # Authorization - Delegated to AuthAPI
     def get_access_token(self, client_id: str, client_secret: str, code: str) -> Dict[str, Any]:
-        """
-        Get OAuth access token.
-
-        Args:
-            client_id: OAuth app client ID
-            client_secret: OAuth app client secret
-            code: Authorization code from OAuth flow
-
-        Returns:
-            Access token response with access_token field
-        """
-        return self._request("POST", "oauth/token", json={
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "code": code
-        })
+        """Get OAuth access token."""
+        return self.auth.get_access_token(client_id, client_secret, code)
 
     def get_authorized_user(self) -> Dict[str, Any]:
-        """
-        Get currently authenticated user info.
+        """Get currently authenticated user info."""
+        return self.auth.get_authorized_user()
 
-        Returns:
-            User object with id, username, email, etc.
-        """
-        return self._request("GET", "user")
-
-    # Comments - Extended
+    # Comments - Extended - Delegated to CommentsAPI
     def get_view_comments(self, view_id: str, **params) -> Dict[str, Any]:
         """Get chat comments for a view."""
-        return self._request("GET", f"view/{view_id}/comment", params=params)
+        return self.comments.get_view_comments(view_id, **params)
 
     def create_view_comment(self, view_id: str, comment_text: str, notify_all: bool = False) -> Dict[str, Any]:
         """Create a chat comment on a view."""
-        return self._request("POST", f"view/{view_id}/comment", json={
-            "comment_text": comment_text,
-            "notify_all": notify_all
-        })
+        return self.comments.create_view_comment(view_id, comment_text, notify_all)
 
     def get_list_comments(self, list_id: str, **params) -> Dict[str, Any]:
         """Get comments for a list."""
-        return self._request("GET", f"list/{list_id}/comment", params=params)
+        return self.comments.get_list_comments(list_id, **params)
 
     def create_list_comment(self, list_id: str, comment_text: str, notify_all: bool = False) -> Dict[str, Any]:
         """Create a comment on a list."""
-        return self._request("POST", f"list/{list_id}/comment", json={
-            "comment_text": comment_text,
-            "notify_all": notify_all
-        })
+        return self.comments.create_list_comment(list_id, comment_text, notify_all)
 
     def update_comment(self, comment_id: str, comment_text: str, **params) -> Dict[str, Any]:
         """Update a comment."""
-        return self._request("PUT", f"comment/{comment_id}", json={"comment_text": comment_text}, params=params)
+        return self.comments.update_comment(comment_id, comment_text, **params)
 
     def delete_comment(self, comment_id: str) -> Dict[str, Any]:
         """Delete a comment."""
-        return self._request("DELETE", f"comment/{comment_id}")
+        return self.comments.delete_comment(comment_id)
 
     def get_threaded_comments(self, comment_id: str) -> Dict[str, Any]:
         """Get threaded/reply comments for a comment."""
-        return self._request("GET", f"comment/{comment_id}/reply")
+        return self.comments.get_threaded_comments(comment_id)
 
     def create_threaded_comment(self, comment_id: str, comment_text: str, notify_all: bool = False) -> Dict[str, Any]:
         """Create a threaded reply to a comment."""
-        return self._request("POST", f"comment/{comment_id}/reply", json={
-            "comment_text": comment_text,
-            "notify_all": notify_all
-        })
+        return self.comments.create_threaded_comment(comment_id, comment_text, notify_all)
 
-    # Custom Fields - Extended
+    # Custom Fields - Extended - Delegated to CustomFieldsAPI
     def get_folder_custom_fields(self, folder_id: str) -> Dict[str, Any]:
         """Get custom fields accessible from a folder."""
-        return self._request("GET", f"folder/{folder_id}/field")
+        return self.custom_fields.get_folder_custom_fields(folder_id)
 
     def get_space_custom_fields(self, space_id: str) -> Dict[str, Any]:
         """Get custom fields accessible from a space."""
-        return self._request("GET", f"space/{space_id}/field")
+        return self.custom_fields.get_space_custom_fields(space_id)
 
     def get_workspace_custom_fields(self, team_id: str) -> Dict[str, Any]:
         """Get all custom fields in a workspace."""
-        return self._request("GET", f"team/{team_id}/field")
+        return self.custom_fields.get_workspace_custom_fields(team_id)
 
-    # Custom Task Types
+    # Custom Task Types - Delegated to TemplatesAPI
     def get_custom_task_types(self, team_id: str) -> Dict[str, Any]:
         """Get custom task types for a workspace."""
-        return self._request("GET", f"team/{team_id}/custom_item")
+        return self.templates.get_custom_task_types(team_id)
 
-    # Time Tracking - Extended
-    def update_time_entry(self, task_id: str, interval_id: str, **updates) -> Dict[str, Any]:
-        """
-        Update a time entry.
+    # Time Tracking - Extended (Legacy) - Delegated to TimeTrackingLegacyAPI
+    def get_task_time(self, task_id: str, **params) -> Dict[str, Any]:
+        """Get tracked time for a task (legacy)."""
+        return self.time_tracking_legacy.get_task_time(task_id, **params)
 
-        Args:
-            task_id: Task ID
-            interval_id: Time entry interval ID
-            **updates: Fields to update (start, end, duration, description, etc.)
+    def track_task_time(self, task_id: str, **time_data) -> Dict[str, Any]:
+        """Track time on a task (legacy)."""
+        return self.time_tracking_legacy.track_task_time(task_id, **time_data)
 
-        Returns:
-            Updated time entry
-        """
-        return self._request("PUT", f"task/{task_id}/time/{interval_id}", json=updates)
+    def update_task_time_entry(self, task_id: str, interval_id: str, **updates) -> Dict[str, Any]:
+        """Update a time entry (legacy)."""
+        return self.time_tracking_legacy.update_task_time_entry(task_id, interval_id, **updates)
 
-    def delete_time_entry(self, task_id: str, interval_id: str) -> Dict[str, Any]:
-        """Delete a time entry."""
-        return self._request("DELETE", f"task/{task_id}/time/{interval_id}")
+    def delete_task_time_entry(self, task_id: str, interval_id: str) -> Dict[str, Any]:
+        """Delete a time entry (legacy)."""
+        return self.time_tracking_legacy.delete_task_time_entry(task_id, interval_id)
 
-    # User Groups
+    # User Groups - Delegated to GroupsAPI
     def create_user_group(self, team_id: str, name: str, member_ids: Optional[List[int]] = None) -> Dict[str, Any]:
-        """
-        Create a user group in a workspace.
-
-        Args:
-            team_id: Workspace/team ID
-            name: Group name
-            member_ids: List of user IDs to add to the group
-
-        Returns:
-            Created group object
-        """
-        data = {"name": name}
-        if member_ids:
-            data["members"] = member_ids
-        return self._request("POST", f"team/{team_id}/group", json=data)
+        """Create a user group in a workspace."""
+        return self.groups.create_user_group(team_id, name, member_ids)
 
     def update_user_group(self, group_id: str, **updates) -> Dict[str, Any]:
-        """
-        Update a user group.
-
-        Args:
-            group_id: Group ID
-            **updates: Fields to update (name, members, etc.)
-
-        Returns:
-            Updated group object
-        """
-        return self._request("PUT", f"group/{group_id}", json=updates)
+        """Update a user group."""
+        return self.groups.update_user_group(group_id, **updates)
 
     def delete_user_group(self, group_id: str) -> Dict[str, Any]:
         """Delete a user group."""
-        return self._request("DELETE", f"group/{group_id}")
+        return self.groups.delete_user_group(group_id)
 
     def get_user_groups(self, **params) -> Dict[str, Any]:
-        """
-        Get user groups.
+        """Get user groups."""
+        return self.groups.get_user_groups(**params)
 
-        Args:
-            **params: Query parameters (team_id, group_ids)
-
-        Returns:
-            Groups list
-        """
-        return self._request("GET", "group", params=params)
-
-    # Users
+    # Users - Delegated to UsersAPI
     def invite_user_to_workspace(self, team_id: str, email: str, **user_data) -> Dict[str, Any]:
-        """
-        Invite user to workspace.
-
-        Args:
-            team_id: Workspace/team ID
-            email: User email to invite
-            **user_data: Additional user data (admin, custom_role_id)
-
-        Returns:
-            Invited user object
-        """
-        data = {"email": email, **user_data}
-        return self._request("POST", f"team/{team_id}/user", json=data)
+        """Invite user to workspace."""
+        return self.users.invite_user_to_workspace(team_id, email, **user_data)
 
     def get_user(self, team_id: str, user_id: str) -> Dict[str, Any]:
         """Get user information in a workspace."""
-        return self._request("GET", f"team/{team_id}/user/{user_id}")
+        return self.users.get_user(team_id, user_id)
 
     def edit_user_on_workspace(self, team_id: str, user_id: str, **updates) -> Dict[str, Any]:
-        """
-        Edit user on workspace.
-
-        Args:
-            team_id: Workspace/team ID
-            user_id: User ID
-            **updates: Fields to update (username, admin, custom_role_id)
-
-        Returns:
-            Updated user object
-        """
-        return self._request("PUT", f"team/{team_id}/user/{user_id}", json=updates)
+        """Edit user on workspace."""
+        return self.users.edit_user_on_workspace(team_id, user_id, **updates)
 
     def remove_user_from_workspace(self, team_id: str, user_id: str) -> Dict[str, Any]:
         """Remove user from workspace."""
-        return self._request("DELETE", f"team/{team_id}/user/{user_id}")
+        return self.users.remove_user_from_workspace(team_id, user_id)
 
-    # Views
+    # Views - Delegated to ViewsAPI
     def get_workspace_views(self, team_id: str) -> Dict[str, Any]:
         """Get Everything level views for a workspace."""
-        return self._request("GET", f"team/{team_id}/view")
+        return self.views.get_workspace_views(team_id)
 
     def create_workspace_view(self, team_id: str, name: str, type: str, **view_data) -> Dict[str, Any]:
-        """
-        Create Everything level view for a workspace.
-
-        Args:
-            team_id: Workspace/team ID
-            name: View name
-            type: View type (list, board, calendar, etc.)
-            **view_data: Additional view configuration
-
-        Returns:
-            Created view object
-        """
-        data = {"name": name, "type": type, **view_data}
-        return self._request("POST", f"team/{team_id}/view", json=data)
+        """Create Everything level view for a workspace."""
+        return self.views.create_workspace_view(team_id, name, type, **view_data)
 
     def get_space_views(self, space_id: str) -> Dict[str, Any]:
         """Get views for a space."""
-        return self._request("GET", f"space/{space_id}/view")
+        return self.views.get_space_views(space_id)
 
     def create_space_view(self, space_id: str, name: str, type: str, **view_data) -> Dict[str, Any]:
-        """
-        Create view for a space.
-
-        Args:
-            space_id: Space ID
-            name: View name
-            type: View type (list, board, calendar, etc.)
-            **view_data: Additional view configuration
-
-        Returns:
-            Created view object
-        """
-        data = {"name": name, "type": type, **view_data}
-        return self._request("POST", f"space/{space_id}/view", json=data)
+        """Create view for a space."""
+        return self.views.create_space_view(space_id, name, type, **view_data)
 
     def get_folder_views(self, folder_id: str) -> Dict[str, Any]:
         """Get views for a folder."""
-        return self._request("GET", f"folder/{folder_id}/view")
+        return self.views.get_folder_views(folder_id)
 
     def create_folder_view(self, folder_id: str, name: str, type: str, **view_data) -> Dict[str, Any]:
-        """
-        Create view for a folder.
-
-        Args:
-            folder_id: Folder ID
-            name: View name
-            type: View type (list, board, calendar, etc.)
-            **view_data: Additional view configuration
-
-        Returns:
-            Created view object
-        """
-        data = {"name": name, "type": type, **view_data}
-        return self._request("POST", f"folder/{folder_id}/view", json=data)
+        """Create view for a folder."""
+        return self.views.create_folder_view(folder_id, name, type, **view_data)
 
     def get_list_views(self, list_id: str) -> Dict[str, Any]:
         """Get views for a list."""
-        return self._request("GET", f"list/{list_id}/view")
+        return self.views.get_list_views(list_id)
 
     def create_list_view(self, list_id: str, name: str, type: str, **view_data) -> Dict[str, Any]:
-        """
-        Create view for a list.
-
-        Args:
-            list_id: List ID
-            name: View name
-            type: View type (list, board, calendar, etc.)
-            **view_data: Additional view configuration
-
-        Returns:
-            Created view object
-        """
-        data = {"name": name, "type": type, **view_data}
-        return self._request("POST", f"list/{list_id}/view", json=data)
+        """Create view for a list."""
+        return self.views.create_list_view(list_id, name, type, **view_data)
 
     def get_view(self, view_id: str) -> Dict[str, Any]:
         """Get view by ID."""
-        return self._request("GET", f"view/{view_id}")
+        return self.views.get_view(view_id)
 
     def update_view(self, view_id: str, **updates) -> Dict[str, Any]:
         """Update a view."""
-        return self._request("PUT", f"view/{view_id}", json=updates)
+        return self.views.update_view(view_id, **updates)
 
     def delete_view(self, view_id: str) -> Dict[str, Any]:
         """Delete a view."""
-        return self._request("DELETE", f"view/{view_id}")
+        return self.views.delete_view(view_id)
 
     def get_view_tasks(self, view_id: str, **params) -> Dict[str, Any]:
-        """
-        Get tasks from a view.
+        """Get tasks from a view."""
+        return self.views.get_view_tasks(view_id, **params)
 
-        Args:
-            view_id: View ID
-            **params: Query parameters (page, order_by, etc.)
-
-        Returns:
-            Tasks from the view
-        """
-        return self._request("GET", f"view/{view_id}/task", params=params)
-
-    # Webhooks
+    # Webhooks - Delegated to WebhooksAPI
     def get_webhooks(self, team_id: str) -> Dict[str, Any]:
         """Get all webhooks for a workspace."""
-        return self._request("GET", f"team/{team_id}/webhook")
+        return self.webhooks.get_webhooks(team_id)
 
     def create_webhook(self, team_id: str, endpoint: str, events: List[str], **webhook_data) -> Dict[str, Any]:
-        """
-        Create a webhook.
-
-        Args:
-            team_id: Workspace/team ID
-            endpoint: Webhook URL endpoint
-            events: List of event types to subscribe to
-            **webhook_data: Additional webhook configuration (space_id, folder_id, list_id, task_id)
-
-        Returns:
-            Created webhook object
-        """
-        data = {"endpoint": endpoint, "events": events, **webhook_data}
-        return self._request("POST", f"team/{team_id}/webhook", json=data)
+        """Create a webhook."""
+        return self.webhooks.create_webhook(team_id, endpoint, events, **webhook_data)
 
     def update_webhook(self, webhook_id: str, **updates) -> Dict[str, Any]:
-        """
-        Update a webhook.
-
-        Args:
-            webhook_id: Webhook ID
-            **updates: Fields to update (endpoint, events, status)
-
-        Returns:
-            Updated webhook object
-        """
-        return self._request("PUT", f"webhook/{webhook_id}", json=updates)
+        """Update a webhook."""
+        return self.webhooks.update_webhook(webhook_id, **updates)
 
     def delete_webhook(self, webhook_id: str) -> Dict[str, Any]:
         """Delete a webhook."""
-        return self._request("DELETE", f"webhook/{webhook_id}")
+        return self.webhooks.delete_webhook(webhook_id)
 
-    # Workspaces - Extended
+    # Workspaces - Extended - Delegated to WorkspacesAPI
     def get_authorized_workspaces(self) -> Dict[str, Any]:
         """Get all authorized workspaces/teams for the current user."""
-        return self._request("GET", "team")
+        return self.workspaces.get_authorized_workspaces()
 
     def get_workspace_seats(self, team_id: str) -> Dict[str, Any]:
         """Get workspace seat information."""
-        return self._request("GET", f"team/{team_id}/seats")
+        return self.workspaces.get_workspace_seats(team_id)
 
     def get_workspace_plan(self, team_id: str) -> Dict[str, Any]:
         """Get workspace plan details."""
-        return self._request("GET", f"team/{team_id}/plan")
+        return self.workspaces.get_workspace_plan(team_id)
+
+    def get_shared_hierarchy(self, team_id: str) -> Dict[str, Any]:
+        """Get shared hierarchy."""
+        return self.workspaces.get_shared_hierarchy(team_id)
+
+    # Roles - Delegated to RolesAPI
+    def get_custom_roles(self, team_id: str) -> Dict[str, Any]:
+        """Get custom roles for a workspace."""
+        return self.roles.get_custom_roles(team_id)
+
+    # Templates - Delegated to TemplatesAPI
+    def get_task_templates(self, team_id: str) -> Dict[str, Any]:
+        """Get task templates for a workspace."""
+        return self.templates.get_task_templates(team_id)
+
+    # Goals - Delegated to GoalsAPI
+    def get_goals(self, team_id: str, **params) -> Dict[str, Any]:
+        """Get goals for a workspace."""
+        return self.goals.get_goals(team_id, **params)
+
+    def create_goal(self, team_id: str, **goal_data) -> Dict[str, Any]:
+        """Create a goal."""
+        return self.goals.create_goal(team_id, **goal_data)
+
+    def get_goal(self, goal_id: str) -> Dict[str, Any]:
+        """Get a goal by ID."""
+        return self.goals.get_goal(goal_id)
+
+    def update_goal(self, goal_id: str, **updates) -> Dict[str, Any]:
+        """Update a goal."""
+        return self.goals.update_goal(goal_id, **updates)
+
+    def delete_goal(self, goal_id: str) -> Dict[str, Any]:
+        """Delete a goal."""
+        return self.goals.delete_goal(goal_id)
+
+    def create_key_result(self, goal_id: str, **key_result_data) -> Dict[str, Any]:
+        """Create a key result for a goal."""
+        return self.goals.create_key_result(goal_id, **key_result_data)
+
+    def update_key_result(self, key_result_id: str, **updates) -> Dict[str, Any]:
+        """Update a key result."""
+        return self.goals.update_key_result(key_result_id, **updates)
+
+    def delete_key_result(self, key_result_id: str) -> Dict[str, Any]:
+        """Delete a key result."""
+        return self.goals.delete_key_result(key_result_id)
+
+    # Guests - Delegated to GuestsAPI
+    def invite_guest_to_workspace(self, team_id: str, **guest_data) -> Dict[str, Any]:
+        """Invite a guest to workspace."""
+        return self.guests.invite_guest_to_workspace(team_id, **guest_data)
+
+    def get_guest(self, team_id: str, guest_id: str) -> Dict[str, Any]:
+        """Get a guest."""
+        return self.guests.get_guest(team_id, guest_id)
+
+    def update_guest(self, team_id: str, guest_id: str, **updates) -> Dict[str, Any]:
+        """Edit a guest on workspace."""
+        return self.guests.update_guest(team_id, guest_id, **updates)
+
+    def remove_guest_from_workspace(self, team_id: str, guest_id: str) -> Dict[str, Any]:
+        """Remove a guest from workspace."""
+        return self.guests.remove_guest_from_workspace(team_id, guest_id)
+
+    def add_guest_to_task(self, task_id: str, guest_id: str, **params) -> Dict[str, Any]:
+        """Add a guest to a task."""
+        return self.guests.add_guest_to_task(task_id, guest_id, **params)
+
+    def remove_guest_from_task(self, task_id: str, guest_id: str, **params) -> Dict[str, Any]:
+        """Remove a guest from a task."""
+        return self.guests.remove_guest_from_task(task_id, guest_id, **params)
+
+    def add_guest_to_list(self, list_id: str, guest_id: str) -> Dict[str, Any]:
+        """Add a guest to a list."""
+        return self.guests.add_guest_to_list(list_id, guest_id)
+
+    def remove_guest_from_list(self, list_id: str, guest_id: str) -> Dict[str, Any]:
+        """Remove a guest from a list."""
+        return self.guests.remove_guest_from_list(list_id, guest_id)
+
+    def add_guest_to_folder(self, folder_id: str, guest_id: str) -> Dict[str, Any]:
+        """Add a guest to a folder."""
+        return self.guests.add_guest_to_folder(folder_id, guest_id)
+
+    def remove_guest_from_folder(self, folder_id: str, guest_id: str) -> Dict[str, Any]:
+        """Remove a guest from a folder."""
+        return self.guests.remove_guest_from_folder(folder_id, guest_id)
 
     def get_token_source(self) -> str:
         """
