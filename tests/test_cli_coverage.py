@@ -42,7 +42,7 @@ class TestContainerCommand(unittest.TestCase):
     @patch('clickup_framework.cli.get_list_statuses', side_effect=mock_get_list_statuses_empty)
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.container.DisplayManager')
     def test_container_command_success(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
         """Test container command with valid input."""
         # Setup mocks
@@ -101,7 +101,7 @@ class TestContainerCommand(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.container.DisplayManager')
     def test_container_command_with_preset(self, mock_display_mgr, mock_context, mock_client):
         """Test container command with preset option."""
         mock_context_inst = Mock()
@@ -140,7 +140,7 @@ class TestFlatCommand(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.flat.DisplayManager')
     def test_flat_command_success(self, mock_display_mgr, mock_context, mock_client):
         """Test flat command with valid input."""
         mock_context_inst = Mock()
@@ -181,7 +181,7 @@ class TestFlatCommand(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.flat.DisplayManager')
     def test_flat_command_no_header(self, mock_display_mgr, mock_context, mock_client):
         """Test flat command without header."""
         mock_context_inst = Mock()
@@ -226,7 +226,7 @@ class TestDetailCommand(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.detail.DisplayManager')
     def test_detail_command_with_list(self, mock_display_mgr, mock_context, mock_client):
         """Test detail command with list ID provided."""
         mock_context_inst = Mock()
@@ -269,7 +269,7 @@ class TestDetailCommand(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.detail.DisplayManager')
     def test_detail_command_without_list(self, mock_display_mgr, mock_context, mock_client):
         """Test detail command without list ID."""
         mock_context_inst = Mock()
@@ -330,7 +330,7 @@ class TestFilterCommandExtended(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_priority(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with priority filter."""
         mock_context_inst = Mock()
@@ -375,7 +375,7 @@ class TestFilterCommandExtended(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_tags(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with tags filter."""
         mock_context_inst = Mock()
@@ -421,7 +421,7 @@ class TestFilterCommandExtended(unittest.TestCase):
 
     @patch('clickup_framework.cli.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_assignee(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with assignee filter."""
         mock_context_inst = Mock()
@@ -587,6 +587,7 @@ class TestContextCommandsExtended(unittest.TestCase):
     def test_set_current_space(self, mock_context):
         """Test set_current command for space."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context.return_value = mock_context_inst
 
         args = argparse.Namespace(
@@ -608,6 +609,7 @@ class TestContextCommandsExtended(unittest.TestCase):
     def test_set_current_folder(self, mock_context):
         """Test set_current command for folder."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context.return_value = mock_context_inst
 
         args = argparse.Namespace(
@@ -629,6 +631,7 @@ class TestContextCommandsExtended(unittest.TestCase):
     def test_set_current_workspace(self, mock_context):
         """Test set_current command for workspace."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context.return_value = mock_context_inst
 
         args = argparse.Namespace(
@@ -650,6 +653,7 @@ class TestContextCommandsExtended(unittest.TestCase):
     def test_set_current_team_alias(self, mock_context):
         """Test set_current command with 'team' alias for workspace."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context.return_value = mock_context_inst
 
         args = argparse.Namespace(
@@ -772,7 +776,7 @@ class TestMainCLIExtended(unittest.TestCase):
     """Extended tests for main CLI entry point."""
 
     @patch('sys.argv', ['cli.py', 'demo', '--mode', 'container'])
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.demo.DisplayManager')
     def test_main_demo_container(self, mock_display_mgr):
         """Test main CLI with demo container command."""
         mock_display_inst = Mock()
@@ -790,7 +794,7 @@ class TestMainCLIExtended(unittest.TestCase):
         self.assertTrue(len(output) > 0)
 
     @patch('sys.argv', ['cli.py', 'demo', '--mode', 'stats'])
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.demo.DisplayManager')
     def test_main_demo_stats(self, mock_display_mgr):
         """Test main CLI with demo stats command."""
         mock_display_inst = Mock()
@@ -868,7 +872,7 @@ class TestMainCLIExtended(unittest.TestCase):
         self.assertIn("task_123", output)
 
     @patch('sys.argv', ['cli.py', 'demo', '--preset', 'minimal'])
-    @patch('clickup_framework.cli.DisplayManager')
+    @patch('clickup_framework.commands.demo.DisplayManager')
     def test_main_with_preset(self, mock_display_mgr):
         """Test main CLI with preset argument."""
         mock_display_inst = Mock()
@@ -888,7 +892,7 @@ class TestMainCLIExtended(unittest.TestCase):
 class TestAssignedTasksCommand(unittest.TestCase):
     """Test assigned_tasks_command function."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.commands.assigned_command.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     def test_assigned_tasks_with_user_and_team(self, mock_context, mock_client):
         """Test assigned command with user-id and team-id provided."""
@@ -962,7 +966,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.commands.assigned_command.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     def test_assigned_tasks_use_default_assignee(self, mock_context, mock_client):
         """Test assigned command using default assignee from context."""
@@ -996,7 +1000,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
             include_closed=False
         )
 
-    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.commands.assigned_command.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     def test_assigned_tasks_no_workspace_no_teams(self, mock_context, mock_client):
         """Test assigned command without workspace ID and no teams available."""
@@ -1020,7 +1024,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
     @patch('builtins.input', return_value='1')
-    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.commands.assigned_command.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     def test_assigned_tasks_interactive_workspace_selection(self, mock_context, mock_client, mock_input):
         """Test assigned command with interactive workspace selection."""
@@ -1063,7 +1067,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
         )
 
     @patch('builtins.input', return_value='q')
-    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.commands.assigned_command.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     def test_assigned_tasks_cancel_workspace_selection(self, mock_context, mock_client, mock_input):
         """Test assigned command cancelling workspace selection."""
@@ -1091,7 +1095,7 @@ class TestAssignedTasksCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 0)  # Cancelled, not an error
 
-    @patch('clickup_framework.cli.ClickUpClient')
+    @patch('clickup_framework.commands.assigned_command.ClickUpClient')
     @patch('clickup_framework.cli.get_context_manager')
     def test_assigned_tasks_no_tasks_found(self, mock_context, mock_client):
         """Test assigned command when no tasks are found."""
