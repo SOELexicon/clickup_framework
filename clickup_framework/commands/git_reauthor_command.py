@@ -144,21 +144,56 @@ def reauthor_command(args):
                 print("\nOperation cancelled.")
                 sys.exit(1)
 
+    # Clean up any existing backup refs from previous filter-branch runs
+    print("\n🧹 Cleaning up old filter-branch backups...")
+    try:
+        subprocess.run(
+            ['git', 'for-each-ref', '--format=%(refname)', 'refs/original/'],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False
+        )
+        # Remove backup refs if they exist
+        subprocess.run(
+            ['git', 'update-ref', '-d', 'refs/original/refs/heads/master'],
+            capture_output=True,
+            check=False
+        )
+        subprocess.run(
+            ['rm', '-rf', '.git/refs/original/'],
+            capture_output=True,
+            check=False
+        )
+        subprocess.run(
+            ['git', 'reflog', 'expire', '--expire=now', '--all'],
+            capture_output=True,
+            check=False
+        )
+        subprocess.run(
+            ['git', 'gc', '--prune=now'],
+            capture_output=True,
+            check=False
+        )
+    except Exception:
+        pass  # It's okay if cleanup fails
+
     # Prepare filter-branch command
     print("\n🔄 Rewriting git history...")
     print("This may take a while for large repositories...\n")
 
-    # Use git filter-branch to rewrite history
+    # Use git filter-branch to rewrite history with -f flag to force it
     env_filter = f'''
-        export GIT_AUTHOR_NAME="{user_name}"
-        export GIT_AUTHOR_EMAIL="{user_email}"
-        export GIT_COMMITTER_NAME="{user_name}"
-        export GIT_COMMITTER_EMAIL="{user_email}"
-    '''
+export GIT_AUTHOR_NAME="{user_name}"
+export GIT_AUTHOR_EMAIL="{user_email}"
+export GIT_COMMITTER_NAME="{user_name}"
+export GIT_COMMITTER_EMAIL="{user_email}"
+'''
 
     try:
         result = subprocess.run(
-            ['git', 'filter-branch', '--env-filter', env_filter, '--', '--all'],
+            ['git', 'filter-branch', '-f', '--env-filter', env_filter, '--', '--all'],
             capture_output=True,
             text=True,
             encoding='utf-8',
@@ -172,6 +207,7 @@ def reauthor_command(args):
                 print("⚠️  Note: Git created backup refs. This is normal.")
             else:
                 print(f"Error during git filter-branch: {result.stderr}", file=sys.stderr)
+                print(f"Stdout: {result.stdout}", file=sys.stderr)
                 sys.exit(1)
 
         print("✅ Git history rewritten successfully!")
