@@ -813,10 +813,11 @@ class TestMainCLIExtended(unittest.TestCase):
         self.assertTrue(len(output) > 0)
 
     @patch('sys.argv', ['cli.py', 'set_current', 'list', 'list_123'])
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.set_current.get_context_manager')
     def test_main_set_current(self, mock_context):
         """Test main CLI with set_current command."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context.return_value = mock_context_inst
 
         captured_output = io.StringIO()
@@ -829,10 +830,11 @@ class TestMainCLIExtended(unittest.TestCase):
         mock_context_inst.set_current_list.assert_called_once()
 
     @patch('sys.argv', ['cli.py', 'clear_current'])
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.clear_current.get_context_manager')
     def test_main_clear_current_all(self, mock_context):
         """Test main CLI with clear_current command (all)."""
         mock_context_inst = Mock()
+        mock_context_inst._save = Mock()  # Mock _save to prevent JSON serialization
         mock_context_inst.get_all.return_value = {}
         mock_context.return_value = mock_context_inst
 
@@ -846,7 +848,7 @@ class TestMainCLIExtended(unittest.TestCase):
         mock_context_inst.clear_all.assert_called_once()
 
     @patch('sys.argv', ['cli.py', 'show_current'])
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.show_current.get_context_manager')
     def test_main_show_current(self, mock_context):
         """Test main CLI with show_current command."""
         mock_context_inst = Mock()
