@@ -549,10 +549,10 @@ class TestMainCLI(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             main()
 
-        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(cm.exception.code, 0)  # Shows command tree and exits successfully
 
     @patch('sys.argv', ['cli.py', 'demo'])
-    @patch('clickup_framework.cli.demo_command')
+    @patch('clickup_framework.commands.demo.demo_command')
     def test_main_keyboard_interrupt(self, mock_demo):
         """Test main CLI handles keyboard interrupt."""
         mock_demo.side_effect = KeyboardInterrupt()
