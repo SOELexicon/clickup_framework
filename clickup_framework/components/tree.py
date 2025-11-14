@@ -83,25 +83,15 @@ class TreeFormatter:
 
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
-                # Continuation lines (descriptions, dates, etc.) should align with child level
-                # to maintain proper visual connection from parent through content to children
-                # Note: formatted lines have 2 leading spaces, so we add pipe + 1 space
-                if children:
-                    continuation_prefix = child_prefix + "│ "  # Align with child level + pipe (only if has children)
-                else:
-                    continuation_prefix = child_prefix + "  "  # Align with child level, no pipe for leaf tasks
+                # Continuation lines (descriptions, dates, etc.) should be indented
+                # to align under the task content, not as tree nodes
+                # These are metadata lines, not tree structure
+                continuation_prefix = prefix + "      "  # 6 spaces: branch indent (4) + content indent (2)
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
 
             if children:
-                # Add blank separator line before children if there was multi-line content
-                if len(formatted_lines) > 1:
-                    # Blank line should show pipe structure at child level
-                    # This matches what child_prefix is for the children
-                    blank_line = child_prefix + "│"  # child level + pipe
-                    lines.append(blank_line)
-
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
                     # Show truncation message aligned with children
@@ -153,10 +143,7 @@ class TreeFormatter:
 
         if header:
             lines.append(header)
-            if show_root_connector:
-                lines.append("│")  # Add connecting line from header to tree
-            else:
-                lines.append("")
+            lines.append("")  # Always add blank line, no connector pipe
 
         tree_lines = TreeFormatter.build_tree(
             items,

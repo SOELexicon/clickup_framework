@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch, MagicMock
 import sys
 import io
 import argparse
+from pathlib import Path
 
 from clickup_framework.cli import (
     create_format_options,
@@ -1125,6 +1126,198 @@ class TestAssignedTasksCommand(unittest.TestCase):
 
         output = captured_output.getvalue()
         self.assertIn('No tasks found', output)
+
+
+class TestPullCommand(unittest.TestCase):
+    """Test pull_command function with comprehensive coverage."""
+
+    @patch('clickup_framework.commands.gitpull_command.Path')
+    @patch('clickup_framework.commands.gitpull_command.subprocess.run')
+    def test_pull_command_success(self, mock_run, mock_path):
+        """Test pull command in a Git repository."""
+        # Mock .git directory exists
+        mock_git_dir = Mock()
+        mock_git_dir.exists.return_value = True
+        mock_path.return_value = mock_git_dir
+
+        # Mock successful git pull
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        args = argparse.Namespace()
+
+        with self.assertRaises(SystemExit) as cm:
+            from clickup_framework.commands.gitpull_command import pull_command
+            pull_command(args)
+
+        self.assertEqual(cm.exception.code, 0)
+        mock_run.assert_called_once_with(
+            ['git', 'pull', '--rebase'],
+            capture_output=False,
+            text=True
+        )
+
+    @patch('clickup_framework.commands.gitpull_command.Path')
+    def test_pull_command_not_in_git_repo(self, mock_path):
+        """Test pull command when not in a Git repository."""
+        # Mock .git directory does not exist
+        mock_git_dir = Mock()
+        mock_git_dir.exists.return_value = False
+        mock_path.return_value = mock_git_dir
+
+        args = argparse.Namespace()
+
+        captured_output = io.StringIO()
+        sys.stderr = captured_output
+
+        with self.assertRaises(SystemExit) as cm:
+            from clickup_framework.commands.gitpull_command import pull_command
+            pull_command(args)
+
+        sys.stderr = sys.__stderr__
+
+        self.assertEqual(cm.exception.code, 1)
+        self.assertIn("Not in a Git repository", captured_output.getvalue())
+
+    @patch('clickup_framework.commands.gitpull_command.Path')
+    @patch('clickup_framework.commands.gitpull_command.subprocess.run')
+    def test_pull_command_git_failure(self, mock_run, mock_path):
+        """Test pull command when git pull fails."""
+        # Mock .git directory exists
+        mock_git_dir = Mock()
+        mock_git_dir.exists.return_value = True
+        mock_path.return_value = mock_git_dir
+
+        # Mock failed git pull
+        mock_result = Mock()
+        mock_result.returncode = 1
+        mock_run.return_value = mock_result
+
+        args = argparse.Namespace()
+
+        with self.assertRaises(SystemExit) as cm:
+            from clickup_framework.commands.gitpull_command import pull_command
+            pull_command(args)
+
+        self.assertEqual(cm.exception.code, 1)
+
+
+class TestSuckCommand(unittest.TestCase):
+    """Test suck_command function with comprehensive coverage."""
+
+    @patch('clickup_framework.commands.gitsuck_command.find_git_repositories')
+    @patch('clickup_framework.commands.gitsuck_command.subprocess.run')
+    def test_suck_command_success(self, mock_run, mock_find_repos):
+        """Test suck command with multiple repositories."""
+        # Mock finding repositories
+        mock_find_repos.return_value = [
+            Path('/path/to/repo1'),
+            Path('/path/to/repo2')
+        ]
+
+        # Mock successful git pulls
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Already up to date."
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        args = argparse.Namespace()
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        with self.assertRaises(SystemExit) as cm:
+            from clickup_framework.commands.gitsuck_command import suck_command
+            suck_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        self.assertEqual(cm.exception.code, 0)
+        output = captured_output.getvalue()
+        self.assertIn("Found 2 repositories", output)
+        self.assertIn("2 successful, 0 failed", output)
+        self.assertEqual(mock_run.call_count, 2)
+
+    @patch('clickup_framework.commands.gitsuck_command.find_git_repositories')
+    def test_suck_command_no_repos_found(self, mock_find_repos):
+        """Test suck command when no repositories are found."""
+        # Mock finding no repositories
+        mock_find_repos.return_value = []
+
+        args = argparse.Namespace()
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        from clickup_framework.commands.gitsuck_command import suck_command
+        suck_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        output = captured_output.getvalue()
+        self.assertIn("No Git repositories found", output)
+
+    @patch('clickup_framework.commands.gitsuck_command.find_git_repositories')
+    @patch('clickup_framework.commands.gitsuck_command.subprocess.run')
+    def test_suck_command_partial_failure(self, mock_run, mock_find_repos):
+        """Test suck command with some repositories failing."""
+        # Mock finding repositories
+        mock_find_repos.return_value = [
+            Path('/path/to/repo1'),
+            Path('/path/to/repo2'),
+            Path('/path/to/repo3')
+        ]
+
+        # Mock mixed results
+        def run_side_effect(*args, **kwargs):
+            repo_path = kwargs.get('cwd', '')
+            if 'repo2' in str(repo_path):
+                result = Mock()
+                result.returncode = 1
+                result.stdout = ""
+                result.stderr = "fatal: unable to access repository"
+                return result
+            else:
+                result = Mock()
+                result.returncode = 0
+                result.stdout = "Already up to date."
+                result.stderr = ""
+                return result
+
+        mock_run.side_effect = run_side_effect
+
+        args = argparse.Namespace()
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        with self.assertRaises(SystemExit) as cm:
+            from clickup_framework.commands.gitsuck_command import suck_command
+            suck_command(args)
+
+        sys.stdout = sys.__stdout__
+
+        self.assertEqual(cm.exception.code, 1)
+        output = captured_output.getvalue()
+        self.assertIn("2 successful, 1 failed", output)
+        self.assertIn("Pull failed", output)
+
+    def test_find_git_repositories_function(self):
+        """Test find_git_repositories function."""
+        from clickup_framework.commands.gitsuck_command import find_git_repositories
+
+        # This will test the actual directory structure
+        # In a real git repo, it should find at least the current repo
+        repos = find_git_repositories('.')
+
+        # Verify it returns a list
+        self.assertIsInstance(repos, list)
+
+        # Each item should be a Path object
+        for repo in repos:
+            self.assertIsInstance(repo, Path)
 
 
 if __name__ == "__main__":
