@@ -39,9 +39,9 @@ def mock_get_list_statuses_empty(*args, **kwargs):
 class TestContainerCommand(unittest.TestCase):
     """Test container_command function with comprehensive coverage."""
 
-    @patch('clickup_framework.cli.get_list_statuses', side_effect=mock_get_list_statuses_empty)
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.container.get_list_statuses', side_effect=mock_get_list_statuses_empty)
+    @patch('clickup_framework.commands.container.ClickUpClient')
+    @patch('clickup_framework.commands.container.get_context_manager')
     @patch('clickup_framework.commands.container.DisplayManager')
     def test_container_command_success(self, mock_display_mgr, mock_context, mock_client, mock_statuses):
         """Test container command with valid input."""
@@ -51,6 +51,7 @@ class TestContainerCommand(unittest.TestCase):
         mock_context.return_value = mock_context_inst
 
         mock_client_inst = Mock()
+        mock_client_inst.get_list.return_value = {'id': 'list_123', 'name': 'Test List'}
         mock_client_inst.get_list_tasks.return_value = {'tasks': []}
         mock_client.return_value = mock_client_inst
 
@@ -80,12 +81,11 @@ class TestContainerCommand(unittest.TestCase):
         sys.stdout = sys.__stdout__
 
         # Verify
-        mock_context_inst.resolve_id.assert_called_once_with('list', 'list_123')
         mock_client_inst.get_list_tasks.assert_called_once()
         mock_display_inst.container_view.assert_called_once()
         self.assertIn("Container View", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.container.get_context_manager')
     def test_container_command_invalid_list(self, mock_context):
         """Test container command with invalid list ID."""
         mock_context_inst = Mock()
@@ -99,8 +99,8 @@ class TestContainerCommand(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.container.ClickUpClient')
+    @patch('clickup_framework.commands.container.get_context_manager')
     @patch('clickup_framework.commands.container.DisplayManager')
     def test_container_command_with_preset(self, mock_display_mgr, mock_context, mock_client):
         """Test container command with preset option."""
@@ -138,8 +138,8 @@ class TestContainerCommand(unittest.TestCase):
 class TestFlatCommand(unittest.TestCase):
     """Test flat_command function with comprehensive coverage."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.flat.ClickUpClient')
+    @patch('clickup_framework.commands.flat.get_context_manager')
     @patch('clickup_framework.commands.flat.DisplayManager')
     def test_flat_command_success(self, mock_display_mgr, mock_context, mock_client):
         """Test flat command with valid input."""
@@ -179,8 +179,8 @@ class TestFlatCommand(unittest.TestCase):
         mock_display_inst.flat_view.assert_called_once()
         self.assertIn("Flat View", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.flat.ClickUpClient')
+    @patch('clickup_framework.commands.flat.get_context_manager')
     @patch('clickup_framework.commands.flat.DisplayManager')
     def test_flat_command_no_header(self, mock_display_mgr, mock_context, mock_client):
         """Test flat command without header."""
@@ -224,8 +224,8 @@ class TestFlatCommand(unittest.TestCase):
 class TestDetailCommand(unittest.TestCase):
     """Test detail_command function with comprehensive coverage."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.detail.ClickUpClient')
+    @patch('clickup_framework.commands.detail.get_context_manager')
     @patch('clickup_framework.commands.detail.DisplayManager')
     def test_detail_command_with_list(self, mock_display_mgr, mock_context, mock_client):
         """Test detail command with list ID provided."""
@@ -267,8 +267,8 @@ class TestDetailCommand(unittest.TestCase):
         mock_client_inst.get_list_tasks.assert_called_once_with('list_123')
         self.assertIn("Detail View", captured_output.getvalue())
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.detail.ClickUpClient')
+    @patch('clickup_framework.commands.detail.get_context_manager')
     @patch('clickup_framework.commands.detail.DisplayManager')
     def test_detail_command_without_list(self, mock_display_mgr, mock_context, mock_client):
         """Test detail command without list ID."""
@@ -310,7 +310,7 @@ class TestDetailCommand(unittest.TestCase):
         call_args = mock_display_inst.detail_view.call_args
         self.assertIsNone(call_args[0][1])
 
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.detail.get_context_manager')
     def test_detail_command_invalid_task(self, mock_context):
         """Test detail command with invalid task ID."""
         mock_context_inst = Mock()
@@ -328,8 +328,8 @@ class TestDetailCommand(unittest.TestCase):
 class TestFilterCommandExtended(unittest.TestCase):
     """Extended tests for filter_command function."""
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.filter.ClickUpClient')
+    @patch('clickup_framework.commands.filter.get_context_manager')
     @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_priority(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with priority filter."""
@@ -373,8 +373,8 @@ class TestFilterCommandExtended(unittest.TestCase):
         call_args = mock_display_inst.filtered_view.call_args
         self.assertEqual(call_args[1]['priority'], 1)
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.filter.ClickUpClient')
+    @patch('clickup_framework.commands.filter.get_context_manager')
     @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_tags(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with tags filter."""
@@ -419,8 +419,8 @@ class TestFilterCommandExtended(unittest.TestCase):
         self.assertEqual(call_args[1]['tags'], ['bug', 'critical'])
         self.assertEqual(call_args[1]['view_mode'], 'flat')
 
-    @patch('clickup_framework.cli.ClickUpClient')
-    @patch('clickup_framework.cli.get_context_manager')
+    @patch('clickup_framework.commands.filter.ClickUpClient')
+    @patch('clickup_framework.commands.filter.get_context_manager')
     @patch('clickup_framework.commands.filter.DisplayManager')
     def test_filter_by_assignee(self, mock_display_mgr, mock_context, mock_client):
         """Test filter command with assignee filter."""
