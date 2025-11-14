@@ -76,13 +76,13 @@ class TreeFormatter:
 
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
-                # For continuation lines: align with where children would appear
-                # Note: formatted lines have 2 leading spaces, so we use 6 total chars (4 + pipe + 1)
-                # to account for the 2 built-in spaces, achieving alignment at column (prefix + 8)
-                if is_last_item and not children:
-                    continuation_prefix = prefix + "      "  # 6 spaces (no pipe for last child with no children)
+                # For continuation lines: prefix already contains all ancestor pipe structure
+                # Add pipe if item has children OR if it's a middle child (not last)
+                # Note: formatted lines have 2 leading spaces, so we add pipe + 1 space
+                if children or not is_last_item:
+                    continuation_prefix = prefix + "│ "  # Pipe + 1 space (continues to children or siblings)
                 else:
-                    continuation_prefix = prefix + "    │ "  # 4 spaces + pipe + 1 space (connects to children)
+                    continuation_prefix = prefix + "  "  # 2 spaces (last child, no children, no continuation)
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
@@ -90,21 +90,19 @@ class TreeFormatter:
             if children:
                 # Add blank separator line before children if there was multi-line content
                 if len(formatted_lines) > 1:
-                    # Blank line should align with where children will appear (at child_prefix location)
-                    # Show the continuation pipe structure that leads to children
+                    # Blank line should show pipe structure at child level
+                    # This matches what child_prefix will be for the children
                     if is_last_item:
                         blank_line = prefix + "    │"  # 4 spaces + pipe (no parent continuation)
                     else:
-                        blank_line = prefix + "│   │"  # pipe + 3 spaces + pipe (parent continuation + child continuation)
+                        blank_line = prefix + "│   │"  # parent pipe + 3 spaces + child pipe
                     lines.append(blank_line)
 
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
-                    # Show truncation message aligned with where children would appear
-                    if is_last_item:
-                        truncate_prefix = prefix + "      "  # 6 spaces to match child alignment
-                    else:
-                        truncate_prefix = prefix + "    │ "  # 4 spaces + pipe + 1 space
+                    # Show truncation message aligned with children
+                    # Add pipe + space to match continuation pattern
+                    truncate_prefix = prefix + "│ "
 
                     hidden_count = len(children)
                     truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
