@@ -40,6 +40,7 @@ from clickup_framework.commands.demo import demo_command
 from clickup_framework.commands.set_current import set_current_command
 from clickup_framework.commands.clear_current import clear_current_command
 from clickup_framework.commands.show_current import show_current_command
+from clickup_framework.commands.assigned_command import assigned_tasks_command
 
 # Configure logger
 logger = logging.getLogger(__name__)
