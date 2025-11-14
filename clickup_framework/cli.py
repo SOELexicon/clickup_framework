@@ -539,8 +539,8 @@ def main():
         # Python 3.7+: Use reconfigure method
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
-    else:
-        # Fallback for older Python versions
+    elif hasattr(sys.stdout, 'buffer'):
+        # Fallback for older Python versions (only if buffer exists)
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
