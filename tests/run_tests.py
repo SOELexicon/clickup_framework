@@ -25,6 +25,95 @@ def run_all_tests(verbosity=2):
     return result
 
 
+def save_json_reports(result):
+    """Save test results to JSON files."""
+    import json
+    from datetime import datetime
+
+    # Prepare test results data
+    tests = []
+
+    # Add failures
+    for test, traceback in result.failures:
+        tests.append({
+            'nodeid': str(test),
+            'outcome': 'failed',
+            'call': {
+                'longrepr': traceback
+            },
+            'duration': 0  # unittest doesn't track duration per test
+        })
+
+    # Add errors
+    for test, traceback in result.errors:
+        tests.append({
+            'nodeid': str(test),
+            'outcome': 'error',
+            'call': {
+                'longrepr': traceback
+            },
+            'duration': 0
+        })
+
+    # Create test report
+    test_report = {
+        'created': datetime.now().isoformat(),
+        'duration': 0,
+        'tests': tests,
+        'summary': {
+            'total': result.testsRun,
+            'passed': result.testsRun - len(result.failures) - len(result.errors),
+            'failed': len(result.failures),
+            'error': len(result.errors),
+            'skipped': len(result.skipped)
+        }
+    }
+
+    # Save test report (only failures and errors)
+    with open('test_report.json', 'w') as f:
+        json.dump(test_report, f, indent=2)
+    print(f"✓ Saved test report to test_report.json ({len(tests)} failures/errors)")
+
+    # Save summary
+    summary = {
+        'timestamp': datetime.now().isoformat(),
+        'tests_run': result.testsRun,
+        'successes': result.testsRun - len(result.failures) - len(result.errors),
+        'failures': len(result.failures),
+        'errors': len(result.errors),
+        'skipped': len(result.skipped),
+        'success': result.wasSuccessful()
+    }
+
+    with open('test_summary.json', 'w') as f:
+        json.dump(summary, f, indent=2)
+    print(f"✓ Saved test summary to test_summary.json")
+
+    # Save detailed errors to separate file
+    if result.failures or result.errors:
+        errors_data = {
+            'timestamp': datetime.now().isoformat(),
+            'failures': [
+                {
+                    'test': str(test),
+                    'traceback': traceback
+                }
+                for test, traceback in result.failures
+            ],
+            'errors': [
+                {
+                    'test': str(test),
+                    'traceback': traceback
+                }
+                for test, traceback in result.errors
+            ]
+        }
+
+        with open('test_errors.json', 'w') as f:
+            json.dump(errors_data, f, indent=2)
+        print(f"✓ Saved detailed errors to test_errors.json")
+
+
 def print_summary(result):
     """Print test summary."""
     print("\n" + "=" * 80)
@@ -82,6 +171,11 @@ def main():
     print()
 
     result = run_all_tests(verbosity=verbosity)
+
+    # Save JSON reports
+    save_json_reports(result)
+
+    # Print summary
     print_summary(result)
 
     # Show coverage if requested
