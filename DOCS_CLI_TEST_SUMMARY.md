@@ -296,6 +296,50 @@ cum tc "Subtask" --parent <parent_id>
 - All tasks show in hierarchy
 - Status propagation works
 
+### Git Commands
+**Status:** ✅ Working
+
+#### cum pull
+Executes `git pull --rebase` in current Git repository.
+
+**Features:**
+- Checks for Git repository (.git directory)
+- Displays error if not in Git repo
+- Executes pull with rebase
+- Returns appropriate exit code
+
+**Tests Added:**
+- `test_pull_command_success` - Successful pull in Git repo
+- `test_pull_command_not_in_git_repo` - Error when not in Git repo
+- `test_pull_command_git_failure` - Handles git command failures
+
+**Implementation:** `clickup_framework/commands/gitpull_command.py`
+
+#### cum suck
+Recursively finds and pulls all Git repositories in current directory.
+
+**Features:**
+- Recursively searches for all .git directories
+- Skips common directories (node_modules, .venv, etc.)
+- Executes git pull --rebase on each repository
+- Shows success/failure status for each repo
+- Provides summary of operations
+
+**Tests Added:**
+- `test_suck_command_success` - Successfully pulls multiple repos
+- `test_suck_command_no_repos_found` - Handles no repositories found
+- `test_suck_command_partial_failure` - Handles mixed success/failure
+- `test_find_git_repositories_function` - Tests repository discovery
+
+**Implementation:** `clickup_framework/commands/gitsuck_command.py`
+
+**Directories Skipped:**
+- node_modules
+- .venv, venv, env
+- __pycache__, .pytest_cache, .mypy_cache
+- .tox, dist, build
+- .git (nested .git folders)
+
 ---
 
 ## Testing Methodology
@@ -323,6 +367,12 @@ cum tss <task_id> "Status"
 ```bash
 cum checklist create <task_id> "Name"
 cum checklist item-add <checklist_id> "Item"
+```
+
+#### Git Commands
+```bash
+cum pull
+cum suck
 ```
 
 ### Test Data Created

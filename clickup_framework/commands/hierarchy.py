@@ -304,11 +304,16 @@ def _wrap_tasks_in_containers(tasks, use_color=True):
     if first_task.get('list'):
         list_obj = first_task['list']
         list_name = list_obj.get('name', 'Unknown List') if isinstance(list_obj, dict) else str(list_obj)
+        list_id = list_obj.get('id', '') if isinstance(list_obj, dict) else ''
 
         if use_color:
-            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
+            if list_id:
+                list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
+            list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
         else:
-            list_display = f"{list_name} (list)"
+            list_id_str = f" [{list_id}]" if list_id else ""
+            list_display = f"{list_name}{list_id_str} (list)"
 
         list_node = {
             'id': 'container_list',
@@ -323,11 +328,16 @@ def _wrap_tasks_in_containers(tasks, use_color=True):
     if first_task.get('folder'):
         folder = first_task['folder']
         folder_name = folder.get('name', 'Unknown Folder') if isinstance(folder, dict) else str(folder)
+        folder_id = folder.get('id', '') if isinstance(folder, dict) else ''
 
         if use_color:
-            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD) + colorize(" (folder)", TextColor.BRIGHT_BLACK)
+            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD)
+            if folder_id:
+                folder_display += colorize(f" [{folder_id}]", TextColor.BRIGHT_BLACK)
+            folder_display += colorize(" (folder)", TextColor.BRIGHT_BLACK)
         else:
-            folder_display = f"{folder_name} (folder)"
+            folder_id_str = f" [{folder_id}]" if folder_id else ""
+            folder_display = f"{folder_name}{folder_id_str} (folder)"
 
         folder_node = {
             'id': 'container_folder',
@@ -441,9 +451,13 @@ def _wrap_space_tasks_in_containers(tasks, space_data, use_color=True):
 
         # Format folder display name
         if use_color:
-            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD) + colorize(" (folder)", TextColor.BRIGHT_BLACK)
+            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD)
+            if folder_id:
+                folder_display += colorize(f" [{folder_id}]", TextColor.BRIGHT_BLACK)
+            folder_display += colorize(" (folder)", TextColor.BRIGHT_BLACK)
         else:
-            folder_display = f"{folder_name} (folder)"
+            folder_id_str = f" [{folder_id}]" if folder_id else ""
+            folder_display = f"{folder_name}{folder_id_str} (folder)"
 
         # Create list containers for this folder
         list_containers = []
@@ -452,9 +466,13 @@ def _wrap_space_tasks_in_containers(tasks, space_data, use_color=True):
             list_name = list_meta.get('name', 'Unknown List')
 
             if use_color:
-                list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+                list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
+                if list_id:
+                    list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
+                list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
             else:
-                list_display = f"{list_name} (list)"
+                list_id_str = f" [{list_id}]" if list_id else ""
+                list_display = f"{list_name}{list_id_str} (list)"
 
             list_node = {
                 'id': f'container_list_{list_id}',
@@ -484,9 +502,13 @@ def _wrap_space_tasks_in_containers(tasks, space_data, use_color=True):
         list_name = list_meta.get('name', 'Unknown List')
 
         if use_color:
-            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
+            if list_id:
+                list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
+            list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
         else:
-            list_display = f"{list_name} (list)"
+            list_id_str = f" [{list_id}]" if list_id else ""
+            list_display = f"{list_name}{list_id_str} (list)"
 
         list_node = {
             'id': f'container_list_{list_id}',
@@ -552,9 +574,13 @@ def _wrap_folder_tasks_in_lists(tasks, folder_data, use_color=True):
 
         # Format list display name
         if use_color:
-            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD) + colorize(" (list)", TextColor.BRIGHT_BLACK)
+            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
+            if list_id:
+                list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
+            list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
         else:
-            list_display = f"{list_name} (list)"
+            list_id_str = f" [{list_id}]" if list_id else ""
+            list_display = f"{list_name}{list_id_str} (list)"
 
         # Create container node for this list
         list_node = {
