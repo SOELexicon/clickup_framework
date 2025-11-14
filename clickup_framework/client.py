@@ -384,7 +384,9 @@ class ClickUpClient:
     # Checklist endpoints
     def create_checklist(self, task_id: str, name: str) -> Dict[str, Any]:
         """Create a checklist on a task."""
-        return self._request("POST", f"task/{task_id}/checklist", json={"name": name})
+        response = self._request("POST", f"task/{task_id}/checklist", json={"name": name})
+        # API returns {'checklist': {...}}, unwrap it
+        return response.get('checklist', response)
 
     def update_checklist(self, checklist_id: str, **updates) -> Dict[str, Any]:
         """Update a checklist."""
@@ -397,11 +399,26 @@ class ClickUpClient:
     def create_checklist_item(self, checklist_id: str, name: str, **item_data) -> Dict[str, Any]:
         """Create a checklist item."""
         data = {"name": name, **item_data}
-        return self._request("POST", f"checklist/{checklist_id}/checklist_item", json=data)
+        response = self._request("POST", f"checklist/{checklist_id}/checklist_item", json=data)
+        # API returns {'checklist': {...}} with items array, extract the newly created item
+        if 'checklist' in response and 'items' in response['checklist']:
+            items = response['checklist']['items']
+            # Return the last (newest) item which should be the one we just created
+            if items:
+                return items[-1]
+        return response
 
     def update_checklist_item(self, checklist_id: str, checklist_item_id: str, **updates) -> Dict[str, Any]:
         """Update a checklist item."""
-        return self._request("PUT", f"checklist/{checklist_id}/checklist_item/{checklist_item_id}", json=updates)
+        response = self._request("PUT", f"checklist/{checklist_id}/checklist_item/{checklist_item_id}", json=updates)
+        # API returns {'checklist': {...}} with items array, extract the updated item
+        if 'checklist' in response and 'items' in response['checklist']:
+            items = response['checklist']['items']
+            # Find and return the specific item that was updated
+            for item in items:
+                if item.get('id') == checklist_item_id:
+                    return item
+        return response
 
     def delete_checklist_item(self, checklist_id: str, checklist_item_id: str) -> Dict[str, Any]:
         """Delete a checklist item."""
@@ -410,9 +427,13 @@ class ClickUpClient:
     # Comments
     def create_task_comment(self, task_id: str, comment_text: str) -> Dict[str, Any]:
         """Add comment to a task."""
-        return self._request(
+        response = self._request(
             "POST", f"task/{task_id}/comment", json={"comment_text": comment_text}
         )
+        # API response doesn't include comment_text, add it for convenience
+        if 'comment_text' not in response:
+            response['comment_text'] = comment_text
+        return response
 
     def get_task_comments(self, task_id: str) -> Dict[str, Any]:
         """Get all comments on a task."""
