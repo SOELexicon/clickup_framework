@@ -55,7 +55,10 @@ class TestPipeAlignment(unittest.TestCase):
 
     def _validate_pipe_continuity(self, lines: List[str]) -> Tuple[bool, List[str]]:
         """
-        Validate that pipe characters maintain vertical continuity.
+        Validate that pipe characters maintain vertical continuity in tree structures.
+
+        This validator understands that tree branches create new indentation levels.
+        When a branch (├ or └) appears, content below it is indented 4 spaces to the right.
 
         Args:
             lines: List of output lines
@@ -65,46 +68,60 @@ class TestPipeAlignment(unittest.TestCase):
         """
         errors = []
 
-        # Track which columns should have pipes based on tree structure
+        # Track active pipes at each column
+        # For tree structures, pipes at column N may lead to branches at column N on next line,
+        # which then creates pipes at column N+4 for that branch's content
         active_pipes = {}  # {column: last_line_number}
 
         for line_num, line in enumerate(lines, 1):
             # Get all tree characters on this line
             tree_chars = self._get_tree_characters(line)
 
-            # Check for pipes
+            # Update active pipes for this line
             current_pipes = set()
             for col, char in tree_chars:
                 if char == '│':
                     current_pipes.add(col)
                     active_pipes[col] = line_num
                 elif char in {'├', '└'}:
-                    # Branch point - pipe should continue from above
-                    if col in active_pipes and active_pipes[col] < line_num - 1:
-                        # Check if there was a break
-                        errors.append(
-                            f"Line {line_num}: Branch at col {col} but pipe was interrupted "
-                            f"(last seen on line {active_pipes[col]})"
-                        )
-                    current_pipes.add(col)
-                    active_pipes[col] = line_num
+                    # Branch characters mark tree nodes
+                    # They can appear where a pipe was, OR at a new indented level
+                    # Don't treat them as continuing pipes - they create new levels
+                    pass
 
-            # Check if any active pipes were interrupted
+            # Check for pipe continuity
+            # A pipe at column C on line N should either:
+            # 1. Continue at column C on line N+1 (as │)
+            # 2. Have a branch at column C on line N+1 (as ├ or └)
+            # 3. Be followed by content at column C+4 with a new pipe
             for col in list(active_pipes.keys()):
                 if active_pipes[col] == line_num - 1:  # Pipe was active on previous line
-                    # Check if it continues or properly terminates
-                    has_continuation = col in current_pipes
-                    has_branch = any(char in {'├', '└'} for c, char in tree_chars if c == col)
+                    # Check if it continues at same column
+                    if col in current_pipes:
+                        continue  # Pipe continues, all good
 
-                    if not (has_continuation or has_branch):
-                        # Pipe was interrupted without proper termination
-                        # Check if this line has content that should maintain the pipe
-                        stripped = line.strip()
-                        if stripped and not stripped.startswith('├') and not stripped.startswith('└'):
-                            # This is likely a description or detail line that should maintain pipes
-                            errors.append(
-                                f"Line {line_num}: Pipe at col {col} interrupted (content: '{line[:50]}...')"
-                            )
+                    # Check if there's a branch at this column
+                    if any(char in {'├', '└'} for c, char in tree_chars if c == col):
+                        # Pipe terminates at branch, which is valid
+                        continue
+
+                    # Check if this is a blank line (which is allowed)
+                    if not line.strip():
+                        continue
+
+                    # Check if content shifted to child level (col + 4)
+                    # This happens when a branch creates a new indentation level
+                    child_level_pipe = any(c == col + 4 and char == '│' for c, char in tree_chars)
+                    if child_level_pipe:
+                        # Pipe moved to child level, which is valid in tree structures
+                        continue
+
+                    # If we get here, pipe was interrupted unexpectedly
+                    # Only report if this line has actual content
+                    if line.strip():
+                        errors.append(
+                            f"Line {line_num}: Pipe at col {col} interrupted without proper transition"
+                        )
 
         return (len(errors) == 0, errors)
 

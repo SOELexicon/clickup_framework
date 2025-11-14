@@ -74,15 +74,22 @@ class TreeFormatter:
             # Get children to determine if we need to continue vertical line
             children = get_children_fn(item)
 
+            # Calculate the prefix for children (needed for continuation alignment)
+            # This determines where child tasks will appear
+            if is_last_item:
+                child_prefix = prefix + "    "  # 4 spaces, no vertical line for last item's children
+            else:
+                child_prefix = prefix + "│   "  # Pipe + 3 spaces to continue vertical line
+
             # Add remaining lines with proper indentation
             if len(formatted_lines) > 1:
-                # For continuation lines: prefix already contains all ancestor pipe structure
-                # Add pipe if item has children OR if it's a middle child (not last)
+                # Continuation lines (descriptions, dates, etc.) should align with child level
+                # to maintain proper visual connection from parent through content to children
                 # Note: formatted lines have 2 leading spaces, so we add pipe + 1 space
                 if children or not is_last_item:
-                    continuation_prefix = prefix + "│ "  # Pipe + 1 space (continues to children or siblings)
+                    continuation_prefix = child_prefix + "│ "  # Align with child level + pipe
                 else:
-                    continuation_prefix = prefix + "  "  # 2 spaces (last child, no children, no continuation)
+                    continuation_prefix = child_prefix + "  "  # Align with child level, no pipe for true leaf
 
                 for line in formatted_lines[1:]:
                     lines.append(f"{continuation_prefix}{line}")
@@ -91,29 +98,20 @@ class TreeFormatter:
                 # Add blank separator line before children if there was multi-line content
                 if len(formatted_lines) > 1:
                     # Blank line should show pipe structure at child level
-                    # This matches what child_prefix will be for the children
-                    if is_last_item:
-                        blank_line = prefix + "    │"  # 4 spaces + pipe (no parent continuation)
-                    else:
-                        blank_line = prefix + "│   │"  # parent pipe + 3 spaces + child pipe
+                    # This matches what child_prefix is for the children
+                    blank_line = child_prefix + "│"  # child level + pipe
                     lines.append(blank_line)
 
                 # Check if we've reached max depth
                 if max_depth is not None and current_depth >= max_depth:
                     # Show truncation message aligned with children
-                    # Add pipe + space to match continuation pattern
-                    truncate_prefix = prefix + "│ "
+                    # Use same pattern as continuation lines
+                    truncate_prefix = child_prefix + "│ "
 
                     hidden_count = len(children)
                     truncate_msg = f"... ({hidden_count} subtask{'s' if hidden_count != 1 else ''} hidden - max depth {max_depth} reached)"
                     lines.append(f"{truncate_prefix}{truncate_msg}")
                 else:
-                    # Calculate the prefix for children (4 chars: pipe + 3 spaces or 4 spaces)
-                    if is_last_item:
-                        child_prefix = prefix + "    "  # 4 spaces, no vertical line for last item's children
-                    else:
-                        child_prefix = prefix + "│   "  # Pipe + 3 spaces to continue vertical line
-
                     # Recursively format children
                     child_lines = TreeFormatter.build_tree(
                         children,
