@@ -47,16 +47,11 @@ jobs:
       run: |
         python tests/run_tests.py --coverage-only
 
-    - name: Install test reporting dependencies
-      run: |
-        pip install pytest-json-report pytest-cov
-
     - name: Run Tests
       env:
         CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
       run: |
         python tests/run_tests.py --verbose --coverage
-      continue-on-error: true  # Don't fail workflow if tests fail
 
     - name: Upload Test Results
       if: always()
@@ -64,8 +59,9 @@ jobs:
       with:
         name: test-results-${{ github.run_number }}
         path: |
-          test-results/
           test_report.json
+          test_summary.json
+          test_errors.json
           coverage.json
           *.log
         retention-days: 30
