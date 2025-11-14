@@ -6,6 +6,8 @@ Tests will run in the specified ClickUp space.
 """
 
 import os
+import json
+from pathlib import Path
 
 # Test Space Configuration
 # Space URL: https://app.clickup.com/90151898946/v/s/90158025753
@@ -26,3 +28,22 @@ TEST_TASK_PREFIX = f"{TEST_PREFIX}"
 # Test configuration
 CLEANUP_AFTER_TESTS = True  # Set to False to keep test data for inspection
 VERBOSE_OUTPUT = True  # Print detailed test information
+
+# Load test structure IDs if available
+def load_test_structure_ids():
+    """Load test structure IDs from the setup script."""
+    ids_file = Path(__file__).parent / "test_structure_ids.json"
+    if ids_file.exists():
+        try:
+            with open(ids_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+TEST_STRUCTURE = load_test_structure_ids()
+
+# Extract commonly used IDs
+TEST_FOLDER_ID = TEST_STRUCTURE.get('folder_id')
+TEST_LIST_ID = TEST_STRUCTURE.get('list_id')
+TEST_TASK_IDS = TEST_STRUCTURE.get('task_ids', {})

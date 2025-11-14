@@ -16,6 +16,9 @@ from tests.test_config import (
     TEST_TASK_PREFIX,
     CLEANUP_AFTER_TESTS,
     VERBOSE_OUTPUT,
+    TEST_FOLDER_ID,
+    TEST_LIST_ID,
+    TEST_STRUCTURE,
 )
 
 
@@ -53,10 +56,23 @@ class ClickUpTestCase(unittest.TestCase):
         # Initialize client
         cls.client = ClickUpClient()
 
-        # Create test folder
+        # Use existing test structure if available
+        if TEST_FOLDER_ID and TEST_LIST_ID:
+            if VERBOSE_OUTPUT:
+                print(f"Using existing test structure:")
+                print(f"  Folder ID: {TEST_FOLDER_ID}")
+                print(f"  List ID: {TEST_LIST_ID}")
+                print(f"  Tasks: {len(TEST_STRUCTURE.get('task_ids', {}))}")
+                print(f"{'='*60}\n")
+
+            cls.test_folder_id = TEST_FOLDER_ID
+            cls.test_list_id = TEST_LIST_ID
+            return
+
+        # Create test folder (fallback if structure doesn't exist)
         try:
             if VERBOSE_OUTPUT:
-                print(f"Creating test folder: {TEST_FOLDER_NAME}")
+                print(f"No existing structure found, creating test folder: {TEST_FOLDER_NAME}")
 
             folder = cls.client.create_folder(TEST_SPACE_ID, TEST_FOLDER_NAME)
             cls.test_folder_id = folder["id"]
@@ -78,6 +94,7 @@ class ClickUpTestCase(unittest.TestCase):
 
             if VERBOSE_OUTPUT:
                 print(f"✓ Test list created: {cls.test_list_id}")
+                print(f"⚠ Consider running 'python tests/setup_test_structure.py' for better test structure")
                 print(f"{'='*60}\n")
 
         except Exception as e:
@@ -87,6 +104,26 @@ class ClickUpTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Clean up test resources after all tests."""
+        # If using the persistent test structure, don't delete it
+        if TEST_FOLDER_ID and TEST_LIST_ID and cls.test_folder_id == TEST_FOLDER_ID:
+            if VERBOSE_OUTPUT:
+                print(f"\n{'='*60}")
+                print(f"Using persistent test structure - skipping folder/list cleanup")
+                print(f"{'='*60}\n")
+
+            # Only clean up temporary tasks created during tests
+            if CLEANUP_AFTER_TESTS:
+                for task_id in cls.created_resource_ids.get("tasks", []):
+                    try:
+                        cls.client.delete_task(task_id)
+                        if VERBOSE_OUTPUT:
+                            print(f"✓ Deleted temporary task: {task_id}")
+                    except Exception as e:
+                        if VERBOSE_OUTPUT:
+                            print(f"⚠️  Could not delete task {task_id}: {e}")
+            return
+
+        # Cleanup for dynamically created test resources
         if not CLEANUP_AFTER_TESTS:
             if VERBOSE_OUTPUT:
                 print(f"\n⚠️  Cleanup skipped (CLEANUP_AFTER_TESTS=False)")

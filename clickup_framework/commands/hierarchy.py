@@ -204,11 +204,24 @@ def hierarchy_command(args):
             list_id = None
         else:  # container_type == 'list'
             # Fetch all pages of tasks from the single list
+            # Need BOTH root tasks and subtasks for complete hierarchy
             list_id = container_id
-            tasks = _fetch_all_pages(
+            root_tasks = _fetch_all_pages(
                 lambda **p: client.get_list_tasks(list_id, **p),
                 include_closed=include_closed
             )
+            subtask_list = _fetch_all_pages(
+                lambda **p: client.get_list_tasks(list_id, **p),
+                subtasks='true',
+                include_closed=include_closed
+            )
+
+            # Merge both lists and deduplicate by task ID
+            task_map = {}
+            for task in root_tasks + subtask_list:
+                task_map[task['id']] = task
+            tasks = list(task_map.values())
+
             container_name = None
 
     options = create_format_options(args)
