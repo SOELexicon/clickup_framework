@@ -274,7 +274,7 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
             - Logs at debug level when custom error handling is triggered
             - Analyzes sys.argv to understand user's original command
             - Only handles errors for commands: ['task_create', 'tc']
-            - Checks for numeric first argument to detect ID-before-name error
+            - Checks for numeric or alphanumeric first argument to detect ID-before-name error
         """
         # Get the original command line args for analysis
         argv = sys.argv[1:]
@@ -288,9 +288,17 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
                 if match:
                     unrecognized_args = match.group(1)
 
-                    # Check if first argument (after command) looks like an ID (all numeric)
-                    if len(argv) >= 2 and argv[1].isdigit():
-                        task_or_list_id = argv[1]
+                    # Check if first argument (after command) looks like an ID
+                    # IDs can be numeric (list IDs) or alphanumeric (task IDs like "86c6hv10c")
+                    first_arg = argv[1]
+                    is_likely_id = (
+                        first_arg.isdigit()  # Numeric list ID
+                        or (first_arg.isalnum() and len(first_arg) >= 8)  # Alphanumeric task ID
+                        or first_arg.startswith('"') is False  # Not quoted (task names should be quoted)
+                    )
+
+                    if is_likely_id and len(argv) >= 2:
+                        task_or_list_id = first_arg
 
                         logger.debug(
                             f"Detected task_create syntax error: ID '{task_or_list_id}' provided before task name"
@@ -326,9 +334,85 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
                         logger.debug("Exiting with code 2 after displaying custom error message")
                         sys.exit(2)
 
-        # Fall back to default error handling for unrecognized patterns
-        logger.debug(f"Using default argparse error handling for: {message}")
-        super().error(message)
+        # Fall back to improved error handling for other errors
+        logger.debug(f"Using improved error handling for: {message}")
+        self._print_improved_error(message)
+
+    def _print_improved_error(self, message: str) -> NoReturn:
+        """
+        Print an improved error message instead of the massive argparse usage dump.
+
+        Args:
+            message: The error message from argparse
+
+        Exits:
+            Code 2: Always exits after displaying error
+        """
+        # Get the command that was run
+        argv = sys.argv[1:]
+        command = argv[0] if argv else None
+
+        # Get color preference from context
+        try:
+            context = get_context_manager()
+            use_color = context.get_ansi_output()
+        except:
+            use_color = True
+
+        # Print error header
+        if use_color:
+            error_header = colorize("Error", TextColor.BRIGHT_RED, TextStyle.BOLD)
+            print(f"\n{error_header}: {message}", file=sys.stderr)
+            print(colorize("─" * 60, TextColor.BRIGHT_BLACK), file=sys.stderr)
+        else:
+            print(f"\nError: {message}", file=sys.stderr)
+            print("─" * 60, file=sys.stderr)
+
+        # Show what the user typed
+        if use_color:
+            you_ran = colorize("You ran:", TextColor.BRIGHT_WHITE)
+            cmd_display = colorize(' '.join(sys.argv), TextColor.BRIGHT_YELLOW)
+        else:
+            you_ran = "You ran:"
+            cmd_display = ' '.join(sys.argv)
+        print(f"\n{you_ran} {cmd_display}", file=sys.stderr)
+
+        # Print helpful tips
+        tips = []
+        if command:
+            if use_color:
+                help_cmd = colorize(f'cum {command} --help', TextColor.BRIGHT_GREEN)
+                tips.append(f"See command help: {help_cmd}")
+            else:
+                tips.append(f"See command help: cum {command} --help")
+
+        # Add general tips
+        if use_color:
+            all_cmds = colorize('cum', TextColor.BRIGHT_GREEN)
+            general_help = colorize('cum -h', TextColor.BRIGHT_GREEN)
+            tips.append(f"List all commands: {all_cmds}")
+            tips.append(f"General help: {general_help}")
+        else:
+            tips.append("List all commands: cum")
+            tips.append("General help: cum -h")
+
+        # Print tips section
+        if tips:
+            if use_color:
+                tips_header = colorize("\n💡 Tips:", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+                print(tips_header, file=sys.stderr)
+            else:
+                print("\nTips:", file=sys.stderr)
+
+            for tip in tips:
+                if use_color:
+                    bullet = colorize("  •", TextColor.BRIGHT_CYAN)
+                    print(f"{bullet} {tip}", file=sys.stderr)
+                else:
+                    print(f"  • {tip}", file=sys.stderr)
+
+        print("", file=sys.stderr)
+        sys.exit(2)
 
 
 def show_command_tree():
