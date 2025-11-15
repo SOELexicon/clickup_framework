@@ -447,6 +447,11 @@ def show_command_tree():
         ],
         "🔄 Git Workflow": [
             ("overflow", "<message> [--task ID] [OPTIONS]", "Automated Git + ClickUp workflow (stage, commit, push, sync)"),
+            ("pull", "", "Execute git pull --rebase"),
+            ("suck", "", "Pull all Git repositories in project folder recursively"),
+            ("reauthor", "[--force-push]", "Rewrite git history to change author to current git user"),
+            ("stash", "[push|pop|list|apply|drop|clear|...] [args]", "Wrapper for git stash operations"),
+            ("horde", "[push|pop|list|apply|drop|clear|...] [args]", "Execute git stash operations on all repositories recursively"),
         ],
         "🎨 Configuration": [
             ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),

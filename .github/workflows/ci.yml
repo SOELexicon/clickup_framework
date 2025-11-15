@@ -49,6 +49,11 @@ jobs:
       run: |
         python tests/run_tests.py --coverage-only
 
+    - name: Run Help Command Tests
+      run: |
+        python -m pytest tests/test_help_command.py -v --tb=short
+      continue-on-error: false
+
     - name: Run Tests
       env:
         CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}

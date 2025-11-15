@@ -53,3 +53,11 @@ repos:
         pass_filenames: false
         stages: [commit]
         verbose: true
+
+      - id: validate-help-command
+        name: Validate help command completeness
+        entry: python -m pytest tests/test_help_command.py -v --tb=short
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
