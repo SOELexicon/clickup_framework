@@ -514,6 +514,11 @@ def show_command_tree():
             ("page_create [pc]", "<workspace_id> <doc_id> --name NAME [--content TEXT]", "Create a new page in a doc"),
             ("page_update [pu]", "<workspace_id> <doc_id> <page_id> [--name NAME] [--content TEXT]", "Update a page in a doc"),
         ],
+        "📦 Export/Dump": [
+            ("dump", "list <list_id> [--format FORMAT] [-o DIR]", "Dump list hierarchy to markdown/json/console"),
+            ("dump", "task <task_id> [--format FORMAT] [-o DIR]", "Dump task and subtasks to markdown/json/console"),
+            ("dump", "doc <workspace_id> <doc_id> [--format FORMAT] [-o DIR]", "Dump doc to markdown/json/console"),
+        ],
         "🏗️  Workspace Hierarchy": [
             ("space [sp, spc]", "create <team_id> <name> [OPTIONS]", "Create new space in workspace"),
             ("space [sp, spc]", "update <space_id> [--name|--color|--private]", "Update space properties"),
@@ -586,6 +591,7 @@ def show_command_tree():
         ("cum ls 901517404278", "Show tasks in hierarchy view"),
         ("cum a", "Show your assigned tasks"),
         ("cum tc \"New Task\" --list current", "Create a task in current list"),
+        ("cum dump list current -o ./backup", "Export list to markdown files"),
         ("cum sp create current \"New Space\"", "Create a space in current workspace"),
         ("cum fld create current \"New Folder\"", "Create a folder in current space"),
         ("cum lm create current \"New List\"", "Create a list in current folder"),
