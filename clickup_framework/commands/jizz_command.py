@@ -27,12 +27,21 @@ def parse_version(version_str: str) -> Tuple[int, int, int]:
 
 
 def increment_version_by_point_one(version_str: str) -> str:
-    """Increment version by 0.0.1 (e.g., 2.2.9 -> 2.3.0)."""
+    """Increment version by 0.0.1 with proper rollover (e.g., 2.2.9 -> 2.3.0, 1.9.9 -> 2.0.0)."""
     major, minor, patch = parse_version(version_str)
 
-    # Increment minor by 1, reset patch to 0
-    minor += 1
-    patch = 0
+    # Increment patch by 1
+    patch += 1
+
+    # If patch reaches 10, rollover to minor
+    if patch >= 10:
+        patch = 0
+        minor += 1
+
+    # If minor reaches 10, rollover to major
+    if minor >= 10:
+        minor = 0
+        major += 1
 
     return f"{major}.{minor}.{patch}"
 
