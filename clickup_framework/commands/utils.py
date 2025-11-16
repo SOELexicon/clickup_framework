@@ -124,6 +124,7 @@ def create_format_options(args) -> FormatOptions:
         show_descriptions=show_descriptions,
         show_dates=getattr(args, "show_dates", False),
         show_comments=getattr(args, "show_comments", 0),
+        show_custom_fields=getattr(args, "show_custom_fields", False),
         include_completed=getattr(args, "include_completed", False),
         show_closed_only=getattr(args, "show_closed_only", False),
         show_type_emoji=getattr(args, "show_emoji", True),
@@ -184,6 +185,9 @@ def add_common_args(subparser):
     )
     subparser.add_argument(
         "--no-emoji", dest="show_emoji", action="store_false", help="Hide task type emojis"
+    )
+    subparser.add_argument(
+        "--show-custom-fields", action="store_true", help="Show all custom fields"
     )
     subparser.add_argument(
         "--no-tips", dest="show_tips", action="store_false", default=True,
