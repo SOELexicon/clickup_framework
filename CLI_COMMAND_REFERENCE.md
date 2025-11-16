@@ -28,7 +28,7 @@ The ClickUp Framework CLI uses **argparse** (not Click) for command parsing. Com
   - Uses ANSI colors with gradient animation
   - Provides quick examples
 
-## Complete Command List (36 Total Commands + Subcommands)
+## Complete Command List (37 Total Commands + Subcommands)
 
 ### 📊 View Commands (9 commands)
 
@@ -390,6 +390,47 @@ The ClickUp Framework CLI uses **argparse** (not Click) for command parsing. Com
 
 ---
 
+### 🛠️ Utility Commands (1 command)
+
+#### 1. diff
+**File**: `commands/diff_command.py` (line 87)
+- **Aliases**: None
+- **Description**: Compare two files or strings and display unified diff
+- **Usage Modes**:
+  1. **File comparison**: `cum diff <file1> <file2>`
+  2. **String comparison**: `cum diff --old "text1" --new "text2"`
+- **Arguments**:
+  - `file1` (optional): First file path to compare
+  - `file2` (optional): Second file path to compare
+  - `--old TEXT`: Old text string to compare
+  - `--new TEXT`: New text string to compare
+  - `--old-label LABEL`: Label for old text (default: "old")
+  - `--new-label LABEL`: Label for new text (default: "new")
+  - `--context N`, `-c N`: Number of context lines to show (default: 3)
+  - `--color`: Force colored output
+  - `--no-color`: Disable colored output
+- **Examples**:
+  ```bash
+  # Compare two files
+  cum diff file1.txt file2.txt
+
+  # Compare with more context lines
+  cum diff file1.txt file2.txt --context 5
+
+  # Compare two strings
+  cum diff --old "Hello World" --new "Hello ClickUp"
+
+  # Disable color output
+  cum diff file1.txt file2.txt --no-color
+  ```
+- **Notes**:
+  - Uses Python's `difflib.unified_diff()` for diff generation
+  - Respects ANSI color settings from context manager by default
+  - Color scheme: additions (green), deletions (red), context (default)
+  - Must specify either file paths OR --old/--new strings (not both)
+
+---
+
 ### 🎨 Configuration Commands (2 commands)
 
 #### 1. ansi
@@ -579,18 +620,19 @@ clickup_framework/
 
 ## Summary Statistics
 
-- **Total Commands**: 36 top-level commands
+- **Total Commands**: 37 top-level commands
 - **Subcommands**: 28+ (checklist, custom_field, automation, doc, update operations)
 - **Aliases**: 40+ defined
-- **Command Files**: 22 Python modules
+- **Command Files**: 23 Python modules
 - **Auto-discovery**: Yes (plugin-based system)
 - **Help Generation**: argparse + custom command tree display
-- **Command Groups**: 8 main categories
+- **Command Groups**: 9 main categories
   - View Commands (9)
   - Task Management (15)
   - Comment Management (4)
   - Docs Management (9)
   - Context Management (3)
+  - Utility Commands (1)
   - Configuration (2)
   - Checklists (7 subcommands)
   - Advanced Features (custom fields, automation, git overflow)

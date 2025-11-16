@@ -542,6 +542,9 @@ def show_command_tree():
             ("stash", "[push|pop|list|apply|drop|clear|...] [args]", "Wrapper for git stash operations"),
             ("horde", "[push|pop|list|apply|drop|clear|...] [args]", "Execute git stash operations on all repositories recursively"),
         ],
+        "🛠️  Utility Commands": [
+            ("diff", "<file1> <file2> | --old TEXT --new TEXT [OPTIONS]", "Compare two files or strings and show unified diff"),
+        ],
         "🎨 Configuration": [
             ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
             ("update cum", "", "Update cum tool from git and reinstall"),
