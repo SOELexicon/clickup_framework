@@ -287,7 +287,7 @@ def show_package_progress(current_package: str, duration: float = 1.5, use_color
     print()  # Final newline
 
 
-def update_instance(script_path, python_path, use_color):
+def update_instance(script_path, python_path, use_color, fresh_load=False):
     """Update a single cum instance."""
     print()
     if use_color:
@@ -364,19 +364,35 @@ def update_instance(script_path, python_path, use_color):
         try:
             show_package_progress("clickup-framework", 1.2, use_color)
 
-            # Run pip without capturing output so user sees real progress
+            # Build pip command
+            pip_cmd = [python_path, '-m', 'pip', 'install', '-e', editable_location, '--no-deps']
+            if fresh_load:
+                pip_cmd.append('--force-reinstall')
+            else:
+                pip_cmd.append('--upgrade')
+
+            # Run pip with output suppressed (capture it)
             result = subprocess.run(
-                [python_path, '-m', 'pip', 'install', '-e', editable_location, '--force-reinstall', '--no-deps'],
+                pip_cmd,
+                capture_output=True,
+                text=True,
                 check=True
             )
 
             if use_color:
-                print(ANSIAnimations.success_message("  Successfully reinstalled"))
+                if fresh_load:
+                    print(ANSIAnimations.success_message("  Successfully reinstalled"))
+                else:
+                    print(ANSIAnimations.success_message("  Successfully updated"))
             else:
-                print("  ✓ Successfully reinstalled")
+                if fresh_load:
+                    print("  ✓ Successfully reinstalled")
+                else:
+                    print("  ✓ Successfully updated")
             return True
         except subprocess.CalledProcessError as e:
-            print(colorize(f"  ✗ Failed to reinstall: {e}", TextColor.RED) if use_color else f"  ✗ Failed to reinstall: {e}", file=sys.stderr)
+            action = "reinstall" if fresh_load else "update"
+            print(colorize(f"  ✗ Failed to {action}: {e}", TextColor.RED) if use_color else f"  ✗ Failed to {action}: {e}", file=sys.stderr)
             return False
     else:
         # For regular installs, reinstall from git
@@ -388,21 +404,36 @@ def update_instance(script_path, python_path, use_color):
         try:
             show_package_progress("clickup-framework (from git)", 1.5, use_color)
 
-            # Run pip without capturing output so user sees real progress
+            # Build pip command
+            pip_cmd = [python_path, '-m', 'pip', 'install',
+                      'git+https://github.com/SOELexicon/clickup_framework.git']
+            if fresh_load:
+                pip_cmd.extend(['--upgrade', '--force-reinstall'])
+            else:
+                pip_cmd.append('--upgrade')
+
+            # Run pip with output suppressed (capture it)
             result = subprocess.run(
-                [python_path, '-m', 'pip', 'install',
-                 'git+https://github.com/SOELexicon/clickup_framework.git',
-                 '--upgrade', '--force-reinstall'],
+                pip_cmd,
+                capture_output=True,
+                text=True,
                 check=True
             )
 
             if use_color:
-                print(ANSIAnimations.success_message("  Successfully reinstalled from git"))
+                if fresh_load:
+                    print(ANSIAnimations.success_message("  Successfully reinstalled from git"))
+                else:
+                    print(ANSIAnimations.success_message("  Successfully updated from git"))
             else:
-                print("  ✓ Successfully reinstalled from git")
+                if fresh_load:
+                    print("  ✓ Successfully reinstalled from git")
+                else:
+                    print("  ✓ Successfully updated from git")
             return True
         except subprocess.CalledProcessError as e:
-            print(colorize(f"  ✗ Failed to reinstall: {e}", TextColor.RED) if use_color else f"  ✗ Failed to reinstall: {e}", file=sys.stderr)
+            action = "reinstall" if fresh_load else "update"
+            print(colorize(f"  ✗ Failed to {action}: {e}", TextColor.RED) if use_color else f"  ✗ Failed to {action}: {e}", file=sys.stderr)
             return False
 
 
@@ -412,6 +443,7 @@ def update_cum_command(args):
 
     context = get_context_manager()
     use_color = context.get_ansi_output()
+    fresh_load = getattr(args, 'fresh_load', False)
 
     # Show current version
     if use_color:
@@ -466,10 +498,10 @@ def update_cum_command(args):
             failed_count += 1
             continue
 
-        if update_instance(instance, python_path, use_color):
-            updated_count += 1
-        else:
-            failed_count += 1
+          if update_instance(instance, python_path, use_color, fresh_load=fresh_load):
+              updated_count += 1
+          else:
+              failed_count += 1
 
     # Summary
     print()
@@ -909,6 +941,11 @@ def register_command(subparsers):
     # Update cum (self-update)
     update_cum_parser = update_subparsers.add_parser('cum',
                                                      help='Update cum tool from git and reinstall')
+    update_cum_parser.add_argument(
+        '--fresh-load',
+        action='store_true',
+        help='Force reinstall instead of upgrade (removes and reinstalls package)'
+    )
     update_cum_parser.set_defaults(func=update_cum_command)
 
     # Update version (bump version)

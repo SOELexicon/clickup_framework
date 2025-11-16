@@ -120,6 +120,7 @@ class ANSIAnimations:
     def white_sheen_text(text: str, base_color: TextColor = TextColor.BRIGHT_CYAN) -> str:
         """
         Apply white sheen effect to colored text (bright white overlay).
+        Creates a shimmer effect by mixing base color with bright white.
         
         Args:
             text: Text to apply sheen to
@@ -128,19 +129,22 @@ class ANSIAnimations:
         Returns:
             String with white sheen effect
         """
-        # Use bright white as a highlight overlay
-        # Create a subtle white glow by alternating between base color and bright white
+        # Create a shimmer effect by alternating between base color and bright white
+        # Use every 3rd character for white to create subtle sheen
         result = []
         for i, char in enumerate(text):
             if char == ' ':
                 result.append(char)
             else:
-                # Alternate between base color and bright white for sheen effect
-                if i % 2 == 0:
+                # Every 3rd character gets white sheen, others get base color
+                # This creates a subtle shimmer effect
+                if i % 3 == 0:
+                    result.append(colorize(char, TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+                elif i % 3 == 1:
                     result.append(colorize(char, base_color, TextStyle.BOLD))
                 else:
-                    # Mix with white for sheen
-                    result.append(colorize(char, TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+                    # Mix: use base color but with extra brightness
+                    result.append(colorize(char, base_color, TextStyle.BOLD))
         
         return ''.join(result)
 
@@ -148,6 +152,7 @@ class ANSIAnimations:
     def display_animated_rainbow(text: str, duration: float = 2.0, speed: float = 2.0) -> None:
         """
         Display text with animated rainbow effect that cycles through colors.
+        Uses ANSI escape codes to properly animate the text.
         
         Args:
             text: Text to animate
@@ -155,19 +160,50 @@ class ANSIAnimations:
             speed: Animation speed multiplier
         """
         import time
-        end_time = time.time() + duration
-        frame = 0
         
-        while time.time() < end_time:
-            animated = ANSIAnimations.animated_rainbow_text(text, frame, speed)
-            sys.stdout.write(f'\r{animated}')
+        colors = ANSIAnimations.GRADIENT_RAINBOW
+        color_count = len(colors)
+        frames = int(duration * 10)  # 10 frames per second for smooth animation
+        frame_delay = max(0.05, duration / frames)  # Minimum 50ms delay
+        
+        for frame in range(frames):
+            # Calculate offset for this frame - creates wave effect
+            offset = int(frame * speed) % color_count
+            
+            # Build animated text with rainbow wave
+            result = []
+            for i, char in enumerate(text):
+                if char == ' ':
+                    result.append(char)
+                else:
+                    # Calculate color with animation offset - creates wave that moves
+                    # Use sine wave for smoother animation
+                    wave_pos = (i / max(len(text), 1)) * color_count
+                    color_idx = (int(wave_pos) + offset) % color_count
+                    result.append(colorize(char, colors[color_idx], TextStyle.BOLD))
+            
+            animated_text = ''.join(result)
+            
+            # Clear line and write animated text (use ANSI escape codes)
+            # \033[K clears to end of line, \r moves cursor to start
+            sys.stdout.write(f'\r\033[K{animated_text}')
             sys.stdout.flush()
-            time.sleep(0.1)
-            frame += 1
+            time.sleep(frame_delay)
         
-        # Final frame
-        animated = ANSIAnimations.animated_rainbow_text(text, frame, speed)
-        sys.stdout.write(f'\r{animated}\n')
+        # Final frame - keep it visible with bold rainbow
+        final_offset = int(frames * speed) % color_count
+        result = []
+        for i, char in enumerate(text):
+            if char == ' ':
+                result.append(char)
+            else:
+                wave_pos = (i / max(len(text), 1)) * color_count
+                color_idx = (int(wave_pos) + final_offset) % color_count
+                result.append(colorize(char, colors[color_idx], TextStyle.BOLD))
+        
+        final_text = ''.join(result)
+        # Final print with newline
+        sys.stdout.write(f'\r\033[K{final_text}\n')
         sys.stdout.flush()
 
     @staticmethod
