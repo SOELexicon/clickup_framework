@@ -7,6 +7,7 @@ from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.text import unescape_content
+from clickup_framework.parsers import ContentProcessor, ParserContext
 
 
 def doc_list_command(args):

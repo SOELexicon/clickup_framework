@@ -5,6 +5,7 @@ from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.commands.utils import read_text_from_file
+from clickup_framework.parsers import ContentProcessor, ParserContext
 
 
 def comment_add_command(args):
@@ -37,6 +38,51 @@ def comment_add_command(args):
         comment_text = read_text_from_file(args.comment_file)
     else:
         comment_text = args.text
+
+    # Process markdown and mermaid diagrams if enabled
+    process_markdown = getattr(args, 'markdown', True)  # Default to True
+    skip_mermaid = getattr(args, 'skip_mermaid', False)
+    upload_images = getattr(args, 'upload_images', False)
+
+    if process_markdown:
+        processor = ContentProcessor(
+            context=ParserContext.COMMENT,
+            cache_dir=getattr(args, 'image_cache', None),
+            client=client if upload_images else None
+        )
+
+        # Process content
+        if upload_images:
+            # Process and upload images in one step
+            result = processor.process_and_upload(
+                comment_text,
+                task_id,
+                format_markdown=True,
+                process_mermaid=not skip_mermaid,
+                convert_mermaid_to_images=not skip_mermaid
+            )
+            comment_text = result['content']
+
+            # Show upload results
+            upload_results = result.get('upload_results', {})
+            if upload_results.get('uploaded'):
+                print(f"✓ Uploaded {len(upload_results['uploaded'])} image(s)")
+            if upload_results.get('errors'):
+                for hash_val, error in upload_results['errors']:
+                    print(f"⚠️  Failed to upload {hash_val[:8]}: {error}", file=sys.stderr)
+        else:
+            # Just process without uploading
+            result = processor.process(
+                comment_text,
+                format_markdown=True,
+                process_mermaid=not skip_mermaid,
+                convert_mermaid_to_images=not skip_mermaid
+            )
+            comment_text = result['content']
+
+            # Inform about unuploaded images
+            if result.get('unuploaded_images'):
+                print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
 
     try:
         # Create the comment
@@ -140,6 +186,57 @@ def comment_update_command(args):
     else:
         comment_text = args.text
 
+    # Process markdown and mermaid diagrams if enabled
+    process_markdown = getattr(args, 'markdown', True)  # Default to True
+    skip_mermaid = getattr(args, 'skip_mermaid', False)
+    upload_images = getattr(args, 'upload_images', False)
+
+    # Get task_id for uploads (needed to attach images)
+    task_id = getattr(args, 'task_id', None)
+
+    if process_markdown:
+        processor = ContentProcessor(
+            context=ParserContext.COMMENT,
+            cache_dir=getattr(args, 'image_cache', None),
+            client=client if upload_images else None
+        )
+
+        # Process content
+        if upload_images and task_id:
+            # Process and upload images in one step
+            result = processor.process_and_upload(
+                comment_text,
+                task_id,
+                format_markdown=True,
+                process_mermaid=not skip_mermaid,
+                convert_mermaid_to_images=not skip_mermaid
+            )
+            comment_text = result['content']
+
+            # Show upload results
+            upload_results = result.get('upload_results', {})
+            if upload_results.get('uploaded'):
+                print(f"✓ Uploaded {len(upload_results['uploaded'])} image(s)")
+            if upload_results.get('errors'):
+                for hash_val, error in upload_results['errors']:
+                    print(f"⚠️  Failed to upload {hash_val[:8]}: {error}", file=sys.stderr)
+        else:
+            # Just process without uploading
+            result = processor.process(
+                comment_text,
+                format_markdown=True,
+                process_mermaid=not skip_mermaid,
+                convert_mermaid_to_images=not skip_mermaid
+            )
+            comment_text = result['content']
+
+            # Inform about unuploaded images
+            if result.get('unuploaded_images'):
+                if task_id:
+                    print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
+                else:
+                    print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Provide --task-id to upload.")
+
     try:
         # Update the comment
         updated = comments_api.update(args.comment_id, comment_text)
@@ -209,6 +306,13 @@ def register_command(subparsers):
     comment_add_parser.add_argument('task_id', help='Task ID (or "current")')
     comment_add_parser.add_argument('text', nargs='?', help='Comment text (optional if using --comment-file)')
     comment_add_parser.add_argument('--comment-file', '-f', help='Read comment text from file')
+    comment_add_parser.add_argument('--no-markdown', dest='markdown', action='store_false',
+                                    help='Disable markdown formatting')
+    comment_add_parser.add_argument('--skip-mermaid', action='store_true',
+                                    help='Skip mermaid diagram processing')
+    comment_add_parser.add_argument('--upload-images', action='store_true',
+                                    help='Upload images to ClickUp')
+    comment_add_parser.add_argument('--image-cache', help='Directory for image cache')
     comment_add_parser.set_defaults(func=comment_add_command)
 
     # Comment list
@@ -246,6 +350,14 @@ def register_command(subparsers):
     comment_update_parser.add_argument('comment_id', help='Comment ID')
     comment_update_parser.add_argument('text', nargs='?', help='New comment text (optional if using --comment-file)')
     comment_update_parser.add_argument('--comment-file', '-f', help='Read new comment text from file')
+    comment_update_parser.add_argument('--task-id', help='Task ID (required for --upload-images)')
+    comment_update_parser.add_argument('--no-markdown', dest='markdown', action='store_false',
+                                       help='Disable markdown formatting')
+    comment_update_parser.add_argument('--skip-mermaid', action='store_true',
+                                       help='Skip mermaid diagram processing')
+    comment_update_parser.add_argument('--upload-images', action='store_true',
+                                       help='Upload images to ClickUp')
+    comment_update_parser.add_argument('--image-cache', help='Directory for image cache')
     comment_update_parser.set_defaults(func=comment_update_command)
 
     # Comment delete

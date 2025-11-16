@@ -20,6 +20,7 @@ from clickup_framework.automation.config import load_automation_config
 from clickup_framework.automation.parent_updater import ParentTaskAutomationEngine
 from clickup_framework.automation.models import ParentUpdateResult
 from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
+from clickup_framework.parsers import ContentProcessor, ParserContext
 
 
 def display_automation_result(result: ParentUpdateResult):
@@ -97,10 +98,41 @@ def task_create_command(args):
     task_data = {'name': args.name}
 
     # Handle description from argument or file
+    description = None
     if args.description_file:
-        task_data['description'] = read_text_from_file(args.description_file)
+        description = read_text_from_file(args.description_file)
     elif args.description:
-        task_data['description'] = args.description
+        description = args.description
+
+    # Process description through ContentProcessor if provided
+    if description:
+        process_markdown = getattr(args, 'markdown', True)
+        skip_mermaid = getattr(args, 'skip_mermaid', False)
+
+        if process_markdown:
+            processor = ContentProcessor(
+                context=ParserContext.TASK_DESCRIPTION,
+                cache_dir=getattr(args, 'image_cache', None)
+            )
+
+            result = processor.process(
+                description,
+                format_markdown=True,
+                process_mermaid=not skip_mermaid,
+                convert_mermaid_to_images=not skip_mermaid
+            )
+
+            # Use markdown_description if content has markdown
+            if result['has_markdown']:
+                task_data['markdown_description'] = result['content']
+            else:
+                task_data['description'] = result['content']
+
+            # Inform about unuploaded images
+            if result.get('unuploaded_images'):
+                print(f"ℹ️  {len(result['unuploaded_images'])} image(s) in description. Use comment attachment to upload.")
+        else:
+            task_data['description'] = description
 
     # Handle status with smart mapping
     if args.status:
@@ -272,19 +304,50 @@ def task_update_command(args):
         updates['name'] = args.name
 
     # Handle description from argument or file
+    description = None
     if args.description_file:
-        updates['description'] = read_text_from_file(args.description_file)
+        description = read_text_from_file(args.description_file)
     elif args.description:
-        updates['description'] = args.description
+        description = args.description
+
+    # Process description through ContentProcessor if provided
+    if description:
+        process_markdown = getattr(args, 'markdown', True)
+        skip_mermaid = getattr(args, 'skip_mermaid', False)
+
+        if process_markdown:
+            processor = ContentProcessor(
+                context=ParserContext.TASK_DESCRIPTION,
+                cache_dir=getattr(args, 'image_cache', None)
+            )
+
+            result = processor.process(
+                description,
+                format_markdown=True,
+                process_mermaid=not skip_mermaid,
+                convert_mermaid_to_images=not skip_mermaid
+            )
+
+            # Use markdown_description if content has markdown
+            if result['has_markdown']:
+                updates['markdown_description'] = result['content']
+            else:
+                updates['description'] = result['content']
+
+            # Inform about unuploaded images
+            if result.get('unuploaded_images'):
+                print(f"ℹ️  {len(result['unuploaded_images'])} image(s) in description. Use comment attachment to upload.")
+        else:
+            updates['description'] = description
 
     # Check if diff preview is enabled for description updates
     diff_enabled = os.getenv('CUM_DIFF_ON_UPDATE') or os.getenv('CUM_ENABLE_DIFF_PREVIEW')
-    if diff_enabled and 'description' in updates:
+    if diff_enabled and ('description' in updates or 'markdown_description' in updates):
         # Fetch current task to get current description
         try:
             current_task = client.get_task(task_id)
-            current_description = current_task.get('description', '') or ''
-            new_description = updates['description']
+            current_description = current_task.get('description', '') or current_task.get('markdown_description', '') or ''
+            new_description = updates.get('description', '') or updates.get('markdown_description', '')
 
             # Only show diff if descriptions are different
             if current_description != new_description:
@@ -909,6 +972,11 @@ def register_command(subparsers):
                                     help='Apply checklist template(s) to the task. Can be used multiple times. Use "cum checklist template list" to see available templates.')
     task_create_parser.add_argument('--clone-checklists-from', metavar='TASK_ID',
                                     help='Clone all checklists from the specified task ID (or "current")')
+    task_create_parser.add_argument('--no-markdown', dest='markdown', action='store_false',
+                                    help='Disable markdown formatting in description')
+    task_create_parser.add_argument('--skip-mermaid', action='store_true',
+                                    help='Skip mermaid diagram processing in description')
+    task_create_parser.add_argument('--image-cache', help='Directory for image cache')
     task_create_parser.set_defaults(func=task_create_command)
 
     # Task update
@@ -934,6 +1002,11 @@ def register_command(subparsers):
     task_update_parser.add_argument('--add-tags', nargs='+', help='Tags to add')
     task_update_parser.add_argument('--remove-tags', nargs='+', help='Tags to remove')
     task_update_parser.add_argument('--parent', help='New parent task ID')
+    task_update_parser.add_argument('--no-markdown', dest='markdown', action='store_false',
+                                    help='Disable markdown formatting in description')
+    task_update_parser.add_argument('--skip-mermaid', action='store_true',
+                                    help='Skip mermaid diagram processing in description')
+    task_update_parser.add_argument('--image-cache', help='Directory for image cache')
     task_update_parser.set_defaults(func=task_update_command)
 
     # Task delete
