@@ -12,7 +12,7 @@ from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
-# Ensure UTF-8 encoding for Windows
+# Ensure UTF-8 encoding and enable VT100 mode for Windows
 if platform.system() == 'Windows':
     try:
         # Try to reconfigure stdout/stderr to use UTF-8
@@ -20,6 +20,8 @@ if platform.system() == 'Windows':
             sys.stdout.reconfigure(encoding='utf-8')
         if hasattr(sys.stderr, 'reconfigure'):
             sys.stderr.reconfigure(encoding='utf-8')
+        
+        # VT100 mode is enabled by colors module on import
     except Exception:
         pass  # If reconfigure fails, continue anyway
 

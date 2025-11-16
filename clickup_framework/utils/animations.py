@@ -210,10 +210,11 @@ class ANSIAnimations:
                     color_idx = (int(wave_pos) + offset) % color_count
                     color_num = rainbow_colors[color_idx]
                     
-                    # Use 256-color ANSI code directly
-                    result.append(f"{bold_code}{ANSIAnimations._ansi_256_color(color_num)}{char}{reset_code}")
+                    # Use 256-color ANSI code with bold - apply reset only at end
+                    result.append(f"{bold_code}{ANSIAnimations._ansi_256_color(color_num)}{char}")
             
-            animated_text = ''.join(result)
+            # Add single reset at the end instead of per character
+            animated_text = ''.join(result) + reset_code
             
             # Clear line and write animated text
             sys.stdout.write(f'\r\033[K{animated_text}')
@@ -230,9 +231,9 @@ class ANSIAnimations:
                 wave_pos = (i / max(len(text), 1)) * color_count
                 color_idx = (int(wave_pos) + final_offset) % color_count
                 color_num = rainbow_colors[color_idx]
-                result.append(f"{bold_code}{ANSIAnimations._ansi_256_color(color_num)}{char}{reset_code}")
+                result.append(f"{bold_code}{ANSIAnimations._ansi_256_color(color_num)}{char}")
         
-        final_text = ''.join(result)
+        final_text = ''.join(result) + reset_code
         sys.stdout.write(f'\r\033[K{final_text}\n')
         sys.stdout.flush()
 
