@@ -170,16 +170,18 @@ class ImageEmbedding(BaseParser):
     Handles {{image:sha256_hash}} handlebars and manages image uploads.
     """
 
-    def __init__(self, context: ParserContext = ParserContext.COMMENT, cache_dir: Optional[str] = None):
+    def __init__(self, context: ParserContext = ParserContext.COMMENT, cache_dir: Optional[str] = None, client=None):
         """
         Initialize the image embedding parser.
 
         Args:
             context: Context in which parsing is happening
             cache_dir: Directory for image cache
+            client: ClickUpClient instance for uploads (optional)
         """
         super().__init__(context)
         self.cache = ImageCache(cache_dir)
+        self.client = client
 
     def parse(self, content: str, **options) -> str:
         """
@@ -314,6 +316,82 @@ class ImageEmbedding(BaseParser):
                 unuploaded.append(hash_value)
 
         return unuploaded
+
+    def upload_image(self, hash_value: str, task_id: str) -> Dict[str, Any]:
+        """
+        Upload an image to ClickUp as an attachment.
+
+        Args:
+            hash_value: Image hash
+            task_id: Task ID to attach image to
+
+        Returns:
+            Attachment data from ClickUp API
+
+        Raises:
+            ValueError: If client not provided or image not in cache
+            FileNotFoundError: If cached image file doesn't exist
+        """
+        if self.client is None:
+            raise ValueError("ClickUpClient instance required for uploads. Pass client to ImageEmbedding constructor.")
+
+        # Get image metadata
+        metadata = self.cache.get_image(hash_value)
+        if not metadata:
+            raise ValueError(f"Image with hash {hash_value} not found in cache")
+
+        # Get cached file path
+        cached_path = metadata.get('cached_path')
+        if not cached_path or not os.path.exists(cached_path):
+            raise FileNotFoundError(f"Cached image file not found: {cached_path}")
+
+        # Upload to ClickUp
+        attachment_data = self.client.create_task_attachment(task_id, cached_path)
+
+        # Extract URL from response
+        upload_url = attachment_data.get('url', '')
+
+        # Update cache metadata
+        self.cache.mark_uploaded(hash_value, upload_url)
+
+        return attachment_data
+
+    def upload_all_images(self, content: str, task_id: str) -> Dict[str, Any]:
+        """
+        Upload all unuploaded images referenced in content.
+
+        Args:
+            content: Markdown content with image references
+            task_id: Task ID to attach images to
+
+        Returns:
+            Dictionary with upload results:
+                - uploaded: List of successfully uploaded hashes
+                - already_uploaded: List of already uploaded hashes
+                - errors: List of (hash, error_message) tuples
+        """
+        image_refs = self.extract_image_references(content)
+
+        results = {
+            'uploaded': [],
+            'already_uploaded': [],
+            'errors': []
+        }
+
+        for hash_value in image_refs:
+            # Skip if already uploaded
+            if self.cache.is_uploaded(hash_value):
+                results['already_uploaded'].append(hash_value)
+                continue
+
+            # Try to upload
+            try:
+                self.upload_image(hash_value, task_id)
+                results['uploaded'].append(hash_value)
+            except Exception as e:
+                results['errors'].append((hash_value, str(e)))
+
+        return results
 
 
 def embed_image(content: str, file_path: str, context: ParserContext = ParserContext.COMMENT) -> Tuple[str, str]:

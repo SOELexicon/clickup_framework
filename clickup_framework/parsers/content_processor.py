@@ -20,18 +20,20 @@ class ContentProcessor:
     Handles the complete pipeline: markdown formatting -> mermaid processing -> image embedding.
     """
 
-    def __init__(self, context: ParserContext = ParserContext.COMMENT, cache_dir: Optional[str] = None):
+    def __init__(self, context: ParserContext = ParserContext.COMMENT, cache_dir: Optional[str] = None, client=None):
         """
         Initialize the content processor.
 
         Args:
             context: Context for processing (comment, doc, page, task_description)
             cache_dir: Directory for image cache
+            client: ClickUpClient instance for uploads (optional)
         """
         self.context = context
+        self.client = client
         self.markdown_formatter = MarkdownFormatter(context)
         self.mermaid_parser = MermaidParser(context)
-        self.image_embedding = ImageEmbedding(context, cache_dir)
+        self.image_embedding = ImageEmbedding(context, cache_dir, client)
 
     def process(self, content: str, **options) -> Dict[str, Any]:
         """
@@ -173,6 +175,79 @@ class ContentProcessor:
             ImageCache instance
         """
         return self.image_embedding.cache
+
+    def upload_image(self, image_hash: str, task_id: str) -> Dict[str, Any]:
+        """
+        Upload a single image to ClickUp.
+
+        Args:
+            image_hash: SHA256 hash of the image
+            task_id: Task ID to attach image to
+
+        Returns:
+            Attachment data from ClickUp
+
+        Raises:
+            ValueError: If client not provided
+        """
+        if self.client is None:
+            raise ValueError("ClickUpClient instance required for uploads. Pass client to ContentProcessor constructor.")
+
+        return self.image_embedding.upload_image(image_hash, task_id)
+
+    def upload_all_images(self, content: str, task_id: str) -> Dict[str, Any]:
+        """
+        Upload all unuploaded images referenced in content.
+
+        Args:
+            content: Markdown content with image references
+            task_id: Task ID to attach images to
+
+        Returns:
+            Dictionary with upload results:
+                - uploaded: List of successfully uploaded hashes
+                - already_uploaded: List of already uploaded hashes
+                - errors: List of (hash, error_message) tuples
+        """
+        if self.client is None:
+            raise ValueError("ClickUpClient instance required for uploads. Pass client to ContentProcessor constructor.")
+
+        return self.image_embedding.upload_all_images(content, task_id)
+
+    def process_and_upload(self, content: str, task_id: str, **options) -> Dict[str, Any]:
+        """
+        Process content and automatically upload all images.
+
+        Args:
+            content: Raw markdown content
+            task_id: Task ID to attach images to
+            **options: Processing options (same as process())
+
+        Returns:
+            Dictionary with:
+                - content: Processed content
+                - upload_results: Results from upload_all_images()
+                - mermaid_blocks: List of mermaid blocks
+                - image_refs: List of image references
+        """
+        if self.client is None:
+            raise ValueError("ClickUpClient instance required for uploads. Pass client to ContentProcessor constructor.")
+
+        # Process content first
+        result = self.process(content, **options)
+
+        # Upload all images
+        upload_results = {'uploaded': [], 'already_uploaded': [], 'errors': []}
+        if result['image_refs']:
+            upload_results = self.upload_all_images(result['content'], task_id)
+
+        return {
+            'content': result['content'],
+            'upload_results': upload_results,
+            'mermaid_blocks': result['mermaid_blocks'],
+            'image_refs': result['image_refs'],
+            'has_markdown': result['has_markdown'],
+        }
 
 
 def process_content(content: str, context: ParserContext = ParserContext.COMMENT, **options) -> Dict[str, Any]:
