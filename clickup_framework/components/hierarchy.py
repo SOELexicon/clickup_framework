@@ -316,6 +316,43 @@ class TaskHierarchyFormatter:
 
         return "\n".join(info_lines) if info_lines else None
 
+    def _enrich_tasks_with_comments(
+        self,
+        tasks: List[Dict[str, Any]],
+        show_comments: int
+    ) -> None:
+        """
+        Enrich tasks with comments by fetching them from the API.
+
+        This method recursively fetches comments for all tasks and their children,
+        updating each task dict in-place with a 'comments' field.
+
+        Args:
+            tasks: List of tasks to enrich (modified in-place)
+            show_comments: Number of comments to fetch (if 0, does nothing)
+        """
+        if not self.client or show_comments <= 0:
+            return
+
+        for task in tasks:
+            task_id = task.get('id')
+            if task_id:
+                try:
+                    # Fetch comments for this task
+                    comments_response = self.client.get_task_comments(task_id)
+                    # The API returns {"comments": [...]}
+                    comments = comments_response.get('comments', [])
+                    task['comments'] = comments
+                except Exception as e:
+                    # Log error but continue with other tasks
+                    logger.debug(f"Failed to fetch comments for task {task_id}: {e}")
+                    task['comments'] = []
+
+            # Recursively enrich children
+            children = task.get('_children', [])
+            if children:
+                self._enrich_tasks_with_comments(children, show_comments)
+
     def format_hierarchy(
         self,
         tasks: List[Dict[str, Any]],
@@ -341,6 +378,10 @@ class TaskHierarchyFormatter:
             tasks,
             include_orphaned=not options.hide_orphaned
         )
+
+        # Enrich tasks with comments if requested
+        if options.show_comments > 0:
+            self._enrich_tasks_with_comments(root_tasks, options.show_comments)
 
         # Wrap in container hierarchy if requested
         if options.show_containers and options.container_info and root_tasks:
