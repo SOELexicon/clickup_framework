@@ -86,11 +86,18 @@ class TreeFormatter:
                 # Continuation lines (descriptions, dates, etc.) should be indented
                 # to align under the task content, not as tree nodes
                 # These are metadata lines, not tree structure
-                # Add pipe + 3 spaces to show metadata belongs to the task above
-                continuation_prefix = child_prefix + "│   "  # Adds vertical pipe for metadata block
-
-                for line in formatted_lines[1:]:
-                    lines.append(f"{continuation_prefix}{line}")
+                detail_lines = formatted_lines[1:]
+                for idx, line in enumerate(detail_lines):
+                    is_last_detail = (idx == len(detail_lines) - 1)
+                    # Last detail line should close with └─ ONLY if there are no children
+                    # If there are children, detail lines should continue with │
+                    if is_last_detail and not children:
+                        # Last detail line with no children - close with └─ (4 chars total)
+                        detail_prefix = child_prefix + "└─  "
+                    else:
+                        # Other detail lines, or last detail when children exist - continue with │
+                        detail_prefix = child_prefix + "│   "
+                    lines.append(f"{detail_prefix}{line}")
 
             if children:
                 # Check if we've reached max depth
