@@ -101,6 +101,10 @@ def create_format_options(args) -> FormatOptions:
         if hasattr(args, "depth") and args.depth is not None:
             options.max_depth = args.depth
 
+        # Override show_type_emoji if --no-emoji flag is specified
+        if hasattr(args, "show_emoji") and args.show_emoji is not None:
+            options.show_type_emoji = args.show_emoji
+
         return options
 
     # Otherwise build from individual flags
