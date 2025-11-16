@@ -27,7 +27,7 @@ def parse_version(version_str: str) -> Tuple[int, int, int]:
 
 
 def increment_version_by_point_one(version_str: str) -> str:
-    """Increment version by 0.0.1 with proper rollover (e.g., 2.2.9 -> 2.3.0, 1.9.9 -> 2.0.0)."""
+    """Increment version by 0.0.1 with proper rollover (e.g., 2.2.5 -> 2.2.6, 2.2.9 -> 2.3.0, 1.9.9 -> 2.0.0)."""
     major, minor, patch = parse_version(version_str)
 
     # Increment patch by 1
@@ -131,6 +131,7 @@ def jizz_command(args):
     """
     context = get_context_manager()
     use_color = context.get_ansi_output()
+    dry_run = args.dry_run
 
     # Check if in Git repository
     git_dir = Path('.git')
@@ -152,6 +153,13 @@ def jizz_command(args):
         print(header)
         print()
 
+        # Dry run warning
+        if dry_run:
+            dry_run_msg = colorize("🧪 DRY RUN MODE - No actual changes will be made",
+                                  TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+            print(dry_run_msg)
+            print()
+
         # Fun intro message
         intro_lines = [
             "🍆 Preparing to release...",
@@ -168,6 +176,8 @@ def jizz_command(args):
         print()
     else:
         print("=== CUM JIZZ WORKFLOW ===")
+        if dry_run:
+            print("🧪 DRY RUN MODE - No actual changes will be made")
         print("Preparing to release...")
         print()
 
@@ -184,21 +194,27 @@ def jizz_command(args):
 
     show_progress_bar("Storing the goods", 0.8, use_color)
 
-    result = subprocess.run(['git', 'stash'], capture_output=True, text=True)
-    if result.returncode == 0:
+    if dry_run:
         if use_color:
-            print(ANSIAnimations.success_message("Stash complete! All tucked away safely."))
+            print(colorize("  [DRY RUN] Would execute: git stash", TextColor.BRIGHT_BLUE))
         else:
-            print("✓ Stash complete!")
+            print("  [DRY RUN] Would execute: git stash")
     else:
-        # Stash might fail if there's nothing to stash - that's okay
-        if "No local changes" in result.stdout or not result.stderr:
+        result = subprocess.run(['git', 'stash'], capture_output=True, text=True)
+        if result.returncode == 0:
             if use_color:
-                print(colorize("  ℹ️  Nothing to stash (already clean)", TextColor.BRIGHT_BLUE))
+                print(ANSIAnimations.success_message("Stash complete! All tucked away safely."))
             else:
-                print("  ℹ️  Nothing to stash")
+                print("✓ Stash complete!")
         else:
-            print(result.stderr.strip(), file=sys.stderr)
+            # Stash might fail if there's nothing to stash - that's okay
+            if "No local changes" in result.stdout or not result.stderr:
+                if use_color:
+                    print(colorize("  ℹ️  Nothing to stash (already clean)", TextColor.BRIGHT_BLUE))
+                else:
+                    print("  ℹ️  Nothing to stash")
+            else:
+                print(result.stderr.strip(), file=sys.stderr)
 
     print()
 
@@ -212,13 +228,19 @@ def jizz_command(args):
 
     show_progress_bar("Extracting the latest release", 1.0, use_color)
 
-    if not run_command(['git', 'pull', '--rebase'], "Pull", use_color):
-        sys.exit(1)
-
-    if use_color:
-        print(ANSIAnimations.success_message("Pull complete! Fresh and ready."))
+    if dry_run:
+        if use_color:
+            print(colorize("  [DRY RUN] Would execute: git pull --rebase", TextColor.BRIGHT_BLUE))
+        else:
+            print("  [DRY RUN] Would execute: git pull --rebase")
     else:
-        print("✓ Pull complete!")
+        if not run_command(['git', 'pull', '--rebase'], "Pull", use_color):
+            sys.exit(1)
+
+        if use_color:
+            print(ANSIAnimations.success_message("Pull complete! Fresh and ready."))
+        else:
+            print("✓ Pull complete!")
 
     print()
 
@@ -261,23 +283,31 @@ def jizz_command(args):
 
     # Create the tag
     tag_name = f"v{new_version}"
-    result = subprocess.run(
-        ['git', 'tag', '-a', tag_name, '-m', f'Release {new_version} 💦'],
-        capture_output=True,
-        text=True
-    )
 
-    if result.returncode != 0:
+    if dry_run:
         if use_color:
-            print(ANSIAnimations.error_message(f"Failed to create tag: {result.stderr}"))
+            print(colorize(f"  [DRY RUN] Would execute: git tag -a {tag_name} -m 'Release {new_version} 💦'",
+                          TextColor.BRIGHT_BLUE))
         else:
-            print(f"✗ Error creating tag: {result.stderr}", file=sys.stderr)
-        sys.exit(1)
-
-    if use_color:
-        print(ANSIAnimations.success_message(f"Tag {tag_name} created! Ready to blow."))
+            print(f"  [DRY RUN] Would execute: git tag -a {tag_name} -m 'Release {new_version} 💦'")
     else:
-        print(f"✓ Tag {tag_name} created!")
+        result = subprocess.run(
+            ['git', 'tag', '-a', tag_name, '-m', f'Release {new_version} 💦'],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            if use_color:
+                print(ANSIAnimations.error_message(f"Failed to create tag: {result.stderr}"))
+            else:
+                print(f"✗ Error creating tag: {result.stderr}", file=sys.stderr)
+            sys.exit(1)
+
+        if use_color:
+            print(ANSIAnimations.success_message(f"Tag {tag_name} created! Ready to blow."))
+        else:
+            print(f"✓ Tag {tag_name} created!")
 
     print()
 
@@ -291,13 +321,20 @@ def jizz_command(args):
 
     show_progress_bar("Ejecting to origin", 1.2, use_color)
 
-    if not run_command(['git', 'push', 'origin', tag_name], f"Push {tag_name}", use_color):
-        sys.exit(1)
-
-    if use_color:
-        print(ANSIAnimations.success_message(f"Tag {tag_name} pushed! Money shot delivered! 💦"))
+    if dry_run:
+        if use_color:
+            print(colorize(f"  [DRY RUN] Would execute: git push origin {tag_name}",
+                          TextColor.BRIGHT_BLUE))
+        else:
+            print(f"  [DRY RUN] Would execute: git push origin {tag_name}")
     else:
-        print(f"✓ Tag {tag_name} pushed!")
+        if not run_command(['git', 'push', 'origin', tag_name], f"Push {tag_name}", use_color):
+            sys.exit(1)
+
+        if use_color:
+            print(ANSIAnimations.success_message(f"Tag {tag_name} pushed! Money shot delivered! 💦"))
+        else:
+            print(f"✓ Tag {tag_name} pushed!")
 
     print()
 
@@ -311,23 +348,29 @@ def jizz_command(args):
 
     show_progress_bar("Reloading for round two", 1.5, use_color)
 
-    # Run cum update cum
-    result = subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True)
-
-    if result.returncode == 0:
-        if result.stdout:
-            print(result.stdout.strip())
+    if dry_run:
         if use_color:
-            print(ANSIAnimations.success_message("Cum tool updated! Back at full capacity."))
+            print(colorize("  [DRY RUN] Would execute: cum update cum", TextColor.BRIGHT_BLUE))
         else:
-            print("✓ Cum tool updated!")
+            print("  [DRY RUN] Would execute: cum update cum")
     else:
-        if use_color:
-            print(ANSIAnimations.warning_message("Cum update had issues (might be okay)"))
+        # Run cum update cum
+        result = subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True)
+
+        if result.returncode == 0:
+            if result.stdout:
+                print(result.stdout.strip())
+            if use_color:
+                print(ANSIAnimations.success_message("Cum tool updated! Back at full capacity."))
+            else:
+                print("✓ Cum tool updated!")
         else:
-            print("⚠ Cum update had issues")
-        if result.stderr:
-            print(result.stderr.strip())
+            if use_color:
+                print(ANSIAnimations.warning_message("Cum update had issues (might be okay)"))
+            else:
+                print("⚠ Cum update had issues")
+            if result.stderr:
+                print(result.stderr.strip())
 
     print()
 
@@ -382,8 +425,10 @@ This command performs the following steps:
 All with humorous output, animations, and progress bars!
         ''',
         epilog='''Examples:
-  cum jizz              # Execute the full workflow
-  cum jizz --no-ansi    # Run without fancy animations
+  cum jizz                # Execute the full workflow
+  cum jizz --dry-run      # Show what would be done without making changes
+  cum jizz --no-ansi      # Run without fancy animations
+  cum jizz --dry-run --no-ansi  # Dry run without animations
 
 Note: This is a humorous command for a humorous CLI tool.
       It performs real git operations, so use responsibly!
@@ -395,6 +440,12 @@ Note: This is a humorous command for a humorous CLI tool.
         '--no-ansi',
         action='store_true',
         help='Disable ANSI colors and animations'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be done without making any changes'
     )
 
     parser.set_defaults(func=jizz_command)
