@@ -42,7 +42,13 @@ def register_command(subparsers, add_common_args=None):
         'clear_current',
         aliases=['clear'],
         help='Clear current resource context',
-        description='Clear current resource context or all context'
+        description='Clear current resource context or all context',
+        epilog='''Tips:
+  • Clear all context: cum clear
+  • Clear specific resource: cum clear task
+  • Clear API token: cum clear token
+  • Use after switching projects
+  • Check context before clearing: cum show'''
     )
     parser.add_argument(
         'resource_type',

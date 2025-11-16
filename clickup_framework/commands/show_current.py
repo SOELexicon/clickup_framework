@@ -109,6 +109,12 @@ def register_command(subparsers, add_common_args=None):
         'show_current',
         aliases=['show'],
         help='Show current resource context',
-        description='Display the current context configuration with all set resources'
+        description='Display the current context configuration with all set resources',
+        epilog='''Tips:
+  • View all current context: cum show
+  • Shows: workspace, list, task, assignee, token status
+  • Use before commands to verify context
+  • Set context with: cum set <type> <id>
+  • Clear context with: cum clear'''
     )
     parser.set_defaults(func=show_current_command)
