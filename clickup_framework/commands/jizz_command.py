@@ -454,7 +454,7 @@ Note: This is a humorous command for a humorous CLI tool.
     )
 
     parser.add_argument(
-        '--dry-run',
+        '-dry', '--dry-run',
         action='store_true',
         help='Show what would be done without making any changes'
     )

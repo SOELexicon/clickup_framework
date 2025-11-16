@@ -549,7 +549,7 @@ def show_command_tree():
             ("ansi", "<enable|disable|status>", "Enable/disable ANSI color output"),
             ("update cum", "", "Update cum tool from git and reinstall"),
             ("update version", "[VERSION] [--major|--minor|--patch]", "Bump project version and create git tag"),
-            ("jizz", "[--dry-run]", "Humorous auto-deploy workflow (stash → pull → tag → push → update)"),
+            ("jizz", "[-dry|--dry-run]", "Humorous auto-deploy workflow (stash → pull → tag → push → update)"),
             ("command_sync", "[--list-id ID] [--dry-run]", "Sync CLI command information to ClickUp tasks"),
         ],
     }
