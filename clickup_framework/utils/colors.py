@@ -404,22 +404,124 @@ def get_status_icon(status: str, fallback_to_code: bool = True) -> str:
     return "◻️"
 
 
-# Task type emoji mapping
+# Task type emoji mapping - comprehensive mapping for all ClickUp task types
+# Includes built-in types, custom workspace types, and common aliases
 TASK_TYPE_EMOJI = {
+    # Default/Built-in types
     "task": "📝",
-    "bug": "🐛",
+    "milestone": "🏁",
+    "form_response": "📝",
+    "meeting_note": "📋",
+
+    # Development & Code
     "feature": "🚀",
+    "feat": "🚀",  # Alias
+    "f": "🚀",  # Alias
+    "features": "🚀",  # Plural
+    "bug": "🐛",
+    "b": "🐛",  # Alias
+    "bugs": "🐛",  # Plural
     "refactor": "♻️",
-    "documentation": "📚",
-    "docs": "📚",
     "enhancement": "✨",
     "chore": "🧹",
-    "research": "🔬",
-    "testing": "🧪",
-    "test": "🧪",
-    "security": "🛡️",
+
+    # Documentation & Content
+    "documentation": "📚",
+    "docs": "📚",
+    "doc": "📚",  # Alias
+    "content": "📄",
+    "c": "📄",  # Alias
+    "user_story": "📖",
+    "user story": "📖",
+    "story": "📖",
+    "us": "📖",  # Alias
+    "lesson_learned": "📚",
+    "lesson learned": "📚",
+    "lesson": "📚",
+    "ll": "📚",  # Alias
+
+    # Project Management
     "project": "📂",
-    "milestone": "🏁",
+    "proj": "📂",
+    "p": "📂",  # Alias
+    "projects": "📂",  # Plural
+    "project_file": "📁",
+    "project file": "📁",
+    "file": "📁",
+    "pf": "📁",  # Alias
+    "goal": "🎯",
+    "g": "🎯",  # Alias
+    "goals": "🎯",  # Plural
+    "objective": "🏁",
+    "obj": "🏁",
+    "o": "🏁",  # Alias
+    "objectives": "🏁",  # Plural
+
+    # Testing & Quality
+    "test_result": "🧪",
+    "test result": "🧪",
+    "test": "🧪",
+    "testing": "🧪",
+    "tr": "🧪",  # Alias
+    "tests": "🧪",  # Plural
+    "trest": "🏷️",  # Custom type (possibly typo)
+    "warning": "⚠️",
+    "warn": "⚠️",
+    "w": "⚠️",  # Alias
+    "warnings": "⚠️",  # Plural
+    "error": "❌",
+    "err": "❌",
+    "e": "❌",  # Alias
+    "errors": "❌",  # Plural
+
+    # Git & Version Control
+    "commit": "💾",
+    "cmt": "💾",
+    "commits": "💾",  # Plural
+    "pull_request": "🔀",
+    "pull request": "🔀",
+    "pr": "🔀",
+    "merge": "🔀",  # Alias
+    "branch": "🌿",
+    "br": "🌿",
+    "branches": "🌿",  # Plural
+
+    # CI/CD & Automation
+    "actions_run": "⚙️",
+    "actions run": "⚙️",
+    "action": "⚙️",
+    "ar": "⚙️",  # Alias
+    "command": "⌨️",
+    "cmd": "⌨️",
+    "commands": "⌨️",  # Plural
+    "process": "⚙️",
+    "proc": "⚙️",
+    "processes": "⚙️",  # Plural
+
+    # Other Types
+    "account": "👤",
+    "acct": "👤",
+    "a": "👤",  # Alias
+    "accounts": "👤",  # Plural
+    "request": "📨",
+    "req": "📨",
+    "requests": "📨",  # Plural
+    "resource": "📦",
+    "res": "📦",
+    "resources": "📦",  # Plural
+    "requirement": "🎨",
+    "requirements": "🎨",  # Plural
+    "idea": "💡",
+    "i": "💡",  # Alias
+    "ideas": "💡",  # Plural
+    "category": "📑",
+    "cat": "📑",
+    "categories": "📑",  # Plural
+    "item": "📦",
+    "itm": "📦",
+    "items": "📦",  # Plural
+    "research": "🔬",
+    "security": "🛡️",
 }
 
 
@@ -427,16 +529,32 @@ def get_task_emoji(task_type: str) -> str:
     """
     Get the emoji for a task type.
 
+    Supports all custom ClickUp task types and common aliases:
+    - Case-insensitive matching (Feature, feature, FEATURE)
+    - Underscore/space variations (user_story, user story)
+    - Common abbreviations (feat, f, pr, etc.)
+    - Plural forms (features, bugs, etc.)
+
     Args:
-        task_type: The task type
+        task_type: The task type string or ID
 
     Returns:
-        The emoji for the task type
+        The emoji for the task type, or 📝 (task emoji) if not found
+
+    Examples:
+        >>> get_task_emoji("Feature")
+        '🚀'
+        >>> get_task_emoji("user_story")
+        '📖'
+        >>> get_task_emoji("pr")
+        '🔀'
+        >>> get_task_emoji("unknown")
+        '📝'
     """
     if not task_type:
         return TASK_TYPE_EMOJI["task"]  # Default to task emoji
 
-    # Normalize task type
+    # Normalize task type (lowercase, strip whitespace)
     normalized_type = str(task_type).lower().strip()
 
     # Return the corresponding emoji or default to task emoji
