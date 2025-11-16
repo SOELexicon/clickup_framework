@@ -444,46 +444,73 @@ class RichTaskFormatter:
                     rel_str = colorize(rel_str, TextColor.BRIGHT_CYAN)
                 additional_lines.append(rel_str)
 
-        # Custom Fields - Show Difficulty Score if set
+        # Custom Fields
         custom_fields = task.get("custom_fields", [])
-        for cf in custom_fields:
-            # Check for Difficulty Score field (exact match or prefix/suffix)
-            field_name = cf.get("name", "")
-            field_name_lower = field_name.lower()
-            # Match if field name starts/ends with difficulty/score or is exact match
-            is_difficulty_field = (
-                field_name_lower == "difficulty"
-                or field_name_lower == "score"
-                or field_name_lower.startswith("difficulty ")
-                or field_name_lower.startswith("score ")
-                or field_name_lower.endswith(" difficulty")
-                or field_name_lower.endswith(" score")
-            )
-            if is_difficulty_field:
-                value = cf.get("value")
-                if value is not None and value != "":
-                    # Format the difficulty score
-                    if isinstance(value, (int, float)):
-                        # Show as colored score based on difficulty level
-                        if value <= 3:
-                            color = TextColor.BRIGHT_GREEN  # Easy
-                        elif value <= 6:
-                            color = TextColor.BRIGHT_YELLOW  # Medium
-                        else:
-                            color = TextColor.BRIGHT_RED  # Hard
+        if custom_fields and (options.show_custom_fields or options.show_score):
+            for cf in custom_fields:
+                field_name = cf.get("name", "")
+                field_name_lower = field_name.lower()
 
-                        score_str = f"⚙️  {field_name}: {value}"
-                        if options.colorize_output:
-                            score_str = (
-                                f"⚙️  {field_name}: {colorize(str(value), color, TextStyle.BOLD)}"
-                            )
-                        additional_lines.append(score_str)
-                    else:
-                        # Non-numeric custom field value
-                        score_str = f"⚙️  {field_name}: {value}"
-                        if options.colorize_output:
-                            score_str = colorize(score_str, TextColor.BRIGHT_CYAN)
-                        additional_lines.append(score_str)
+                # Check if this is a difficulty/score field
+                is_difficulty_field = (
+                    field_name_lower == "difficulty"
+                    or field_name_lower == "score"
+                    or field_name_lower.startswith("difficulty ")
+                    or field_name_lower.startswith("score ")
+                    or field_name_lower.endswith(" difficulty")
+                    or field_name_lower.endswith(" score")
+                )
+
+                # Show field if:
+                # - show_custom_fields is enabled (show all fields), OR
+                # - show_score is enabled AND this is a difficulty/score field
+                should_show = options.show_custom_fields or (options.show_score and is_difficulty_field)
+
+                if should_show:
+                    value = cf.get("value")
+                    if value is not None and value != "":
+                        # Format the custom field value
+                        if isinstance(value, (int, float)):
+                            # Numeric value - show with color coding for difficulty/score
+                            if is_difficulty_field:
+                                # Show as colored score based on difficulty level
+                                if value <= 3:
+                                    color = TextColor.BRIGHT_GREEN  # Easy
+                                elif value <= 6:
+                                    color = TextColor.BRIGHT_YELLOW  # Medium
+                                else:
+                                    color = TextColor.BRIGHT_RED  # Hard
+                            else:
+                                # Other numeric fields use cyan
+                                color = TextColor.BRIGHT_CYAN
+
+                            field_str = f"⚙️  {field_name}: {value}"
+                            if options.colorize_output:
+                                field_str = (
+                                    f"⚙️  {field_name}: {colorize(str(value), color, TextStyle.BOLD)}"
+                                )
+                            additional_lines.append(field_str)
+                        elif isinstance(value, list):
+                            # List value (e.g., multi-select dropdown)
+                            if value:  # Only show if list is not empty
+                                value_str = ", ".join([str(v) for v in value])
+                                field_str = f"⚙️  {field_name}: {value_str}"
+                                if options.colorize_output:
+                                    field_str = colorize(field_str, TextColor.BRIGHT_CYAN)
+                                additional_lines.append(field_str)
+                        elif isinstance(value, dict):
+                            # Complex value (e.g., dropdown with id and name)
+                            display_value = value.get("name") or value.get("value") or str(value)
+                            field_str = f"⚙️  {field_name}: {display_value}"
+                            if options.colorize_output:
+                                field_str = colorize(field_str, TextColor.BRIGHT_CYAN)
+                            additional_lines.append(field_str)
+                        else:
+                            # String or other value
+                            field_str = f"⚙️  {field_name}: {value}"
+                            if options.colorize_output:
+                                field_str = colorize(field_str, TextColor.BRIGHT_CYAN)
+                            additional_lines.append(field_str)
 
         # Combine everything
         if additional_lines:

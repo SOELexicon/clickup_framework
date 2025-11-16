@@ -28,6 +28,7 @@ class FormatOptions:
         show_dates: Whether to show task dates (created, updated, due)
         show_comments: Number of recent comments to show (0 to hide)
         show_relationships: Whether to show task relationships
+        show_custom_fields: Whether to show all custom fields
         include_completed: Whether to include completed tasks
         show_closed_only: Whether to show ONLY closed tasks
         hide_orphaned: Whether to hide orphaned tasks
@@ -48,6 +49,7 @@ class FormatOptions:
     show_dates: bool = False
     show_comments: int = 0
     show_relationships: bool = False
+    show_custom_fields: bool = False
     include_completed: bool = False
     show_closed_only: bool = False
     hide_orphaned: bool = False
