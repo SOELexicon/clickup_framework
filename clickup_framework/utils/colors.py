@@ -475,6 +475,7 @@ TASK_TYPE_EMOJI = {
     "errors": "❌",  # Plural
 
     # Git & Version Control
+    "git": "🔀",
     "commit": "💾",
     "cmt": "💾",
     "commits": "💾",  # Plural
@@ -497,6 +498,21 @@ TASK_TYPE_EMOJI = {
     "process": "⚙️",
     "proc": "⚙️",
     "processes": "⚙️",  # Plural
+    "utility": "🛠️",
+
+    # ClickUp Entity Categories (for command documentation tasks)
+    "clickup task": "✅",
+    "clickup display": "📊",
+    "clickup context": "🎯",
+    "clickup custom field": "🏷️",
+    "clickup checklist": "☑️",
+    "clickup attachment": "📎",
+    "clickup list": "📋",
+    "clickup folder": "📁",
+    "clickup space": "🌐",
+    "clickup comment": "💬",
+    "clickup doc": "📄",
+    "clickup automation": "🤖",
 
     # Other Types
     "account": "👤",
@@ -525,7 +541,37 @@ TASK_TYPE_EMOJI = {
 }
 
 
-def get_task_emoji(task_type: str) -> str:
+def extract_category_from_name(task_name: str) -> Optional[str]:
+    """
+    Extract category from task name if it follows the pattern "(Category) Task Name".
+
+    Args:
+        task_name: The task name string
+
+    Returns:
+        The extracted category string, or None if no category found
+
+    Examples:
+        >>> extract_category_from_name("(GIT) CUM pull")
+        'GIT'
+        >>> extract_category_from_name("(ClickUp Task) CUM task_create")
+        'ClickUp Task'
+        >>> extract_category_from_name("Regular Task Name")
+        None
+    """
+    if not task_name:
+        return None
+
+    # Check if task name starts with (Category) pattern
+    import re
+    match = re.match(r'^\(([^)]+)\)', task_name.strip())
+    if match:
+        return match.group(1)
+
+    return None
+
+
+def get_task_emoji(task_type: str, task_name: Optional[str] = None) -> str:
     """
     Get the emoji for a task type.
 
@@ -534,9 +580,11 @@ def get_task_emoji(task_type: str) -> str:
     - Underscore/space variations (user_story, user story)
     - Common abbreviations (feat, f, pr, etc.)
     - Plural forms (features, bugs, etc.)
+    - Category extraction from task names with "(Category) Name" format
 
     Args:
         task_type: The task type string or ID
+        task_name: Optional task name to extract category from if task_type is generic
 
     Returns:
         The emoji for the task type, or 📝 (task emoji) if not found
@@ -548,6 +596,8 @@ def get_task_emoji(task_type: str) -> str:
         '📖'
         >>> get_task_emoji("pr")
         '🔀'
+        >>> get_task_emoji("task", "(GIT) CUM pull")
+        '🔀'
         >>> get_task_emoji("unknown")
         '📝'
     """
@@ -556,6 +606,15 @@ def get_task_emoji(task_type: str) -> str:
 
     # Normalize task type (lowercase, strip whitespace)
     normalized_type = str(task_type).lower().strip()
+
+    # If task_type is generic (like "task") and we have a task_name,
+    # try to extract category from the task name
+    if normalized_type == "task" and task_name:
+        category = extract_category_from_name(task_name)
+        if category:
+            normalized_category = category.lower().strip()
+            if normalized_category in TASK_TYPE_EMOJI:
+                return TASK_TYPE_EMOJI[normalized_category]
 
     # Return the corresponding emoji or default to task emoji
     return TASK_TYPE_EMOJI.get(normalized_type, TASK_TYPE_EMOJI["task"])

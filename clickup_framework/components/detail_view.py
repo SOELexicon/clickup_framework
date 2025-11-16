@@ -217,8 +217,8 @@ class TaskDetailFormatter:
 
         # Title with emoji
         task_type = task.get('custom_type') or task.get('type', 'task')
-        emoji = get_task_emoji(task_type) if options.show_type_emoji else ""
         task_name = task.get('name', 'Unnamed Task')
+        emoji = get_task_emoji(task_type, task_name) if options.show_type_emoji else ""
 
         title = f"{emoji} {task_name}" if emoji else task_name
 

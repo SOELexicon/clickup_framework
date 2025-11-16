@@ -280,7 +280,8 @@ class RichTaskFormatter:
         # Add task type emoji
         if options.show_type_emoji:
             task_type = task.get("custom_type") or "task"
-            emoji = get_task_emoji(task_type)
+            task_name = task.get("name", "")
+            emoji = get_task_emoji(task_type, task_name)
             parts.append(emoji)
 
         # Get status for both code and color
