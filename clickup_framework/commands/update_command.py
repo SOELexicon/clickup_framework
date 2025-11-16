@@ -365,17 +365,17 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             show_package_progress("clickup-framework", 1.2, use_color)
 
             # Build pip command
-            pip_cmd = [python_path, '-m', 'pip', 'install', '-e', editable_location, '--no-deps']
+            pip_cmd = [python_path, '-m', 'pip', 'install', '-e', editable_location, '--no-deps', '--quiet']
             if fresh_load:
                 pip_cmd.append('--force-reinstall')
             else:
                 pip_cmd.append('--upgrade')
 
-            # Run pip with output suppressed (capture it)
+            # Run pip with all output suppressed (capture stdout and stderr)
             result = subprocess.run(
                 pip_cmd,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 check=True
             )
 
@@ -406,17 +406,17 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
 
             # Build pip command
             pip_cmd = [python_path, '-m', 'pip', 'install',
-                      'git+https://github.com/SOELexicon/clickup_framework.git']
+                      'git+https://github.com/SOELexicon/clickup_framework.git', '--quiet']
             if fresh_load:
                 pip_cmd.extend(['--upgrade', '--force-reinstall'])
             else:
                 pip_cmd.append('--upgrade')
 
-            # Run pip with output suppressed (capture it)
+            # Run pip with all output suppressed (capture stdout and stderr)
             result = subprocess.run(
                 pip_cmd,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 check=True
             )
 

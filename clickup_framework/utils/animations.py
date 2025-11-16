@@ -176,44 +176,57 @@ class ANSIAnimations:
     @staticmethod
     def display_animated_rainbow(text: str, duration: float = 2.0, speed: float = 2.0) -> None:
         """
-        Display text with animated rainbow effect using 256-color ANSI codes.
-        Creates smooth color cycling animation.
+        Display text with smooth sliding rainbow wave animation using 256-color ANSI codes.
+        Creates a wave effect that smoothly slides across the text surface.
         
         Args:
             text: Text to animate
             duration: How long to animate (seconds)
-            speed: Animation speed multiplier
+            speed: Animation speed multiplier (wave speed)
         """
         import time
         
         # Get smooth rainbow color palette
         rainbow_colors = ANSIAnimations._get_rainbow_256_colors()
         color_count = len(rainbow_colors)
-        frames = int(duration * 15)  # 15 frames per second for smooth animation
-        frame_delay = max(0.033, duration / frames)  # ~30fps
+        
+        # Higher frame rate for smoother animation
+        frames = int(duration * 20)  # 20 frames per second for very smooth animation
+        frame_delay = max(0.05, duration / frames)
         
         reset_code = "\033[0m"
         bold_code = "\033[1m"
         
+        # Create smooth sliding wave effect
         for frame in range(frames):
-            # Calculate offset for this frame - creates wave effect
-            offset = int(frame * speed) % color_count
+            # Calculate wave offset - this creates the sliding effect
+            # Use a smooth progression that wraps around
+            wave_offset = (frame * speed * 2.0) % color_count
             
-            # Build animated text with rainbow wave using 256-color codes
+            # Build animated text with sliding rainbow wave
             result = []
             for i, char in enumerate(text):
                 if char == ' ':
                     result.append(char)
                 else:
-                    # Calculate color position with animation offset
-                    wave_pos = (i / max(len(text), 1)) * color_count
-                    color_idx = (int(wave_pos) + offset) % color_count
+                    # Calculate position in the wave
+                    # Use the character position plus wave offset to create sliding effect
+                    # The wave moves from left to right (or right to left)
+                    char_pos = i / max(len(text), 1)  # Normalized position 0-1
+                    
+                    # Create wave pattern: position in color spectrum
+                    # Add wave_offset to make it slide
+                    wave_position = (char_pos * color_count + wave_offset) % color_count
+                    color_idx = int(wave_position)
+                    
+                    # Ensure we stay within bounds
+                    color_idx = color_idx % color_count
                     color_num = rainbow_colors[color_idx]
                     
-                    # Use 256-color ANSI code with bold - apply reset only at end
+                    # Use 256-color ANSI code with bold
                     result.append(f"{bold_code}{ANSIAnimations._ansi_256_color(color_num)}{char}")
             
-            # Add single reset at the end instead of per character
+            # Add single reset at the end
             animated_text = ''.join(result) + reset_code
             
             # Clear line and write animated text
@@ -221,15 +234,16 @@ class ANSIAnimations:
             sys.stdout.flush()
             time.sleep(frame_delay)
         
-        # Final frame - keep it visible
-        final_offset = int(frames * speed) % color_count
+        # Final frame - keep it visible with final wave position
+        final_wave_offset = (frames * speed * 2.0) % color_count
         result = []
         for i, char in enumerate(text):
             if char == ' ':
                 result.append(char)
             else:
-                wave_pos = (i / max(len(text), 1)) * color_count
-                color_idx = (int(wave_pos) + final_offset) % color_count
+                char_pos = i / max(len(text), 1)
+                wave_position = (char_pos * color_count + final_wave_offset) % color_count
+                color_idx = int(wave_position) % color_count
                 color_num = rainbow_colors[color_idx]
                 result.append(f"{bold_code}{ANSIAnimations._ansi_256_color(color_num)}{char}")
         
