@@ -229,7 +229,13 @@ Example:
   cum overflow "Fix bug" --task abc123xyz           # Specify task
   cum overflow "WIP: Testing" --no-push --dry-run   # Test without pushing
         ''',
-        epilog='For more info: https://github.com/SOELexicon/clickup_framework'
+        epilog='''Tips:
+  • Quick commit: cum overflow "message" (auto-detects current task)
+  • Test first: cum overflow "message" --dry-run
+  • Commit without push: cum overflow "message" --no-push
+  • Git only (skip ClickUp): cum overflow "message" --no-clickup
+  • Automates: git add, commit, push, ClickUp task update, and linking
+  • For more info: https://github.com/SOELexicon/clickup_framework'''
     )
 
     # Required arguments

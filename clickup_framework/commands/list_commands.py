@@ -195,7 +195,14 @@ def register_command(subparsers):
         'list-mgmt',
         aliases=['lm', 'list_mgmt'],
         help='Manage lists (create, update, delete)',
-        description='Manage lists in ClickUp'
+        description='Manage lists in ClickUp',
+        epilog='''Tips:
+  • Create list: cum list-mgmt create <folder_id> "My List"
+  • Update list: cum list-mgmt update <list_id> --name "New Name"
+  • Delete list: cum list-mgmt delete <list_id>
+  • Lists contain Tasks and define statuses/workflows
+  • Hierarchy: Workspace → Space → Folder → List → Task
+  • Use "cum list" or "cum h" to view tasks in a list'''
     )
 
     list_subparsers = list_parser.add_subparsers(dest='list_command', help='List command')

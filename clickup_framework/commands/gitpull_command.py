@@ -29,6 +29,12 @@ def register_command(subparsers, add_common_args=None):
     parser = subparsers.add_parser(
         'pull',
         help='Execute git pull --rebase',
-        description='Pull latest changes with rebase in current Git repository'
+        description='Pull latest changes with rebase in current Git repository',
+        epilog='''Tips:
+  • Update current repo: cum pull (runs git pull --rebase)
+  • Uses rebase instead of merge for cleaner history
+  • Run before starting new work to stay current
+  • Resolves conflicts during rebase if needed
+  • Alternative to 'git pull --rebase' shortcut'''
     )
     parser.set_defaults(func=pull_command)
