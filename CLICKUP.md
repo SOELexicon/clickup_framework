@@ -1329,6 +1329,108 @@ cum overflow "Implement feature" # Commit, push, and update ClickUp
 
 ---
 
+## Utility Commands ✅
+
+> **Status**: Implemented
+> **Tracking**: [ClickUp Task](https://app.clickup.com/t/86c6j0qkh)
+
+### `diff` - Compare Files or Strings
+
+Compare two files or strings and display a unified diff with colored output.
+
+**Basic Usage**:
+```bash
+# Compare two files
+cum diff file1.txt file2.txt
+
+# Compare two strings
+cum diff --old "Hello World" --new "Hello ClickUp"
+
+# Show more context lines
+cum diff file1.txt file2.txt --context 5
+
+# Disable color output
+cum diff file1.txt file2.txt --no-color
+```
+
+**Arguments**:
+| Argument | Type | Description |
+|----------|------|-------------|
+| `file1` | Optional | First file path to compare |
+| `file2` | Optional | Second file path to compare |
+| `--old TEXT` | Optional | Old text string to compare |
+| `--new TEXT` | Optional | New text string to compare |
+| `--old-label LABEL` | Optional | Label for old text (default: "old") |
+| `--new-label LABEL` | Optional | Label for new text (default: "new") |
+| `--context N`, `-c N` | Optional | Number of context lines (default: 3) |
+| `--color` | Flag | Force colored output |
+| `--no-color` | Flag | Disable colored output |
+
+**Features**:
+- ✅ Unified diff format using Python's `difflib`
+- ✅ Colored output (additions in green, deletions in red)
+- ✅ Configurable context lines
+- ✅ Respects ANSI color settings
+- ✅ Supports both file and string comparison
+
+**Notes**:
+- Must specify either file paths OR `--old`/`--new` strings (not both)
+- Color output respects global ANSI settings from `cum ansi` command
+- Empty files and identical content are handled gracefully
+
+### Diff Preview for Task Updates
+
+When updating task descriptions, you can enable a diff preview feature that shows changes before applying them.
+
+**Environment Variable**: `CUM_DIFF_ON_UPDATE` or `CUM_ENABLE_DIFF_PREVIEW`
+
+**Setup**:
+```bash
+# Linux/Mac
+export CUM_DIFF_ON_UPDATE=1
+
+# Windows
+set CUM_DIFF_ON_UPDATE=1
+```
+
+**Usage**:
+```bash
+# Enable diff preview
+export CUM_DIFF_ON_UPDATE=1
+
+# Update task description from file
+cum tu current --description-file updated.md
+
+# System shows colored diff:
+# --- current
+# +++ new
+# @@ -1,3 +1,3 @@
+# -Old description line 1
+# +New description line 1
+#  Old description line 2
+# -Old description line 3
+# +New description line 3
+#
+# Apply this update? (y/N):
+
+# Confirm or cancel the update
+```
+
+**Features**:
+- ✅ Shows colored diff before applying description updates
+- ✅ Prompts for confirmation (y/N)
+- ✅ Cancels update if declined
+- ✅ Only applies to description updates
+- ✅ Disabled by default (opt-in via environment variable)
+
+**When to Use**:
+- Reviewing large description changes before applying
+- Ensuring accuracy when updating critical task descriptions
+- Preventing accidental overwrites of existing content
+- Collaborative workflows where changes need review
+
+---
+
 ## List Commands (Planned) 🚧
 
 > **Status**: Not yet implemented

@@ -1,10 +1,12 @@
 """Task management commands for ClickUp Framework CLI."""
 
+import os
 import sys
 from collections import defaultdict
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.utils.diff import diff_strings
 from clickup_framework.exceptions import ClickUpAPIError
 from clickup_framework.commands.utils import read_text_from_file
 from clickup_framework.cli_error_handler import handle_cli_error
@@ -274,6 +276,41 @@ def task_update_command(args):
         updates['description'] = read_text_from_file(args.description_file)
     elif args.description:
         updates['description'] = args.description
+
+    # Check if diff preview is enabled for description updates
+    diff_enabled = os.getenv('CUM_DIFF_ON_UPDATE') or os.getenv('CUM_ENABLE_DIFF_PREVIEW')
+    if diff_enabled and 'description' in updates:
+        # Fetch current task to get current description
+        try:
+            current_task = client.get_task(task_id)
+            current_description = current_task.get('description', '') or ''
+            new_description = updates['description']
+
+            # Only show diff if descriptions are different
+            if current_description != new_description:
+                # Generate and display diff
+                print(f"\n{colorize('Description Changes:', TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+                print("─" * 60)
+
+                diff_output = diff_strings(
+                    current_description,
+                    new_description,
+                    old_label='current',
+                    new_label='new',
+                    use_color=context.get_ansi_output()
+                )
+                print(diff_output)
+                print("─" * 60)
+
+                # Prompt for confirmation
+                response = input("\nApply this update? (y/N): ")
+                if response.lower() not in ['y', 'yes']:
+                    print("Update cancelled.")
+                    sys.exit(0)
+        except Exception as e:
+            # If we can't fetch the current task, just continue with the update
+            # This prevents diff preview from blocking legitimate updates
+            print(f"Warning: Could not fetch current task for diff preview: {e}", file=sys.stderr)
 
     if args.status:
         updates['status'] = args.status
