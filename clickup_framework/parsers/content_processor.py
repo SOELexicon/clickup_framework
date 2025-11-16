@@ -31,8 +31,9 @@ class ContentProcessor:
         """
         self.context = context
         self.client = client
+        self.cache_dir = cache_dir
         self.markdown_formatter = MarkdownFormatter(context)
-        self.mermaid_parser = MermaidParser(context)
+        self.mermaid_parser = MermaidParser(context, cache_dir)
         self.image_embedding = ImageEmbedding(context, cache_dir, client)
 
     def process(self, content: str, **options) -> Dict[str, Any]:

@@ -6,10 +6,14 @@ Converts mermaid diagrams to images and embeds them above code blocks.
 Supports change detection via content hashing and #ignore comments.
 """
 
+import os
 import re
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple
+from pathlib import Path
 from .base import BaseParser, ParserContext
+from .image_embedding import ImageCache
+from ..utils.mermaid_cli import MermaidCLI
 
 
 class MermaidBlock:
@@ -52,15 +56,19 @@ class MermaidParser(BaseParser):
     Supports change detection and selective processing.
     """
 
-    def __init__(self, context: ParserContext = ParserContext.COMMENT):
+    def __init__(self, context: ParserContext = ParserContext.COMMENT, cache_dir: Optional[str] = None):
         """
         Initialize the mermaid parser.
 
         Args:
             context: Context in which parsing is happening
+            cache_dir: Directory for image cache (default: ~/.clickup_framework/image_cache)
         """
         super().__init__(context)
         self.blocks: List[MermaidBlock] = []
+        self.cache = ImageCache(cache_dir)
+        self.mermaid_cli = MermaidCLI()
+        self.cli_available = self.mermaid_cli.is_available()
 
     def parse(self, content: str, **options) -> str:
         """
@@ -72,6 +80,9 @@ class MermaidParser(BaseParser):
                 - convert_to_images: Whether to convert diagrams to images (default: True)
                 - image_format: Format for images ('png', 'svg') (default: 'png')
                 - embed_above: Whether to embed images above code blocks (default: True)
+                - background_color: Background color for images (default: 'white')
+                - width: Image width in pixels (optional)
+                - height: Image height in pixels (optional)
 
         Returns:
             Processed markdown with image references
@@ -81,6 +92,10 @@ class MermaidParser(BaseParser):
 
         convert_to_images = options.get('convert_to_images', True)
         embed_above = options.get('embed_above', True)
+        image_format = options.get('image_format', 'png')
+        background_color = options.get('background_color', 'white')
+        width = options.get('width', None)
+        height = options.get('height', None)
 
         # Extract mermaid blocks
         self.blocks = self._extract_mermaid_blocks(content)
@@ -96,6 +111,16 @@ class MermaidParser(BaseParser):
         for block in reversed(self.blocks):  # Process in reverse to maintain line numbers
             if block.ignore:
                 continue
+
+            # Generate image if CLI is available
+            if self.cli_available:
+                self._generate_image_for_block(
+                    block,
+                    image_format=image_format,
+                    background_color=background_color,
+                    width=width,
+                    height=height
+                )
 
             if embed_above:
                 # Generate image reference using hash
@@ -174,6 +199,66 @@ class MermaidParser(BaseParser):
         lines[block.start_line:block.start_line] = insert_lines
 
         return '\n'.join(lines)
+
+    def _generate_image_for_block(
+        self,
+        block: MermaidBlock,
+        image_format: str = 'png',
+        background_color: str = 'white',
+        width: Optional[int] = None,
+        height: Optional[int] = None
+    ) -> bool:
+        """
+        Generate image for a mermaid block and store in cache.
+
+        Args:
+            block: Mermaid block to process
+            image_format: Output format ('png' or 'svg')
+            background_color: Background color
+            width: Image width in pixels (optional)
+            height: Image height in pixels (optional)
+
+        Returns:
+            True if image was generated successfully
+        """
+        # Check if image already exists in cache
+        if self.cache.get_image(block.hash):
+            # Image already cached
+            return True
+
+        # Generate temporary output file path
+        output_ext = f'.{image_format}'
+        output_path = str(self.cache.cache_dir / f'{block.hash}{output_ext}')
+
+        # Generate image using Mermaid CLI
+        success, error_msg = self.mermaid_cli.generate_image(
+            mermaid_code=block.content,
+            output_path=output_path,
+            image_format=image_format,
+            background_color=background_color,
+            width=width,
+            height=height
+        )
+
+        if success:
+            # Add to image cache
+            # Since we already know the hash, we can update metadata directly
+            file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+            self.cache.metadata[block.hash] = {
+                'filename': f'mermaid_{block.hash[:8]}{output_ext}',
+                'extension': output_ext,
+                'size': file_size,
+                'cached_path': output_path,
+                'uploaded': False,
+                'upload_url': None,
+                'source': 'mermaid'
+            }
+            self.cache._save_metadata()
+            return True
+        else:
+            # Log error but don't fail - we'll just use the handlebar reference
+            # User can still manually upload or fix the diagram
+            return False
 
     def can_handle(self, content: str) -> bool:
         """
