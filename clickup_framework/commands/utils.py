@@ -83,13 +83,22 @@ def create_format_options(args) -> FormatOptions:
 
     # Use preset if specified
     if hasattr(args, "preset") and args.preset:
-        if args.preset == "minimal":
+        # Map numeric preset values to named presets
+        preset_map = {
+            "0": "minimal",
+            "1": "summary",
+            "2": "detailed",
+            "3": "full",
+        }
+        preset_name = preset_map.get(args.preset, args.preset)
+
+        if preset_name == "minimal":
             options = FormatOptions.minimal()
-        elif args.preset == "summary":
+        elif preset_name == "summary":
             options = FormatOptions.summary()
-        elif args.preset == "detailed":
+        elif preset_name == "detailed":
             options = FormatOptions.detailed()
-        elif args.preset == "full":
+        elif preset_name == "full":
             options = FormatOptions.full()
         else:
             options = FormatOptions()
@@ -136,9 +145,10 @@ def create_format_options(args) -> FormatOptions:
 def add_common_args(subparser):
     """Add common formatting arguments to a command parser."""
     subparser.add_argument(
+        "-p",
         "--preset",
-        choices=["minimal", "summary", "detailed", "full"],
-        help="Use a preset format configuration",
+        choices=["0", "minimal", "1", "summary", "2", "detailed", "3", "full"],
+        help="Use a preset format configuration: 0/minimal, 1/summary, 2/detailed, 3/full",
     )
     subparser.add_argument(
         "--no-colorize",
@@ -151,12 +161,24 @@ def add_common_args(subparser):
     subparser.add_argument(
         "--colorize", dest="colorize", action="store_const", const=True, help="Enable color output"
     )
-    subparser.add_argument("--show-ids", action="store_true", help="Show task IDs")
     subparser.add_argument(
-        "--show-tags", action="store_true", default=True, help="Show task tags (default: true)"
+        "-i",
+        "--show-ids",
+        action="store_true",
+        help="Show task IDs"
     )
     subparser.add_argument(
-        "--show-descriptions", action="store_true", help="Show task descriptions"
+        "-t",
+        "--show-tags",
+        action="store_true",
+        default=True,
+        help="Show task tags (default: true)"
+    )
+    subparser.add_argument(
+        "-D",
+        "--show-descriptions",
+        action="store_true",
+        help="Show task descriptions"
     )
     subparser.add_argument(
         "-d",
@@ -165,8 +187,14 @@ def add_common_args(subparser):
         action="store_true",
         help="Show full descriptions without truncation (implies --show-descriptions)",
     )
-    subparser.add_argument("--show-dates", action="store_true", help="Show task dates")
     subparser.add_argument(
+        "-dd",
+        "--show-dates",
+        action="store_true",
+        help="Show task dates"
+    )
+    subparser.add_argument(
+        "-c",
         "--show-comments",
         type=int,
         default=5,
@@ -174,7 +202,10 @@ def add_common_args(subparser):
         help="Show N most recent comments per task (default: 5, set to 0 to hide)",
     )
     subparser.add_argument(
-        "--include-completed", action="store_true", help="Include completed tasks"
+        "-C",
+        "--include-completed",
+        action="store_true",
+        help="Include completed tasks"
     )
     subparser.add_argument(
         "-sc",
@@ -184,13 +215,24 @@ def add_common_args(subparser):
         help="Show ONLY closed tasks",
     )
     subparser.add_argument(
-        "--no-emoji", dest="show_emoji", action="store_false", help="Hide task type emojis"
+        "-ne",
+        "--no-emoji",
+        dest="show_emoji",
+        action="store_false",
+        help="Hide task type emojis"
     )
     subparser.add_argument(
-        "--show-custom-fields", action="store_true", help="Show all custom fields"
+        "-cf",
+        "--show-custom-fields",
+        action="store_true",
+        help="Show all custom fields"
     )
     subparser.add_argument(
-        "--no-tips", dest="show_tips", action="store_false", default=True,
+        "-nt",
+        "--no-tips",
+        dest="show_tips",
+        action="store_false",
+        default=True,
         help="Disable helpful tips at end of output"
     )
 
