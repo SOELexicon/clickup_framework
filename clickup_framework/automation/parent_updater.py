@@ -13,6 +13,7 @@ from clickup_framework.automation.config import AutomationConfig
 from clickup_framework.automation.models import TaskUpdateEvent, ParentUpdateResult
 from clickup_framework.automation.status_matcher import StatusMatcher
 from clickup_framework.exceptions import ClickUpAPIError
+from clickup_framework.utils.status_mapper import map_status, get_available_statuses
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +172,55 @@ class ParentTaskAutomationEngine:
                 )
 
             # Determine target status for parent
-            target_status = self.config.parent_target_status
+            # Get parent's list to check available statuses
+            parent_list_id = parent.get('list', {}).get('id') if isinstance(parent.get('list'), dict) else parent.get('list')
+
+            if not parent_list_id:
+                self.logger.error(f"Could not get list ID for parent {parent_id}")
+                return ParentUpdateResult(
+                    parent_task_id=parent_id,
+                    parent_task_name=parent_name,
+                    old_status=parent_status,
+                    new_status=parent_status,
+                    update_successful=False,
+                    comment_posted=False,
+                    skip_reason="no_list_id",
+                    error_message="Could not determine parent task's list ID",
+                    latency_ms=self._calc_latency(start_time)
+                )
+
+            # Get available statuses for parent's list and map the target status
+            try:
+                parent_list = self.api.get_list(parent_list_id)
+                available_statuses = get_available_statuses(parent_list)
+
+                # Try to map the configured target status to a valid status for the parent
+                target_status = map_status(self.config.parent_target_status, available_statuses)
+
+                if not target_status:
+                    # If mapping fails, log available statuses for debugging
+                    available_status_names = [s['status'] for s in available_statuses]
+                    self.logger.error(
+                        f"Could not map target status '{self.config.parent_target_status}' "
+                        f"to any available status for parent {parent_id}. "
+                        f"Available statuses: {', '.join(available_status_names)}"
+                    )
+                    return ParentUpdateResult(
+                        parent_task_id=parent_id,
+                        parent_task_name=parent_name,
+                        old_status=parent_status,
+                        new_status=parent_status,
+                        update_successful=False,
+                        comment_posted=False,
+                        skip_reason="status_not_available",
+                        error_message=f"Status '{self.config.parent_target_status}' not available for parent task. Available: {', '.join(available_status_names)}",
+                        latency_ms=self._calc_latency(start_time)
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Failed to get parent list {parent_list_id}: {e}")
+                # Fall back to using the configured status without mapping
+                target_status = self.config.parent_target_status
 
             # Update parent task status
             old_status = parent_status

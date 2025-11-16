@@ -30,6 +30,17 @@ def display_automation_result(result: ParentUpdateResult):
     if result.skip_reason == "parent_already_active":
         print(f"\nℹ️  Parent task already active (status: {result.old_status})")
         print(f"  No update needed for: {result.parent_task_name} [{result.parent_task_id}]")
+    elif result.skip_reason == "no_list_id":
+        print(f"\n⚠️  Warning: Automatic parent update skipped")
+        print(f"  Parent task: {result.parent_task_name} [{result.parent_task_id}]")
+        print(f"  Reason: Could not determine parent task's list")
+        print(f"  {colorize('→ You may need to manually update the parent task', TextColor.BRIGHT_YELLOW)}")
+    elif result.skip_reason == "status_not_available":
+        print(f"\n⚠️  Warning: Automatic parent update skipped")
+        print(f"  Parent task: {result.parent_task_name} [{result.parent_task_id}]")
+        if result.error_message:
+            print(f"  {colorize(result.error_message, TextColor.BRIGHT_YELLOW)}")
+        print(f"  {colorize('→ You may need to manually update the parent task', TextColor.BRIGHT_YELLOW)}")
     elif result.update_successful:
         print(f"\n🔄 Auto-Update: Parent task updated")
         print(f"  Task: {result.parent_task_name} [{result.parent_task_id}]")
@@ -42,7 +53,7 @@ def display_automation_result(result: ParentUpdateResult):
         print(f"\n⚠️  Warning: Automatic parent update failed")
         print(f"  Parent task: {result.parent_task_name} [{result.parent_task_id}]")
         if result.error_message:
-            print(f"  Error: {result.error_message}")
+            print(f"  {colorize(result.error_message, TextColor.BRIGHT_YELLOW)}")
         print(f"  {colorize('→ You may need to manually update the parent task', TextColor.BRIGHT_YELLOW)}")
 
 
