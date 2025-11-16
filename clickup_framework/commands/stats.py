@@ -169,7 +169,13 @@ def register_command(subparsers, add_common_args=None):
         'stats',
         aliases=['st'],
         help='Display task statistics',
-        description='Display statistical summary of tasks in a list'
+        description='Display statistical summary of tasks in a list',
+        epilog='''Tips:
+  • View statistics: cum stats <list_id>
+  • Group by type: cum stats <list_id> --by-type
+  • Filter by type: cum stats <list_id> --type Bug
+  • Include closed: cum stats <list_id> --include-closed
+  • Shows: task counts, status distribution, priority breakdown'''
     )
     parser.add_argument('list_id', help='ClickUp list ID or task ID')
     parser.add_argument('--by-type', action='store_true',

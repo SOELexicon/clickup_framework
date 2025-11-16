@@ -51,7 +51,13 @@ def register_command(subparsers):
         'clist',
         aliases=['c', 'container'],
         help='Display tasks by container hierarchy',
-        description='Display tasks organized by container hierarchy'
+        description='Display tasks organized by container hierarchy',
+        epilog='''Tips:
+  • View by containers: cum c <list_id>
+  • Shows: Space → Folder → List structure
+  • Organizes by workspace hierarchy
+  • Different from task parent-child (use hierarchy for that)
+  • Use presets: cum c <list_id> --preset summary'''
     )
     parser.add_argument('list_id', help='ClickUp list ID or task ID')
     add_common_args(parser)

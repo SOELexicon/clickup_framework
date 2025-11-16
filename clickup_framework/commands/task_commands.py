@@ -841,8 +841,18 @@ def task_remove_link_command(args):
 def register_command(subparsers):
     """Register task management commands."""
     # Task create
-    task_create_parser = subparsers.add_parser('task_create', aliases=['tc'],
-                                                help='Create a new task')
+    task_create_parser = subparsers.add_parser(
+        'task_create',
+        aliases=['tc'],
+        help='Create a new task',
+        description='Create a new task in a ClickUp list with optional metadata and relationships.',
+        epilog='''Tips:
+  • Create task in current list: cum tc "My Task" --list current
+  • Create subtask under parent: cum tc "Subtask" --parent 86abc123
+  • Set priority with name or number: cum tc "Urgent" --priority urgent (or --priority 1)
+  • Apply checklist template: cum tc "Task" --list current --checklist-template "dev-workflow"
+  • Clone checklists from another task: cum tc "New" --list current --clone-checklists-from current'''
+    )
     task_create_parser.add_argument('name', help='Task name')
     task_create_parser.add_argument('--list', dest='list_id', help='List ID to create task in (or "current"). Not required if --parent is provided.')
     description_group = task_create_parser.add_mutually_exclusive_group()
@@ -865,8 +875,18 @@ def register_command(subparsers):
     task_create_parser.set_defaults(func=task_create_command)
 
     # Task update
-    task_update_parser = subparsers.add_parser('task_update', aliases=['tu'],
-                                                help='Update a task')
+    task_update_parser = subparsers.add_parser(
+        'task_update',
+        aliases=['tu'],
+        help='Update a task',
+        description='Update an existing task with new values for name, description, status, priority, tags, or parent.',
+        epilog='''Tips:
+  • Update task name: cum tu current --name "New Name"
+  • Change status: cum tu 86abc123 --status "in progress"
+  • Add tags: cum tu current --add-tags bug urgent
+  • Update from file: cum tu current --description-file notes.md
+  • Move to new parent: cum tu 86abc123 --parent 86def456'''
+    )
     task_update_parser.add_argument('task_id', help='Task ID to update (or "current")')
     task_update_parser.add_argument('--name', help='New task name')
     description_update_group = task_update_parser.add_mutually_exclusive_group()
@@ -880,30 +900,71 @@ def register_command(subparsers):
     task_update_parser.set_defaults(func=task_update_command)
 
     # Task delete
-    task_delete_parser = subparsers.add_parser('task_delete', aliases=['td'],
-                                                help='Delete a task')
+    task_delete_parser = subparsers.add_parser(
+        'task_delete',
+        aliases=['td'],
+        help='Delete a task',
+        description='Permanently delete a task from ClickUp with optional confirmation prompt.',
+        epilog='''Tips:
+  • Delete with confirmation: cum td 86abc123 (prompts for confirmation)
+  • Force delete without prompt: cum td 86abc123 --force
+  • Delete current task: cum td current
+  • Be careful - deletion is permanent!
+  • Consider archiving instead of deleting when possible'''
+    )
     task_delete_parser.add_argument('task_id', help='Task ID to delete (or "current")')
     task_delete_parser.add_argument('--force', '-f', action='store_true',
                                     help='Skip confirmation prompt')
     task_delete_parser.set_defaults(func=task_delete_command)
 
     # Task assign
-    task_assign_parser = subparsers.add_parser('task_assign', aliases=['ta'],
-                                                help='Assign users to a task')
+    task_assign_parser = subparsers.add_parser(
+        'task_assign',
+        aliases=['ta'],
+        help='Assign users to a task',
+        description='Assign one or more users to a task by their user IDs.',
+        epilog='''Tips:
+  • Assign single user: cum ta current 12345678
+  • Assign multiple users: cum ta 86abc123 12345678 87654321
+  • Find user IDs in ClickUp settings or team directory
+  • Assignments are additive - existing assignees remain
+  • Use task_unassign to remove assignees'''
+    )
     task_assign_parser.add_argument('task_id', help='Task ID (or "current")')
     task_assign_parser.add_argument('assignee_ids', nargs='+', help='User IDs to assign')
     task_assign_parser.set_defaults(func=task_assign_command)
 
     # Task unassign
-    task_unassign_parser = subparsers.add_parser('task_unassign', aliases=['tua'],
-                                                  help='Remove assignees from a task')
+    task_unassign_parser = subparsers.add_parser(
+        'task_unassign',
+        aliases=['tua'],
+        help='Remove assignees from a task',
+        description='Remove one or more users from a task by their user IDs.',
+        epilog='''Tips:
+  • Remove single user: cum tua current 12345678
+  • Remove multiple users: cum tua 86abc123 12345678 87654321
+  • Use cum d <task_id> to see current assignees
+  • Other assignees remain on the task
+  • Use task_assign to add assignees back'''
+    )
     task_unassign_parser.add_argument('task_id', help='Task ID (or "current")')
     task_unassign_parser.add_argument('assignee_ids', nargs='+', help='User IDs to remove')
     task_unassign_parser.set_defaults(func=task_unassign_command)
 
     # Task set status
-    task_set_status_parser = subparsers.add_parser('task_set_status', aliases=['tss'],
-                                                    help='Set task status')
+    task_set_status_parser = subparsers.add_parser(
+        'task_set_status',
+        aliases=['tss'],
+        help='Set task status',
+        description='Set the status of one or more tasks with smart status mapping and subtask validation.',
+        epilog='''Tips:
+  • Set single task: cum tss current "in progress"
+  • Set multiple tasks: cum tss 86abc123 86def456 "completed"
+  • Status names are case-insensitive and fuzzy-matched
+  • Parent tasks require matching subtask statuses
+  • Use --no-parent-update to skip parent automation
+  • Use --update-parent to force parent status update'''
+    )
     task_set_status_parser.add_argument('task_ids', nargs='+', help='Task ID(s) (or "current")')
     task_set_status_parser.add_argument('status', help='New status')
     task_set_status_parser.add_argument('--no-parent-update', action='store_true',
@@ -913,15 +974,35 @@ def register_command(subparsers):
     task_set_status_parser.set_defaults(func=task_set_status_command)
 
     # Task set priority
-    task_set_priority_parser = subparsers.add_parser('task_set_priority', aliases=['tsp'],
-                                                      help='Set task priority')
+    task_set_priority_parser = subparsers.add_parser(
+        'task_set_priority',
+        aliases=['tsp'],
+        help='Set task priority',
+        description='Set the priority level of a task using numbers (1-4) or names (urgent/high/normal/low).',
+        epilog='''Tips:
+  • Set by number: cum tsp current 1 (1=urgent, 2=high, 3=normal, 4=low)
+  • Set by name: cum tsp current urgent
+  • Priority names are case-insensitive: "URGENT" or "urgent"
+  • View current priority: cum d <task_id>
+  • Urgent tasks (P1) appear at the top in most views'''
+    )
     task_set_priority_parser.add_argument('task_id', help='Task ID (or "current")')
     task_set_priority_parser.add_argument('priority', help='Priority (1-4 or urgent/high/normal/low)')
     task_set_priority_parser.set_defaults(func=task_set_priority_command)
 
     # Task set tags
-    task_set_tags_parser = subparsers.add_parser('task_set_tags', aliases=['tst'],
-                                                  help='Manage task tags')
+    task_set_tags_parser = subparsers.add_parser(
+        'task_set_tags',
+        aliases=['tst'],
+        help='Manage task tags',
+        description='Add, remove, or replace tags on a task for better organization and filtering.',
+        epilog='''Tips:
+  • Add tags: cum tst current --add bug frontend
+  • Remove tags: cum tst current --remove old-tag
+  • Replace all tags: cum tst current --set feature v2.0
+  • View current tags: cum d <task_id>
+  • Use tags for filtering: cum filter <list_id> --tags bug'''
+    )
     task_set_tags_parser.add_argument('task_id', help='Task ID (or "current")')
     task_set_tags_group = task_set_tags_parser.add_mutually_exclusive_group(required=True)
     task_set_tags_group.add_argument('--add', nargs='+', help='Tags to add')
@@ -930,8 +1011,19 @@ def register_command(subparsers):
     task_set_tags_parser.set_defaults(func=task_set_tags_command)
 
     # Task add dependency
-    task_add_dep_parser = subparsers.add_parser('task_add_dependency', aliases=['tad'],
-                                                 help='Add dependency relationship between tasks')
+    task_add_dep_parser = subparsers.add_parser(
+        'task_add_dependency',
+        aliases=['tad'],
+        help='Add dependency relationship between tasks',
+        description='Create a dependency relationship where one task must wait for or blocks another task.',
+        epilog='''Tips:
+  • Make task wait: cum tad current --waiting-on 86abc123
+  • Make task block: cum tad current --blocking 86def456
+  • "Waiting-on" means current task depends on the other
+  • "Blocking" means other task depends on current
+  • View dependencies: cum d <task_id>
+  • Dependencies affect task ordering in "assigned" view'''
+    )
     task_add_dep_parser.add_argument('task_id', help='Task ID (or "current")')
     task_add_dep_parser.add_argument('--waiting-on', dest='waiting_on',
                                       help='Task ID that this task depends on (waiting-on relationship)')
@@ -940,8 +1032,18 @@ def register_command(subparsers):
     task_add_dep_parser.set_defaults(func=task_add_dependency_command)
 
     # Task remove dependency
-    task_rm_dep_parser = subparsers.add_parser('task_remove_dependency', aliases=['trd'],
-                                                help='Remove dependency relationship between tasks')
+    task_rm_dep_parser = subparsers.add_parser(
+        'task_remove_dependency',
+        aliases=['trd'],
+        help='Remove dependency relationship between tasks',
+        description='Remove an existing dependency relationship between two tasks.',
+        epilog='''Tips:
+  • Remove waiting-on: cum trd current --waiting-on 86abc123
+  • Remove blocking: cum trd current --blocking 86def456
+  • View current dependencies: cum d <task_id>
+  • Must match the original relationship type
+  • Task becomes independent after removal'''
+    )
     task_rm_dep_parser.add_argument('task_id', help='Task ID (or "current")')
     task_rm_dep_parser.add_argument('--waiting-on', dest='waiting_on',
                                      help='Task ID to remove from "waiting on" list')
@@ -950,8 +1052,18 @@ def register_command(subparsers):
     task_rm_dep_parser.set_defaults(func=task_remove_dependency_command)
 
     # Task add link
-    task_link_parser = subparsers.add_parser('task_add_link', aliases=['tal'],
-                                              help='Link two tasks together')
+    task_link_parser = subparsers.add_parser(
+        'task_add_link',
+        aliases=['tal'],
+        help='Link two tasks together',
+        description='Create a bidirectional link between two related tasks without dependency constraints.',
+        epilog='''Tips:
+  • Link tasks: cum tal current 86abc123
+  • Links are bidirectional (both tasks show the link)
+  • Links are different from dependencies (no blocking)
+  • Use for related work, references, or context
+  • Use --verbose to see total link count after creation'''
+    )
     task_link_parser.add_argument('task_id', help='Task ID to link from (or "current")')
     task_link_parser.add_argument('linked_task_id', help='Task ID to link to')
     task_link_parser.add_argument('--verbose', '-v', action='store_true',
@@ -959,8 +1071,18 @@ def register_command(subparsers):
     task_link_parser.set_defaults(func=task_add_link_command)
 
     # Task remove link
-    task_unlink_parser = subparsers.add_parser('task_remove_link', aliases=['trl'],
-                                                help='Remove link between two tasks')
+    task_unlink_parser = subparsers.add_parser(
+        'task_remove_link',
+        aliases=['trl'],
+        help='Remove link between two tasks',
+        description='Remove an existing bidirectional link between two tasks.',
+        epilog='''Tips:
+  • Remove link: cum trl current 86abc123
+  • Removes link from both tasks (bidirectional)
+  • View current links: cum d <task_id>
+  • Use task_add_link to recreate if needed
+  • Does not affect dependencies or other relationships'''
+    )
     task_unlink_parser.add_argument('task_id', help='Task ID to unlink from (or "current")')
     task_unlink_parser.add_argument('linked_task_id', help='Task ID to unlink')
     task_unlink_parser.set_defaults(func=task_remove_link_command)

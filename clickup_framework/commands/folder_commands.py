@@ -155,7 +155,14 @@ def register_command(subparsers):
         'folder',
         aliases=['fld', 'fd'],
         help='Manage folders (create, update, delete)',
-        description='Manage folders in ClickUp'
+        description='Manage folders in ClickUp',
+        epilog='''Tips:
+  • Create folder: cum folder create <space_id> "My Folder"
+  • Update folder: cum folder update <folder_id> --name "New Name"
+  • Delete folder: cum folder delete <folder_id>
+  • Folders organize Lists within a Space
+  • Hierarchy: Workspace → Space → Folder → List
+  • Use current context: cum folder create current "Folder Name"'''
     )
 
     folder_subparsers = folder_parser.add_subparsers(dest='folder_command', help='Folder command')

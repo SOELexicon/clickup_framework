@@ -909,7 +909,18 @@ def register_command(subparsers):
         - Common args are added via add_common_args() utility
     """
     # Hierarchy command
-    hierarchy_parser = subparsers.add_parser('hierarchy', help='Display tasks in hierarchical view')
+    hierarchy_parser = subparsers.add_parser(
+        'hierarchy',
+        help='Display tasks in hierarchical view',
+        description='Display tasks in a hierarchical parent-child tree view with rich formatting and filtering options.',
+        epilog='''Tips:
+  • View all workspace tasks: cum h --all
+  • Use presets for quick formatting: cum h <list_id> --preset summary
+  • Show completed tasks: cum h <list_id> --include-completed
+  • Limit depth: cum h <list_id> --depth 2
+  • Show full descriptions: cum h <list_id> -d
+  • Aliases: hierarchy, h, list, ls, l (all work the same)'''
+    )
     hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
     hierarchy_parser.add_argument('--header', help='Custom header text')
     hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',

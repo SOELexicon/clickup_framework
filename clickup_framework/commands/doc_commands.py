@@ -651,14 +651,34 @@ def page_update_command(args):
 def register_command(subparsers):
     """Register doc management commands."""
     # Doc list
-    doc_list_parser = subparsers.add_parser('dlist', aliases=['dl', 'doc_list'],
-                                            help='List all docs in a workspace')
+    doc_list_parser = subparsers.add_parser(
+        'dlist',
+        aliases=['dl', 'doc_list'],
+        help='List all docs in a workspace',
+        description='Display all ClickUp Docs in a workspace with their details.',
+        epilog='''Tips:
+  • List docs in current workspace: cum dlist current
+  • List docs in specific workspace: cum dlist 90123456
+  • Docs are ClickUp's knowledge base feature
+  • Use doc_get to view pages in a specific doc
+  • Docs contain one or more pages of content'''
+    )
     doc_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_list_parser.set_defaults(func=doc_list_command)
 
     # Doc get
-    doc_get_parser = subparsers.add_parser('doc_get', aliases=['dg'],
-                                           help='Get and display a doc with pages')
+    doc_get_parser = subparsers.add_parser(
+        'doc_get',
+        aliases=['dg'],
+        help='Get and display a doc with pages',
+        description='Display a specific ClickUp Doc with all its pages and optional content preview.',
+        epilog='''Tips:
+  • Get doc details: cum dg current <doc_id>
+  • Show page previews: cum dg current <doc_id> --preview
+  • Find doc IDs with cum dlist <workspace_id>
+  • Use page_list for just page names
+  • Use doc_export to save as markdown files'''
+    )
     doc_get_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_get_parser.add_argument('doc_id', help='Doc ID')
     doc_get_parser.add_argument('--preview', action='store_true',
@@ -666,8 +686,18 @@ def register_command(subparsers):
     doc_get_parser.set_defaults(func=doc_get_command)
 
     # Doc create
-    doc_create_parser = subparsers.add_parser('doc_create', aliases=['dc'],
-                                              help='Create new doc with optional pages')
+    doc_create_parser = subparsers.add_parser(
+        'doc_create',
+        aliases=['dc'],
+        help='Create new doc with optional pages',
+        description='Create a new ClickUp Doc with an optional initial set of pages.',
+        epilog='''Tips:
+  • Create empty doc: cum dc current "My Doc"
+  • Create with pages: cum dc current "My Doc" --pages "Intro" "Setup:Install steps"
+  • Page format: "name" or "name:content"
+  • Use page_create to add pages later
+  • Content can be markdown formatted'''
+    )
     doc_create_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_create_parser.add_argument('name', help='Doc name')
     doc_create_parser.add_argument('--pages', nargs='+',
@@ -675,8 +705,18 @@ def register_command(subparsers):
     doc_create_parser.set_defaults(func=doc_create_command)
 
     # Doc update
-    doc_update_parser = subparsers.add_parser('doc_update', aliases=['du'],
-                                              help='Update a page in a doc')
+    doc_update_parser = subparsers.add_parser(
+        'doc_update',
+        aliases=['du'],
+        help='Update a page in a doc',
+        description='Update the name or content of an existing page in a ClickUp Doc.',
+        epilog='''Tips:
+  • Update page name: cum du current <doc_id> <page_id> --name "New Name"
+  • Update content: cum du current <doc_id> <page_id> --content "New content"
+  • Update both: cum du current <doc_id> <page_id> --name "New" --content "Updated"
+  • Find page IDs with page_list or doc_get
+  • Content supports markdown formatting'''
+    )
     doc_update_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_update_parser.add_argument('doc_id', help='Doc ID')
     doc_update_parser.add_argument('page_id', help='Page ID')
@@ -685,8 +725,18 @@ def register_command(subparsers):
     doc_update_parser.set_defaults(func=doc_update_command)
 
     # Doc export
-    doc_export_parser = subparsers.add_parser('doc_export', aliases=['de'],
-                                              help='Export docs to markdown files')
+    doc_export_parser = subparsers.add_parser(
+        'doc_export',
+        aliases=['de'],
+        help='Export docs to markdown files',
+        description='Export ClickUp Docs to local markdown files, preserving structure and content.',
+        epilog='''Tips:
+  • Export all docs: cum de current --output-dir ./docs
+  • Export specific doc: cum de current --doc-id <id> --output-dir ./docs
+  • Nested structure: cum de current --nested (preserves page hierarchy)
+  • Creates folder per doc with .md files for pages
+  • Great for version control and offline access'''
+    )
     doc_export_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_export_parser.add_argument('--doc-id', dest='doc_id',
                                    help='Specific doc ID to export (omit to export all)')
@@ -697,8 +747,18 @@ def register_command(subparsers):
     doc_export_parser.set_defaults(func=doc_export_command)
 
     # Doc import
-    doc_import_parser = subparsers.add_parser('doc_import', aliases=['di'],
-                                              help='Import markdown files to create docs')
+    doc_import_parser = subparsers.add_parser(
+        'doc_import',
+        aliases=['di'],
+        help='Import markdown files to create docs',
+        description='Import local markdown files to create ClickUp Docs and pages.',
+        epilog='''Tips:
+  • Import from directory: cum di current ./docs --doc-name "My Doc"
+  • Recursive import: cum di current ./docs --recursive --nested
+  • Each .md file becomes a page
+  • Use --nested to preserve folder structure in page names
+  • Great for migrating documentation to ClickUp'''
+    )
     doc_import_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     doc_import_parser.add_argument('input_dir', help='Input directory containing markdown files')
     doc_import_parser.add_argument('--doc-name', dest='doc_name',
@@ -710,15 +770,35 @@ def register_command(subparsers):
     doc_import_parser.set_defaults(func=doc_import_command)
 
     # Page list
-    page_list_parser = subparsers.add_parser('page_list', aliases=['pl'],
-                                             help='List all pages in a doc')
+    page_list_parser = subparsers.add_parser(
+        'page_list',
+        aliases=['pl'],
+        help='List all pages in a doc',
+        description='Display all pages within a specific ClickUp Doc.',
+        epilog='''Tips:
+  • List pages: cum pl current <doc_id>
+  • Shows page IDs and names
+  • Use doc_get for more detail including content previews
+  • Page IDs needed for page_update command
+  • Docs can contain unlimited pages'''
+    )
     page_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     page_list_parser.add_argument('doc_id', help='Doc ID')
     page_list_parser.set_defaults(func=page_list_command)
 
     # Page create
-    page_create_parser = subparsers.add_parser('page_create', aliases=['pc'],
-                                               help='Create a new page in a doc')
+    page_create_parser = subparsers.add_parser(
+        'page_create',
+        aliases=['pc'],
+        help='Create a new page in a doc',
+        description='Add a new page to an existing ClickUp Doc with optional content.',
+        epilog='''Tips:
+  • Create empty page: cum pc current <doc_id> --name "New Page"
+  • Create with content: cum pc current <doc_id> --name "Page" --content "# Content"
+  • Content supports markdown formatting
+  • Pages appear in doc navigation
+  • Use page_update to modify after creation'''
+    )
     page_create_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     page_create_parser.add_argument('doc_id', help='Doc ID')
     page_create_parser.add_argument('--name', required=True, help='Page name')
@@ -726,8 +806,18 @@ def register_command(subparsers):
     page_create_parser.set_defaults(func=page_create_command)
 
     # Page update
-    page_update_parser = subparsers.add_parser('page_update', aliases=['pu'],
-                                               help='Update a page in a doc')
+    page_update_parser = subparsers.add_parser(
+        'page_update',
+        aliases=['pu'],
+        help='Update a page in a doc',
+        description='Modify the name or content of an existing page in a ClickUp Doc.',
+        epilog='''Tips:
+  • Update page name: cum pu current <doc_id> <page_id> --name "New Name"
+  • Update content: cum pu current <doc_id> <page_id> --content "New content"
+  • Update both: cum pu current <doc_id> <page_id> --name "New" --content "Updated"
+  • Find page IDs with page_list
+  • Same as doc_update (both update pages)'''
+    )
     page_update_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     page_update_parser.add_argument('doc_id', help='Doc ID')
     page_update_parser.add_argument('page_id', help='Page ID')

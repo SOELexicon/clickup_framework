@@ -331,8 +331,18 @@ def assigned_tasks_command(args):
 
 def register_command(subparsers):
     """Register assigned tasks command."""
-    assigned_parser = subparsers.add_parser('assigned', aliases=['a'],
-                                            help='Show tasks assigned to user, sorted by dependency difficulty')
+    assigned_parser = subparsers.add_parser(
+        'assigned',
+        aliases=['a'],
+        help='Show tasks assigned to user, sorted by dependency difficulty',
+        description='Display tasks assigned to a user, intelligently sorted by dependency difficulty and depth.',
+        epilog='''Tips:
+  • View your assigned tasks: cum a (uses default assignee from config)
+  • View another user's tasks: cum a --user-id 12345678
+  • Include completed tasks: cum a --include-completed
+  • View only closed tasks: cum a --show-closed
+  • Ready-to-start tasks appear first (✓ Ready = 0 blockers)'''
+    )
     assigned_parser.add_argument('--user-id', dest='user_id',
                                 help='User ID to filter tasks (defaults to configured default assignee)')
     assigned_parser.add_argument('--team-id', dest='team_id',

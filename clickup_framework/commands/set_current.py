@@ -48,7 +48,14 @@ def register_command(subparsers, add_common_args=None):
         'set_current',
         aliases=['set'],
         help='Set current resource context',
-        description='Set current resource context for use with "current" keyword'
+        description='Set current resource context for use with "current" keyword',
+        epilog='''Tips:
+  • Set current task: cum set task 86abc123
+  • Set current list: cum set list 901234567
+  • Set API token: cum set token your-api-token
+  • Set default assignee: cum set assignee 12345678
+  • Use "current" in commands: cum d current
+  • Check current context: cum show'''
     )
     parser.add_argument(
         'resource_type',

@@ -59,7 +59,14 @@ def register_command(subparsers):
         'filter',
         help='Display filtered tasks',
         description='Display tasks filtered by status, priority, tags, or assignee',
-        aliases=['fil']
+        aliases=['fil'],
+        epilog='''Tips:
+  • Filter by status: cum filter <list_id> --status "in progress"
+  • Filter by priority: cum filter <list_id> --priority 1
+  • Filter by tags: cum filter <list_id> --tags bug urgent
+  • Filter by assignee: cum filter <list_id> --assignee 12345678
+  • Combine filters: cum filter <list_id> --status open --priority 1
+  • Change view mode: cum filter <list_id> --status open --view-mode flat'''
     )
     parser.add_argument('list_id', help='ClickUp list ID or task ID')
     parser.add_argument('--status', help='Filter by status')

@@ -243,7 +243,14 @@ def register_command(subparsers):
         'space',
         aliases=['sp', 'spc'],
         help='Manage spaces (create, update, delete, list)',
-        description='Manage spaces in ClickUp'
+        description='Manage spaces in ClickUp',
+        epilog='''Tips:
+  • Create space: cum space create current "My Space"
+  • Update space: cum space update <space_id> --name "New Name"
+  • Delete space: cum space delete <space_id>
+  • List spaces: cum space list current
+  • Spaces contain Folders, which contain Lists
+  • Use --verbose for detailed output'''
     )
 
     space_subparsers = space_parser.add_subparsers(dest='space_command', help='Space command')

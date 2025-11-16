@@ -90,7 +90,13 @@ def register_command(subparsers, add_common_args=None):
     parser = subparsers.add_parser(
         'horde',
         help='Execute git stash operations on all Git repositories in project folder',
-        description='Recursively find and execute git stash operations on all Git repositories. Usage: cum horde [push|pop|list|apply|drop|clear|...] [args...]'
+        description='Recursively find and execute git stash operations on all Git repositories.',
+        epilog='''Tips:
+  • Stash all repos: cum horde push -m "saving work"
+  • List all stashes: cum horde list
+  • Pop from all repos: cum horde pop
+  • Like 'cum stash' but runs on all subdirectory repos
+  • Useful for multi-repo projects when switching context'''
     )
 
     parser.add_argument(

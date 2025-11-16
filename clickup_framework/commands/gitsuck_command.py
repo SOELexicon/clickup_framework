@@ -81,6 +81,12 @@ def register_command(subparsers, add_common_args=None):
     parser = subparsers.add_parser(
         'suck',
         help='Pull all Git repositories in project folder',
-        description='Recursively find and pull all Git repositories'
+        description='Recursively find and pull all Git repositories',
+        epilog='''Tips:
+  • Update all repos: cum suck (runs git pull in all subdirectories)
+  • Automatically discovers all .git directories
+  • Shows progress for each repository found
+  • Useful for multi-repo projects or monorepos
+  • Skips repositories with uncommitted changes'''
     )
     parser.set_defaults(func=suck_command)

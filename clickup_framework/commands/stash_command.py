@@ -40,7 +40,14 @@ def register_command(subparsers, add_common_args=None):
     parser = subparsers.add_parser(
         'stash',
         help='Wrapper for git stash operations',
-        description='Execute git stash commands. Usage: cum stash [push|pop|list|apply|drop|clear|...] [args...]'
+        description='Execute git stash commands to save and restore uncommitted changes.',
+        epilog='''Tips:
+  • Save changes: cum stash push -m "description"
+  • List stashes: cum stash list
+  • Apply latest: cum stash pop
+  • Apply specific: cum stash apply stash@{0}
+  • Clear all stashes: cum stash clear
+  • Passes all args directly to git stash'''
     )
 
     parser.add_argument(
