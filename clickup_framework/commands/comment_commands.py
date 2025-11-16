@@ -194,16 +194,36 @@ def comment_delete_command(args):
 def register_command(subparsers):
     """Register comment management commands."""
     # Comment add
-    comment_add_parser = subparsers.add_parser('comment_add', aliases=['ca'],
-                                                help='Add a comment to a task')
+    comment_add_parser = subparsers.add_parser(
+        'comment_add',
+        aliases=['ca'],
+        help='Add a comment to a task',
+        description='Add a text comment to a task, either inline or from a file.',
+        epilog='''Tips:
+  • Add inline comment: cum ca current "This is my comment"
+  • Add from file: cum ca 86abc123 --comment-file notes.txt
+  • Comments support markdown formatting
+  • Use for status updates, notes, or collaboration
+  • Comments appear in task activity feed'''
+    )
     comment_add_parser.add_argument('task_id', help='Task ID (or "current")')
     comment_add_parser.add_argument('text', nargs='?', help='Comment text (optional if using --comment-file)')
     comment_add_parser.add_argument('--comment-file', '-f', help='Read comment text from file')
     comment_add_parser.set_defaults(func=comment_add_command)
 
     # Comment list
-    comment_list_parser = subparsers.add_parser('comment_list', aliases=['cl'],
-                                                 help='List comments on a task')
+    comment_list_parser = subparsers.add_parser(
+        'comment_list',
+        aliases=['cl'],
+        help='List comments on a task',
+        description='Display all comments on a task with configurable detail levels.',
+        epilog='''Tips:
+  • List all comments: cum cl current
+  • Limit results: cum cl 86abc123 --limit 5
+  • Change detail level: cum cl current --detail full
+  • Detail levels: minimal, summary, detailed, full
+  • Use to review task history and discussions'''
+    )
     comment_list_parser.add_argument('task_id', help='Task ID (or "current")')
     comment_list_parser.add_argument('--limit', type=int, help='Limit number of comments shown')
     comment_list_parser.add_argument('--detail', choices=['minimal', 'summary', 'detailed', 'full'],
@@ -211,16 +231,36 @@ def register_command(subparsers):
     comment_list_parser.set_defaults(func=comment_list_command)
 
     # Comment update
-    comment_update_parser = subparsers.add_parser('comment_update', aliases=['cu'],
-                                                   help='Update an existing comment')
+    comment_update_parser = subparsers.add_parser(
+        'comment_update',
+        aliases=['cu'],
+        help='Update an existing comment',
+        description='Edit the text of an existing comment on a task.',
+        epilog='''Tips:
+  • Update inline: cum cu <comment_id> "Updated text"
+  • Update from file: cum cu <comment_id> --comment-file updated.txt
+  • Get comment ID from cum cl <task_id>
+  • Markdown formatting supported
+  • Edits are tracked in comment history'''
+    )
     comment_update_parser.add_argument('comment_id', help='Comment ID')
     comment_update_parser.add_argument('text', nargs='?', help='New comment text (optional if using --comment-file)')
     comment_update_parser.add_argument('--comment-file', '-f', help='Read new comment text from file')
     comment_update_parser.set_defaults(func=comment_update_command)
 
     # Comment delete
-    comment_delete_parser = subparsers.add_parser('comment_delete', aliases=['cd'],
-                                                   help='Delete a comment')
+    comment_delete_parser = subparsers.add_parser(
+        'comment_delete',
+        aliases=['cd'],
+        help='Delete a comment',
+        description='Permanently delete a comment from a task with optional confirmation.',
+        epilog='''Tips:
+  • Delete with confirmation: cum cd <comment_id>
+  • Force delete: cum cd <comment_id> --force
+  • Get comment ID from cum cl <task_id>
+  • Deletion is permanent and cannot be undone
+  • Consider editing instead of deleting when possible'''
+    )
     comment_delete_parser.add_argument('comment_id', help='Comment ID')
     comment_delete_parser.add_argument('--force', '-f', action='store_true',
                                        help='Skip confirmation prompt')

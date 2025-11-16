@@ -63,7 +63,13 @@ def register_command(subparsers):
         'detail',
         aliases=['d'],
         help='Show comprehensive task details',
-        description='Display comprehensive details of a single task with relationships'
+        description='Display comprehensive details of a single task with relationships',
+        epilog='''Tips:
+  • View task details: cum d <task_id>
+  • With context: cum d <task_id> <list_id> (shows relationships)
+  • Use alias: cum d current (view current task)
+  • Shows: status, priority, tags, assignees, dates, comments
+  • Shows relationships: parent, subtasks, dependencies, links'''
     )
     parser.add_argument('task_id', help='ClickUp task ID')
     parser.add_argument('list_id', nargs='?', help='List ID for relationship context (optional)')
