@@ -51,7 +51,13 @@ def register_command(subparsers):
         'flat',
         help='Display tasks in flat list',
         description='Display tasks in a flat list view',
-        aliases=['f']
+        aliases=['f'],
+        epilog='''Tips:
+  • View tasks in flat list: cum flat <list_id>
+  • Alias: cum f <list_id>
+  • No parent-child hierarchy shown
+  • Faster rendering than hierarchy view
+  • Use presets: cum flat <list_id> --preset summary'''
     )
     parser.add_argument('list_id', help='ClickUp list ID or task ID')
     parser.add_argument('--header', help='Custom header text')
