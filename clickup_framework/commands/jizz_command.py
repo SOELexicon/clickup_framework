@@ -105,7 +105,7 @@ def show_progress_bar(message: str, duration: float = 1.0, use_color: bool = Tru
         return
 
     bar_length = 40
-    colored_msg = colorize(message, TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
+    colored_msg = ANSIAnimations.white_sheen_text(message, TextColor.BRIGHT_MAGENTA)
 
     for i in range(bar_length + 1):
         # Calculate percentage
@@ -157,12 +157,8 @@ def jizz_command(args):
     # Display intro
     print()
     if use_color:
-        # Animated header with gradient
-        header = ANSIAnimations.gradient_text(
-            "💦 CUM JIZZ WORKFLOW 💦",
-            ANSIAnimations.GRADIENT_RAINBOW
-        )
-        print(header)
+        # Animated rainbow header
+        ANSIAnimations.display_animated_rainbow("💦 CUM JIZZ WORKFLOW 💦", duration=1.5, speed=3.0)
         print()
 
         # Dry run warning
@@ -172,15 +168,15 @@ def jizz_command(args):
             print(dry_run_msg)
             print()
 
-        # Fun intro message
+        # Fun intro message with white sheen
         intro_lines = [
-            "🍆 Preparing to release...",
-            "💦 Auto-deploy workflow initiated",
-            "🎯 Target: Maximum velocity deployment"
+            ANSIAnimations.white_sheen_text("🍆 Preparing to release...", TextColor.BRIGHT_MAGENTA),
+            ANSIAnimations.white_sheen_text("💦 Auto-deploy workflow initiated", TextColor.BRIGHT_CYAN),
+            ANSIAnimations.white_sheen_text("🎯 Target: Maximum velocity deployment", TextColor.BRIGHT_YELLOW)
         ]
 
         box = ANSIAnimations.animated_box(
-            "DEPLOYMENT SEQUENCE",
+            ANSIAnimations.white_sheen_text("DEPLOYMENT SEQUENCE", TextColor.BRIGHT_MAGENTA),
             intro_lines,
             TextColor.BRIGHT_MAGENTA
         )
@@ -199,8 +195,9 @@ def jizz_command(args):
     # Step 1: Stash
     steps_completed += 1
     if use_color:
-        step_msg = colorize(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
-        print(f"{step_msg} 🍆 Building pressure (stashing changes)...")
+        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text("🍆 Building pressure (stashing changes)...", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
     else:
         print(f"[{steps_completed}/{total_steps}] Stashing changes...")
 
@@ -233,8 +230,9 @@ def jizz_command(args):
     # Step 2: Pull
     steps_completed += 1
     if use_color:
-        step_msg = colorize(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
-        print(f"{step_msg} 💪 Getting fresh (pulling latest)...")
+        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text("💪 Getting fresh (pulling latest)...", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
     else:
         print(f"[{steps_completed}/{total_steps}] Pulling latest...")
 
@@ -259,8 +257,9 @@ def jizz_command(args):
     # Step 3: Update tag (increment version)
     steps_completed += 1
     if use_color:
-        step_msg = colorize(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
-        print(f"{step_msg} 📈 Pumping up the version...")
+        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text("📈 Pumping up the version...", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
     else:
         print(f"[{steps_completed}/{total_steps}] Updating version tag...")
 
@@ -326,8 +325,9 @@ def jizz_command(args):
     # Step 4: Push tag
     steps_completed += 1
     if use_color:
-        step_msg = colorize(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
-        print(f"{step_msg} 🚀 Releasing the payload (pushing {tag_name})...")
+        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text(f"🚀 Releasing the payload (pushing {tag_name})...", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
     else:
         print(f"[{steps_completed}/{total_steps}] Pushing {tag_name}...")
 
@@ -353,8 +353,9 @@ def jizz_command(args):
     # Step 5: Update cum
     steps_completed += 1
     if use_color:
-        step_msg = colorize(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
-        print(f"{step_msg} 🔄 Refreshing the tool (cum update cum)...")
+        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text("🔄 Refreshing the tool (cum update cum)...", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
     else:
         print(f"[{steps_completed}/{total_steps}] Updating cum tool...")
 
@@ -402,12 +403,12 @@ def jizz_command(args):
 
         print()
 
-        # Rainbow celebration
-        celebration = ANSIAnimations.gradient_text(
+        # Animated rainbow celebration
+        ANSIAnimations.display_animated_rainbow(
             "🎉 JIZZ WORKFLOW COMPLETE! CLEANUP IN AISLE EVERYWHERE! 🎉",
-            ANSIAnimations.GRADIENT_RAINBOW
+            duration=2.0,
+            speed=3.0
         )
-        print(celebration)
         print()
     else:
         print("=" * 50)

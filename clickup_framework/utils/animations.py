@@ -84,6 +84,93 @@ class ANSIAnimations:
         return ''.join(result)
 
     @staticmethod
+    def animated_rainbow_text(text: str, frame: int = 0, speed: float = 1.0) -> str:
+        """
+        Create animated rainbow text that cycles through colors.
+        
+        Args:
+            text: Text to animate
+            frame: Current animation frame (increments for animation)
+            speed: Speed multiplier (higher = faster)
+            
+        Returns:
+            String with animated rainbow color codes
+        """
+        if len(text) == 0:
+            return text
+        
+        colors = ANSIAnimations.GRADIENT_RAINBOW
+        result = []
+        color_count = len(colors)
+        
+        # Offset based on frame for animation
+        offset = int(frame * speed) % color_count
+        
+        for i, char in enumerate(text):
+            if char == ' ':
+                result.append(char)
+            else:
+                # Calculate color with animation offset
+                color_idx = (int((i / len(text)) * color_count) + offset) % color_count
+                result.append(colorize(char, colors[color_idx]))
+        
+        return ''.join(result)
+
+    @staticmethod
+    def white_sheen_text(text: str, base_color: TextColor = TextColor.BRIGHT_CYAN) -> str:
+        """
+        Apply white sheen effect to colored text (bright white overlay).
+        
+        Args:
+            text: Text to apply sheen to
+            base_color: Base color for the text
+            
+        Returns:
+            String with white sheen effect
+        """
+        # Use bright white as a highlight overlay
+        # Create a subtle white glow by alternating between base color and bright white
+        result = []
+        for i, char in enumerate(text):
+            if char == ' ':
+                result.append(char)
+            else:
+                # Alternate between base color and bright white for sheen effect
+                if i % 2 == 0:
+                    result.append(colorize(char, base_color, TextStyle.BOLD))
+                else:
+                    # Mix with white for sheen
+                    result.append(colorize(char, TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+        
+        return ''.join(result)
+
+    @staticmethod
+    def display_animated_rainbow(text: str, duration: float = 2.0, speed: float = 2.0) -> None:
+        """
+        Display text with animated rainbow effect that cycles through colors.
+        
+        Args:
+            text: Text to animate
+            duration: How long to animate (seconds)
+            speed: Animation speed multiplier
+        """
+        import time
+        end_time = time.time() + duration
+        frame = 0
+        
+        while time.time() < end_time:
+            animated = ANSIAnimations.animated_rainbow_text(text, frame, speed)
+            sys.stdout.write(f'\r{animated}')
+            sys.stdout.flush()
+            time.sleep(0.1)
+            frame += 1
+        
+        # Final frame
+        animated = ANSIAnimations.animated_rainbow_text(text, frame, speed)
+        sys.stdout.write(f'\r{animated}\n')
+        sys.stdout.flush()
+
+    @staticmethod
     def pulse_text(text: str, color: TextColor = TextColor.BRIGHT_CYAN,
                    pulse_count: int = 3, delay: float = 0.3) -> None:
         """
