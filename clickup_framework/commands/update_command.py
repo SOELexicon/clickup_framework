@@ -11,6 +11,17 @@ from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
+# Ensure UTF-8 encoding for Windows
+if platform.system() == 'Windows':
+    try:
+        # Try to reconfigure stdout/stderr to use UTF-8
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass  # If reconfigure fails, continue anyway
+
 
 def find_all_cum_instances():
     """Find all cum executable instances on the system."""
@@ -163,6 +174,40 @@ def get_package_info(python_path):
     return None
 
 
+def show_humorous_progress(message: str, duration: float = 1.5, use_color: bool = True):
+    """Display a humorous progress bar similar to jizz command."""
+    import time
+
+    if not use_color:
+        print(f"  {message}...")
+        time.sleep(duration)
+        return
+
+    bar_length = 40
+    colored_msg = colorize(f"  {message}", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
+
+    for i in range(bar_length + 1):
+        percent = int((i / bar_length) * 100)
+        filled = '█' * i
+        empty = '░' * (bar_length - i)
+
+        # Color progression
+        if percent < 33:
+            color = TextColor.BRIGHT_CYAN
+        elif percent < 66:
+            color = TextColor.BRIGHT_MAGENTA
+        else:
+            color = TextColor.BRIGHT_YELLOW
+
+        colored_filled = colorize(filled, color)
+        bar = f"{colored_filled}{empty}"
+
+        print(f"\r{colored_msg} [{bar}] {percent}%", end='', flush=True)
+        time.sleep(duration / bar_length)
+
+    print()
+
+
 def update_instance(script_path, python_path, use_color):
     """Update a single cum instance."""
     print()
@@ -196,7 +241,7 @@ def update_instance(script_path, python_path, use_color):
         if os.path.isdir(os.path.join(editable_location, '.git')):
             try:
                 if use_color:
-                    print(colorize("  Pulling latest changes...", TextColor.BRIGHT_YELLOW))
+                    print(colorize("  💦 Pulling latest changes...", TextColor.BRIGHT_YELLOW))
                 else:
                     print("  Pulling latest changes...")
 
@@ -230,7 +275,7 @@ def update_instance(script_path, python_path, use_color):
                     )
 
                     if use_color:
-                        print(colorize("  ✓ Updated source code", TextColor.BRIGHT_GREEN))
+                        print(ANSIAnimations.success_message("  Updated source code"))
                     else:
                         print("  ✓ Updated source code")
             except subprocess.CalledProcessError as e:
@@ -238,20 +283,16 @@ def update_instance(script_path, python_path, use_color):
 
         # Reinstall editable
         try:
-            if use_color:
-                print(colorize("  Reinstalling package...", TextColor.BRIGHT_YELLOW))
-            else:
-                print("  Reinstalling package...")
+            show_humorous_progress("💪 Pumping up the package (reinstalling)", 1.2, use_color)
 
-            subprocess.run(
+            # Run pip without capturing output so user sees real progress
+            result = subprocess.run(
                 [python_path, '-m', 'pip', 'install', '-e', editable_location, '--force-reinstall', '--no-deps'],
-                capture_output=True,
-                text=True,
                 check=True
             )
 
             if use_color:
-                print(colorize("  ✓ Successfully reinstalled", TextColor.BRIGHT_GREEN))
+                print(ANSIAnimations.success_message("  Successfully reinstalled"))
             else:
                 print("  ✓ Successfully reinstalled")
             return True
@@ -261,22 +302,23 @@ def update_instance(script_path, python_path, use_color):
     else:
         # For regular installs, reinstall from git
         if use_color:
-            print(colorize("  Regular install - reinstalling from git...", TextColor.BRIGHT_YELLOW))
+            print(colorize("  🍆 Regular install - time to get fresh from the source...", TextColor.BRIGHT_YELLOW))
         else:
             print("  Regular install - reinstalling from git...")
 
         try:
-            subprocess.run(
+            show_humorous_progress("💦 Downloading hot new package from git", 1.5, use_color)
+
+            # Run pip without capturing output so user sees real progress
+            result = subprocess.run(
                 [python_path, '-m', 'pip', 'install',
                  'git+https://github.com/SOELexicon/clickup_framework.git',
                  '--upgrade', '--force-reinstall'],
-                capture_output=True,
-                text=True,
                 check=True
             )
 
             if use_color:
-                print(colorize("  ✓ Successfully reinstalled from git", TextColor.BRIGHT_GREEN))
+                print(ANSIAnimations.success_message("  Successfully reinstalled from git"))
             else:
                 print("  ✓ Successfully reinstalled from git")
             return True
