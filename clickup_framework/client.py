@@ -540,6 +540,10 @@ class ClickUpClient:
         """Set custom field value on a task."""
         return self.custom_fields.set_custom_field_value(task_id, field_id, value)
 
+    def set_custom_field(self, task_id: str, field_id: str, value: Any) -> Dict[str, Any]:
+        """Set custom field value on a task (alias for set_custom_field_value)."""
+        return self.set_custom_field_value(task_id, field_id, value)
+
     def remove_custom_field_value(self, task_id: str, field_id: str) -> Dict[str, Any]:
         """Remove custom field value from a task."""
         return self.custom_fields.remove_custom_field_value(task_id, field_id)
