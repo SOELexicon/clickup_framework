@@ -498,10 +498,10 @@ def update_cum_command(args):
             failed_count += 1
             continue
 
-          if update_instance(instance, python_path, use_color, fresh_load=fresh_load):
-              updated_count += 1
-          else:
-              failed_count += 1
+        if update_instance(instance, python_path, use_color, fresh_load=fresh_load):
+            updated_count += 1
+        else:
+            failed_count += 1
 
     # Summary
     print()
