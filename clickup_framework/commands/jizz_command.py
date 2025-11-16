@@ -4,12 +4,24 @@ import sys
 import time
 import subprocess
 import re
+import platform
 from pathlib import Path
 from typing import Optional, Tuple
 
 from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+
+# Ensure UTF-8 encoding for Windows
+if platform.system() == 'Windows':
+    try:
+        # Try to reconfigure stdout/stderr to use UTF-8
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass  # If reconfigure fails, continue anyway
 
 
 def parse_version(version_str: str) -> Tuple[int, int, int]:
@@ -354,23 +366,22 @@ def jizz_command(args):
         else:
             print("  [DRY RUN] Would execute: cum update cum")
     else:
-        # Run cum update cum
-        result = subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True)
+        # Run cum update cum without capturing output so progress bars are shown
+        print()
+        result = subprocess.run(['cum', 'update', 'cum'])
 
         if result.returncode == 0:
-            if result.stdout:
-                print(result.stdout.strip())
+            print()
             if use_color:
                 print(ANSIAnimations.success_message("Cum tool updated! Back at full capacity."))
             else:
                 print("✓ Cum tool updated!")
         else:
+            print()
             if use_color:
                 print(ANSIAnimations.warning_message("Cum update had issues (might be okay)"))
             else:
                 print("⚠ Cum update had issues")
-            if result.stderr:
-                print(result.stderr.strip())
 
     print()
 
@@ -443,7 +454,7 @@ Note: This is a humorous command for a humorous CLI tool.
     )
 
     parser.add_argument(
-        '--dry-run',
+        '-dry', '--dry-run',
         action='store_true',
         help='Show what would be done without making any changes'
     )
