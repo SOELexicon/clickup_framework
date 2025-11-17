@@ -85,14 +85,10 @@ def comment_add_command(args):
                 print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
 
     try:
-        # Create the comment with proper format
-        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
-            # Convert markdown to ClickUp rich text JSON
-            comment_data = processor.markdown_formatter.to_json_format(comment_text)
-            comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
-        else:
-            # Plain text comment
-            comment = comments_api.create_task_comment(task_id, comment_text=comment_text)
+        # Create the comment
+        # ClickUp comments support markdown directly via comment_text field
+        # (not rich text JSON like some other platforms)
+        comment = comments_api.create_task_comment(task_id, comment_text=comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment added")
@@ -244,14 +240,10 @@ def comment_update_command(args):
                     print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Provide --task-id to upload.")
 
     try:
-        # Update the comment with proper format
-        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
-            # Convert markdown to ClickUp rich text JSON
-            comment_data = processor.markdown_formatter.to_json_format(comment_text)
-            updated = comments_api.update(args.comment_id, comment_data=comment_data)
-        else:
-            # Plain text comment
-            updated = comments_api.update(args.comment_id, comment_text=comment_text)
+        # Update the comment
+        # ClickUp comments support markdown directly via comment_text field
+        # (not rich text JSON like some other platforms)
+        updated = comments_api.update(args.comment_id, comment_text=comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment updated")
