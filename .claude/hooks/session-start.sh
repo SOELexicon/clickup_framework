@@ -29,4 +29,10 @@ fi
 # Set PYTHONPATH for development
 echo "export PYTHONPATH=\"\${PYTHONPATH:+\$PYTHONPATH:}.\"" >> "$CLAUDE_ENV_FILE"
 
+# Check for optional Mermaid CLI (mmdc) for diagram generation
+if ! command -v mmdc &> /dev/null; then
+    echo "ℹ️  Optional: Install Mermaid CLI for diagram support"
+    echo "  npm install -g @mermaid-js/mermaid-cli"
+fi
+
 echo "✓ Ready to use ClickUp Framework"
