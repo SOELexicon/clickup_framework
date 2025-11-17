@@ -12,6 +12,7 @@ from clickup_framework.utils.colors import (
     TextColor,
     TextStyle,
     colorize,
+    get_progress_state,
     get_status_icon,
     get_task_emoji,
     priority_color,
@@ -324,6 +325,11 @@ class RichTaskFormatter:
             if options.colorize_output:
                 priority_str = colorize(priority_str, priority_color(priority_val))
             parts.append(priority_str)
+
+        # Add progress state indicator (if enabled)
+        if options.show_progress_state:
+            progress_state = get_progress_state(status_name or "", use_color=options.colorize_output)
+            parts.append(progress_state)
 
         # Add subtask count aggregation (for tasks with children)
         completed_count, total_count = RichTaskFormatter._count_subtasks(task)

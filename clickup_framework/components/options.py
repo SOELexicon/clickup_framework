@@ -24,6 +24,7 @@ class FormatOptions:
         tag_style: Style for tag display ('brackets', 'hash', 'colored')
         show_type_emoji: Whether to show task type emojis
         show_status_icon: Whether to show status icons/emojis
+        show_progress_state: Whether to show progress state indicators ([to do], [in progress], etc.)
         show_descriptions: Whether to show task descriptions
         show_dates: Whether to show task dates (created, updated, due)
         show_comments: Number of recent comments to show (0 to hide)
@@ -45,6 +46,7 @@ class FormatOptions:
     tag_style: str = "colored"
     show_type_emoji: bool = True
     show_status_icon: bool = True
+    show_progress_state: bool = False
     show_descriptions: bool = False
     show_dates: bool = False
     show_comments: int = 0
@@ -119,6 +121,7 @@ class FormatOptions:
             show_ids=True,
             show_tags=True,
             show_type_emoji=True,
+            show_progress_state=True,
             show_descriptions=True,
             show_dates=True,
             show_relationships=True
@@ -138,6 +141,7 @@ class FormatOptions:
             show_score=True,
             show_tags=True,
             show_type_emoji=True,
+            show_progress_state=True,
             show_descriptions=True,
             show_dates=True,
             show_comments=5,
