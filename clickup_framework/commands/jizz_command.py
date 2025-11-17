@@ -369,9 +369,20 @@ def jizz_command(args):
         else:
             print("  [DRY RUN] Would execute: cum update cum")
     else:
-        # Run cum update cum without capturing output so progress bars are shown
+        # Run cum update cum with animated loop
         print()
-        result = subprocess.run(['cum', 'update', 'cum'])
+
+        if use_color:
+            # Funny looping animation while updating
+            def run_update():
+                return subprocess.run(['cum', 'update', 'cum'])
+
+            result = ANSIAnimations.run_with_looping_animation(
+                run_update,
+                "💦 Recharging the cum cannon"
+            )
+        else:
+            result = subprocess.run(['cum', 'update', 'cum'])
 
         if result.returncode == 0:
             print()

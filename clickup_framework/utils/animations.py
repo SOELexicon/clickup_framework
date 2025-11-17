@@ -457,6 +457,112 @@ class ANSIAnimations:
         warning_icon = "⚠"
         return colorize(f"{warning_icon} {message}", TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
 
+    @staticmethod
+    def looping_animation(message: str = "Working", stop_event=None) -> None:
+        """
+        Display a looping animation that runs until stop_event is set.
+        Designed to run in a background thread while a long process executes.
+
+        Shows funny rotating ASCII art with colorful effects.
+
+        Args:
+            message: Message to display with the animation
+            stop_event: threading.Event to signal when to stop
+        """
+        import threading
+
+        # Funny rotating ASCII frames - bouncing droplets theme
+        frames = [
+            "💧    ",
+            " 💧   ",
+            "  💧  ",
+            "   💧 ",
+            "    💧",
+            "   💧 ",
+            "  💧  ",
+            " 💧   ",
+        ]
+
+        # Alternative frames for extra flair
+        emoji_frames = [
+            "🌊",
+            "💦",
+            "💧",
+            "💦",
+        ]
+
+        colors = [
+            TextColor.BRIGHT_CYAN,
+            TextColor.BRIGHT_BLUE,
+            TextColor.BRIGHT_MAGENTA,
+            TextColor.BRIGHT_CYAN,
+        ]
+
+        i = 0
+        emoji_i = 0
+
+        # If no stop_event provided, create a dummy one that never triggers
+        if stop_event is None:
+            stop_event = threading.Event()
+
+        while not stop_event.is_set():
+            # Get current frame and emoji
+            frame = frames[i % len(frames)]
+            emoji = emoji_frames[emoji_i % len(emoji_frames)]
+            color = colors[i % len(colors)]
+
+            # Create animated message
+            colored_msg = colorize(message, color, TextStyle.BOLD)
+            animated_line = f"\r{emoji} {frame} {colored_msg}... {frame} {emoji}"
+
+            sys.stdout.write(animated_line)
+            sys.stdout.flush()
+
+            time.sleep(0.12)
+            i += 1
+
+            # Emoji changes slower than frames
+            if i % 2 == 0:
+                emoji_i += 1
+
+        # Clear the line when done
+        sys.stdout.write('\r' + ' ' * 80 + '\r')
+        sys.stdout.flush()
+
+    @staticmethod
+    def run_with_looping_animation(func, message: str = "Working"):
+        """
+        Run a function with a looping animation in the background.
+
+        Args:
+            func: Function to execute (should be a callable)
+            message: Message to display with animation
+
+        Returns:
+            The return value of func
+        """
+        import threading
+
+        stop_event = threading.Event()
+
+        # Start animation in background thread
+        anim_thread = threading.Thread(
+            target=ANSIAnimations.looping_animation,
+            args=(message, stop_event),
+            daemon=True
+        )
+        anim_thread.start()
+
+        try:
+            # Run the actual function
+            result = func()
+        finally:
+            # Stop animation
+            stop_event.set()
+            anim_thread.join(timeout=1.0)
+
+        return result
+
 
 def demo_animations():
     """Demo function showing various animation effects."""
