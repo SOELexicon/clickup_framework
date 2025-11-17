@@ -486,6 +486,77 @@ class MarkdownFormatter(BaseParser):
 
         return image_block
 
+    def _create_inline_image_block(self, url: str, alt_text: str, attachment_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create an inline image block for ClickUp rich text format.
+
+        Args:
+            url: Image URL
+            alt_text: Alt text for the image
+            attachment_data: Full attachment metadata from ClickUp API
+
+        Returns:
+            Inline image block dict
+        """
+        import json
+
+        # Extract attachment info
+        attachment_id = attachment_data.get('id', '')
+        filename = attachment_data.get('title') or attachment_data.get('name', alt_text)
+        file_ext = attachment_data.get('extension', '').replace('image/', '')
+        thumbnail_small = attachment_data.get('thumbnail_small', url)
+        thumbnail_medium = attachment_data.get('thumbnail_medium', url)
+        thumbnail_large = attachment_data.get('thumbnail_large', url)
+
+        # Get image dimensions if available
+        width = str(attachment_data.get('width', '154'))
+        natural_width = str(attachment_data.get('size', {}).get('width', '797'))
+        natural_height = str(attachment_data.get('size', {}).get('height', '1289'))
+
+        # Build data-attachment JSON string
+        data_attachment = {
+            "id": attachment_id,
+            "version": str(attachment_data.get('version', '0')),
+            "date": attachment_data.get('date', 0),
+            "name": filename,
+            "title": filename,
+            "extension": file_ext,
+            "source": 1,
+            "thumbnail_small": thumbnail_small,
+            "thumbnail_medium": thumbnail_medium,
+            "thumbnail_large": thumbnail_large,
+            "url": url,
+            "url_w_query": f"{url}?view=open",
+            "url_w_host": url
+        }
+
+        # Create the inline image block
+        image_block = {
+            "type": "image",
+            "text": filename,
+            "image": {
+                "id": attachment_id,
+                "name": filename,
+                "title": filename,
+                "type": file_ext,
+                "extension": f"image/{file_ext}",
+                "thumbnail_large": thumbnail_large,
+                "thumbnail_medium": thumbnail_medium,
+                "thumbnail_small": thumbnail_small,
+                "url": url,
+                "uploaded": True
+            },
+            "attributes": {
+                "width": width,
+                "data-id": attachment_id,
+                "data-attachment": json.dumps(data_attachment),
+                "data-natural-width": natural_width,
+                "data-natural-height": natural_height
+            }
+        }
+
+        return image_block
+
 
 def format_markdown_for_clickup(content: str, context: ParserContext = ParserContext.COMMENT) -> str:
     """
