@@ -121,17 +121,21 @@ class ImageCache:
         """
         return self.metadata.get(hash_value)
 
-    def mark_uploaded(self, hash_value: str, upload_url: str):
+    def mark_uploaded(self, hash_value: str, upload_url: str, attachment_data: Optional[Dict[str, Any]] = None):
         """
         Mark an image as uploaded.
 
         Args:
             hash_value: Image hash
             upload_url: URL where image was uploaded
+            attachment_data: Full attachment metadata from ClickUp API (optional)
         """
         if hash_value in self.metadata:
             self.metadata[hash_value]['uploaded'] = True
             self.metadata[hash_value]['upload_url'] = upload_url
+            # Store full attachment data if provided
+            if attachment_data:
+                self.metadata[hash_value]['attachment_data'] = attachment_data
             self._save_metadata()
 
     def get_cached_path(self, hash_value: str) -> Optional[str]:
@@ -351,8 +355,8 @@ class ImageEmbedding(BaseParser):
         # Extract URL from response
         upload_url = attachment_data.get('url', '')
 
-        # Update cache metadata
-        self.cache.mark_uploaded(hash_value, upload_url)
+        # Update cache metadata with full attachment data
+        self.cache.mark_uploaded(hash_value, upload_url, attachment_data)
 
         return attachment_data
 

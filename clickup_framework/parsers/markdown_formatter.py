@@ -164,7 +164,7 @@ class MarkdownFormatter(BaseParser):
 
         return False
 
-    def to_json_format(self, content: str) -> Dict[str, Any]:
+    def to_json_format(self, content: str, image_metadata: Optional[Dict[str, Dict[str, Any]]] = None, attachment_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Convert markdown to ClickUp JSON format.
 
@@ -173,6 +173,8 @@ class MarkdownFormatter(BaseParser):
 
         Args:
             content: Markdown content
+            image_metadata: Dict mapping image URLs to their attachment metadata for inline embedding
+            attachment_ids: List of attachment IDs to include in the comment
 
         Returns:
             Dictionary suitable for ClickUp API
@@ -181,10 +183,14 @@ class MarkdownFormatter(BaseParser):
 
         if self.context == ParserContext.COMMENT:
             # ClickUp comments need rich text JSON structure for formatting
-            if self.contains_markdown(formatted_content):
-                return {
-                    "comment": self._markdown_to_rich_text(formatted_content)
+            if self.contains_markdown(formatted_content) or image_metadata:
+                result = {
+                    "comment": self._markdown_to_rich_text(formatted_content, image_metadata)
                 }
+                # Add attachment IDs if provided
+                if attachment_ids:
+                    result["attachment"] = attachment_ids
+                return result
             else:
                 return {
                     "comment_text": formatted_content
@@ -208,7 +214,7 @@ class MarkdownFormatter(BaseParser):
                 "text": formatted_content
             }
 
-    def _markdown_to_rich_text(self, content: str) -> List[Dict[str, Any]]:
+    def _markdown_to_rich_text(self, content: str, image_metadata: Optional[Dict[str, Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """
         Convert markdown to ClickUp rich text JSON structure.
 
@@ -222,6 +228,7 @@ class MarkdownFormatter(BaseParser):
 
         Args:
             content: Markdown formatted content
+            image_metadata: Dict mapping image URLs to their attachment metadata for inline embedding
 
         Returns:
             List of text segments with formatting attributes
@@ -279,7 +286,7 @@ class MarkdownFormatter(BaseParser):
 
             if bullet_match:
                 text = bullet_match.group(2)
-                segments = self._parse_inline_formatting(text)
+                segments = self._parse_inline_formatting(text, image_metadata)
                 for seg in segments:
                     attrs = seg.get("attributes", {})
                     attrs["list"] = "bullet"  # Fixed: use string not nested object
@@ -291,7 +298,7 @@ class MarkdownFormatter(BaseParser):
 
             if ordered_match:
                 text = ordered_match.group(3)
-                segments = self._parse_inline_formatting(text)
+                segments = self._parse_inline_formatting(text, image_metadata)
                 for seg in segments:
                     attrs = seg.get("attributes", {})
                     attrs["list"] = "ordered"  # Fixed: use string not nested object
@@ -303,7 +310,7 @@ class MarkdownFormatter(BaseParser):
 
             # Handle regular text with inline formatting
             if line.strip():
-                segments = self._parse_inline_formatting(line)
+                segments = self._parse_inline_formatting(line, image_metadata)
                 result.extend(segments)
 
             # Add newline if not last line
@@ -314,12 +321,13 @@ class MarkdownFormatter(BaseParser):
 
         return result if result else [{"text": content}]
 
-    def _parse_inline_formatting(self, text: str) -> List[Dict[str, Any]]:
+    def _parse_inline_formatting(self, text: str, image_metadata: Optional[Dict[str, Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """
-        Parse inline markdown formatting (bold, italic, code, links).
+        Parse inline markdown formatting (bold, italic, code, links, images).
 
         Args:
             text: Text with inline markdown
+            image_metadata: Dict mapping image URLs to their attachment metadata for inline embedding
 
         Returns:
             List of text segments with attributes
@@ -328,8 +336,9 @@ class MarkdownFormatter(BaseParser):
         remaining = text
 
         # Pattern to match markdown inline elements
-        # Order matters: bold+italic, bold, italic, code, links
-        pattern = r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))'
+        # Order matters: images, bold+italic, bold, italic, code, links
+        # Image pattern: ![alt](url)
+        pattern = r'(!\[([^\]]*)\]\(([^)]+)\)|\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))'
 
         last_end = 0
         for match in re.finditer(pattern, text):
@@ -340,30 +349,45 @@ class MarkdownFormatter(BaseParser):
                     result.append({"text": plain_text})
 
             # Determine type and add formatted segment
-            if match.group(2):  # ***bold+italic***
-                result.append({
-                    "text": match.group(2),
-                    "attributes": {"bold": True, "italic": True}
-                })
-            elif match.group(3):  # **bold**
-                result.append({
-                    "text": match.group(3),
-                    "attributes": {"bold": True}
-                })
-            elif match.group(4):  # *italic*
+            if match.group(1) and match.group(1).startswith('!'):  # ![alt](url) - image
+                alt_text = match.group(2)
+                url = match.group(3)
+
+                # Check if we have metadata for this image
+                if image_metadata and url in image_metadata:
+                    # Create inline image block
+                    img_block = self._create_inline_image_block(url, alt_text, image_metadata[url])
+                    result.append(img_block)
+                else:
+                    # Fall back to link format if no metadata
+                    result.append({
+                        "text": alt_text or url,
+                        "attributes": {"link": url}
+                    })
+            elif match.group(4):  # ***bold+italic***
                 result.append({
                     "text": match.group(4),
-                    "attributes": {"italic": True}
+                    "attributes": {"bold": True, "italic": True}
                 })
-            elif match.group(5):  # `code`
+            elif match.group(5):  # **bold**
                 result.append({
                     "text": match.group(5),
-                    "attributes": {"code": True}
+                    "attributes": {"bold": True}
                 })
-            elif match.group(6) and match.group(7):  # [text](url)
+            elif match.group(6):  # *italic*
                 result.append({
                     "text": match.group(6),
-                    "attributes": {"link": match.group(7)}
+                    "attributes": {"italic": True}
+                })
+            elif match.group(7):  # `code`
+                result.append({
+                    "text": match.group(7),
+                    "attributes": {"code": True}
+                })
+            elif match.group(8) and match.group(9):  # [text](url)
+                result.append({
+                    "text": match.group(8),
+                    "attributes": {"link": match.group(9)}
                 })
 
             last_end = match.end()
@@ -375,6 +399,77 @@ class MarkdownFormatter(BaseParser):
                 result.append({"text": remaining_text})
 
         return result if result else [{"text": text}]
+
+    def _create_inline_image_block(self, url: str, alt_text: str, attachment_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create an inline image block for ClickUp rich text format.
+
+        Args:
+            url: Image URL
+            alt_text: Alt text for the image
+            attachment_data: Full attachment metadata from ClickUp API
+
+        Returns:
+            Inline image block dict
+        """
+        import json
+
+        # Extract attachment info
+        attachment_id = attachment_data.get('id', '')
+        filename = attachment_data.get('title') or attachment_data.get('name', alt_text)
+        file_ext = attachment_data.get('extension', '').replace('image/', '')
+        thumbnail_small = attachment_data.get('thumbnail_small', url)
+        thumbnail_medium = attachment_data.get('thumbnail_medium', url)
+        thumbnail_large = attachment_data.get('thumbnail_large', url)
+
+        # Get image dimensions if available
+        width = str(attachment_data.get('width', '154'))
+        natural_width = str(attachment_data.get('size', {}).get('width', '797'))
+        natural_height = str(attachment_data.get('size', {}).get('height', '1289'))
+
+        # Build data-attachment JSON string
+        data_attachment = {
+            "id": attachment_id,
+            "version": str(attachment_data.get('version', '0')),
+            "date": attachment_data.get('date', 0),
+            "name": filename,
+            "title": filename,
+            "extension": file_ext,
+            "source": 1,
+            "thumbnail_small": thumbnail_small,
+            "thumbnail_medium": thumbnail_medium,
+            "thumbnail_large": thumbnail_large,
+            "url": url,
+            "url_w_query": f"{url}?view=open",
+            "url_w_host": url
+        }
+
+        # Create the inline image block
+        image_block = {
+            "type": "image",
+            "text": filename,
+            "image": {
+                "id": attachment_id,
+                "name": filename,
+                "title": filename,
+                "type": file_ext,
+                "extension": f"image/{file_ext}",
+                "thumbnail_large": thumbnail_large,
+                "thumbnail_medium": thumbnail_medium,
+                "thumbnail_small": thumbnail_small,
+                "url": url,
+                "uploaded": True
+            },
+            "attributes": {
+                "width": width,
+                "data-id": attachment_id,
+                "data-attachment": json.dumps(data_attachment),
+                "data-natural-width": natural_width,
+                "data-natural-height": natural_height
+            }
+        }
+
+        return image_block
 
 
 def format_markdown_for_clickup(content: str, context: ParserContext = ParserContext.COMMENT) -> str:
