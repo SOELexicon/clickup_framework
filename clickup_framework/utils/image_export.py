@@ -295,11 +295,17 @@ def _rich_ansi_to_jpg(
                         return True
             except ImportError:
                 pass
+    except Exception:
+        # SVG export failed, continue to cleanup
+        pass
     
     # Clean up temp files
     for temp_file in [temp_html, temp_svg]:
         if os.path.exists(temp_file):
-            os.remove(temp_file)
+            try:
+                os.remove(temp_file)
+            except:
+                pass
     
     # If all methods failed, raise exception
     raise Exception(
