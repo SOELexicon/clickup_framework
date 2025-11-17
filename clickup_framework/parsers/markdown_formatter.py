@@ -244,6 +244,10 @@ class MarkdownFormatter(BaseParser):
 
                 code_text = '\n'.join(code_lines)
                 if code_text:
+                    # Add terminating newline for proper ClickUp rendering
+                    if not code_text.endswith('\n'):
+                        code_text += '\n'
+
                     result.append({
                         "text": code_text,
                         "attributes": {
