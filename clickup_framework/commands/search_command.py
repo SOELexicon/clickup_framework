@@ -28,13 +28,8 @@ Aliases:
 Author: ClickUp Framework Team
 """
 
-import sys
-import re
 import subprocess
-from typing import Optional
-from clickup_framework import ClickUpClient, get_context_manager
-from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import resolve_container_id
+from clickup_framework.commands.base_command import BaseCommand
 
 
 # Command metadata for help generation
@@ -50,123 +45,113 @@ COMMAND_METADATA = {
 }
 
 
-def search_command(args):
+class SearchCommand(BaseCommand):
     """
-    Search for tasks and lists matching a pattern.
-
-    This command provides an intuitive search interface by executing
-    `cum hierarchy` and filtering output with grep.
-
-    Args:
-        args: argparse.Namespace containing:
-            - pattern (str): Search pattern (can be regex)
-            - container_id (str, optional): Limit search to specific container
-            - case_sensitive (bool): If True, search is case-sensitive
-
-    Returns:
-        None: Outputs search results to stdout
-
-    Examples:
-        >>> # Search all tasks for "bug"
-        >>> args = argparse.Namespace(pattern="bug", container_id=None,
-        ...                           case_sensitive=False)
-        >>> search_command(args)
-
-    Notes:
-        - Executes hierarchy command and filters output
-        - Uses grep for simple and reliable filtering
-        - Case-insensitive by default for better user experience
+    Search Command using BaseCommand.
     """
-    import os
 
-    # Build the hierarchy command
-    hierarchy_cmd = ["cum", "h"]
+    def execute(self):
+        """
+        Search for tasks and lists matching a pattern.
 
-    if args.container_id:
-        hierarchy_cmd.append(args.container_id)
-    else:
-        hierarchy_cmd.append("--all")
+        This command provides an intuitive search interface by executing
+        `cum hierarchy` and filtering output with grep.
+        """
+        # Build the hierarchy command
+        hierarchy_cmd = ["cum", "h"]
 
-    # Add some useful display options
-    hierarchy_cmd.extend(["--show-ids", "--show-tags"])
+        if self.args.container_id:
+            hierarchy_cmd.append(self.args.container_id)
+        else:
+            hierarchy_cmd.append("--all")
 
-    # Build grep command
-    grep_flags = ["-i"] if not args.case_sensitive else []
-    grep_cmd = ["grep"] + grep_flags + [args.pattern]
+        # Add some useful display options
+        hierarchy_cmd.extend(["--show-ids", "--show-tags"])
 
-    # Execute command pipeline
-    try:
-        # Run hierarchy | grep
-        hierarchy_proc = subprocess.Popen(
-            hierarchy_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Build grep command
+        grep_flags = ["-i"] if not self.args.case_sensitive else []
+        grep_cmd = ["grep"] + grep_flags + [self.args.pattern]
 
-        grep_proc = subprocess.Popen(
-            grep_cmd,
-            stdin=hierarchy_proc.stdout,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Execute command pipeline
+        try:
+            # Run hierarchy | grep
+            hierarchy_proc = subprocess.Popen(
+                hierarchy_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
 
-        # Allow hierarchy_proc to receive SIGPIPE if grep_proc exits
-        hierarchy_proc.stdout.close()
+            grep_proc = subprocess.Popen(
+                grep_cmd,
+                stdin=hierarchy_proc.stdout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
 
-        # Get output
-        output, grep_err = grep_proc.communicate()
-        hierarchy_err = hierarchy_proc.stderr.read() if hierarchy_proc.stderr else ""
+            # Allow hierarchy_proc to receive SIGPIPE if grep_proc exits
+            hierarchy_proc.stdout.close()
 
-        # Check for errors
-        if hierarchy_proc.returncode not in [0, None] and hierarchy_err:
-            print(hierarchy_err, file=sys.stderr)
-            sys.exit(hierarchy_proc.returncode)
+            # Get output
+            output, grep_err = grep_proc.communicate()
+            hierarchy_err = hierarchy_proc.stderr.read() if hierarchy_proc.stderr else ""
 
-        # Check if grep found anything
-        if grep_proc.returncode == 1:
-            # grep returns 1 when no matches found
-            context = get_context_manager()
-            use_color = context.get_ansi_output()
+            # Check for errors
+            if hierarchy_proc.returncode not in [0, None] and hierarchy_err:
+                self.print_error(hierarchy_err)
+                exit(hierarchy_proc.returncode)
+
+            # Check if grep found anything
+            if grep_proc.returncode == 1:
+                # grep returns 1 when no matches found
+                use_color = self.context.get_ansi_output()
+
+                if use_color:
+                    from clickup_framework.utils.colors import colorize, TextColor
+                    pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW)
+                    self.print(f"\n🔍 No tasks found matching {pattern_colored}\n")
+                else:
+                    self.print(f'\n🔍 No tasks found matching "{self.args.pattern}"\n')
+                return
+            elif grep_proc.returncode not in [0, None]:
+                # grep error (not just no matches)
+                if grep_err:
+                    self.print_error(grep_err)
+                exit(grep_proc.returncode)
+
+            # Print results with header
+            use_color = self.context.get_ansi_output()
 
             if use_color:
-                from clickup_framework.utils.colors import colorize, TextColor
-                pattern_colored = colorize(f'"{args.pattern}"', TextColor.BRIGHT_YELLOW)
-                print(f"\n🔍 No tasks found matching {pattern_colored}\n", file=sys.stderr)
+                from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+                pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+                result_count = len([line for line in output.split('\n') if line.strip() and not line.startswith('Available')])
+                count_colored = colorize(str(result_count), TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+                self.print(f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n")
             else:
-                print(f'\n🔍 No tasks found matching "{args.pattern}"\n', file=sys.stderr)
-            return
-        elif grep_proc.returncode not in [0, None]:
-            # grep error (not just no matches)
-            if grep_err:
-                print(grep_err, file=sys.stderr)
-            sys.exit(grep_proc.returncode)
+                result_count = len([line for line in output.split('\n') if line.strip() and not line.startswith('Available')])
+                self.print(f'\n🔍 Found {result_count} result(s) matching "{self.args.pattern}"\n')
 
-        # Print results with header
-        context = get_context_manager()
-        use_color = context.get_ansi_output()
+            # Print the filtered output
+            self.print(output)
 
-        if use_color:
-            from clickup_framework.utils.colors import colorize, TextColor, TextStyle
-            pattern_colored = colorize(f'"{args.pattern}"', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
-            result_count = len([line for line in output.split('\n') if line.strip() and not line.startswith('Available')])
-            count_colored = colorize(str(result_count), TextColor.BRIGHT_GREEN, TextStyle.BOLD)
-            print(f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n")
-        else:
-            result_count = len([line for line in output.split('\n') if line.strip() and not line.startswith('Available')])
-            print(f'\n🔍 Found {result_count} result(s) matching "{args.pattern}"\n')
+        except FileNotFoundError as e:
+            self.error(f"Required command not found: {e.filename}\n" +
+                      "Make sure 'cum' and 'grep' are in your PATH")
+        except Exception as e:
+            self.error(f"Error executing search: {e}")
 
-        # Print the filtered output
-        print(output)
 
-    except FileNotFoundError as e:
-        print(f"❌ Error: Required command not found: {e.filename}", file=sys.stderr)
-        print("Make sure 'cum' and 'grep' are in your PATH", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"❌ Error executing search: {e}", file=sys.stderr)
-        sys.exit(1)
+def search_command(args):
+    """
+    Command function wrapper for backward compatibility.
+
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = SearchCommand(args, command_name='search')
+    command.execute()
 
 
 def register_command(subparsers):
