@@ -206,6 +206,47 @@ eval "$(register-python-argcomplete clickup)"
 source ~/.bashrc
 ```
 
+### Shell Aliases (Optional)
+
+Set up convenient shell aliases for frequently used commands:
+
+**What you get:**
+- `cud` - Quick shortcut for `cum detail` (shorter than `cum d`)
+- `cumd` - Alternative for `cum detail`
+- `cum task` - Another alias for `cum detail` (available by default)
+
+#### Linux / macOS / WSL
+
+```bash
+# Run the alias setup script (bash or zsh)
+./enable-aliases.sh
+
+# Reload your shell configuration
+source ~/.bashrc  # for bash
+source ~/.zshrc   # for zsh
+
+# Or restart your terminal
+```
+
+**Manual setup for bash** (`~/.bashrc`):
+```bash
+alias cud='cum detail'
+alias cumd='cum detail'
+```
+
+**Manual setup for zsh** (`~/.zshrc`):
+```bash
+alias cud='cum detail'
+alias cumd='cum detail'
+```
+
+**Usage examples:**
+```bash
+cud 86c6j1vr6        # View task details (short form)
+cumd current         # View current task details
+cum task 86c6j1vr6   # Use built-in 'task' alias
+```
+
 ## Quick Start
 
 ### Command-Line Interface (NEW! ✨)
