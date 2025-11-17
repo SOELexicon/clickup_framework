@@ -392,6 +392,14 @@ def jizz_command(args):
             transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
             print(transition_msg)
 
+        # Clear any lingering progress lines with something funny
+        if use_color:
+            # Clear the line with spaces and return to start
+            print('\r' + ' ' * 80 + '\r', end='', flush=True)
+            # Print a funny transition message
+            transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
+            print(transition_msg)
+
         if result.returncode == 0:
             print()
             if use_color:
