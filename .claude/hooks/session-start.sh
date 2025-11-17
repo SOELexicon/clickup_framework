@@ -29,10 +29,16 @@ fi
 # Set PYTHONPATH for development
 echo "export PYTHONPATH=\"\${PYTHONPATH:+\$PYTHONPATH:}.\"" >> "$CLAUDE_ENV_FILE"
 
-# Check for optional Mermaid CLI (mmdc) for diagram generation
+# Install Mermaid CLI (mmdc) for diagram generation
 if ! command -v mmdc &> /dev/null; then
-    echo "ℹ️  Optional: Install Mermaid CLI for diagram support"
-    echo "  npm install -g @mermaid-js/mermaid-cli"
+    echo "📊 Installing Mermaid CLI for diagram support..."
+    npm install -g @mermaid-js/mermaid-cli 2>&1 | grep -v "npm WARN" || true
+    if command -v mmdc &> /dev/null; then
+        echo "✓ Mermaid CLI installed successfully"
+    else
+        echo "⚠ Mermaid CLI installation failed (puppeteer issues in sandbox)"
+        echo "  Diagram generation will be skipped"
+    fi
 fi
 
 echo "✓ Ready to use ClickUp Framework"
