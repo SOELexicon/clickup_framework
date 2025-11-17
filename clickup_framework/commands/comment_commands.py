@@ -44,13 +44,14 @@ def comment_add_command(args):
     skip_mermaid = getattr(args, 'skip_mermaid', False)
     upload_images = getattr(args, 'upload_images', False)
 
-    if process_markdown:
-        processor = ContentProcessor(
-            context=ParserContext.COMMENT,
-            cache_dir=getattr(args, 'image_cache', None),
-            client=client if upload_images else None
-        )
+    # Always create processor for markdown detection (lightweight)
+    processor = ContentProcessor(
+        context=ParserContext.COMMENT,
+        cache_dir=getattr(args, 'image_cache', None),
+        client=client if upload_images else None
+    )
 
+    if process_markdown:
         # Process content
         if upload_images:
             # Process and upload images in one step
@@ -85,8 +86,14 @@ def comment_add_command(args):
                 print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
 
     try:
-        # Create the comment
-        comment = comments_api.create_task_comment(task_id, comment_text)
+        # Create the comment with proper format
+        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
+            # Convert markdown to ClickUp rich text JSON
+            comment_data = processor.markdown_formatter.to_json_format(comment_text)
+            comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
+        else:
+            # Plain text comment
+            comment = comments_api.create_task_comment(task_id, comment_text=comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment added")
@@ -194,13 +201,14 @@ def comment_update_command(args):
     # Get task_id for uploads (needed to attach images)
     task_id = getattr(args, 'task_id', None)
 
-    if process_markdown:
-        processor = ContentProcessor(
-            context=ParserContext.COMMENT,
-            cache_dir=getattr(args, 'image_cache', None),
-            client=client if upload_images else None
-        )
+    # Always create processor for markdown detection (lightweight)
+    processor = ContentProcessor(
+        context=ParserContext.COMMENT,
+        cache_dir=getattr(args, 'image_cache', None),
+        client=client if upload_images else None
+    )
 
+    if process_markdown:
         # Process content
         if upload_images and task_id:
             # Process and upload images in one step
@@ -238,8 +246,14 @@ def comment_update_command(args):
                     print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Provide --task-id to upload.")
 
     try:
-        # Update the comment
-        updated = comments_api.update(args.comment_id, comment_text)
+        # Update the comment with proper format
+        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
+            # Convert markdown to ClickUp rich text JSON
+            comment_data = processor.markdown_formatter.to_json_format(comment_text)
+            updated = comments_api.update(args.comment_id, comment_data=comment_data)
+        else:
+            # Plain text comment
+            updated = comments_api.update(args.comment_id, comment_text=comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment updated")

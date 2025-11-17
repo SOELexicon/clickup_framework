@@ -45,20 +45,21 @@ class CommentsAPI:
         """Get all comments on a task."""
         return self.client.get_task_comments(task_id)
 
-    def create_task_comment(self, task_id: str, comment_text: str, notify_all: bool = False) -> Dict[str, Any]:
+    def create_task_comment(self, task_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None, notify_all: bool = False) -> Dict[str, Any]:
         """
         Create a comment on a task.
 
         Args:
             task_id: Task ID
-            comment_text: Comment text
+            comment_text: Plain comment text (backward compatible)
+            comment_data: Rich text comment data (new format)
             notify_all: Notify all assignees (default: False)
 
         Returns:
             Created comment (raw dict)
         """
         # Use existing method from client
-        return self.client.create_task_comment(task_id, comment_text)
+        return self.client.comments.create_task_comment(task_id, comment_text, comment_data)
 
     # View comments
     def get_view_comments(self, view_id: str, **params) -> Dict[str, Any]:
@@ -117,19 +118,20 @@ class CommentsAPI:
         return self.client.create_list_comment(list_id, comment_text, notify_all)
 
     # Comment management
-    def update(self, comment_id: str, comment_text: str, **params) -> Dict[str, Any]:
+    def update(self, comment_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None, **params) -> Dict[str, Any]:
         """
         Update a comment.
 
         Args:
             comment_id: Comment ID
-            comment_text: New comment text
+            comment_text: Plain comment text (backward compatible)
+            comment_data: Rich text comment data (new format)
             **params: Additional query parameters
 
         Returns:
             Updated comment (raw dict)
         """
-        return self.client.update_comment(comment_id, comment_text, **params)
+        return self.client.comments.update_comment(comment_id, comment_text, comment_data, **params)
 
     def delete(self, comment_id: str) -> Dict[str, Any]:
         """

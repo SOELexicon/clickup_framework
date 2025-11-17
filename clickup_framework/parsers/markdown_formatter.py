@@ -168,8 +168,8 @@ class MarkdownFormatter(BaseParser):
         """
         Convert markdown to ClickUp JSON format.
 
-        For comments, ClickUp accepts plain text with markdown syntax.
-        This method structures it properly for API requests.
+        For comments, ClickUp requires rich text JSON structure for formatting.
+        For task descriptions, markdown_description field works with markdown.
 
         Args:
             content: Markdown content
@@ -180,9 +180,15 @@ class MarkdownFormatter(BaseParser):
         formatted_content = self.parse(content)
 
         if self.context == ParserContext.COMMENT:
-            return {
-                "comment_text": formatted_content
-            }
+            # ClickUp comments need rich text JSON structure for formatting
+            if self.contains_markdown(formatted_content):
+                return {
+                    "comment": self._markdown_to_rich_text(formatted_content)
+                }
+            else:
+                return {
+                    "comment_text": formatted_content
+                }
         elif self.context == ParserContext.TASK_DESCRIPTION:
             # Use markdown_description field if content contains markdown
             if self.contains_markdown(formatted_content):
@@ -201,6 +207,170 @@ class MarkdownFormatter(BaseParser):
             return {
                 "text": formatted_content
             }
+
+    def _markdown_to_rich_text(self, content: str) -> List[Dict[str, Any]]:
+        """
+        Convert markdown to ClickUp rich text JSON structure.
+
+        ClickUp comments use a structured format:
+        {
+          "comment": [
+            {"text": "content", "attributes": {"bold": true, ...}},
+            ...
+          ]
+        }
+
+        Args:
+            content: Markdown formatted content
+
+        Returns:
+            List of text segments with formatting attributes
+        """
+        result = []
+        lines = content.split('\n')
+        i = 0
+
+        while i < len(lines):
+            line = lines[i]
+
+            # Handle code blocks
+            if line.strip().startswith('```'):
+                code_lang = line.strip()[3:].strip() or 'plain'
+                code_lines = []
+                i += 1
+                while i < len(lines) and not lines[i].strip().startswith('```'):
+                    code_lines.append(lines[i])
+                    i += 1
+
+                code_text = '\n'.join(code_lines)
+                if code_text:
+                    result.append({
+                        "text": code_text,
+                        "attributes": {
+                            "code-block": {"code-block": code_lang}
+                        }
+                    })
+                i += 1
+                continue
+
+            # Handle headers (convert to bold text with newlines)
+            header_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            if header_match:
+                header_text = header_match.group(2)
+                # Add newline before header if not first line
+                if result:
+                    result.append({"text": "\n"})
+
+                result.append({
+                    "text": header_text,
+                    "attributes": {"bold": True}
+                })
+                result.append({"text": "\n"})
+                i += 1
+                continue
+
+            # Handle lists
+            bullet_match = re.match(r'^(\s*)[-*+]\s+(.+)$', line)
+            ordered_match = re.match(r'^(\s*)(\d+)\.\s+(.+)$', line)
+
+            if bullet_match:
+                text = bullet_match.group(2)
+                segments = self._parse_inline_formatting(text)
+                for seg in segments:
+                    attrs = seg.get("attributes", {})
+                    attrs["list"] = {"list": "bullet"}
+                    seg["attributes"] = attrs
+                    result.append(seg)
+                result.append({"text": "\n"})
+                i += 1
+                continue
+
+            if ordered_match:
+                text = ordered_match.group(3)
+                segments = self._parse_inline_formatting(text)
+                for seg in segments:
+                    attrs = seg.get("attributes", {})
+                    attrs["list"] = {"list": "ordered"}
+                    seg["attributes"] = attrs
+                    result.append(seg)
+                result.append({"text": "\n"})
+                i += 1
+                continue
+
+            # Handle regular text with inline formatting
+            if line.strip():
+                segments = self._parse_inline_formatting(line)
+                result.extend(segments)
+
+            # Add newline if not last line
+            if i < len(lines) - 1:
+                result.append({"text": "\n"})
+
+            i += 1
+
+        return result if result else [{"text": content}]
+
+    def _parse_inline_formatting(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Parse inline markdown formatting (bold, italic, code, links).
+
+        Args:
+            text: Text with inline markdown
+
+        Returns:
+            List of text segments with attributes
+        """
+        result = []
+        remaining = text
+
+        # Pattern to match markdown inline elements
+        # Order matters: bold+italic, bold, italic, code, links
+        pattern = r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))'
+
+        last_end = 0
+        for match in re.finditer(pattern, text):
+            # Add text before match
+            if match.start() > last_end:
+                plain_text = text[last_end:match.start()]
+                if plain_text:
+                    result.append({"text": plain_text})
+
+            # Determine type and add formatted segment
+            if match.group(2):  # ***bold+italic***
+                result.append({
+                    "text": match.group(2),
+                    "attributes": {"bold": True, "italic": True}
+                })
+            elif match.group(3):  # **bold**
+                result.append({
+                    "text": match.group(3),
+                    "attributes": {"bold": True}
+                })
+            elif match.group(4):  # *italic*
+                result.append({
+                    "text": match.group(4),
+                    "attributes": {"italic": True}
+                })
+            elif match.group(5):  # `code`
+                result.append({
+                    "text": match.group(5),
+                    "attributes": {"code": True}
+                })
+            elif match.group(6) and match.group(7):  # [text](url)
+                result.append({
+                    "text": match.group(6),
+                    "attributes": {"link": match.group(7)}
+                })
+
+            last_end = match.end()
+
+        # Add remaining text
+        if last_end < len(text):
+            remaining_text = text[last_end:]
+            if remaining_text:
+                result.append({"text": remaining_text})
+
+        return result if result else [{"text": text}]
 
 
 def format_markdown_for_clickup(content: str, context: ParserContext = ParserContext.COMMENT) -> str:
