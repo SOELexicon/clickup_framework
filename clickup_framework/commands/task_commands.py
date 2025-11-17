@@ -60,6 +60,137 @@ def display_automation_result(result: ParentUpdateResult):
         print(f"  {colorize('→ You may need to manually update the parent task', TextColor.BRIGHT_YELLOW)}")
 
 
+def is_completion_status(status: str) -> bool:
+    """
+    Check if a status is a completion status that requires checklist validation.
+
+    Args:
+        status: Status string to check
+
+    Returns:
+        True if status is a completion status (committed, closed, completed, done)
+    """
+    completion_statuses = ['committed', 'comitted', 'closed', 'completed', 'complete', 'done']
+    return status.lower() in completion_statuses
+
+
+def get_unchecked_items(task: dict) -> list:
+    """
+    Get all unchecked checklist items from a task.
+
+    Args:
+        task: Task dictionary from ClickUp API
+
+    Returns:
+        List of tuples: (checklist_name, item_name, checklist_id, item_id)
+    """
+    unchecked = []
+    checklists = task.get('checklists', [])
+
+    for checklist in checklists:
+        checklist_name = checklist.get('name', 'Unnamed Checklist')
+        checklist_id = checklist.get('id')
+        items = checklist.get('items', [])
+
+        for item in items:
+            if not item.get('resolved', False):
+                unchecked.append((
+                    checklist_name,
+                    item.get('name', 'Unnamed Item'),
+                    checklist_id,
+                    item.get('id')
+                ))
+
+    return unchecked
+
+
+def validate_checklist_completion(task: dict, status: str, force: bool = False) -> tuple:
+    """
+    Validate that all checklists are complete before allowing status change.
+
+    Args:
+        task: Task dictionary from ClickUp API
+        status: Target status
+        force: Whether to bypass validation
+
+    Returns:
+        Tuple of (is_valid, unchecked_items, error_message)
+    """
+    # Only validate for completion statuses
+    if not is_completion_status(status):
+        return (True, [], None)
+
+    # Allow bypass with force flag
+    if force:
+        return (True, [], None)
+
+    # Get unchecked items
+    unchecked = get_unchecked_items(task)
+
+    if unchecked:
+        error_msg = f"Cannot set status to '{status}': {len(unchecked)} checklist item(s) remain unchecked"
+        return (False, unchecked, error_msg)
+
+    return (True, [], None)
+
+
+def interactive_checklist_verification(task: dict, client) -> bool:
+    """
+    Interactively verify and check each unchecked checklist item.
+
+    Args:
+        task: Task dictionary from ClickUp API
+        client: ClickUp client instance
+
+    Returns:
+        True if user completed all items, False if they cancelled
+    """
+    unchecked = get_unchecked_items(task)
+
+    if not unchecked:
+        print(colorize("✓ All checklist items already checked", TextColor.BRIGHT_GREEN))
+        return True
+
+    print(colorize(f"\n{len(unchecked)} unchecked checklist item(s) found:\n", TextColor.BRIGHT_YELLOW, TextStyle.BOLD))
+
+    for i, (checklist_name, item_name, checklist_id, item_id) in enumerate(unchecked, 1):
+        print(colorize(f"[{checklist_name}]", TextColor.BRIGHT_CYAN))
+        print(f"{i}. ☐ {item_name}")
+        print()
+
+        # Prompt user
+        print(colorize("Have you verified this works? Only check if you are CERTAIN it works.", TextColor.BRIGHT_YELLOW))
+
+        while True:
+            response = input(colorize("Check this item? (y/n/cancel): ", TextColor.BRIGHT_WHITE)).strip().lower()
+
+            if response in ['cancel', 'c', 'q', 'quit']:
+                print(colorize("\n✗ Verification cancelled", TextColor.BRIGHT_RED))
+                return False
+            elif response in ['y', 'yes']:
+                # Check the item
+                try:
+                    client.checklists.update_checklist_item(
+                        checklist_id,
+                        item_id,
+                        resolved=True
+                    )
+                    print(colorize("  ✓ Item checked\n", TextColor.BRIGHT_GREEN))
+                    break
+                except Exception as e:
+                    print(colorize(f"  ✗ Error checking item: {e}", TextColor.BRIGHT_RED))
+                    return False
+            elif response in ['n', 'no']:
+                print(colorize("  ⚠️  Item NOT checked. You must verify this before marking task as complete.", TextColor.BRIGHT_YELLOW))
+                print(colorize("✗ Verification incomplete\n", TextColor.BRIGHT_RED))
+                return False
+            else:
+                print(colorize("Please enter 'y', 'n', or 'cancel'", TextColor.BRIGHT_RED))
+
+    print(colorize("✓ All checklist items verified and checked!", TextColor.BRIGHT_GREEN, TextStyle.BOLD))
+    return True
+
+
 def task_create_command(args):
     """Create a new task."""
     context = get_context_manager()
@@ -402,6 +533,43 @@ def task_update_command(args):
         print("Error: No updates specified. Use --name, --description, --status, --priority, or tag options.", file=sys.stderr)
         sys.exit(1)
 
+    # If status is being updated, validate checklist completion
+    if 'status' in updates:
+        task = client.get_task(task_id)
+        target_status = updates['status']
+
+        # Get flags for checklist validation (not available in task_update yet, but added for consistency)
+        force = getattr(args, 'force', False)
+
+        # Validate checklist completion
+        is_valid, unchecked_items, error_msg = validate_checklist_completion(task, target_status, force)
+
+        if not is_valid:
+            print(ANSIAnimations.warning_message(error_msg))
+            print(colorize(f"\nTask: {task['name']} [{task_id}]", TextColor.BRIGHT_CYAN))
+            print(colorize(f"Target status: {target_status}\n", TextColor.BRIGHT_YELLOW))
+
+            # Show unchecked items
+            print(colorize("Unchecked checklist items:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+            print()
+            for checklist_name, item_name, _, _ in unchecked_items:
+                print(colorize(f"[{checklist_name}]", TextColor.BRIGHT_CYAN))
+                print(f"  ☐ {item_name}")
+            print()
+
+            # Suggest solutions
+            print(colorize("To complete this task:", TextColor.BRIGHT_BLUE, TextStyle.BOLD))
+            print(f"  • Use 'cum tss {task_id} {target_status} --verify-checklist' to verify items interactively")
+            print(f"  • Or manually check items in ClickUp and retry")
+            print()
+            sys.exit(1)
+
+        # If using --force, warn the user
+        if force and is_completion_status(target_status) and get_unchecked_items(task):
+            print(colorize("\n⚠️  WARNING: Bypassing checklist validation with --force flag", TextColor.BRIGHT_YELLOW, TextStyle.BOLD))
+            print(colorize("         Some checklist items may not be complete!", TextColor.BRIGHT_YELLOW))
+            print()
+
     # Perform the update
     try:
         updated_task = client.update_task(task_id, **updates)
@@ -616,7 +784,58 @@ def task_set_status_command(args):
                 failed_count += 1
                 continue
 
-            # No mismatched subtasks, proceed with update
+            # No mismatched subtasks, check checklist completion
+            # Get flags for checklist validation
+            force = getattr(args, 'force', False)
+            verify_checklist = getattr(args, 'verify_checklist', False)
+
+            # Validate checklist completion before status change
+            is_valid, unchecked_items, error_msg = validate_checklist_completion(task, target_status, force)
+
+            if not is_valid:
+                # If --verify-checklist flag is set, enter interactive mode
+                if verify_checklist:
+                    print(ANSIAnimations.warning_message(error_msg))
+                    print(colorize(f"\nTask: {task['name']} [{task_id}]", TextColor.BRIGHT_CYAN))
+                    print(colorize(f"Target status: {target_status}", TextColor.BRIGHT_YELLOW))
+
+                    if interactive_checklist_verification(task, client):
+                        # User completed all items, re-fetch task and continue
+                        task = client.get_task(task_id)
+                    else:
+                        # User cancelled, skip this task
+                        failed_count += 1
+                        continue
+                else:
+                    # Show error and suggest using --verify-checklist
+                    print(ANSIAnimations.warning_message(error_msg))
+                    print(colorize(f"\nTask: {task['name']} [{task_id}]", TextColor.BRIGHT_CYAN))
+                    print(colorize(f"Target status: {target_status}\n", TextColor.BRIGHT_YELLOW))
+
+                    # Show unchecked items
+                    print(colorize("Unchecked checklist items:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+                    print()
+                    for checklist_name, item_name, _, _ in unchecked_items:
+                        print(colorize(f"[{checklist_name}]", TextColor.BRIGHT_CYAN))
+                        print(f"  ☐ {item_name}")
+                    print()
+
+                    # Suggest solutions
+                    print(colorize("To complete this task:", TextColor.BRIGHT_BLUE, TextStyle.BOLD))
+                    print(f"  • Use 'cum tss {task_id} {target_status} --verify-checklist' to verify each item")
+                    print(f"  • Or manually check items in ClickUp and retry")
+                    print(colorize(f"  • To bypass (NOT recommended): 'cum tss {task_id} {target_status} --force'", TextColor.BRIGHT_YELLOW))
+                    print()
+
+                    failed_count += 1
+                    continue
+
+            # If using --force, warn the user
+            if force and is_completion_status(target_status) and get_unchecked_items(task):
+                print(colorize("\n⚠️  WARNING: Bypassing checklist validation with --force flag", TextColor.BRIGHT_YELLOW, TextStyle.BOLD))
+                print(colorize("         Some checklist items may not be complete!", TextColor.BRIGHT_YELLOW))
+                print()
+
             # Get old status for automation tracking
             old_status = task.get('status', {})
             if isinstance(old_status, dict):
@@ -1122,6 +1341,10 @@ def register_command(subparsers):
                                         help='Skip automatic parent task update')
     task_set_status_parser.add_argument('--update-parent', action='store_true',
                                         help='Force parent update even if automation disabled')
+    task_set_status_parser.add_argument('--force', action='store_true',
+                                        help='Bypass checklist validation (use with caution)')
+    task_set_status_parser.add_argument('--verify-checklist', action='store_true',
+                                        help='Interactively verify and check each unchecked checklist item')
     task_set_status_parser.set_defaults(func=task_set_status_command)
 
     # Task set priority

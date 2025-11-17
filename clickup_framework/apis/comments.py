@@ -9,13 +9,31 @@ from .base import BaseAPI
 class CommentsAPI(BaseAPI):
     """Low-level API for comment operations."""
 
-    def create_task_comment(self, task_id: str, comment_text: str) -> Dict[str, Any]:
-        """Add comment to a task."""
+    def create_task_comment(self, task_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Add comment to a task.
+
+        Args:
+            task_id: Task ID
+            comment_text: Plain text comment (backward compatible)
+            comment_data: Rich text comment data (new format with "comment" or "comment_text" key)
+
+        Returns:
+            Created comment
+        """
+        # Determine payload format
+        if comment_data:
+            payload = comment_data
+        elif comment_text is not None:
+            payload = {"comment_text": comment_text}
+        else:
+            raise ValueError("Either comment_text or comment_data must be provided")
+
         response = self._request(
-            "POST", f"task/{task_id}/comment", json={"comment_text": comment_text}
+            "POST", f"task/{task_id}/comment", json=payload
         )
         # API response doesn't include comment_text, add it for convenience
-        if 'comment_text' not in response:
+        if 'comment_text' not in response and comment_text:
             response['comment_text'] = comment_text
         return response
 
@@ -45,9 +63,28 @@ class CommentsAPI(BaseAPI):
             "notify_all": notify_all
         })
 
-    def update_comment(self, comment_id: str, comment_text: str, **params) -> Dict[str, Any]:
-        """Update a comment."""
-        return self._request("PUT", f"comment/{comment_id}", json={"comment_text": comment_text}, params=params)
+    def update_comment(self, comment_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None, **params) -> Dict[str, Any]:
+        """
+        Update a comment.
+
+        Args:
+            comment_id: Comment ID
+            comment_text: Plain text comment (backward compatible)
+            comment_data: Rich text comment data (new format)
+            **params: Additional query parameters
+
+        Returns:
+            Updated comment
+        """
+        # Determine payload format
+        if comment_data:
+            payload = comment_data
+        elif comment_text is not None:
+            payload = {"comment_text": comment_text}
+        else:
+            raise ValueError("Either comment_text or comment_data must be provided")
+
+        return self._request("PUT", f"comment/{comment_id}", json=payload, params=params)
 
     def delete_comment(self, comment_id: str) -> Dict[str, Any]:
         """Delete a comment."""
