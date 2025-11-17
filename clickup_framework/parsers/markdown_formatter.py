@@ -233,6 +233,8 @@ class MarkdownFormatter(BaseParser):
         Returns:
             List of text segments with formatting attributes
         """
+        import uuid
+
         result = []
         lines = content.split('\n')
         i = 0
@@ -276,7 +278,10 @@ class MarkdownFormatter(BaseParser):
                     "text": header_text,
                     "attributes": {"bold": True}
                 })
-                result.append({"text": "\n"})
+                result.append({
+                    "text": "\n",
+                    "attributes": {"block-id": f"block-{uuid.uuid4()}"}
+                })
                 i += 1
                 continue
 
@@ -292,7 +297,10 @@ class MarkdownFormatter(BaseParser):
                     attrs["list"] = "bullet"  # Fixed: use string not nested object
                     seg["attributes"] = attrs
                     result.append(seg)
-                result.append({"text": "\n"})
+                result.append({
+                    "text": "\n",
+                    "attributes": {"block-id": f"block-{uuid.uuid4()}"}
+                })
                 i += 1
                 continue
 
@@ -304,7 +312,10 @@ class MarkdownFormatter(BaseParser):
                     attrs["list"] = "ordered"  # Fixed: use string not nested object
                     seg["attributes"] = attrs
                     result.append(seg)
-                result.append({"text": "\n"})
+                result.append({
+                    "text": "\n",
+                    "attributes": {"block-id": f"block-{uuid.uuid4()}"}
+                })
                 i += 1
                 continue
 
@@ -315,7 +326,10 @@ class MarkdownFormatter(BaseParser):
 
             # Add newline if not last line
             if i < len(lines) - 1:
-                result.append({"text": "\n"})
+                result.append({
+                    "text": "\n",
+                    "attributes": {"block-id": f"block-{uuid.uuid4()}"}
+                })
 
             i += 1
 
@@ -346,7 +360,7 @@ class MarkdownFormatter(BaseParser):
             if match.start() > last_end:
                 plain_text = text[last_end:match.start()]
                 if plain_text:
-                    result.append({"text": plain_text})
+                    result.append({"text": plain_text, "attributes": {}})
 
             # Determine type and add formatted segment
             if match.group(1) and match.group(1).startswith('!'):  # ![alt](url) - image
@@ -396,9 +410,9 @@ class MarkdownFormatter(BaseParser):
         if last_end < len(text):
             remaining_text = text[last_end:]
             if remaining_text:
-                result.append({"text": remaining_text})
+                result.append({"text": remaining_text, "attributes": {}})
 
-        return result if result else [{"text": text}]
+        return result if result else [{"text": text, "attributes": {}}]
 
     def _create_inline_image_block(self, url: str, alt_text: str, attachment_data: Dict[str, Any]) -> Dict[str, Any]:
         """
