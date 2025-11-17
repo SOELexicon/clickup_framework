@@ -1,45 +1,59 @@
 """Set current context command."""
 
-import sys
-from clickup_framework import get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
+
+
+class SetCurrentCommand(BaseCommand):
+    """
+    Set current resource context command using BaseCommand.
+
+    Sets the current context for task, list, space, folder, workspace,
+    assignee, or API token.
+    """
+
+    def execute(self):
+        """Execute the set current command."""
+        resource_type = self.args.resource_type.lower()
+        resource_id = self.args.resource_id
+
+        # Map resource types to setter methods
+        setters = {
+            'task': self.context.set_current_task,
+            'list': self.context.set_current_list,
+            'space': self.context.set_current_space,
+            'folder': self.context.set_current_folder,
+            'workspace': self.context.set_current_workspace,
+            'team': self.context.set_current_workspace,  # Alias
+            'assignee': lambda aid: self.context.set_default_assignee(int(aid)),
+            'token': self.context.set_api_token,
+        }
+
+        setter = setters.get(resource_type)
+        if not setter:
+            self.error(f"Unknown resource type '{resource_type}'. "
+                      f"Valid types: {', '.join(setters.keys())}")
+
+        try:
+            setter(resource_id)
+            # Mask token in output for security
+            if resource_type == 'token':
+                masked_token = f"{resource_id[:15]}...{resource_id[-4:]}" if len(resource_id) > 20 else "********"
+                self.print_success(f"API token validated and saved successfully: {masked_token}")
+            else:
+                self.print_success(f"Set current {resource_type} to: {resource_id}")
+        except ValueError as e:
+            self.error(str(e))
 
 
 def set_current_command(args):
-    """Set current resource context."""
-    context = get_context_manager()
+    """
+    Command function wrapper for backward compatibility.
 
-    resource_type = args.resource_type.lower()
-    resource_id = args.resource_id
-
-    # Map resource types to setter methods
-    setters = {
-        'task': context.set_current_task,
-        'list': context.set_current_list,
-        'space': context.set_current_space,
-        'folder': context.set_current_folder,
-        'workspace': context.set_current_workspace,
-        'team': context.set_current_workspace,  # Alias
-        'assignee': lambda aid: context.set_default_assignee(int(aid)),
-        'token': context.set_api_token,
-    }
-
-    setter = setters.get(resource_type)
-    if not setter:
-        print(f"Error: Unknown resource type '{resource_type}'", file=sys.stderr)
-        print(f"Valid types: {', '.join(setters.keys())}", file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        setter(resource_id)
-        # Mask token in output for security
-        if resource_type == 'token':
-            masked_token = f"{resource_id[:15]}...{resource_id[-4:]}" if len(resource_id) > 20 else "********"
-            print(f"✓ API token validated and saved successfully: {masked_token}")
-        else:
-            print(f"✓ Set current {resource_type} to: {resource_id}")
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = SetCurrentCommand(args, command_name='set_current')
+    command.execute()
 
 
 def register_command(subparsers, add_common_args=None):

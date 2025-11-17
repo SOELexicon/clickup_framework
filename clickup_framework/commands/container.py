@@ -1,48 +1,56 @@
 """Container view command."""
 
-import sys
-from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_list_id
+from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import get_list_statuses, add_common_args
+
+
+class ContainerCommand(BaseCommand):
+    """
+    Container view command using BaseCommand.
+
+    Displays tasks organized by container hierarchy (Space → Folder → List).
+    """
+
+    def execute(self):
+        """Execute the container view command."""
+        display = DisplayManager(self.client)
+
+        # Resolve list ID from either list ID, task ID, or "current" keyword
+        list_id = self.resolve_list(self.args.list_id)
+
+        # Get the include_completed and show_closed_only flags
+        include_completed = getattr(self.args, 'include_completed', False)
+        show_closed_only = getattr(self.args, 'show_closed_only', False)
+
+        # Determine if we need to fetch closed tasks from the API
+        # We need closed tasks if either include_completed or show_closed_only is True
+        include_closed = include_completed or show_closed_only
+
+        # Fetch tasks including subtasks to show proper hierarchy
+        result = self.client.get_list_tasks(list_id, include_closed=include_closed, subtasks='true')
+        tasks = result.get('tasks', [])
+
+        # Show available statuses
+        status_line = get_list_statuses(self.client, list_id, use_color=self.use_color)
+        if status_line:
+            self.print(status_line)
+            self.print()  # Empty line for spacing
+
+        output = display.container_view(tasks, self.format_options)
+
+        self.print(output)
 
 
 def container_command(args):
-    """Display tasks organized by container hierarchy."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    display = DisplayManager(client)
+    """
+    Command function wrapper for backward compatibility.
 
-    # Resolve list ID from either list ID, task ID, or "current" keyword
-    try:
-        list_id = resolve_list_id(client, args.list_id, context)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Get the include_completed and show_closed_only flags
-    include_completed = getattr(args, 'include_completed', False)
-    show_closed_only = getattr(args, 'show_closed_only', False)
-
-    # Determine if we need to fetch closed tasks from the API
-    # We need closed tasks if either include_completed or show_closed_only is True
-    include_closed = include_completed or show_closed_only
-
-    # Fetch tasks including subtasks to show proper hierarchy
-    result = client.get_list_tasks(list_id, include_closed=include_closed, subtasks='true')
-    tasks = result.get('tasks', [])
-    options = create_format_options(args)
-
-    # Show available statuses
-    colorize_val = getattr(args, 'colorize', None)
-    colorize = colorize_val if colorize_val is not None else context.get_ansi_output()
-    status_line = get_list_statuses(client, list_id, use_color=colorize)
-    if status_line:
-        print(status_line)
-        print()  # Empty line for spacing
-
-    output = display.container_view(tasks, options)
-
-    print(output)
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = ContainerCommand(args, command_name='container')
+    command.execute()
 
 
 def register_command(subparsers):
