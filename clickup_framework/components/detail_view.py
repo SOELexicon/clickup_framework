@@ -12,6 +12,7 @@ from clickup_framework.utils.colors import (
 )
 from clickup_framework.utils.text import strip_markdown, unescape_content
 from clickup_framework.utils.markdown_renderer import render_markdown
+from clickup_framework.utils.checklist_mapping import get_mapping_manager
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.tree import TreeFormatter
 from clickup_framework.components.task_formatter import RichTaskFormatter
@@ -858,10 +859,18 @@ class TaskDetailFormatter:
         return header + "\n" + "\n".join(lines)
 
     def _format_checklists(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format checklists with completion status."""
+        """Format checklists with completion status and numeric indices."""
         checklists = task.get('checklists', [])
         if not checklists:
             return ""
+
+        # Get mapping manager and task ID
+        mapping_manager = get_mapping_manager()
+        task_id = task.get('id')
+
+        # Update mappings from task data to ensure all checklists/items are mapped
+        if task_id:
+            mapping_manager.update_mappings_from_task(task_id, task)
 
         lines = []
         header = "☑️  Checklists:"
@@ -872,12 +881,20 @@ class TaskDetailFormatter:
         for checklist in checklists:
             if isinstance(checklist, dict):
                 name = checklist.get('name', 'Unnamed Checklist')
+                checklist_id = checklist.get('id')
                 items = checklist.get('items', [])
 
                 completed = sum(1 for item in items if isinstance(item, dict) and item.get('resolved'))
                 total = len(items)
 
-                checklist_header = f"\n  {name} ({completed}/{total})"
+                # Get checklist index
+                checklist_index = ""
+                if task_id and checklist_id:
+                    index = mapping_manager.get_checklist_index(task_id, checklist_id)
+                    if index:
+                        checklist_index = f"[{index}] "
+
+                checklist_header = f"\n  {checklist_index}{name} ({completed}/{total})"
                 if options.colorize_output:
                     completion_pct = (completed / total * 100) if total > 0 else 0
                     color = TextColor.GREEN if completion_pct == 100 else TextColor.YELLOW if completion_pct >= 50 else TextColor.RED
@@ -887,10 +904,18 @@ class TaskDetailFormatter:
                 for item in items:
                     if isinstance(item, dict):
                         item_name = item.get('name', '')
+                        item_id = item.get('id')
                         is_resolved = item.get('resolved', False)
                         checkbox = "✓" if is_resolved else "○"
 
-                        item_line = f"    {checkbox} {item_name}"
+                        # Get item index
+                        item_index = ""
+                        if task_id and checklist_id and item_id:
+                            index = mapping_manager.get_item_index(task_id, checklist_id, item_id)
+                            if index:
+                                item_index = f"[{index}] "
+
+                        item_line = f"    {checkbox} {item_index}{item_name}"
                         if options.colorize_output:
                             if is_resolved:
                                 item_line = colorize(item_line, TextColor.BRIGHT_BLACK)

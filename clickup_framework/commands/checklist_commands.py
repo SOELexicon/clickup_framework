@@ -7,7 +7,96 @@ from clickup_framework.resources.tasks import TasksAPI
 from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.utils.checklist_mapping import get_mapping_manager
 from clickup_framework.exceptions import ClickUpAPIError
+
+
+def _is_uuid(value: str) -> bool:
+    """Check if a string is a UUID format."""
+    # UUIDs are 36 characters with hyphens (e.g., "550e8400-e29b-41d4-a716-446655440000")
+    if len(value) == 36 and value.count('-') == 4:
+        return True
+    # Also accept IDs without hyphens (32 characters)
+    if len(value) == 32:
+        return True
+    return False
+
+
+def _resolve_checklist_id(task_id: str, checklist_id_or_index: str) -> str:
+    """
+    Resolve checklist ID or index to UUID.
+
+    Args:
+        task_id: Task ID
+        checklist_id_or_index: Either a checklist UUID or numeric index (1, 2, 3...)
+
+    Returns:
+        Checklist UUID
+
+    Raises:
+        ValueError: If index is invalid or not found
+    """
+    # If it looks like a UUID, return as-is (backward compatibility)
+    if _is_uuid(checklist_id_or_index):
+        return checklist_id_or_index
+
+    # Try to parse as index
+    try:
+        index = int(checklist_id_or_index)
+    except ValueError:
+        # Not a number and not a UUID, return as-is and let API handle it
+        return checklist_id_or_index
+
+    # Look up UUID by index
+    mapping_manager = get_mapping_manager()
+    uuid = mapping_manager.get_checklist_uuid(task_id, index)
+
+    if uuid is None:
+        raise ValueError(
+            f"Checklist index [{index}] not found for task {task_id}. "
+            f"Use 'cum chk list {task_id}' to see available checklists with indices."
+        )
+
+    return uuid
+
+
+def _resolve_item_id(task_id: str, checklist_id: str, item_id_or_index: str) -> str:
+    """
+    Resolve item ID or index to UUID.
+
+    Args:
+        task_id: Task ID
+        checklist_id: Checklist UUID
+        item_id_or_index: Either an item UUID or numeric index (1, 2, 3...)
+
+    Returns:
+        Item UUID
+
+    Raises:
+        ValueError: If index is invalid or not found
+    """
+    # If it looks like a UUID, return as-is (backward compatibility)
+    if _is_uuid(item_id_or_index):
+        return item_id_or_index
+
+    # Try to parse as index
+    try:
+        index = int(item_id_or_index)
+    except ValueError:
+        # Not a number and not a UUID, return as-is and let API handle it
+        return item_id_or_index
+
+    # Look up UUID by index
+    mapping_manager = get_mapping_manager()
+    uuid = mapping_manager.get_item_uuid(task_id, checklist_id, index)
+
+    if uuid is None:
+        raise ValueError(
+            f"Item index [{index}] not found in checklist {checklist_id} for task {task_id}. "
+            f"Use 'cum chk list {task_id}' to see available items with indices."
+        )
+
+    return uuid
 
 
 def checklist_create_command(args):
@@ -15,6 +104,7 @@ def checklist_create_command(args):
     context = get_context_manager()
     client = ClickUpClient()
     tasks_api = TasksAPI(client)
+    mapping_manager = get_mapping_manager()
 
     # Resolve task ID
     try:
@@ -26,10 +116,16 @@ def checklist_create_command(args):
     # Create the checklist
     try:
         checklist = tasks_api.add_checklist(task_id, args.name)
+        checklist_id = checklist['checklist']['id']
+
+        # Auto-map the new checklist
+        next_index = mapping_manager.get_next_checklist_index(task_id)
+        mapping_manager.set_checklist_mapping(task_id, next_index, checklist_id)
 
         success_msg = ANSIAnimations.success_message(f"Checklist created: {args.name}")
         print(f"\n{success_msg}")
-        print(f"Checklist ID: {colorize(checklist['checklist']['id'], TextColor.BRIGHT_GREEN)}")
+        print(f"Checklist ID: {colorize(checklist_id, TextColor.BRIGHT_GREEN)}")
+        print(f"Checklist Index: {colorize(f'[{next_index}]', TextColor.BRIGHT_CYAN)}")
 
         if args.verbose:
             print(f"\nTask ID: {task_id}")
@@ -41,7 +137,26 @@ def checklist_create_command(args):
 
 def checklist_delete_command(args):
     """Delete a checklist."""
+    context = get_context_manager()
     client = ClickUpClient()
+    mapping_manager = get_mapping_manager()
+
+    # Resolve checklist ID (with optional task ID for index resolution)
+    checklist_id = args.checklist_id
+    task_id = None
+
+    if hasattr(args, 'task') and args.task:
+        # Task ID provided, resolve index if needed
+        try:
+            task_id = context.resolve_id('task', args.task)
+            checklist_id = _resolve_checklist_id(task_id, args.checklist_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif not _is_uuid(args.checklist_id):
+        # Looks like an index but no task provided
+        print(f"Error: Checklist index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+        sys.exit(1)
 
     # Show warning
     print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the checklist and all its items.")
@@ -54,7 +169,12 @@ def checklist_delete_command(args):
 
     # Delete the checklist
     try:
-        client.delete_checklist(args.checklist_id)
+        client.delete_checklist(checklist_id)
+
+        # Remove from mapping if task_id is known
+        if task_id:
+            mapping_manager.remove_checklist_mapping(task_id, checklist_id)
+
         success_msg = ANSIAnimations.success_message("Checklist deleted successfully")
         print(f"\n{success_msg}")
 
@@ -65,7 +185,23 @@ def checklist_delete_command(args):
 
 def checklist_update_command(args):
     """Update a checklist."""
+    context = get_context_manager()
     client = ClickUpClient()
+
+    # Resolve checklist ID (with optional task ID for index resolution)
+    checklist_id = args.checklist_id
+    if hasattr(args, 'task') and args.task:
+        # Task ID provided, resolve index if needed
+        try:
+            task_id = context.resolve_id('task', args.task)
+            checklist_id = _resolve_checklist_id(task_id, args.checklist_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif not _is_uuid(args.checklist_id):
+        # Looks like an index but no task provided
+        print(f"Error: Checklist index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+        sys.exit(1)
 
     # Build updates
     updates = {}
@@ -80,7 +216,7 @@ def checklist_update_command(args):
 
     # Update the checklist
     try:
-        client.update_checklist(args.checklist_id, **updates)
+        client.update_checklist(checklist_id, **updates)
         success_msg = ANSIAnimations.success_message("Checklist updated successfully")
         print(f"\n{success_msg}")
 
@@ -99,6 +235,24 @@ def checklist_item_add_command(args):
     context = get_context_manager()
     client = ClickUpClient()
     tasks_api = TasksAPI(client)
+    mapping_manager = get_mapping_manager()
+
+    # Resolve checklist ID (with optional task ID for index resolution)
+    checklist_id = args.checklist_id
+    task_id = None
+
+    if hasattr(args, 'task') and args.task:
+        # Task ID provided, resolve index if needed
+        try:
+            task_id = context.resolve_id('task', args.task)
+            checklist_id = _resolve_checklist_id(task_id, args.checklist_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif not _is_uuid(args.checklist_id):
+        # Looks like an index but no task provided
+        print(f"Error: Checklist index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+        sys.exit(1)
 
     # Resolve assignee if provided
     assignee = None
@@ -111,24 +265,33 @@ def checklist_item_add_command(args):
 
     # Add the checklist item
     try:
-        result = tasks_api.add_checklist_item(args.checklist_id, args.name, assignee=assignee)
+        result = tasks_api.add_checklist_item(checklist_id, args.name, assignee=assignee)
 
         success_msg = ANSIAnimations.success_message(f"Checklist item added: {args.name}")
         print(f"\n{success_msg}")
 
         # The API returns: {"checklist": {"items": [...]}}
         # The new item is the last one in the items array
+        item_id = None
         if isinstance(result, dict) and 'checklist' in result:
             items = result.get('checklist', {}).get('items', [])
             if items:
                 item_id = items[-1].get('id', 'Unknown')
                 print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
 
+                # Auto-map the new item if task_id is known
+                if task_id and item_id and item_id != 'Unknown':
+                    next_index = mapping_manager.get_next_item_index(task_id, checklist_id)
+                    mapping_manager.set_item_mapping(task_id, checklist_id, next_index, item_id)
+                    print(f"Item Index: {colorize(f'[{next_index}]', TextColor.BRIGHT_CYAN)}")
+
         if assignee:
             print(f"Assigned to: {assignee}")
 
         if args.verbose:
-            print(f"\nChecklist ID: {args.checklist_id}")
+            print(f"\nChecklist ID: {checklist_id}")
+            if task_id:
+                print(f"Task ID: {task_id}")
 
     except ClickUpAPIError as e:
         print(f"Error adding checklist item: {e}", file=sys.stderr)
@@ -137,7 +300,30 @@ def checklist_item_add_command(args):
 
 def checklist_item_update_command(args):
     """Update a checklist item."""
+    context = get_context_manager()
     client = ClickUpClient()
+
+    # Resolve checklist ID and item ID (with optional task ID for index resolution)
+    checklist_id = args.checklist_id
+    item_id = args.item_id
+
+    if hasattr(args, 'task') and args.task:
+        # Task ID provided, resolve indices if needed
+        try:
+            task_id = context.resolve_id('task', args.task)
+            checklist_id = _resolve_checklist_id(task_id, args.checklist_id)
+            item_id = _resolve_item_id(task_id, checklist_id, args.item_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # No task provided, check if indices were used
+        if not _is_uuid(args.checklist_id):
+            print(f"Error: Checklist index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+            sys.exit(1)
+        if not _is_uuid(args.item_id):
+            print(f"Error: Item index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+            sys.exit(1)
 
     # Build updates
     updates = {}
@@ -156,7 +342,7 @@ def checklist_item_update_command(args):
 
     # Update the checklist item
     try:
-        client.update_checklist_item(args.checklist_id, args.item_id, **updates)
+        client.update_checklist_item(checklist_id, item_id, **updates)
         success_msg = ANSIAnimations.success_message("Checklist item updated successfully")
         print(f"\n{success_msg}")
 
@@ -172,17 +358,47 @@ def checklist_item_update_command(args):
 
 def checklist_item_delete_command(args):
     """Delete a checklist item."""
+    context = get_context_manager()
     client = ClickUpClient()
+    mapping_manager = get_mapping_manager()
+
+    # Resolve checklist ID and item ID (with optional task ID for index resolution)
+    checklist_id = args.checklist_id
+    item_id = args.item_id
+    task_id = None
+
+    if hasattr(args, 'task') and args.task:
+        # Task ID provided, resolve indices if needed
+        try:
+            task_id = context.resolve_id('task', args.task)
+            checklist_id = _resolve_checklist_id(task_id, args.checklist_id)
+            item_id = _resolve_item_id(task_id, checklist_id, args.item_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # No task provided, check if indices were used
+        if not _is_uuid(args.checklist_id):
+            print(f"Error: Checklist index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+            sys.exit(1)
+        if not _is_uuid(args.item_id):
+            print(f"Error: Item index provided but no task specified. Use --task <task_id>", file=sys.stderr)
+            sys.exit(1)
 
     if not args.force:
-        response = input(f"Delete checklist item {args.item_id}? [y/N]: ")
+        response = input(f"Delete checklist item {item_id}? [y/N]: ")
         if response.lower() not in ['y', 'yes']:
             print("Cancelled.")
             return
 
     # Delete the checklist item
     try:
-        client.delete_checklist_item(args.checklist_id, args.item_id)
+        client.delete_checklist_item(checklist_id, item_id)
+
+        # Remove from mapping if task_id is known
+        if task_id:
+            mapping_manager.remove_item_mapping(task_id, checklist_id, item_id)
+
         success_msg = ANSIAnimations.success_message("Checklist item deleted successfully")
         print(f"\n{success_msg}")
 
@@ -195,6 +411,7 @@ def checklist_list_command(args):
     """List checklists on a task."""
     context = get_context_manager()
     client = ClickUpClient()
+    mapping_manager = get_mapping_manager()
 
     # Resolve task ID
     try:
@@ -212,6 +429,9 @@ def checklist_list_command(args):
             print(f"\nNo checklists found on task {task_id}")
             return
 
+        # Update mappings from task data
+        mapping_manager.update_mappings_from_task(task_id, task)
+
         # Display checklists
         print(f"\n{colorize('Checklists', TextStyle.BOLD)} for task {task['name']}")
         print(f"Task ID: {task_id}\n")
@@ -222,6 +442,10 @@ def checklist_list_command(args):
             items = checklist.get('items', [])
             resolved_count = sum(1 for item in items if item.get('resolved', False))
             total_count = len(items)
+
+            # Get checklist index
+            checklist_index = mapping_manager.get_checklist_index(task_id, checklist_id)
+            checklist_index_str = f"[{checklist_index}] " if checklist_index else ""
 
             # Progress indicator
             if total_count > 0:
@@ -239,7 +463,7 @@ def checklist_list_command(args):
             else:
                 progress_str = "(0/0)"
 
-            print(f"☑️  {colorize(checklist_name, TextStyle.BOLD)} {progress_str}")
+            print(f"☑️  {checklist_index_str}{colorize(checklist_name, TextStyle.BOLD)} {progress_str}")
 
             if args.show_ids:
                 print(f"    ID: {colorize(checklist_id, TextColor.BRIGHT_BLACK)}")
@@ -248,8 +472,13 @@ def checklist_list_command(args):
             if items and not args.no_items:
                 for item in items:
                     item_name = item.get('name', 'Unnamed')
+                    item_id = item.get('id', 'Unknown')
                     resolved = item.get('resolved', False)
                     assignee = item.get('assignee')
+
+                    # Get item index
+                    item_index = mapping_manager.get_item_index(task_id, checklist_id, item_id)
+                    item_index_str = f"[{item_index}] " if item_index else ""
 
                     # Checkbox indicator
                     checkbox = "✓" if resolved else "☐"
@@ -257,14 +486,13 @@ def checklist_list_command(args):
                         checkbox_color = TextColor.BRIGHT_GREEN if resolved else TextColor.BRIGHT_BLACK
                         checkbox = colorize(checkbox, checkbox_color)
 
-                    item_str = f"    {checkbox} {item_name}"
+                    item_str = f"    {checkbox} {item_index_str}{item_name}"
 
                     if assignee:
                         assignee_name = assignee.get('username', 'Unknown')
                         item_str += f" [@{assignee_name}]"
 
                     if args.show_ids:
-                        item_id = item.get('id', 'Unknown')
                         item_str += f" {colorize(f'({item_id})', TextColor.BRIGHT_BLACK)}"
 
                     print(item_str)
@@ -484,7 +712,8 @@ def register_command(subparsers):
         help='Delete a checklist',
         description='Delete a checklist and all its items'
     )
-    delete_parser.add_argument('checklist_id', help='Checklist ID')
+    delete_parser.add_argument('checklist_id', help='Checklist ID or index (e.g., 1, 2, 3)')
+    delete_parser.add_argument('--task', help='Task ID (required when using checklist index)')
     delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
     delete_parser.set_defaults(func=checklist_delete_command)
 
@@ -494,7 +723,8 @@ def register_command(subparsers):
         help='Update a checklist',
         description='Update checklist properties'
     )
-    update_parser.add_argument('checklist_id', help='Checklist ID')
+    update_parser.add_argument('checklist_id', help='Checklist ID or index (e.g., 1, 2, 3)')
+    update_parser.add_argument('--task', help='Task ID (required when using checklist index)')
     update_parser.add_argument('--name', help='New checklist name')
     update_parser.add_argument('--position', type=int, help='New position (order)')
     update_parser.add_argument('--verbose', '-v', action='store_true', help='Show update details')
@@ -520,8 +750,9 @@ def register_command(subparsers):
         help='Add an item to a checklist',
         description='Add a new item to an existing checklist'
     )
-    item_add_parser.add_argument('checklist_id', help='Checklist ID')
+    item_add_parser.add_argument('checklist_id', help='Checklist ID or index (e.g., 1, 2, 3)')
     item_add_parser.add_argument('name', help='Item name')
+    item_add_parser.add_argument('--task', help='Task ID (required when using checklist index)')
     item_add_parser.add_argument('--assignee', help='User ID to assign (or "current")')
     item_add_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
     item_add_parser.set_defaults(func=checklist_item_add_command)
@@ -533,8 +764,9 @@ def register_command(subparsers):
         help='Update a checklist item',
         description='Update properties of a checklist item'
     )
-    item_update_parser.add_argument('checklist_id', help='Checklist ID')
-    item_update_parser.add_argument('item_id', help='Item ID')
+    item_update_parser.add_argument('checklist_id', help='Checklist ID or index (e.g., 1, 2, 3)')
+    item_update_parser.add_argument('item_id', help='Item ID or index (e.g., 1, 2, 3)')
+    item_update_parser.add_argument('--task', help='Task ID (required when using indices)')
     item_update_parser.add_argument('--name', help='New item name')
     item_update_parser.add_argument('--assignee', help='User ID to assign (or empty to unassign)')
     item_update_parser.add_argument('--resolved', type=bool, help='Mark as resolved (true/false)')
@@ -549,8 +781,9 @@ def register_command(subparsers):
         help='Delete a checklist item',
         description='Delete a checklist item'
     )
-    item_delete_parser.add_argument('checklist_id', help='Checklist ID')
-    item_delete_parser.add_argument('item_id', help='Item ID')
+    item_delete_parser.add_argument('checklist_id', help='Checklist ID or index (e.g., 1, 2, 3)')
+    item_delete_parser.add_argument('item_id', help='Item ID or index (e.g., 1, 2, 3)')
+    item_delete_parser.add_argument('--task', help='Task ID (required when using indices)')
     item_delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
     item_delete_parser.set_defaults(func=checklist_item_delete_command)
 
