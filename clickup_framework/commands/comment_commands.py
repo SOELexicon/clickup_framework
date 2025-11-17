@@ -131,7 +131,8 @@ def comment_add_command(args):
 
         if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
             # Use rich text JSON format for markdown
-            # image_metadata contains full attachment objects which will be included in comment.attachment
+            # image_metadata contains full attachment objects from upload
+            # comment.attachment will contain just the attachment ID strings
             comment_data = processor.markdown_formatter.to_json_format(
                 comment_text,
                 image_metadata=image_metadata,

@@ -187,10 +187,10 @@ class MarkdownFormatter(BaseParser):
                 result = {
                     "comment": self._markdown_to_rich_text(formatted_content, image_metadata)
                 }
-                # Add FULL attachment objects (not just IDs) from image_metadata
+                # Add attachment IDs (just strings) from image_metadata
                 if image_metadata:
-                    # Extract full attachment objects from image_metadata values
-                    result["attachment"] = list(image_metadata.values())
+                    # Extract attachment IDs from the metadata objects
+                    result["attachment"] = [att_data["id"] for att_data in image_metadata.values()]
                 return result
             else:
                 return {
