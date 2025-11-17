@@ -174,7 +174,7 @@ class MarkdownFormatter(BaseParser):
         Args:
             content: Markdown content
             image_metadata: Dict mapping image URLs to their attachment metadata for inline embedding
-            attachment_ids: List of attachment IDs to include in the comment
+            attachment_ids: List of attachment IDs to include in the comment (deprecated - use image_metadata)
 
         Returns:
             Dictionary suitable for ClickUp API
@@ -187,9 +187,10 @@ class MarkdownFormatter(BaseParser):
                 result = {
                     "comment": self._markdown_to_rich_text(formatted_content, image_metadata)
                 }
-                # Add attachment IDs if provided
-                if attachment_ids:
-                    result["attachment"] = attachment_ids
+                # Add FULL attachment objects (not just IDs) from image_metadata
+                if image_metadata:
+                    # Extract full attachment objects from image_metadata values
+                    result["attachment"] = list(image_metadata.values())
                 return result
             else:
                 return {

@@ -131,18 +131,12 @@ def comment_add_command(args):
 
         if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
             # Use rich text JSON format for markdown
+            # image_metadata contains full attachment objects which will be included in comment.attachment
             comment_data = processor.markdown_formatter.to_json_format(
                 comment_text,
                 image_metadata=image_metadata,
                 attachment_ids=attachment_ids
             )
-
-            # Add followers array (current user) - required by GUI for inline images
-            if attachment_ids:
-                # Get current user ID from client (if available)
-                # GUI includes followers array when creating comments with images
-                comment_data['followers'] = []  # Will be populated by ClickUp if empty
-                comment_data['send_reply_to_channel'] = False
 
             # Show debug output if requested
             if getattr(args, 'debug', False):
@@ -153,29 +147,6 @@ def comment_add_command(args):
                 print("=" * 60 + "\n")
 
             comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
-
-            # CRITICAL: Link attachments to comment (3rd API call - required for preview)
-            # POST /task/{task_id}/attachment with parent_id=comment_id, type=2
-            # Send complete attachment JSON objects, not just IDs
-            if image_metadata and comment.get('id'):
-                try:
-                    from clickup_framework.resources import AttachmentsAPI
-                    attachments_api = AttachmentsAPI(client)
-
-                    # Extract full attachment metadata objects from image_metadata dict
-                    attachment_objs = list(image_metadata.values())
-
-                    attachments_api.link_attachments_to_comment(
-                        task_id,
-                        comment['id'],
-                        attachment_metadata=attachment_objs
-                    )
-                    if getattr(args, 'debug', False):
-                        print(f"✓ Linked {len(attachment_objs)} attachment(s) to comment {comment['id']}")
-                except Exception as e:
-                    # Don't fail the whole operation if linking fails
-                    if getattr(args, 'debug', False):
-                        print(f"⚠️  Warning: Failed to link attachments: {e}", file=sys.stderr)
         else:
             # Plain text
             if getattr(args, 'debug', False):
