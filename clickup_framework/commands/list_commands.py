@@ -1,191 +1,197 @@
 """List management commands for ClickUp Framework CLI."""
 
-import sys
-from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources.lists import ListsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
 
 
-def list_create_command(args):
+class ListCreateCommand(BaseCommand):
     """Create a new list in a folder."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    lists_api = ListsAPI(client)
 
-    # Resolve folder ID
-    try:
-        folder_id = context.resolve_id('folder', args.folder_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    def execute(self):
+        """Execute the list create command."""
+        lists_api = ListsAPI(self.client)
 
-    # Build list data
-    list_data = {}
-    if args.content:
-        list_data['content'] = args.content
-    if args.due_date:
-        list_data['due_date'] = args.due_date
-    if args.priority:
-        # Convert priority name to number if needed
-        priority_map = {'urgent': 1, 'high': 2, 'normal': 3, 'low': 4}
-        if args.priority.lower() in priority_map:
-            list_data['priority'] = priority_map[args.priority.lower()]
-        else:
-            list_data['priority'] = int(args.priority)
-    if args.status:
-        list_data['status'] = args.status
+        # Resolve folder ID
+        folder_id = self.resolve_id(self.args.folder_id)
 
-    # Create the list
-    try:
-        new_list = lists_api.create(folder_id, args.name, **list_data)
+        # Build list data
+        list_data = {}
+        if self.args.content:
+            list_data['content'] = self.args.content
+        if self.args.due_date:
+            list_data['due_date'] = self.args.due_date
+        if self.args.priority:
+            # Convert priority name to number if needed
+            priority_map = {'urgent': 1, 'high': 2, 'normal': 3, 'low': 4}
+            if self.args.priority.lower() in priority_map:
+                list_data['priority'] = priority_map[self.args.priority.lower()]
+            else:
+                list_data['priority'] = int(self.args.priority)
+        if self.args.status:
+            list_data['status'] = self.args.status
 
-        success_msg = ANSIAnimations.success_message(f"List created: {args.name}")
-        print(f"\n{success_msg}")
-        print(f"List ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}")
+        # Create the list
+        try:
+            new_list = lists_api.create(folder_id, self.args.name, **list_data)
 
-        if args.verbose:
-            print(f"Folder ID: {folder_id}")
-            if list_data:
-                print("\nProperties set:")
-                for key, value in list_data.items():
-                    print(f"  {key}: {value}")
+            success_msg = ANSIAnimations.success_message(f"List created: {self.args.name}")
+            self.print(f"\n{success_msg}")
+            self.print(f"List ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}")
 
-    except ClickUpAPIError as e:
-        print(f"Error creating list: {e}", file=sys.stderr)
-        sys.exit(1)
+            if self.args.verbose:
+                self.print(f"Folder ID: {folder_id}")
+                if list_data:
+                    self.print("\nProperties set:")
+                    for key, value in list_data.items():
+                        self.print(f"  {key}: {value}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error creating list: {e}")
+
+
+class ListUpdateCommand(BaseCommand):
+    """Update a list."""
+
+    def execute(self):
+        """Execute the list update command."""
+        lists_api = ListsAPI(self.client)
+
+        # Resolve list ID
+        list_id = self.resolve_id(self.args.list_id)
+
+        # Build updates
+        updates = {}
+        if self.args.name:
+            updates['name'] = self.args.name
+        if self.args.content:
+            updates['content'] = self.args.content
+        if self.args.priority:
+            # Convert priority name to number if needed
+            priority_map = {'urgent': 1, 'high': 2, 'normal': 3, 'low': 4}
+            if self.args.priority.lower() in priority_map:
+                updates['priority'] = priority_map[self.args.priority.lower()]
+            else:
+                updates['priority'] = int(self.args.priority)
+        if self.args.status:
+            updates['status'] = self.args.status
+
+        if not updates:
+            self.error("No updates specified. Use --name, --content, --priority, or --status")
+
+        # Update the list
+        try:
+            lists_api.update(list_id, **updates)
+            success_msg = ANSIAnimations.success_message("List updated successfully")
+            self.print(f"\n{success_msg}")
+
+            if self.args.verbose:
+                self.print(f"\nList ID: {list_id}")
+                self.print("Updates applied:")
+                for key, value in updates.items():
+                    self.print(f"  {key}: {value}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error updating list: {e}")
+
+
+class ListDeleteCommand(BaseCommand):
+    """Delete a list."""
+
+    def execute(self):
+        """Execute the list delete command."""
+        # Resolve list ID
+        list_id = self.resolve_id(self.args.list_id)
+
+        # Show warning
+        self.print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the list and all its tasks.")
+
+        if not self.args.force:
+            response = input("Are you sure? [y/N]: ")
+            if response.lower() not in ['y', 'yes']:
+                self.print("Cancelled.")
+                return
+
+        # Delete the list
+        try:
+            self.client.delete_list(list_id)
+            success_msg = ANSIAnimations.success_message("List deleted successfully")
+            self.print(f"\n{success_msg}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error deleting list: {e}")
+
+
+class ListGetCommand(BaseCommand):
+    """Get list details."""
+
+    def execute(self):
+        """Execute the list get command."""
+        lists_api = ListsAPI(self.client)
+
+        # Resolve list ID
+        list_id = self.resolve_id(self.args.list_id)
+
+        # Get the list
+        try:
+            list_data = lists_api.get(list_id)
+
+            # Display list details
+            self.print(f"\n{colorize(list_data.get('name', 'Unnamed List'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+            self.print(f"ID: {colorize(list_data['id'], TextColor.BRIGHT_GREEN)}")
+
+            if list_data.get('content'):
+                self.print(f"Description: {list_data['content']}")
+
+            if list_data.get('status'):
+                self.print(f"Status: {list_data['status'].get('status', 'N/A')}")
+
+            if list_data.get('priority'):
+                priority_names = {1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low'}
+                priority = list_data['priority'].get('priority')
+                priority_name = priority_names.get(int(priority), 'Unknown') if priority else 'None'
+                self.print(f"Priority: {priority_name}")
+
+            if list_data.get('folder'):
+                self.print(f"Folder: {list_data['folder'].get('name', 'N/A')} ({list_data['folder']['id']})")
+
+            if list_data.get('space'):
+                self.print(f"Space: {list_data['space'].get('name', 'N/A')} ({list_data['space']['id']})")
+
+            if self.args.verbose:
+                self.print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                import json
+                self.print(json.dumps(list_data, indent=2))
+
+        except ClickUpAPIError as e:
+            self.error(f"Error getting list: {e}")
+
+
+# Backward compatibility wrappers
+def list_create_command(args):
+    """Command wrapper for list create."""
+    command = ListCreateCommand(args, command_name='list-mgmt')
+    command.execute()
 
 
 def list_update_command(args):
-    """Update a list."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    lists_api = ListsAPI(client)
-
-    # Resolve list ID
-    try:
-        list_id = context.resolve_id('list', args.list_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Build updates
-    updates = {}
-    if args.name:
-        updates['name'] = args.name
-    if args.content:
-        updates['content'] = args.content
-    if args.priority:
-        # Convert priority name to number if needed
-        priority_map = {'urgent': 1, 'high': 2, 'normal': 3, 'low': 4}
-        if args.priority.lower() in priority_map:
-            updates['priority'] = priority_map[args.priority.lower()]
-        else:
-            updates['priority'] = int(args.priority)
-    if args.status:
-        updates['status'] = args.status
-
-    if not updates:
-        print("Error: No updates specified. Use --name, --content, --priority, or --status", file=sys.stderr)
-        sys.exit(1)
-
-    # Update the list
-    try:
-        lists_api.update(list_id, **updates)
-        success_msg = ANSIAnimations.success_message("List updated successfully")
-        print(f"\n{success_msg}")
-
-        if args.verbose:
-            print(f"\nList ID: {list_id}")
-            print("Updates applied:")
-            for key, value in updates.items():
-                print(f"  {key}: {value}")
-
-    except ClickUpAPIError as e:
-        print(f"Error updating list: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for list update."""
+    command = ListUpdateCommand(args, command_name='list-mgmt')
+    command.execute()
 
 
 def list_delete_command(args):
-    """Delete a list."""
-    context = get_context_manager()
-    client = ClickUpClient()
-
-    # Resolve list ID
-    try:
-        list_id = context.resolve_id('list', args.list_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Show warning
-    print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the list and all its tasks.")
-
-    if not args.force:
-        response = input("Are you sure? [y/N]: ")
-        if response.lower() not in ['y', 'yes']:
-            print("Cancelled.")
-            return
-
-    # Delete the list
-    try:
-        client.delete_list(list_id)
-        success_msg = ANSIAnimations.success_message("List deleted successfully")
-        print(f"\n{success_msg}")
-
-    except ClickUpAPIError as e:
-        print(f"Error deleting list: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for list delete."""
+    command = ListDeleteCommand(args, command_name='list-mgmt')
+    command.execute()
 
 
 def list_get_command(args):
-    """Get list details."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    lists_api = ListsAPI(client)
-
-    # Resolve list ID
-    try:
-        list_id = context.resolve_id('list', args.list_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Get the list
-    try:
-        list_data = lists_api.get(list_id)
-
-        # Display list details
-        print(f"\n{colorize(list_data.get('name', 'Unnamed List'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-        print(f"ID: {colorize(list_data['id'], TextColor.BRIGHT_GREEN)}")
-
-        if list_data.get('content'):
-            print(f"Description: {list_data['content']}")
-
-        if list_data.get('status'):
-            print(f"Status: {list_data['status'].get('status', 'N/A')}")
-
-        if list_data.get('priority'):
-            priority_names = {1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low'}
-            priority = list_data['priority'].get('priority')
-            priority_name = priority_names.get(int(priority), 'Unknown') if priority else 'None'
-            print(f"Priority: {priority_name}")
-
-        if list_data.get('folder'):
-            print(f"Folder: {list_data['folder'].get('name', 'N/A')} ({list_data['folder']['id']})")
-
-        if list_data.get('space'):
-            print(f"Space: {list_data['space'].get('name', 'N/A')} ({list_data['space']['id']})")
-
-        if args.verbose:
-            print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-            import json
-            print(json.dumps(list_data, indent=2))
-
-    except ClickUpAPIError as e:
-        print(f"Error getting list: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for list get."""
+    command = ListGetCommand(args, command_name='list-mgmt')
+    command.execute()
 
 
 def register_command(subparsers):
