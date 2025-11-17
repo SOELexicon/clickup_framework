@@ -877,36 +877,77 @@ def task_remove_dependency_command(args):
 
 
 def task_add_link_command(args):
-    """Link two tasks together."""
+    """Link two tasks together. Supports multiple task IDs as CSV string."""
     context = get_context_manager()
     client = ClickUpClient()
 
     # Resolve "current" to actual task IDs
     try:
         task_id = context.resolve_id('task', args.task_id)
-        links_to_id = context.resolve_id('task', args.linked_task_id)
+        
+        # Parse CSV string for multiple linked task IDs
+        linked_task_ids_str = args.linked_task_id.strip()
+        if ',' in linked_task_ids_str:
+            # Split by comma and strip whitespace
+            linked_task_ids = [tid.strip() for tid in linked_task_ids_str.split(',')]
+        else:
+            # Single task ID
+            linked_task_ids = [linked_task_ids_str]
+        
+        # Resolve all linked task IDs
+        resolved_linked_ids = []
+        for linked_id in linked_task_ids:
+            if not linked_id:
+                continue
+            try:
+                resolved_id = context.resolve_id('task', linked_id)
+                resolved_linked_ids.append(resolved_id)
+            except ValueError as e:
+                print(f"Warning: Skipping invalid task ID '{linked_id}': {e}", file=sys.stderr)
+                continue
+        
+        if not resolved_linked_ids:
+            print("Error: No valid task IDs to link", file=sys.stderr)
+            sys.exit(1)
+            
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Add link
-    try:
-        result = client.add_task_link(task_id, links_to_id)
-
-        # Show success message
-        success_msg = ANSIAnimations.success_message(
-            f"Tasks linked: {task_id} ↔ {links_to_id}"
-        )
-        print(success_msg)
-
-        # Optionally show updated task info
-        if hasattr(args, 'verbose') and args.verbose:
+    # Add links for each task ID
+    success_count = 0
+    error_count = 0
+    
+    for links_to_id in resolved_linked_ids:
+        try:
+            result = client.add_task_link(task_id, links_to_id)
+            success_count += 1
+            
+            # Show success message for each link
+            success_msg = ANSIAnimations.success_message(
+                f"Tasks linked: {task_id} ↔ {links_to_id}"
+            )
+            print(success_msg)
+            
+        except Exception as e:
+            error_count += 1
+            print(f"Error linking {task_id} to {links_to_id}: {e}", file=sys.stderr)
+    
+    # Show summary if multiple links
+    if len(resolved_linked_ids) > 1:
+        print(f"\nSummary: {success_count} link(s) created, {error_count} error(s)")
+    
+    # Optionally show updated task info
+    if hasattr(args, 'verbose') and args.verbose:
+        try:
             task = client.get_task(task_id)
             linked_count = len(task.get('linked_tasks', []))
             print(f"  Total links for {task_id}: {linked_count}")
-
-    except Exception as e:
-        print(f"Error linking tasks: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"  Could not fetch updated task info: {e}", file=sys.stderr)
+    
+    # Exit with error if any links failed
+    if error_count > 0:
         sys.exit(1)
 
 
@@ -1169,13 +1210,14 @@ def register_command(subparsers):
         description='Create a bidirectional link between two related tasks without dependency constraints.',
         epilog='''Tips:
   • Link tasks: cum tal current 86abc123
+  • Link multiple: cum tal current 86abc123,86def456,86ghi789
   • Links are bidirectional (both tasks show the link)
   • Links are different from dependencies (no blocking)
   • Use for related work, references, or context
   • Use --verbose to see total link count after creation'''
     )
     task_link_parser.add_argument('task_id', help='Task ID to link from (or "current")')
-    task_link_parser.add_argument('linked_task_id', help='Task ID to link to')
+    task_link_parser.add_argument('linked_task_id', help='Task ID(s) to link to (comma-separated for multiple)')
     task_link_parser.add_argument('--verbose', '-v', action='store_true',
                                    help='Show additional information about the link')
     task_link_parser.set_defaults(func=task_add_link_command)
