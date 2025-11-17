@@ -113,6 +113,7 @@ class MermaidCLI:
         width: Optional[int] = None,
         height: Optional[int] = None,
         theme: Optional[str] = None,
+        puppeteer_config: Optional[str] = None,
         timeout: int = 30
     ) -> Tuple[bool, str]:
         """
@@ -126,6 +127,7 @@ class MermaidCLI:
             width: Image width in pixels (optional)
             height: Image height in pixels (optional)
             theme: Mermaid theme ('default', 'dark', 'forest', 'neutral') (optional)
+            puppeteer_config: Path to puppeteer config JSON file (optional)
             timeout: Command timeout in seconds
 
         Returns:
@@ -144,6 +146,8 @@ class MermaidCLI:
             delete=False,
             encoding='utf-8'
         )
+
+        temp_puppeteer_config = None
 
         try:
             # Write mermaid code to temp file
@@ -170,6 +174,22 @@ class MermaidCLI:
             if theme:
                 cmd.extend(['-t', theme])
 
+            # Add puppeteer config (or create default one for root/sandbox issues)
+            if puppeteer_config:
+                cmd.extend(['-p', puppeteer_config])
+            elif os.geteuid() == 0:  # Running as root
+                # Create temp puppeteer config with --no-sandbox
+                temp_puppeteer_config = tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.json',
+                    delete=False,
+                    encoding='utf-8'
+                )
+                import json
+                json.dump({'args': ['--no-sandbox', '--disable-setuid-sandbox']}, temp_puppeteer_config)
+                temp_puppeteer_config.close()
+                cmd.extend(['-p', temp_puppeteer_config.name])
+
             # Execute mmdc
             result = subprocess.run(
                 cmd,
@@ -193,11 +213,16 @@ class MermaidCLI:
         except Exception as e:
             return False, f"Error generating image: {str(e)}"
         finally:
-            # Cleanup temp file
+            # Cleanup temp files
             try:
                 os.unlink(temp_input.name)
             except:
                 pass
+            if temp_puppeteer_config:
+                try:
+                    os.unlink(temp_puppeteer_config.name)
+                except:
+                    pass
 
 
 # Module-level singleton for convenience
