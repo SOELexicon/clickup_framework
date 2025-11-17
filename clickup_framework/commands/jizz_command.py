@@ -386,16 +386,11 @@ def jizz_command(args):
 
         # Clear any lingering progress lines with something funny
         if use_color:
-            # Clear the line with spaces and return to start
-            print('\r' + ' ' * 80 + '\r', end='', flush=True)
-            # Print a funny transition message
-            transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
-            print(transition_msg)
+            # Move cursor up and clear multiple lines (the "Recharging" animation appears ~5 times)
+            # Use ANSI escape codes: \033[A moves up one line, \033[2K clears the line
+            for _ in range(8):  # Clear 8 lines to be safe
+                print('\033[A\033[2K', end='', flush=True)
 
-        # Clear any lingering progress lines with something funny
-        if use_color:
-            # Clear the line with spaces and return to start
-            print('\r' + ' ' * 80 + '\r', end='', flush=True)
             # Print a funny transition message
             transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
             print(transition_msg)
