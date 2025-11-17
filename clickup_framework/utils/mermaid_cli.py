@@ -112,6 +112,7 @@ class MermaidCLI:
         background_color: str = 'white',
         width: Optional[int] = None,
         height: Optional[int] = None,
+        theme: Optional[str] = None,
         timeout: int = 30
     ) -> Tuple[bool, str]:
         """
@@ -124,6 +125,7 @@ class MermaidCLI:
             background_color: Background color (default: 'white')
             width: Image width in pixels (optional)
             height: Image height in pixels (optional)
+            theme: Mermaid theme ('default', 'dark', 'forest', 'neutral') (optional)
             timeout: Command timeout in seconds
 
         Returns:
@@ -164,6 +166,9 @@ class MermaidCLI:
 
             if height:
                 cmd.extend(['-H', str(height)])
+
+            if theme:
+                cmd.extend(['-t', theme])
 
             # Execute mmdc
             result = subprocess.run(

@@ -226,7 +226,7 @@ class ContentProcessor:
 
         Returns:
             Dictionary with:
-                - content: Processed content
+                - content: Processed content with handlebars resolved to image URLs
                 - upload_results: Results from upload_all_images()
                 - mermaid_blocks: List of mermaid blocks
                 - image_refs: List of image references
@@ -234,16 +234,24 @@ class ContentProcessor:
         if self.client is None:
             raise ValueError("ClickUpClient instance required for uploads. Pass client to ContentProcessor constructor.")
 
-        # Process content first
+        # Step 1: Process content (format markdown, process mermaid, but don't resolve URLs yet)
         result = self.process(content, **options)
 
-        # Upload all images
+        # Step 2: Upload all images to ClickUp
         upload_results = {'uploaded': [], 'already_uploaded': [], 'errors': []}
         if result['image_refs']:
             upload_results = self.upload_all_images(result['content'], task_id)
 
+        # Step 3: Resolve image handlebars to actual URLs now that images are uploaded
+        final_content = result['content']
+        if result['image_refs']:
+            final_content = self.image_embedding.parse(
+                result['content'],
+                resolve_urls=True
+            )
+
         return {
-            'content': result['content'],
+            'content': final_content,
             'upload_results': upload_results,
             'mermaid_blocks': result['mermaid_blocks'],
             'image_refs': result['image_refs'],
