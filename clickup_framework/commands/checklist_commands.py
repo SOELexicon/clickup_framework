@@ -567,6 +567,19 @@ def checklist_list_command(args):
 
             print()  # Blank line between checklists
 
+        # Add helpful tips at the end
+        print(f"{colorize('💡 Tip:', TextColor.BRIGHT_YELLOW)} Use the indices shown in brackets to reference checklists and items:")
+        print(f"  {colorize('Examples:', TextStyle.BOLD)}")
+        if checklists:
+            first_checklist_index = mapping_manager.get_checklist_index(task_id, checklists[0].get('id'))
+            if first_checklist_index:
+                print(f"    • Update checklist name:  cum chk update {task_id} {first_checklist_index} --name \"New Name\"")
+                if checklists[0].get('items'):
+                    print(f"    • Mark item as done:      cum chk item-update {task_id} {first_checklist_index} 1 --resolved true")
+                    print(f"    • Add single item:        cum chk item-add {task_id} {first_checklist_index} \"Task description\"")
+                    print(f"    • Add multiple items:     cum chk item-add {task_id} {first_checklist_index} \"Item 1\" \"Item 2\" \"Item 3\"")
+        print(f"  {colorize('Note:', TextColor.BRIGHT_CYAN)} Indices are more convenient than using long GUIDs\n")
+
     except ClickUpAPIError as e:
         print(f"Error listing checklists: {e}", file=sys.stderr)
         sys.exit(1)

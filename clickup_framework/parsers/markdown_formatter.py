@@ -459,6 +459,7 @@ class MarkdownFormatter(BaseParser):
         }
 
         # Create the inline image block
+        # NOTE: GUI uses full URL for all thumbnails in image block, not the _small/_medium variants
         image_block = {
             "type": "image",
             "text": filename,
@@ -468,9 +469,9 @@ class MarkdownFormatter(BaseParser):
                 "title": filename,
                 "type": file_ext,
                 "extension": f"image/{file_ext}",
-                "thumbnail_large": thumbnail_large,
-                "thumbnail_medium": thumbnail_medium,
-                "thumbnail_small": thumbnail_small,
+                "thumbnail_large": url,
+                "thumbnail_medium": url,
+                "thumbnail_small": url,
                 "url": url,
                 "uploaded": True
             },
