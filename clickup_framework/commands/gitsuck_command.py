@@ -3,6 +3,7 @@
 import subprocess
 import sys
 from pathlib import Path
+from clickup_framework.commands.base_command import BaseCommand
 
 
 def find_git_repositories(root_path):
@@ -29,51 +30,60 @@ def find_git_repositories(root_path):
     return sorted(repos)
 
 
-def suck_command(args):
+class SuckCommand(BaseCommand):
     """Pull all Git repositories in project folder."""
-    print("🔍 Searching for Git repositories...")
 
-    # Find all repositories
-    repos = find_git_repositories('.')
+    def execute(self):
+        """Execute the suck command."""
+        self.print("🔍 Searching for Git repositories...")
 
-    if not repos:
-        print("No Git repositories found in current directory")
-        return
+        # Find all repositories
+        repos = find_git_repositories('.')
 
-    print(f"📁 Found {len(repos)} repositories:\n")
+        if not repos:
+            self.print("No Git repositories found in current directory")
+            return
 
-    successful = 0
-    failed = 0
+        self.print(f"📁 Found {len(repos)} repositories:\n")
 
-    for i, repo_path in enumerate(repos, 1):
-        print(f"{i}. {repo_path}")
+        successful = 0
+        failed = 0
 
-        # Execute git pull --rebase in repository directory
-        result = subprocess.run(
-            ['git', 'pull', '--rebase'],
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True
-        )
+        for i, repo_path in enumerate(repos, 1):
+            self.print(f"{i}. {repo_path}")
 
-        if result.returncode == 0:
-            print("   ✅ Pull successful")
-            if result.stdout.strip():
-                # Show condensed output
-                for line in result.stdout.strip().split('\n')[:3]:
-                    print(f"      {line}")
-            successful += 1
-        else:
-            print(f"   ⚠️  Pull failed: {result.stderr.strip()}")
-            failed += 1
+            # Execute git pull --rebase in repository directory
+            result = subprocess.run(
+                ['git', 'pull', '--rebase'],
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True
+            )
 
-        print()  # Empty line between repos
+            if result.returncode == 0:
+                self.print("   ✅ Pull successful")
+                if result.stdout.strip():
+                    # Show condensed output
+                    for line in result.stdout.strip().split('\n')[:3]:
+                        self.print(f"      {line}")
+                successful += 1
+            else:
+                self.print(f"   ⚠️  Pull failed: {result.stderr.strip()}")
+                failed += 1
 
-    # Summary
-    print(f"Summary: {successful} successful, {failed} failed")
+            self.print()  # Empty line between repos
 
-    # Exit with error if any failed
-    sys.exit(1 if failed > 0 else 0)
+        # Summary
+        self.print(f"Summary: {successful} successful, {failed} failed")
+
+        # Exit with error if any failed
+        sys.exit(1 if failed > 0 else 0)
+
+
+def suck_command(args):
+    """Command wrapper for backward compatibility."""
+    command = SuckCommand(args, command_name='suck')
+    command.execute()
 
 
 def register_command(subparsers, add_common_args=None):
