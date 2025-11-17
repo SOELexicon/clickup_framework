@@ -3,6 +3,7 @@
 import subprocess
 import sys
 from pathlib import Path
+from clickup_framework.commands.base_command import BaseCommand
 
 
 def find_git_repositories(root_path):
@@ -29,60 +30,69 @@ def find_git_repositories(root_path):
     return sorted(repos)
 
 
-def horde_command(args):
+class HordeCommand(BaseCommand):
     """Execute git stash operations on all Git repositories in project folder."""
-    print("🔍 Searching for Git repositories...")
 
-    # Find all repositories
-    repos = find_git_repositories('.')
+    def execute(self):
+        """Execute the horde command."""
+        self.print("🔍 Searching for Git repositories...")
 
-    if not repos:
-        print("No Git repositories found in current directory")
-        return
+        # Find all repositories
+        repos = find_git_repositories('.')
 
-    print(f"📁 Found {len(repos)} repositories:\n")
+        if not repos:
+            self.print("No Git repositories found in current directory")
+            return
 
-    # Build git stash command
-    cmd = ['git', 'stash']
+        self.print(f"📁 Found {len(repos)} repositories:\n")
 
-    # Add subcommand if provided
-    if args.subcommand:
-        cmd.append(args.subcommand)
+        # Build git stash command
+        cmd = ['git', 'stash']
 
-    # Add additional arguments
-    if args.args:
-        cmd.extend(args.args)
+        # Add subcommand if provided
+        if self.args.subcommand:
+            cmd.append(self.args.subcommand)
 
-    successful = 0
-    failed = 0
+        # Add additional arguments
+        if self.args.args:
+            cmd.extend(self.args.args)
 
-    # Iterate over all repositories
-    for i, repo_path in enumerate(repos, 1):
-        print(f"{i}. {repo_path}")
+        successful = 0
+        failed = 0
 
-        # Execute git stash command in repository directory
-        result = subprocess.run(
-            cmd,
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True
-        )
+        # Iterate over all repositories
+        for i, repo_path in enumerate(repos, 1):
+            self.print(f"{i}. {repo_path}")
 
-        if result.returncode == 0:
-            print("   ✅ Stash operation successful")
-            if result.stdout.strip():
-                for line in result.stdout.strip().split('\n')[:3]:
-                    print(f"      {line}")
-            successful += 1
-        else:
-            print(f"   ⚠️  Stash operation failed: {result.stderr.strip()}")
-            failed += 1
+            # Execute git stash command in repository directory
+            result = subprocess.run(
+                cmd,
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True
+            )
 
-        print()  # Empty line between repos
+            if result.returncode == 0:
+                self.print("   ✅ Stash operation successful")
+                if result.stdout.strip():
+                    for line in result.stdout.strip().split('\n')[:3]:
+                        self.print(f"      {line}")
+                successful += 1
+            else:
+                self.print(f"   ⚠️  Stash operation failed: {result.stderr.strip()}")
+                failed += 1
 
-    # Summary
-    print(f"Summary: {successful} successful, {failed} failed")
-    sys.exit(1 if failed > 0 else 0)
+            self.print()  # Empty line between repos
+
+        # Summary
+        self.print(f"Summary: {successful} successful, {failed} failed")
+        sys.exit(1 if failed > 0 else 0)
+
+
+def horde_command(args):
+    """Command wrapper for backward compatibility."""
+    command = HordeCommand(args, command_name='horde')
+    command.execute()
 
 
 def register_command(subparsers, add_common_args=None):

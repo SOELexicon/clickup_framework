@@ -8,7 +8,7 @@ import platform
 from pathlib import Path
 from typing import Optional, Tuple
 
-from clickup_framework import get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
@@ -20,7 +20,7 @@ if platform.system() == 'Windows':
             sys.stdout.reconfigure(encoding='utf-8')
         if hasattr(sys.stderr, 'reconfigure'):
             sys.stderr.reconfigure(encoding='utf-8')
-        
+
         # VT100 mode is enabled by colors module on import
     except Exception:
         pass  # If reconfigure fails, continue anyway
@@ -138,312 +138,316 @@ def show_progress_bar(message: str, duration: float = 1.0, use_color: bool = Tru
     print()  # New line after completion
 
 
-def jizz_command(args):
-    """
-    Execute the jizz workflow: stash → pull → tag → push → update.
+class JizzCommand(BaseCommand):
+    """Execute the jizz workflow: stash → pull → tag → push → update."""
 
-    This command performs a humorous auto-deploy workflow with animated output.
-    """
-    context = get_context_manager()
-    use_color = context.get_ansi_output()
-    dry_run = args.dry_run
+    def execute(self):
+        """Execute the jizz command."""
+        use_color = self.context.get_ansi_output()
+        dry_run = self.args.dry_run
 
-    # Check if in Git repository
-    git_dir = Path('.git')
-    if not git_dir.exists():
-        if use_color:
-            print(ANSIAnimations.error_message("Not in a Git repository! No cum zone detected."))
-        else:
-            print("✗ Error: Not in a Git repository", file=sys.stderr)
-        sys.exit(1)
-
-    # Display intro
-    print()
-    if use_color:
-        # Animated rainbow header
-        ANSIAnimations.display_animated_rainbow("💦 CUM JIZZ WORKFLOW 💦", duration=1.5, speed=3.0)
-        print()
-
-        # Dry run warning
-        if dry_run:
-            dry_run_msg = colorize("🧪 DRY RUN MODE - No actual changes will be made",
-                                  TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
-            print(dry_run_msg)
-            print()
-
-        # Fun intro message with white sheen
-        intro_lines = [
-            ANSIAnimations.white_sheen_text("🍆 Preparing to release...", TextColor.BRIGHT_MAGENTA),
-            ANSIAnimations.white_sheen_text("💦 Auto-deploy workflow initiated", TextColor.BRIGHT_CYAN),
-            ANSIAnimations.white_sheen_text("🎯 Target: Maximum velocity deployment", TextColor.BRIGHT_YELLOW)
-        ]
-
-        box = ANSIAnimations.animated_box(
-            ANSIAnimations.white_sheen_text("DEPLOYMENT SEQUENCE", TextColor.BRIGHT_MAGENTA),
-            intro_lines,
-            TextColor.BRIGHT_MAGENTA
-        )
-        print(box)
-        print()
-    else:
-        print("=== CUM JIZZ WORKFLOW ===")
-        if dry_run:
-            print("🧪 DRY RUN MODE - No actual changes will be made")
-        print("Preparing to release...")
-        print()
-
-    steps_completed = 0
-    total_steps = 5
-
-    # Step 1: Stash
-    steps_completed += 1
-    if use_color:
-        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
-        step_text = ANSIAnimations.white_sheen_text("🍆 Building pressure (stashing changes)...", TextColor.BRIGHT_MAGENTA)
-        print(f"{step_msg} {step_text}")
-    else:
-        print(f"[{steps_completed}/{total_steps}] Stashing changes...")
-
-    show_progress_bar("Storing the goods", 0.8, use_color)
-
-    if dry_run:
-        if use_color:
-            print(colorize("  [DRY RUN] Would execute: git stash", TextColor.BRIGHT_BLUE))
-        else:
-            print("  [DRY RUN] Would execute: git stash")
-    else:
-        result = subprocess.run(['git', 'stash'], capture_output=True, text=True, encoding='utf-8')
-        if result.returncode == 0:
+        # Check if in Git repository
+        git_dir = Path('.git')
+        if not git_dir.exists():
             if use_color:
-                print(ANSIAnimations.success_message("Stash complete! All tucked away safely."))
+                self.print(ANSIAnimations.error_message("Not in a Git repository! No cum zone detected."))
             else:
-                print("✓ Stash complete!")
+                self.print_error("Not in a Git repository")
+            sys.exit(1)
+
+        # Display intro
+        self.print()
+        if use_color:
+            # Animated rainbow header
+            ANSIAnimations.display_animated_rainbow("💦 CUM JIZZ WORKFLOW 💦", duration=1.5, speed=3.0)
+            self.print()
+
+            # Dry run warning
+            if dry_run:
+                dry_run_msg = colorize("🧪 DRY RUN MODE - No actual changes will be made",
+                                      TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+                self.print(dry_run_msg)
+                self.print()
+
+            # Fun intro message with white sheen
+            intro_lines = [
+                ANSIAnimations.white_sheen_text("🍆 Preparing to release...", TextColor.BRIGHT_MAGENTA),
+                ANSIAnimations.white_sheen_text("💦 Auto-deploy workflow initiated", TextColor.BRIGHT_CYAN),
+                ANSIAnimations.white_sheen_text("🎯 Target: Maximum velocity deployment", TextColor.BRIGHT_YELLOW)
+            ]
+
+            box = ANSIAnimations.animated_box(
+                ANSIAnimations.white_sheen_text("DEPLOYMENT SEQUENCE", TextColor.BRIGHT_MAGENTA),
+                intro_lines,
+                TextColor.BRIGHT_MAGENTA
+            )
+            self.print(box)
+            self.print()
         else:
-            # Stash might fail if there's nothing to stash - that's okay
-            if "No local changes" in result.stdout or not result.stderr:
+            self.print("=== CUM JIZZ WORKFLOW ===")
+            if dry_run:
+                self.print("🧪 DRY RUN MODE - No actual changes will be made")
+            self.print("Preparing to release...")
+            self.print()
+
+        steps_completed = 0
+        total_steps = 5
+
+        # Step 1: Stash
+        steps_completed += 1
+        if use_color:
+            step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+            step_text = ANSIAnimations.white_sheen_text("🍆 Building pressure (stashing changes)...", TextColor.BRIGHT_MAGENTA)
+            self.print(f"{step_msg} {step_text}")
+        else:
+            self.print(f"[{steps_completed}/{total_steps}] Stashing changes...")
+
+        show_progress_bar("Storing the goods", 0.8, use_color)
+
+        if dry_run:
+            if use_color:
+                self.print(colorize("  [DRY RUN] Would execute: git stash", TextColor.BRIGHT_BLUE))
+            else:
+                self.print("  [DRY RUN] Would execute: git stash")
+        else:
+            result = subprocess.run(['git', 'stash'], capture_output=True, text=True, encoding='utf-8')
+            if result.returncode == 0:
                 if use_color:
-                    print(colorize("  ℹ️  Nothing to stash (already clean)", TextColor.BRIGHT_BLUE))
+                    self.print(ANSIAnimations.success_message("Stash complete! All tucked away safely."))
                 else:
-                    print("  ℹ️  Nothing to stash")
+                    self.print("✓ Stash complete!")
             else:
-                print(result.stderr.strip(), file=sys.stderr)
+                # Stash might fail if there's nothing to stash - that's okay
+                if "No local changes" in result.stdout or not result.stderr:
+                    if use_color:
+                        self.print(colorize("  ℹ️  Nothing to stash (already clean)", TextColor.BRIGHT_BLUE))
+                    else:
+                        self.print("  ℹ️  Nothing to stash")
+                else:
+                    self.print_error(result.stderr.strip())
 
-    print()
+        self.print()
 
-    # Step 2: Pull
-    steps_completed += 1
-    if use_color:
-        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
-        step_text = ANSIAnimations.white_sheen_text("💪 Getting fresh (pulling latest)...", TextColor.BRIGHT_MAGENTA)
-        print(f"{step_msg} {step_text}")
-    else:
-        print(f"[{steps_completed}/{total_steps}] Pulling latest...")
-
-    show_progress_bar("Extracting the latest release", 1.0, use_color)
-
-    if dry_run:
+        # Step 2: Pull
+        steps_completed += 1
         if use_color:
-            print(colorize("  [DRY RUN] Would execute: git pull --rebase", TextColor.BRIGHT_BLUE))
+            step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+            step_text = ANSIAnimations.white_sheen_text("💪 Getting fresh (pulling latest)...", TextColor.BRIGHT_MAGENTA)
+            self.print(f"{step_msg} {step_text}")
         else:
-            print("  [DRY RUN] Would execute: git pull --rebase")
-    else:
-        if not run_command(['git', 'pull', '--rebase'], "Pull", use_color):
-            sys.exit(1)
+            self.print(f"[{steps_completed}/{total_steps}] Pulling latest...")
 
-        if use_color:
-            print(ANSIAnimations.success_message("Pull complete! Fresh and ready."))
-        else:
-            print("✓ Pull complete!")
+        show_progress_bar("Extracting the latest release", 1.0, use_color)
 
-    print()
-
-    # Step 3: Update tag (increment version)
-    steps_completed += 1
-    if use_color:
-        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
-        step_text = ANSIAnimations.white_sheen_text("📈 Pumping up the version...", TextColor.BRIGHT_MAGENTA)
-        print(f"{step_msg} {step_text}")
-    else:
-        print(f"[{steps_completed}/{total_steps}] Updating version tag...")
-
-    # Get current version
-    current_version = get_latest_tag()
-    if not current_version:
-        if use_color:
-            print(ANSIAnimations.error_message("No existing version tag found! Need a base to pump from."))
-        else:
-            print("✗ Error: No existing version tag found!", file=sys.stderr)
-        sys.exit(1)
-
-    # Increment version
-    try:
-        new_version = increment_version_by_point_one(current_version)
-    except ValueError as e:
-        if use_color:
-            print(ANSIAnimations.error_message(f"Version parse error: {e}"))
-        else:
-            print(f"✗ Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    if use_color:
-        old_v = colorize(f"v{current_version}", TextColor.BRIGHT_RED, TextStyle.DIM)
-        arrow = colorize("➜", TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
-        new_v = colorize(f"v{new_version}", TextColor.BRIGHT_GREEN, TextStyle.BOLD)
-        print(f"  💦 Version trajectory: {old_v} {arrow} {new_v}")
-    else:
-        print(f"  Version: v{current_version} → v{new_version}")
-
-    show_progress_bar("Inflating version number", 0.8, use_color)
-
-    # Create the tag
-    tag_name = f"v{new_version}"
-
-    if dry_run:
-        if use_color:
-            print(colorize(f"  [DRY RUN] Would execute: git tag -a {tag_name} -m 'Release {new_version} 💦'",
-                          TextColor.BRIGHT_BLUE))
-        else:
-            print(f"  [DRY RUN] Would execute: git tag -a {tag_name} -m 'Release {new_version} 💦'")
-    else:
-        result = subprocess.run(
-            ['git', 'tag', '-a', tag_name, '-m', f'Release {new_version} 💦'],
-            capture_output=True,
-            text=True,
-            encoding='utf-8'
-        )
-
-        if result.returncode != 0:
+        if dry_run:
             if use_color:
-                print(ANSIAnimations.error_message(f"Failed to create tag: {result.stderr}"))
+                self.print(colorize("  [DRY RUN] Would execute: git pull --rebase", TextColor.BRIGHT_BLUE))
             else:
-                print(f"✗ Error creating tag: {result.stderr}", file=sys.stderr)
+                self.print("  [DRY RUN] Would execute: git pull --rebase")
+        else:
+            if not run_command(['git', 'pull', '--rebase'], "Pull", use_color):
+                sys.exit(1)
+
+            if use_color:
+                self.print(ANSIAnimations.success_message("Pull complete! Fresh and ready."))
+            else:
+                self.print("✓ Pull complete!")
+
+        self.print()
+
+        # Step 3: Update tag (increment version)
+        steps_completed += 1
+        if use_color:
+            step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+            step_text = ANSIAnimations.white_sheen_text("📈 Pumping up the version...", TextColor.BRIGHT_MAGENTA)
+            self.print(f"{step_msg} {step_text}")
+        else:
+            self.print(f"[{steps_completed}/{total_steps}] Updating version tag...")
+
+        # Get current version
+        current_version = get_latest_tag()
+        if not current_version:
+            if use_color:
+                self.print(ANSIAnimations.error_message("No existing version tag found! Need a base to pump from."))
+            else:
+                self.print_error("No existing version tag found!")
+            sys.exit(1)
+
+        # Increment version
+        try:
+            new_version = increment_version_by_point_one(current_version)
+        except ValueError as e:
+            if use_color:
+                self.print(ANSIAnimations.error_message(f"Version parse error: {e}"))
+            else:
+                self.print_error(str(e))
             sys.exit(1)
 
         if use_color:
-            print(ANSIAnimations.success_message(f"Tag {tag_name} created! Ready to blow."))
+            old_v = colorize(f"v{current_version}", TextColor.BRIGHT_RED, TextStyle.DIM)
+            arrow = colorize("➜", TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+            new_v = colorize(f"v{new_version}", TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+            self.print(f"  💦 Version trajectory: {old_v} {arrow} {new_v}")
         else:
-            print(f"✓ Tag {tag_name} created!")
+            self.print(f"  Version: v{current_version} → v{new_version}")
 
-    print()
+        show_progress_bar("Inflating version number", 0.8, use_color)
 
-    # Step 4: Push tag
-    steps_completed += 1
-    if use_color:
-        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
-        step_text = ANSIAnimations.white_sheen_text(f"🚀 Releasing the payload (pushing {tag_name})...", TextColor.BRIGHT_MAGENTA)
-        print(f"{step_msg} {step_text}")
-    else:
-        print(f"[{steps_completed}/{total_steps}] Pushing {tag_name}...")
+        # Create the tag
+        tag_name = f"v{new_version}"
 
-    show_progress_bar("Ejecting to origin", 1.2, use_color)
-
-    if dry_run:
-        if use_color:
-            print(colorize(f"  [DRY RUN] Would execute: git push origin {tag_name}",
+        if dry_run:
+            if use_color:
+                self.print(colorize(f"  [DRY RUN] Would execute: git tag -a {tag_name} -m 'Release {new_version} 💦'",
                           TextColor.BRIGHT_BLUE))
+            else:
+                self.print(f"  [DRY RUN] Would execute: git tag -a {tag_name} -m 'Release {new_version} 💦'")
         else:
-            print(f"  [DRY RUN] Would execute: git push origin {tag_name}")
-    else:
-        if not run_command(['git', 'push', 'origin', tag_name], f"Push {tag_name}", use_color):
-            sys.exit(1)
-
-        if use_color:
-            print(ANSIAnimations.success_message(f"Tag {tag_name} pushed! Money shot delivered! 💦"))
-        else:
-            print(f"✓ Tag {tag_name} pushed!")
-
-    print()
-
-    # Step 5: Update cum
-    steps_completed += 1
-    if use_color:
-        step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
-        step_text = ANSIAnimations.white_sheen_text("🔄 Refreshing the tool (cum update cum)...", TextColor.BRIGHT_MAGENTA)
-        print(f"{step_msg} {step_text}")
-    else:
-        print(f"[{steps_completed}/{total_steps}] Updating cum tool...")
-
-    show_progress_bar("Reloading for round two", 1.5, use_color)
-
-    if dry_run:
-        if use_color:
-            print(colorize("  [DRY RUN] Would execute: cum update cum", TextColor.BRIGHT_BLUE))
-        else:
-            print("  [DRY RUN] Would execute: cum update cum")
-    else:
-        # Run cum update cum with animated loop
-        print()
-
-        if use_color:
-            # Funny looping animation while updating
-            def run_update():
-                # Capture output to prevent interleaving with animation
-                return subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True, encoding='utf-8', errors='replace')
-
-            result = ANSIAnimations.run_with_looping_animation(
-                run_update,
-                "💦 Recharging the cum cannon"
+            result = subprocess.run(
+                ['git', 'tag', '-a', tag_name, '-m', f'Release {new_version} 💦'],
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
             )
 
-            # Print the captured output now that animation is cleared
-            if result.stdout:
-                print(result.stdout, end='')
-            if result.stderr:
-                print(result.stderr, end='', file=sys.stderr)
+            if result.returncode != 0:
+                if use_color:
+                    self.print(ANSIAnimations.error_message(f"Failed to create tag: {result.stderr}"))
+                else:
+                    self.print_error(f"Error creating tag: {result.stderr}")
+                sys.exit(1)
 
-            # Print a funny transition message
-            transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
-            print(transition_msg)
-        else:
-            result = subprocess.run(['cum', 'update', 'cum'])
-
-        if result.returncode == 0:
-            print()
             if use_color:
-                print(ANSIAnimations.success_message("Cum tool updated! Back at full capacity."))
+                self.print(ANSIAnimations.success_message(f"Tag {tag_name} created! Ready to blow."))
             else:
-                print("✓ Cum tool updated!")
+                self.print(f"✓ Tag {tag_name} created!")
+
+        self.print()
+
+        # Step 4: Push tag
+        steps_completed += 1
+        if use_color:
+            step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+            step_text = ANSIAnimations.white_sheen_text(f"🚀 Releasing the payload (pushing {tag_name})...", TextColor.BRIGHT_MAGENTA)
+            self.print(f"{step_msg} {step_text}")
         else:
-            print()
+            self.print(f"[{steps_completed}/{total_steps}] Pushing {tag_name}...")
+
+        show_progress_bar("Ejecting to origin", 1.2, use_color)
+
+        if dry_run:
             if use_color:
-                print(ANSIAnimations.warning_message("Cum update had issues (might be okay)"))
+                self.print(colorize(f"  [DRY RUN] Would execute: git push origin {tag_name}",
+                          TextColor.BRIGHT_BLUE))
             else:
-                print("⚠ Cum update had issues")
+                self.print(f"  [DRY RUN] Would execute: git push origin {tag_name}")
+        else:
+            if not run_command(['git', 'push', 'origin', tag_name], f"Push {tag_name}", use_color):
+                sys.exit(1)
 
-    print()
+            if use_color:
+                self.print(ANSIAnimations.success_message(f"Tag {tag_name} pushed! Money shot delivered! 💦"))
+            else:
+                self.print(f"✓ Tag {tag_name} pushed!")
 
-    # Final success message
-    if use_color:
-        # Epic finale
-        print()
-        finale_lines = [
-            f"✨ Released version: {colorize(tag_name, TextColor.BRIGHT_GREEN, TextStyle.BOLD)}",
-            f"🎯 Deployment: {colorize('SUCCESSFUL', TextColor.BRIGHT_GREEN, TextStyle.BOLD)}",
-            f"💦 Status: {colorize('Fully emptied and satisfied', TextColor.BRIGHT_MAGENTA)}",
-            "",
-            colorize("Ready for the next release cycle! 🍆", TextColor.BRIGHT_YELLOW)
-        ]
+        self.print()
 
-        for line in finale_lines:
-            print(line)
+        # Step 5: Update cum
+        steps_completed += 1
+        if use_color:
+            step_msg = ANSIAnimations.white_sheen_text(f"[{steps_completed}/{total_steps}]", TextColor.BRIGHT_CYAN)
+            step_text = ANSIAnimations.white_sheen_text("🔄 Refreshing the tool (cum update cum)...", TextColor.BRIGHT_MAGENTA)
+            self.print(f"{step_msg} {step_text}")
+        else:
+            self.print(f"[{steps_completed}/{total_steps}] Updating cum tool...")
 
-        print()
+        show_progress_bar("Reloading for round two", 1.5, use_color)
 
-        # Animated rainbow celebration
-        ANSIAnimations.display_animated_rainbow(
-            "🎉 JIZZ WORKFLOW COMPLETE! CLEANUP IN AISLE EVERYWHERE! 🎉",
-            duration=2.0,
-            speed=3.0
-        )
-        print()
-    else:
-        print("=" * 50)
-        print(f"✓ JIZZ WORKFLOW COMPLETE!")
-        print(f"  Released: {tag_name}")
-        print(f"  Status: SUCCESS")
-        print("=" * 50)
+        if dry_run:
+            if use_color:
+                self.print(colorize("  [DRY RUN] Would execute: cum update cum", TextColor.BRIGHT_BLUE))
+            else:
+                self.print("  [DRY RUN] Would execute: cum update cum")
+        else:
+            # Run cum update cum with animated loop
+            self.print()
 
-    sys.exit(0)
+            if use_color:
+                # Funny looping animation while updating
+                def run_update():
+                    # Capture output to prevent interleaving with animation
+                    return subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True, encoding='utf-8', errors='replace')
+
+                result = ANSIAnimations.run_with_looping_animation(
+                    run_update,
+                    "💦 Recharging the cum cannon"
+                )
+
+                # Print the captured output now that animation is cleared
+                if result.stdout:
+                    self.print(result.stdout, end='')
+                if result.stderr:
+                    self.print_error(result.stderr, end='')
+
+                # Print a funny transition message
+                transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
+                self.print(transition_msg)
+            else:
+                result = subprocess.run(['cum', 'update', 'cum'])
+
+            if result.returncode == 0:
+                self.print()
+                if use_color:
+                    self.print(ANSIAnimations.success_message("Cum tool updated! Back at full capacity."))
+                else:
+                    self.print("✓ Cum tool updated!")
+            else:
+                self.print()
+                if use_color:
+                    self.print(ANSIAnimations.warning_message("Cum update had issues (might be okay)"))
+                else:
+                    self.print("⚠ Cum update had issues")
+
+        self.print()
+
+        # Final success message
+        if use_color:
+            # Epic finale
+            self.print()
+            finale_lines = [
+                f"✨ Released version: {colorize(tag_name, TextColor.BRIGHT_GREEN, TextStyle.BOLD)}",
+                f"🎯 Deployment: {colorize('SUCCESSFUL', TextColor.BRIGHT_GREEN, TextStyle.BOLD)}",
+                f"💦 Status: {colorize('Fully emptied and satisfied', TextColor.BRIGHT_MAGENTA)}",
+                "",
+                colorize("Ready for the next release cycle! 🍆", TextColor.BRIGHT_YELLOW)
+            ]
+
+            for line in finale_lines:
+                self.print(line)
+
+            self.print()
+
+            # Animated rainbow celebration
+            ANSIAnimations.display_animated_rainbow(
+                "🎉 JIZZ WORKFLOW COMPLETE! CLEANUP IN AISLE EVERYWHERE! 🎉",
+                duration=2.0,
+                speed=3.0
+            )
+            self.print()
+        else:
+            self.print("=" * 50)
+            self.print(f"✓ JIZZ WORKFLOW COMPLETE!")
+            self.print(f"  Released: {tag_name}")
+            self.print(f"  Status: SUCCESS")
+            self.print("=" * 50)
+
+        sys.exit(0)
+
+
+def jizz_command(args):
+    """Command wrapper for backward compatibility."""
+    command = JizzCommand(args, command_name='jizz')
+    command.execute()
 
 
 def register_command(subparsers):
