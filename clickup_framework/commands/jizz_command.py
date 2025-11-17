@@ -375,25 +375,25 @@ def jizz_command(args):
         if use_color:
             # Funny looping animation while updating
             def run_update():
-                return subprocess.run(['cum', 'update', 'cum'])
+                # Capture output to prevent interleaving with animation
+                return subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True)
 
             result = ANSIAnimations.run_with_looping_animation(
                 run_update,
                 "💦 Recharging the cum cannon"
             )
-        else:
-            result = subprocess.run(['cum', 'update', 'cum'])
 
-        # Clear any lingering progress lines with something funny
-        if use_color:
-            # Move cursor up and clear multiple lines (the "Recharging" animation appears ~5 times)
-            # Use ANSI escape codes: \033[A moves up one line, \033[2K clears the line
-            for _ in range(8):  # Clear 8 lines to be safe
-                print('\033[A\033[2K', end='', flush=True)
+            # Print the captured output now that animation is cleared
+            if result.stdout:
+                print(result.stdout, end='')
+            if result.stderr:
+                print(result.stderr, end='', file=sys.stderr)
 
             # Print a funny transition message
             transition_msg = colorize("💦 Cannon fully recharged and ready to fire! 💦", TextColor.BRIGHT_MAGENTA, TextStyle.BOLD)
             print(transition_msg)
+        else:
+            result = subprocess.run(['cum', 'update', 'cum'])
 
         if result.returncode == 0:
             print()
