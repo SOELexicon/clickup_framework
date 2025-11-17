@@ -278,7 +278,7 @@ class MarkdownFormatter(BaseParser):
                 segments = self._parse_inline_formatting(text)
                 for seg in segments:
                     attrs = seg.get("attributes", {})
-                    attrs["list"] = {"list": "bullet"}
+                    attrs["list"] = "bullet"  # Fixed: use string not nested object
                     seg["attributes"] = attrs
                     result.append(seg)
                 result.append({"text": "\n"})
@@ -290,7 +290,7 @@ class MarkdownFormatter(BaseParser):
                 segments = self._parse_inline_formatting(text)
                 for seg in segments:
                     attrs = seg.get("attributes", {})
-                    attrs["list"] = {"list": "ordered"}
+                    attrs["list"] = "ordered"  # Fixed: use string not nested object
                     seg["attributes"] = attrs
                     result.append(seg)
                 result.append({"text": "\n"})
