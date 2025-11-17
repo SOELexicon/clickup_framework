@@ -68,12 +68,12 @@ def extract_mermaid_blocks(content):
     current_block = []
 
     for line in lines:
-        if re.match(r'^\`\`\`mermaid\s*$', line.strip(), re.IGNORECASE):
+        if re.match(r'^```mermaid\s*$', line.strip(), re.IGNORECASE):
             in_block = True
             current_block = []
             continue
 
-        if in_block and re.match(r'^\`\`\`\s*$', line.strip()):
+        if in_block and re.match(r'^```\s*$', line.strip()):
             if current_block:
                 block_content = '\n'.join(current_block)
                 if not block_content.strip().startswith('#ignore'):
