@@ -184,7 +184,11 @@ def show_humorous_progress(message: str, duration: float = 1.5, use_color: bool 
     """Display a humorous progress bar similar to jizz command."""
     import time
 
-    if not use_color:
+    # Check if we're in a TTY (interactive terminal)
+    is_tty = sys.stdout.isatty() if hasattr(sys.stdout, 'isatty') else False
+
+    # If not in TTY or colors disabled, just show a simple message
+    if not use_color or not is_tty:
         print(f"  {message}...")
         time.sleep(duration)
         return
@@ -208,7 +212,7 @@ def show_humorous_progress(message: str, duration: float = 1.5, use_color: bool 
         colored_filled = colorize(filled, color)
         bar = f"{colored_filled}{empty}"
 
-        print(f"\r{colored_msg} [{bar}] {percent}%", end='', flush=True)
+        print(f"\r\033[K{colored_msg} [{bar}] {percent}%", end='', flush=True)
         time.sleep(duration / bar_length)
 
     print()
@@ -217,14 +221,17 @@ def show_humorous_progress(message: str, duration: float = 1.5, use_color: bool 
 def show_package_progress(current_package: str, duration: float = 1.5, use_color: bool = True):
     """
     Display a progress bar for package updates with rotating funny one-liners.
-    
+
     Args:
         current_package: Name of the current package being updated
         duration: How long the progress bar should take
         use_color: Whether to use colors
     """
     import time
-    
+
+    # Check if we're in a TTY (interactive terminal)
+    is_tty = sys.stdout.isatty() if hasattr(sys.stdout, 'isatty') else False
+
     # Funny one-liners that rotate
     one_liners = [
         "💦 Injecting fresh code into your veins...",
@@ -243,8 +250,9 @@ def show_package_progress(current_package: str, duration: float = 1.5, use_color
         "🎯 Bullseye! Hitting the update target...",
         "🎨 Making code beautiful, one package at a time...",
     ]
-    
-    if not use_color:
+
+    # If not in TTY or colors disabled, just show a simple message
+    if not use_color or not is_tty:
         print(f"  Updating {current_package}...")
         time.sleep(duration)
         return
@@ -282,14 +290,15 @@ def show_package_progress(current_package: str, duration: float = 1.5, use_color
         liner_text = ANSIAnimations.white_sheen_text(current_liner, TextColor.BRIGHT_MAGENTA)
         
         # Print progress bar and one-liner on same line, clear previous
-        print(f"\r    [{bar}] {percent}%  {liner_text}", end='', flush=True)
+        # Use \r to return to start of line, then \033[K to clear to end of line
+        print(f"\r\033[K    [{bar}] {percent}%  {liner_text}", end='', flush=True)
         
         time.sleep(duration / bar_length)
     
     # Final print
     colored_filled = colorize('█' * bar_length, TextColor.BRIGHT_YELLOW)
     final_liner = ANSIAnimations.white_sheen_text(one_liners[one_liner_index], TextColor.BRIGHT_GREEN)
-    print(f"\r    [{colored_filled}] 100%  {final_liner}")
+    print(f"\r\033[K    [{colored_filled}] 100%  {final_liner}")
     print()  # Final newline
 
     # Clear the progress lines (move up 2 lines and clear them)
