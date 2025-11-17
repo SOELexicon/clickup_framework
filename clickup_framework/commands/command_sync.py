@@ -10,9 +10,11 @@ import re
 import sys
 import subprocess
 from typing import Dict, List, Tuple, Optional
-from clickup_framework import ClickUpClient
+from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.exceptions import ClickUpAPIError
 from clickup_framework.commands import discover_commands
+from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.utils.animations import ANSIAnimations
 
 # Default values
 DEFAULT_CLI_COMMANDS_LIST_ID = "901517567020"
@@ -341,7 +343,8 @@ def create_or_update_task(
     help_output: str,
     command_output: str,
     dry_run: bool = False,
-    force: bool = False
+    force: bool = False,
+    use_color: bool = True
 ) -> Tuple[Optional[str], str]:
     """
     Create or update a task for a command.
@@ -355,6 +358,7 @@ def create_or_update_task(
         command_output: Output from executing command
         dry_run: If True, don't make changes
         force: If True, update even if task exists
+        use_color: If True, use ANSI colors and emojis
 
     Returns:
         Tuple of (task_id, status) where status is 'created', 'updated', 'skipped', or 'failed'
@@ -368,7 +372,11 @@ def create_or_update_task(
     existing_task_id = find_existing_task(client, list_id, task_name)
 
     if existing_task_id and not force:
-        print(f"  [SKIP] Task already exists: {task_name} ({existing_task_id})")
+        if use_color:
+            skip_msg = colorize("🎯 Task already synced, nothing to do here!", TextColor.BRIGHT_CYAN)
+            print(f"    {skip_msg} ({existing_task_id})")
+        else:
+            print(f"  [SKIP] Task already exists: {task_name} ({existing_task_id})")
         return existing_task_id, 'skipped'
 
     # Prepare custom fields
@@ -408,9 +416,15 @@ def create_or_update_task(
 """
 
     if dry_run:
-        print(f"  [DRY-RUN] Would create/update: {task_name}")
-        print(f"    Purpose: {parsed['purpose'][:60]}...")
-        print(f"    Syntax: {parsed['syntax'][:60]}...")
+        if use_color:
+            dry_msg = colorize("[DRY-RUN]", TextColor.BRIGHT_BLUE, TextStyle.BOLD)
+            print(f"    {dry_msg} Would create/update: {task_name}")
+            print(f"      Purpose: {parsed['purpose'][:60]}...")
+            print(f"      Syntax: {parsed['syntax'][:60]}...")
+        else:
+            print(f"  [DRY-RUN] Would create/update: {task_name}")
+            print(f"    Purpose: {parsed['purpose'][:60]}...")
+            print(f"    Syntax: {parsed['syntax'][:60]}...")
         if existing_task_id:
             return existing_task_id, 'would-update'
         else:
@@ -432,7 +446,11 @@ def create_or_update_task(
                 except Exception as e:
                     print(f"  [WARNING] Failed to set custom field: {e}", file=sys.stderr)
 
-            print(f"  [UPDATED] {task_name} ({existing_task_id})")
+            if use_color:
+                update_msg = colorize("📝 Task refreshed with latest info!", TextColor.BRIGHT_YELLOW)
+                print(f"    {update_msg} ({existing_task_id})")
+            else:
+                print(f"  [UPDATED] {task_name} ({existing_task_id})")
             return existing_task_id, 'updated'
         else:
             # Create new task
@@ -451,13 +469,25 @@ def create_or_update_task(
                 except Exception as e:
                     print(f"  [WARNING] Failed to set custom field: {e}", file=sys.stderr)
 
-            print(f"  [CREATED] {task_name} ({task_id})")
+            if use_color:
+                create_msg = colorize("✨ Fresh task created, welcome to the party!", TextColor.BRIGHT_GREEN)
+                print(f"    {create_msg} ({task_id})")
+            else:
+                print(f"  [CREATED] {task_name} ({task_id})")
             return task_id, 'created'
     except ClickUpAPIError as e:
-        print(f"  [ERROR] Failed to create/update task: {e}", file=sys.stderr)
+        if use_color:
+            error_msg = ANSIAnimations.error_message(f"Failed to create/update task: {e}")
+            print(f"    {error_msg}", file=sys.stderr)
+        else:
+            print(f"  [ERROR] Failed to create/update task: {e}", file=sys.stderr)
         return None, 'failed'
     except Exception as e:
-        print(f"  [ERROR] Unexpected error: {e}", file=sys.stderr)
+        if use_color:
+            error_msg = ANSIAnimations.error_message(f"Unexpected error: {e}")
+            print(f"    {error_msg}", file=sys.stderr)
+        else:
+            print(f"  [ERROR] Unexpected error: {e}", file=sys.stderr)
         return None, 'failed'
 
 
@@ -480,15 +510,49 @@ def command_sync_command(args):
     dry_run = args.dry_run
     force = args.force
 
-    print("=" * 80)
-    print("CUM Command Sync - Auto-Update CLI Command Tasks")
-    print("=" * 80)
-    print(f"List ID: {list_id}")
-    print(f"Test Task ID: {test_task_id}")
-    print(f"Dry Run: {dry_run}")
-    print(f"Force Update: {force}")
-    print("=" * 80)
+    # Get ANSI output preference
+    context = get_context_manager()
+    use_color = context.get_ansi_output()
+
+    # Display humorous header
     print()
+    if use_color:
+        # Animated rainbow header
+        ANSIAnimations.display_animated_rainbow("🔄 CUM COMMAND SYNC - SYNCING ALL THE THINGS! 🔄", duration=1.5, speed=3.0)
+        print()
+
+        # Dry run warning
+        if dry_run:
+            dry_run_msg = colorize("🧪 DRY RUN MODE - No actual changes will be made",
+                                  TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+            print(dry_run_msg)
+            print()
+
+        # Config info box
+        config_lines = [
+            f"📋 List ID: {colorize(list_id, TextColor.BRIGHT_CYAN)}",
+            f"🎯 Test Task: {colorize(test_task_id, TextColor.BRIGHT_CYAN)}",
+            f"🔧 Mode: {colorize('DRY RUN' if dry_run else 'LIVE', TextColor.BRIGHT_YELLOW if dry_run else TextColor.BRIGHT_GREEN)}",
+            f"⚡ Force: {colorize('YES' if force else 'NO', TextColor.BRIGHT_RED if force else TextColor.BRIGHT_GREEN)}"
+        ]
+
+        box = ANSIAnimations.animated_box(
+            ANSIAnimations.white_sheen_text("SYNC CONFIGURATION", TextColor.BRIGHT_MAGENTA),
+            config_lines,
+            TextColor.BRIGHT_MAGENTA
+        )
+        print(box)
+        print()
+    else:
+        print("=" * 80)
+        print("CUM Command Sync - Auto-Update CLI Command Tasks")
+        print("=" * 80)
+        print(f"List ID: {list_id}")
+        print(f"Test Task ID: {test_task_id}")
+        print(f"Dry Run: {dry_run}")
+        print(f"Force Update: {force}")
+        print("=" * 80)
+        print()
 
     # Initialize ClickUp client
     try:
@@ -498,25 +562,51 @@ def command_sync_command(args):
         sys.exit(1)
 
     # Discover all commands
-    print("[1/4] Discovering commands...")
+    if use_color:
+        step_msg = ANSIAnimations.white_sheen_text("[1/4]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text("✨ Discovering commands... ✨", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
+    else:
+        print("[1/4] Discovering commands...")
+
     all_commands = discover_cli_commands()
 
-    print(f"  Found {len(all_commands)} commands")
+    if use_color:
+        found_msg = colorize(f"🎯 Found {len(all_commands)} commands ready to sync!", TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+        print(f"  {found_msg}")
+    else:
+        print(f"  Found {len(all_commands)} commands")
     print()
 
     # Process each command
-    print(f"[2/4] Processing commands...")
+    if use_color:
+        step_msg = ANSIAnimations.white_sheen_text("[2/4]", TextColor.BRIGHT_CYAN)
+        step_text = ANSIAnimations.white_sheen_text("📋 Processing commands... 📋", TextColor.BRIGHT_MAGENTA)
+        print(f"{step_msg} {step_text}")
+    else:
+        print(f"[2/4] Processing commands...")
+
     created = 0
     updated = 0
     skipped = 0
     failed = 0
 
     for i, command in enumerate(all_commands, 1):
-        print(f"\n[{i}/{len(all_commands)}] Processing: {command}")
+        if use_color:
+            cmd_msg = colorize(f"✨ [{i}/{len(all_commands)}] Processing:", TextColor.BRIGHT_YELLOW)
+            cmd_name = colorize(command, TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+            print(f"\n  {cmd_msg} {cmd_name}")
+        else:
+            print(f"\n[{i}/{len(all_commands)}] Processing: {command}")
 
         # Get category
         category = get_command_category(command)
-        print(f"  Category: {category}")
+        if use_color:
+            cat_label = colorize("Category:", TextColor.BRIGHT_BLUE)
+            cat_name = colorize(category, TextColor.BRIGHT_GREEN)
+            print(f"    {cat_label} {cat_name}")
+        else:
+            print(f"  Category: {category}")
 
         # Get help output
         help_output, error_output = get_command_help(command)
@@ -541,7 +631,8 @@ def command_sync_command(args):
             help_output=help_output,
             command_output=command_output,
             dry_run=dry_run,
-            force=force
+            force=force,
+            use_color=use_color
         )
 
         # Count based on status
@@ -556,14 +647,50 @@ def command_sync_command(args):
 
     # Print summary
     print()
-    print("=" * 80)
-    print("Summary:")
-    print(f"  Total commands: {len(all_commands)}")
-    print(f"  Created: {created}")
-    print(f"  Updated: {updated}")
-    print(f"  Skipped: {skipped}")
-    print(f"  Failed: {failed}")
-    print("=" * 80)
+    if use_color:
+        # Epic finale
+        print()
+        ANSIAnimations.display_animated_rainbow(
+            "🎉 COMMAND SYNC COMPLETE! ALL COMMANDS ARE NOW IN SYNC! 🎉",
+            duration=2.0,
+            speed=3.0
+        )
+        print()
+
+        # Summary stats
+        summary_lines = [
+            f"📊 {colorize('Total commands:', TextColor.BRIGHT_CYAN)} {colorize(str(len(all_commands)), TextColor.BRIGHT_WHITE, TextStyle.BOLD)}",
+            f"✨ {colorize('Created:', TextColor.BRIGHT_GREEN)} {colorize(str(created), TextColor.BRIGHT_WHITE, TextStyle.BOLD)}",
+            f"📝 {colorize('Updated:', TextColor.BRIGHT_YELLOW)} {colorize(str(updated), TextColor.BRIGHT_WHITE, TextStyle.BOLD)}",
+            f"⏭️  {colorize('Skipped:', TextColor.BRIGHT_BLUE)} {colorize(str(skipped), TextColor.BRIGHT_WHITE, TextStyle.BOLD)}",
+            f"❌ {colorize('Failed:', TextColor.BRIGHT_RED)} {colorize(str(failed), TextColor.BRIGHT_WHITE, TextStyle.BOLD)}"
+        ]
+
+        box = ANSIAnimations.animated_box(
+            ANSIAnimations.white_sheen_text("SYNC RESULTS", TextColor.BRIGHT_GREEN),
+            summary_lines,
+            TextColor.BRIGHT_GREEN
+        )
+        print(box)
+        print()
+
+        # Fun completion message
+        if failed == 0:
+            success_msg = colorize("🚀 All systems go! Your CLI commands are locked and loaded!", TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+            print(success_msg)
+        else:
+            warning_msg = colorize(f"⚠️  Sync completed with {failed} failure(s). Check the logs above!", TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+            print(warning_msg)
+        print()
+    else:
+        print("=" * 80)
+        print("Summary:")
+        print(f"  Total commands: {len(all_commands)}")
+        print(f"  Created: {created}")
+        print(f"  Updated: {updated}")
+        print(f"  Skipped: {skipped}")
+        print(f"  Failed: {failed}")
+        print("=" * 80)
 
 
 def register_command(subparsers):
