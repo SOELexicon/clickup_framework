@@ -76,14 +76,14 @@ class AttachmentsAPI(BaseAPI):
             # Restore Content-Type header
             self.client.session.headers.update(original_headers)
 
-    def link_attachments_to_comment(self, task_id: str, comment_id: str, attachment_ids: list, file_paths: list = None) -> Dict[str, Any]:
+    def link_attachments_to_comment(self, task_id: str, comment_id: str, attachment_metadata: list = None, file_paths: list = None) -> Dict[str, Any]:
         """
         Link attachments to a comment (required for inline image preview rendering).
 
         Args:
             task_id: Task ID that the comment belongs to
             comment_id: Comment ID to link attachments to
-            attachment_ids: List of attachment IDs from the upload endpoint
+            attachment_metadata: List of full attachment JSON objects from upload endpoint
             file_paths: Not used - kept for API compatibility
 
         Returns:
@@ -91,29 +91,36 @@ class AttachmentsAPI(BaseAPI):
 
         Note:
             Uses POST /task/{task_id}/attachment with multipart/form-data.
-            Body parameter is 'attachment' (array) per API docs.
+            Sends the complete attachment JSON objects, not just IDs.
         """
+        if not attachment_metadata:
+            return {"success": True, "note": "No attachments to link"}
+
         # Temporarily remove Content-Type header for multipart/form-data
         original_headers = self.client.session.headers.copy()
         self.client.session.headers.pop('Content-Type', None)
 
         try:
+            import json
             url = f"{self.client.BASE_URL}/task/{task_id}/attachment"
             self.client.rate_limiter.acquire()
 
-            # Build multipart/form-data per API docs: attachment[] array notation
-            # Doc: "Attach files using the attachment[] array (e.g., attachment[0], attachment[1])"
-            files = [
-                ('parent_id', (None, str(comment_id))),
-                ('type', (None, '2')),
-            ]
+            # Try sending attachment metadata as separate multipart fields
+            # Use data for parent_id/type, files for attachment JSON
+            data = {
+                'parent_id': str(comment_id),
+                'type': '2'
+            }
 
-            # Add each attachment ID with indexed notation per API docs
-            for idx, att_id in enumerate(attachment_ids):
-                files.append((f'attachment[{idx}]', (None, att_id)))
+            files = []
+            # Add each attachment object as a JSON content-type field
+            for idx, att_data in enumerate(attachment_metadata):
+                att_json = json.dumps(att_data)
+                files.append((f'attachment[{idx}]', (None, att_json, 'application/json')))
 
             response = self.client.session.post(
                 url,
+                data=data,
                 files=files,
                 timeout=self.client.timeout
             )

@@ -156,13 +156,22 @@ def comment_add_command(args):
 
             # CRITICAL: Link attachments to comment (3rd API call - required for preview)
             # POST /task/{task_id}/attachment with parent_id=comment_id, type=2
-            if attachment_ids and comment.get('id'):
+            # Send complete attachment JSON objects, not just IDs
+            if image_metadata and comment.get('id'):
                 try:
                     from clickup_framework.resources import AttachmentsAPI
                     attachments_api = AttachmentsAPI(client)
-                    attachments_api.link_attachments_to_comment(task_id, comment['id'], attachment_ids)
+
+                    # Extract full attachment metadata objects from image_metadata dict
+                    attachment_objs = list(image_metadata.values())
+
+                    attachments_api.link_attachments_to_comment(
+                        task_id,
+                        comment['id'],
+                        attachment_metadata=attachment_objs
+                    )
                     if getattr(args, 'debug', False):
-                        print(f"✓ Linked {len(attachment_ids)} attachment(s) to comment {comment['id']}")
+                        print(f"✓ Linked {len(attachment_objs)} attachment(s) to comment {comment['id']}")
                 except Exception as e:
                     # Don't fail the whole operation if linking fails
                     if getattr(args, 'debug', False):

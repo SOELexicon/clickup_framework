@@ -51,15 +51,15 @@ class AttachmentsAPI:
         """
         return self.client.create_task_attachment(task_id, file_path, **params)
 
-    def link_attachments_to_comment(self, task_id: str, comment_id: str, attachment_ids: list, file_paths: list = None) -> Dict[str, Any]:
+    def link_attachments_to_comment(self, task_id: str, comment_id: str, attachment_metadata: list = None, file_paths: list = None) -> Dict[str, Any]:
         """
         Link attachments to a comment (required for inline image preview rendering).
 
         Args:
             task_id: Task ID that the comment belongs to
             comment_id: Comment ID to link attachments to
-            attachment_ids: List of attachment IDs to link
-            file_paths: Optional list of file paths to re-upload with parent_id
+            attachment_metadata: List of full attachment JSON objects from upload endpoint
+            file_paths: Not used - kept for API compatibility
 
         Returns:
             Response from API
@@ -67,15 +67,20 @@ class AttachmentsAPI:
         Note:
             This is required for inline images to render previews in comments.
             Uses POST /task/{task_id}/attachment endpoint.
-            Requires re-uploading files with parent_id and type parameters.
+            Sends the complete attachment JSON objects.
 
         Example:
             # After creating comment with inline images
+            # attachment_metadata is from image_metadata dict values
             attachments.link_attachments_to_comment(
                 task_id="86c6j1vr6",
                 comment_id="90150171709926",
-                attachment_ids=["6522259a-2b14-4d52-9582-0be9371be82f.png"],
-                file_paths=["/path/to/image.png"]
+                attachment_metadata=[{
+                    "id": "abc123.png",
+                    "version": "0",
+                    "name": "image.png",
+                    ...  # full attachment object
+                }]
             )
         """
-        return self.client.attachments.link_attachments_to_comment(task_id, comment_id, attachment_ids, file_paths=file_paths)
+        return self.client.attachments.link_attachments_to_comment(task_id, comment_id, attachment_metadata=attachment_metadata, file_paths=file_paths)
