@@ -335,7 +335,6 @@ def checklist_item_add_command(args):
 
         # API now returns the item directly (unwrapped by client)
         item_id = result.get('id', 'Unknown') if isinstance(result, dict) else 'Unknown'
-        print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
 
         # Auto-map the new item if task_id is known
         if task_id and item_id and item_id != 'Unknown':
@@ -343,11 +342,22 @@ def checklist_item_add_command(args):
             mapping_manager.set_item_mapping(task_id, checklist_id, next_index, item_id)
             print(f"Item Index: {colorize(f'[{next_index}]', TextColor.BRIGHT_CYAN)}")
 
+            # Show helpful usage text
+            checklist_index = mapping_manager.get_checklist_index(task_id, checklist_id) or '?'
+            print(f"\n{colorize('💡 Tip:', TextColor.BRIGHT_YELLOW)} Use the index to reference this item:")
+            print(f"  cum chk item-update --task {task_id} {checklist_index} {next_index} --resolved true")
+        else:
+            # No task_id, show GUID and explain
+            print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
+            print(f"\n{colorize('💡 Tip:', TextColor.BRIGHT_YELLOW)} To use indices instead of IDs, provide --task parameter:")
+            print(f"  cum chk item-add --task <task_id> <checklist_index> \"Item name\"")
+
         if assignee:
             print(f"Assigned to: {assignee}")
 
         if args.verbose:
             print(f"\nChecklist ID: {checklist_id}")
+            print(f"Item ID: {item_id}")
             if task_id:
                 print(f"Task ID: {task_id}")
 
