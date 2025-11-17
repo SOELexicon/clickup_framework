@@ -477,7 +477,7 @@ class MarkdownFormatter(BaseParser):
             "attributes": {
                 "width": width,
                 "data-id": attachment_id,
-                "data-attachment": json.dumps(data_attachment),
+                "data-attachment": json.dumps(data_attachment, separators=(',', ':')),
                 "data-natural-width": natural_width,
                 "data-natural-height": natural_height
             }
