@@ -322,10 +322,11 @@ class TaskHierarchyFormatter:
         show_comments: int
     ) -> None:
         """
-        Enrich tasks with comments by fetching them from the API.
+        Enrich tasks with comments by fetching them from the API, including threaded replies.
 
         This method recursively fetches comments for all tasks and their children,
-        updating each task dict in-place with a 'comments' field.
+        updating each task dict in-place with a 'comments' field. For each comment,
+        it also fetches threaded replies if the comment has replies.
 
         Args:
             tasks: List of tasks to enrich (modified in-place)
@@ -333,6 +334,9 @@ class TaskHierarchyFormatter:
         """
         if not self.client or show_comments <= 0:
             return
+
+        from clickup_framework.resources import CommentsAPI
+        comments_api = CommentsAPI(self.client)
 
         for task in tasks:
             task_id = task.get('id')
@@ -342,6 +346,20 @@ class TaskHierarchyFormatter:
                     comments_response = self.client.get_task_comments(task_id)
                     # The API returns {"comments": [...]}
                     comments = comments_response.get('comments', [])
+
+                    # Fetch threaded replies for each comment
+                    for comment in comments:
+                        comment['_replies'] = []
+                        reply_count = comment.get('reply_count', 0)
+                        if reply_count and int(reply_count) > 0:
+                            try:
+                                replies_result = comments_api.get_threaded_comments(comment['id'])
+                                replies = replies_result.get('comments', [])
+                                comment['_replies'] = replies
+                            except Exception:
+                                # If fetching replies fails, just skip them
+                                pass
+
                     task['comments'] = comments
                 except Exception as e:
                     # Log error but continue with other tasks
