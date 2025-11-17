@@ -92,9 +92,22 @@ def comment_add_command(args):
         if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
             # Use rich text JSON format for markdown
             comment_data = processor.markdown_formatter.to_json_format(comment_text)
+
+            # Show debug output if requested
+            if getattr(args, 'debug', False):
+                import json
+                print("\n" + colorize("Generated JSON:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+                print("=" * 60)
+                print(json.dumps(comment_data, indent=2))
+                print("=" * 60 + "\n")
+
             comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
         else:
             # Plain text
+            if getattr(args, 'debug', False):
+                print("\n" + colorize("Plain Text Mode:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+                print(f"comment_text: {repr(comment_text)}\n")
+
             comment = comments_api.create_task_comment(task_id, comment_text=comment_text)
 
         # Show success message
@@ -324,6 +337,8 @@ def register_command(subparsers):
     comment_add_parser.add_argument('--upload-images', action='store_true',
                                     help='Upload images to ClickUp')
     comment_add_parser.add_argument('--image-cache', help='Directory for image cache')
+    comment_add_parser.add_argument('--debug', action='store_true',
+                                    help='Show generated JSON before sending')
     comment_add_parser.set_defaults(func=comment_add_command)
 
     # Comment list
