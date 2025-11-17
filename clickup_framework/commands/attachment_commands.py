@@ -1,87 +1,92 @@
 """Attachment management commands for ClickUp Framework CLI."""
 
-import sys
 import os
-from pathlib import Path
-from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources import AttachmentsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
 
-def attachment_create_command(args):
-    """Upload a file attachment to a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    attachments_api = AttachmentsAPI(client)
+class AttachmentCreateCommand(BaseCommand):
+    """
+    Attachment Create Command using BaseCommand.
+    """
 
-    # Resolve "current" to actual task ID
-    try:
-        task_id = context.resolve_id('task', args.task_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    def execute(self):
+        """Upload a file attachment to a task."""
+        attachments_api = AttachmentsAPI(self.client)
 
-    file_path = args.file_path
+        # Resolve "current" to actual task ID
+        task_id = self.resolve_id(self.args.task_id)
 
-    # Validate file exists
-    if not os.path.exists(file_path):
-        print(f"Error: File not found: {file_path}", file=sys.stderr)
-        sys.exit(1)
+        file_path = self.args.file_path
 
-    # Check if it's a file (not a directory)
-    if not os.path.isfile(file_path):
-        print(f"Error: Not a file: {file_path}", file=sys.stderr)
-        sys.exit(1)
+        # Validate file exists
+        if not os.path.exists(file_path):
+            self.error(f"File not found: {file_path}")
 
-    # Get file info
-    file_size = os.path.getsize(file_path)
-    file_name = os.path.basename(file_path)
-    use_color = context.get_ansi_output()
+        # Check if it's a file (not a directory)
+        if not os.path.isfile(file_path):
+            self.error(f"Not a file: {file_path}")
 
-    # Display upload info
-    if use_color:
-        print(f"📎 Uploading: {colorize(file_name, TextColor.BRIGHT_CYAN, TextStyle.BOLD)} "
-              f"({colorize(f'{file_size:,}', TextColor.BRIGHT_YELLOW)} bytes)")
-    else:
-        print(f"Uploading: {file_name} ({file_size:,} bytes)")
+        # Get file info
+        file_size = os.path.getsize(file_path)
+        file_name = os.path.basename(file_path)
+        use_color = self.context.get_ansi_output()
 
-    # Upload with error handling
-    try:
-        result = attachments_api.create(task_id, file_path)
-
-        # Show success message
-        success_msg = ANSIAnimations.success_message("Attachment uploaded successfully")
-        print(success_msg)
-
-        # Display attachment details
+        # Display upload info
         if use_color:
-            print(f"\n📄 File: {colorize(result.get('title', file_name), TextColor.BRIGHT_CYAN)}")
-            print(f"🆔 ID: {colorize(result.get('id', 'N/A'), TextColor.BRIGHT_GREEN)}")
-            if result.get('url'):
-                print(f"🔗 URL: {colorize(result['url'], TextColor.BRIGHT_BLUE)}")
+            self.print(f"📎 Uploading: {colorize(file_name, TextColor.BRIGHT_CYAN, TextStyle.BOLD)} "
+                      f"({colorize(f'{file_size:,}', TextColor.BRIGHT_YELLOW)} bytes)")
         else:
-            print(f"\nFile: {result.get('title', file_name)}")
-            print(f"ID: {result.get('id', 'N/A')}")
-            if result.get('url'):
-                print(f"URL: {result['url']}")
+            self.print(f"Uploading: {file_name} ({file_size:,} bytes)")
 
-        # Show helpful tip
-        from clickup_framework.components.tips import show_tip
-        show_tips_enabled = getattr(args, 'show_tips', True)
-        show_tip('attachment', use_color=use_color, enabled=show_tips_enabled)
+        # Upload with error handling
+        try:
+            result = attachments_api.create(task_id, file_path)
 
-    except Exception as e:
-        error_msg = str(e)
-        if "404" in error_msg:
-            print(f"Error: Task not found: {task_id}", file=sys.stderr)
-        elif "403" in error_msg or "401" in error_msg:
-            print(f"Error: Permission denied. Check your API token and task access.", file=sys.stderr)
-        elif "413" in error_msg:
-            print(f"Error: File too large. Maximum file size may be exceeded.", file=sys.stderr)
-        else:
-            print(f"Error uploading attachment: {error_msg}", file=sys.stderr)
-        sys.exit(1)
+            # Show success message
+            success_msg = ANSIAnimations.success_message("Attachment uploaded successfully")
+            self.print(success_msg)
+
+            # Display attachment details
+            if use_color:
+                self.print(f"\n📄 File: {colorize(result.get('title', file_name), TextColor.BRIGHT_CYAN)}")
+                self.print(f"🆔 ID: {colorize(result.get('id', 'N/A'), TextColor.BRIGHT_GREEN)}")
+                if result.get('url'):
+                    self.print(f"🔗 URL: {colorize(result['url'], TextColor.BRIGHT_BLUE)}")
+            else:
+                self.print(f"\nFile: {result.get('title', file_name)}")
+                self.print(f"ID: {result.get('id', 'N/A')}")
+                if result.get('url'):
+                    self.print(f"URL: {result['url']}")
+
+            # Show helpful tip
+            from clickup_framework.components.tips import show_tip
+            show_tips_enabled = getattr(self.args, 'show_tips', True)
+            show_tip('attachment', use_color=use_color, enabled=show_tips_enabled)
+
+        except Exception as e:
+            error_msg = str(e)
+            if "404" in error_msg:
+                self.error(f"Task not found: {task_id}")
+            elif "403" in error_msg or "401" in error_msg:
+                self.error("Permission denied. Check your API token and task access.")
+            elif "413" in error_msg:
+                self.error("File too large. Maximum file size may be exceeded.")
+            else:
+                self.error(f"Error uploading attachment: {error_msg}")
+
+
+def attachment_create_command(args):
+    """
+    Command function wrapper for backward compatibility.
+
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = AttachmentCreateCommand(args, command_name='attach')
+    command.execute()
 
 
 def register_command(subparsers):
