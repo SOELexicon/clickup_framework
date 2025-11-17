@@ -7,7 +7,12 @@ python-dotenv>=1.0.0
 argcomplete>=3.0.0
 mcp>=1.0.0
 PyYAML>=6.0.0
+Pillow>=10.0.0
 setuptools_scm[toml]>=6.2
+
+# Optional npm dependencies (install separately):
+# - @mermaid-js/mermaid-cli (mmdc) - For mermaid diagram generation
+#   Install: npm install -g @mermaid-js/mermaid-cli
 
 # Development/Testing dependencies
 pytest>=7.4.0
