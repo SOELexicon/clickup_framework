@@ -286,6 +286,11 @@ def show_package_progress(current_package: str, duration: float = 1.5, use_color
     print(f"\r    [{colored_filled}] 100%  {final_liner}")
     print()  # Final newline
 
+    # Clear the progress lines (move up 2 lines and clear them)
+    # Line 1: the package name, Line 2: the progress bar
+    print('\033[A\033[2K', end='', flush=True)  # Clear progress bar line
+    print('\033[A\033[2K', end='', flush=True)  # Clear package name line
+
 
 def update_instance(script_path, python_path, use_color, fresh_load=False):
     """Update a single cum instance."""
