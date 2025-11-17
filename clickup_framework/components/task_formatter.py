@@ -406,8 +406,10 @@ class RichTaskFormatter:
                     date_str = colorize(date_str, TextColor.CYAN)
                 additional_lines.append(date_str)
 
-        # Comments - Show newest first
+        # Comments - Show newest first with threaded replies in treeview
         if options.show_comments > 0 and task.get("comments"):
+            from clickup_framework.components.tree import TreeFormatter
+
             all_comments = task["comments"]
             # Sort by date descending (newest first)
             sorted_comments = sorted(
@@ -423,12 +425,43 @@ class RichTaskFormatter:
                     comment_str = colorize(comment_str, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
                 additional_lines.append(comment_str)
 
-                for comment in comments:
+                # Format comments in treeview with threaded replies
+                def format_comment_node(comment):
+                    """Format a comment for tree display."""
                     user = comment.get("user", {}).get("username", "Unknown")
                     text = comment.get("comment_text", "")
+                    reply_count = comment.get('reply_count', 0)
+
+                    # Truncate text for display
                     if len(text) > 50:
                         text = truncate(text, 50)
-                    additional_lines.append(f"  {user}: {text}")
+
+                    # Format with reply count if present
+                    if reply_count and int(reply_count) > 0:
+                        if options.colorize_output:
+                            return f"{colorize(user, TextColor.BLUE, TextStyle.BOLD)}: {text} {colorize(f'({reply_count} replies)', TextColor.BRIGHT_BLACK)}"
+                        else:
+                            return f"{user}: {text} ({reply_count} replies)"
+                    else:
+                        if options.colorize_output:
+                            return f"{colorize(user, TextColor.BLUE)}: {text}"
+                        else:
+                            return f"{user}: {text}"
+
+                def get_comment_children(comment):
+                    """Get replies for a comment."""
+                    return comment.get('_replies', [])
+
+                # Display each comment with its replies in treeview
+                for comment in comments:
+                    tree_lines = TreeFormatter.build_tree(
+                        [comment],
+                        format_comment_node,
+                        get_comment_children,
+                        prefix="  ",
+                        is_last=True
+                    )
+                    additional_lines.extend(tree_lines)
 
         # Relationships
         if options.show_relationships:

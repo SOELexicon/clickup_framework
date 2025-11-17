@@ -210,6 +210,11 @@ class TaskDetailFormatter:
         if comments:
             sections.append(comments)
 
+        # Subtasks section (at bottom)
+        subtasks = self._format_subtasks(task, all_tasks, options)
+        if subtasks:
+            sections.append(subtasks)
+
         # Time tracking section
         time_tracking = self._format_time_tracking(task, options)
         if time_tracking:
@@ -1157,6 +1162,89 @@ class TaskDetailFormatter:
                 is_last=True
             )
             lines.extend(tree_lines)
+
+        return "\n".join(lines)
+
+    def _format_subtasks(self, task: Dict[str, Any], all_tasks: List[Dict[str, Any]], options: FormatOptions) -> str:
+        """Format subtasks in treeview with comment and attachment counts."""
+        from clickup_framework.components.tree import TreeFormatter
+
+        # Get subtasks from all_tasks if available
+        if not all_tasks:
+            return ""
+
+        task_id = task.get('id')
+        if not task_id:
+            return ""
+
+        # Find all subtasks (tasks where parent is this task)
+        subtasks = [t for t in all_tasks if t.get('parent') == task_id]
+
+        if not subtasks:
+            return ""
+
+        lines = []
+        header = f"📋 Subtasks ({len(subtasks)}):"
+        if options.colorize_output:
+            header = colorize(header, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+        lines.append(header)
+
+        # Format subtasks using TreeFormatter
+        def format_subtask_node(subtask):
+            """Format a subtask for tree display."""
+            name = subtask.get('name', 'Unnamed Task')
+            status = subtask.get('status', {})
+            status_name = status.get('status', 'Unknown') if isinstance(status, dict) else 'Unknown'
+
+            # Get counts
+            comment_count = len(subtask.get('comments', []))
+            attachment_count = len(subtask.get('attachments', []))
+
+            # Build display string
+            parts = []
+            if options.colorize_output:
+                parts.append(colorize(name, TextColor.CYAN))
+                parts.append(colorize(f"[{status_name}]", TextColor.BRIGHT_BLACK))
+            else:
+                parts.append(name)
+                parts.append(f"[{status_name}]")
+
+            # Add counts if present
+            counts = []
+            if comment_count > 0:
+                count_str = f"💬 {comment_count}"
+                if options.colorize_output:
+                    count_str = colorize(count_str, TextColor.BLUE)
+                counts.append(count_str)
+
+            if attachment_count > 0:
+                count_str = f"📎 {attachment_count}"
+                if options.colorize_output:
+                    count_str = colorize(count_str, TextColor.GREEN)
+                counts.append(count_str)
+
+            if counts:
+                parts.append("(" + " ".join(counts) + ")")
+
+            return " ".join(parts)
+
+        def get_subtask_children(subtask):
+            """Get child subtasks."""
+            subtask_id = subtask.get('id')
+            if not subtask_id:
+                return []
+            return [t for t in all_tasks if t.get('parent') == subtask_id]
+
+        # Display using TreeFormatter
+        lines.append("")
+        tree_lines = TreeFormatter.build_tree(
+            subtasks,
+            format_subtask_node,
+            get_subtask_children,
+            prefix="  ",
+            is_last=True
+        )
+        lines.extend(tree_lines)
 
         return "\n".join(lines)
 
