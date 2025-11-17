@@ -1,151 +1,156 @@
 """Folder management commands for ClickUp Framework CLI."""
 
-import sys
-from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources.workspaces import WorkspacesAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
 
 
-def folder_create_command(args):
+class FolderCreateCommand(BaseCommand):
     """Create a new folder in a space."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    workspaces_api = WorkspacesAPI(client)
 
-    # Resolve space ID
-    try:
-        space_id = context.resolve_id('space', args.space_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    def execute(self):
+        """Execute the folder create command."""
+        workspaces_api = WorkspacesAPI(self.client)
 
-    # Create the folder
-    try:
-        new_folder = workspaces_api.create_folder(space_id, args.name)
+        # Resolve space ID
+        space_id = self.resolve_id(self.args.space_id)
 
-        success_msg = ANSIAnimations.success_message(f"Folder created: {args.name}")
-        print(f"\n{success_msg}")
-        print(f"Folder ID: {colorize(new_folder['id'], TextColor.BRIGHT_GREEN)}")
+        # Create the folder
+        try:
+            new_folder = workspaces_api.create_folder(space_id, self.args.name)
 
-        if args.verbose:
-            print(f"Space ID: {space_id}")
+            success_msg = ANSIAnimations.success_message(f"Folder created: {self.args.name}")
+            self.print(f"\n{success_msg}")
+            self.print(f"Folder ID: {colorize(new_folder['id'], TextColor.BRIGHT_GREEN)}")
 
-    except ClickUpAPIError as e:
-        print(f"Error creating folder: {e}", file=sys.stderr)
-        sys.exit(1)
+            if self.args.verbose:
+                self.print(f"Space ID: {space_id}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error creating folder: {e}")
+
+
+class FolderUpdateCommand(BaseCommand):
+    """Update a folder."""
+
+    def execute(self):
+        """Execute the folder update command."""
+        workspaces_api = WorkspacesAPI(self.client)
+
+        # Resolve folder ID
+        folder_id = self.resolve_id(self.args.folder_id)
+
+        # Build updates
+        updates = {}
+        if self.args.name:
+            updates['name'] = self.args.name
+
+        if not updates:
+            self.error("No updates specified. Use --name")
+
+        # Update the folder
+        try:
+            workspaces_api.update_folder(folder_id, **updates)
+            success_msg = ANSIAnimations.success_message("Folder updated successfully")
+            self.print(f"\n{success_msg}")
+
+            if self.args.verbose:
+                self.print(f"\nFolder ID: {folder_id}")
+                self.print("Updates applied:")
+                for key, value in updates.items():
+                    self.print(f"  {key}: {value}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error updating folder: {e}")
+
+
+class FolderDeleteCommand(BaseCommand):
+    """Delete a folder."""
+
+    def execute(self):
+        """Execute the folder delete command."""
+        # Resolve folder ID
+        folder_id = self.resolve_id(self.args.folder_id)
+
+        # Show warning
+        self.print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the folder and all its lists and tasks.")
+
+        if not self.args.force:
+            response = input("Are you sure? [y/N]: ")
+            if response.lower() not in ['y', 'yes']:
+                self.print("Cancelled.")
+                return
+
+        # Delete the folder
+        try:
+            self.client.delete_folder(folder_id)
+            success_msg = ANSIAnimations.success_message("Folder deleted successfully")
+            self.print(f"\n{success_msg}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error deleting folder: {e}")
+
+
+class FolderGetCommand(BaseCommand):
+    """Get folder details."""
+
+    def execute(self):
+        """Execute the folder get command."""
+        # Resolve folder ID
+        folder_id = self.resolve_id(self.args.folder_id)
+
+        # Get the folder
+        try:
+            folder_data = self.client.get_folder(folder_id)
+
+            # Display folder details
+            self.print(f"\n{colorize(folder_data.get('name', 'Unnamed Folder'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+            self.print(f"ID: {colorize(folder_data['id'], TextColor.BRIGHT_GREEN)}")
+
+            if folder_data.get('space'):
+                self.print(f"Space: {folder_data['space'].get('name', 'N/A')} ({folder_data['space']['id']})")
+
+            # Show lists in folder
+            if folder_data.get('lists'):
+                list_count = len(folder_data['lists'])
+                self.print(f"\n{colorize(f'Lists ({list_count}):', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                for lst in folder_data['lists']:
+                    self.print(f"  • {lst.get('name', 'Unnamed')} ({lst['id']})")
+
+            if self.args.verbose:
+                self.print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                import json
+                self.print(json.dumps(folder_data, indent=2))
+
+        except ClickUpAPIError as e:
+            self.error(f"Error getting folder: {e}")
+
+
+# Backward compatibility wrappers
+def folder_create_command(args):
+    """Command wrapper for folder create."""
+    command = FolderCreateCommand(args, command_name='folder')
+    command.execute()
 
 
 def folder_update_command(args):
-    """Update a folder."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    workspaces_api = WorkspacesAPI(client)
-
-    # Resolve folder ID
-    try:
-        folder_id = context.resolve_id('folder', args.folder_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Build updates
-    updates = {}
-    if args.name:
-        updates['name'] = args.name
-
-    if not updates:
-        print("Error: No updates specified. Use --name", file=sys.stderr)
-        sys.exit(1)
-
-    # Update the folder
-    try:
-        workspaces_api.update_folder(folder_id, **updates)
-        success_msg = ANSIAnimations.success_message("Folder updated successfully")
-        print(f"\n{success_msg}")
-
-        if args.verbose:
-            print(f"\nFolder ID: {folder_id}")
-            print("Updates applied:")
-            for key, value in updates.items():
-                print(f"  {key}: {value}")
-
-    except ClickUpAPIError as e:
-        print(f"Error updating folder: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for folder update."""
+    command = FolderUpdateCommand(args, command_name='folder')
+    command.execute()
 
 
 def folder_delete_command(args):
-    """Delete a folder."""
-    context = get_context_manager()
-    client = ClickUpClient()
-
-    # Resolve folder ID
-    try:
-        folder_id = context.resolve_id('folder', args.folder_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Show warning
-    print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the folder and all its lists and tasks.")
-
-    if not args.force:
-        response = input("Are you sure? [y/N]: ")
-        if response.lower() not in ['y', 'yes']:
-            print("Cancelled.")
-            return
-
-    # Delete the folder
-    try:
-        client.delete_folder(folder_id)
-        success_msg = ANSIAnimations.success_message("Folder deleted successfully")
-        print(f"\n{success_msg}")
-
-    except ClickUpAPIError as e:
-        print(f"Error deleting folder: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for folder delete."""
+    command = FolderDeleteCommand(args, command_name='folder')
+    command.execute()
 
 
 def folder_get_command(args):
-    """Get folder details."""
-    context = get_context_manager()
-    client = ClickUpClient()
-
-    # Resolve folder ID
-    try:
-        folder_id = context.resolve_id('folder', args.folder_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Get the folder
-    try:
-        folder_data = client.get_folder(folder_id)
-
-        # Display folder details
-        print(f"\n{colorize(folder_data.get('name', 'Unnamed Folder'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-        print(f"ID: {colorize(folder_data['id'], TextColor.BRIGHT_GREEN)}")
-
-        if folder_data.get('space'):
-            print(f"Space: {folder_data['space'].get('name', 'N/A')} ({folder_data['space']['id']})")
-
-        # Show lists in folder
-        if folder_data.get('lists'):
-            list_count = len(folder_data['lists'])
-            print(f"\n{colorize(f'Lists ({list_count}):', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-            for lst in folder_data['lists']:
-                print(f"  • {lst.get('name', 'Unnamed')} ({lst['id']})")
-
-        if args.verbose:
-            print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-            import json
-            print(json.dumps(folder_data, indent=2))
-
-    except ClickUpAPIError as e:
-        print(f"Error getting folder: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for folder get."""
+    command = FolderGetCommand(args, command_name='folder')
+    command.execute()
 
 
 def register_command(subparsers):
