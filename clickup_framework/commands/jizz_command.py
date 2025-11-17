@@ -65,7 +65,8 @@ def get_latest_tag() -> Optional[str]:
     result = subprocess.run(
         ['git', 'tag', '-l', '--sort=-v:refname'],
         capture_output=True,
-        text=True
+        text=True,
+        encoding='utf-8'
     )
 
     if result.returncode != 0 or not result.stdout.strip():
@@ -83,7 +84,7 @@ def get_latest_tag() -> Optional[str]:
 
 def run_command(cmd: list, description: str, use_color: bool = True) -> bool:
     """Run a command and return success status."""
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
 
     if result.returncode == 0:
         if result.stdout:
@@ -211,7 +212,7 @@ def jizz_command(args):
         else:
             print("  [DRY RUN] Would execute: git stash")
     else:
-        result = subprocess.run(['git', 'stash'], capture_output=True, text=True)
+        result = subprocess.run(['git', 'stash'], capture_output=True, text=True, encoding='utf-8')
         if result.returncode == 0:
             if use_color:
                 print(ANSIAnimations.success_message("Stash complete! All tucked away safely."))
@@ -307,7 +308,8 @@ def jizz_command(args):
         result = subprocess.run(
             ['git', 'tag', '-a', tag_name, '-m', f'Release {new_version} 💦'],
             capture_output=True,
-            text=True
+            text=True,
+            encoding='utf-8'
         )
 
         if result.returncode != 0:
@@ -376,7 +378,7 @@ def jizz_command(args):
             # Funny looping animation while updating
             def run_update():
                 # Capture output to prevent interleaving with animation
-                return subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True)
+                return subprocess.run(['cum', 'update', 'cum'], capture_output=True, text=True, encoding='utf-8', errors='replace')
 
             result = ANSIAnimations.run_with_looping_animation(
                 run_update,
