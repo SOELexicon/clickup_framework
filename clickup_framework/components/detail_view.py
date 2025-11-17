@@ -8,7 +8,7 @@ showing the task in context of its parent, children, and dependencies in a tree 
 from typing import Dict, Any, Optional, List
 from clickup_framework.utils.colors import (
     colorize, status_color, priority_color, TextColor, TextStyle,
-    get_task_emoji, TASK_TYPE_EMOJI, USE_COLORS
+    get_task_emoji, get_status_icon, TASK_TYPE_EMOJI, USE_COLORS
 )
 from clickup_framework.utils.text import strip_markdown, unescape_content
 from clickup_framework.utils.markdown_renderer import render_markdown
@@ -99,8 +99,8 @@ class TaskDetailFormatter:
         # Metadata
         sections.append(self._format_metadata(task, options))
 
-        # Description
-        description = self._format_description(task, options)
+        # Description - limit main task to 2 lines for comprehensive detail view
+        description = self._format_description(task, options, max_lines=2)
         if description:
             sections.append(description)
 
@@ -199,6 +199,11 @@ class TaskDetailFormatter:
         attachments = self._format_attachments(task, options)
         if attachments:
             sections.append(attachments)
+
+        # Linked tasks section
+        linked_tasks = self._format_linked_tasks(task, options)
+        if linked_tasks:
+            sections.append(linked_tasks)
 
         # Documents section
         documents = self._format_documents(task, options)
@@ -431,8 +436,18 @@ class TaskDetailFormatter:
 
         return "\n".join(lines) if lines else ""
 
-    def _format_description(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format full task description with markdown rendering."""
+    def _format_description(self, task: Dict[str, Any], options: FormatOptions, max_lines: Optional[int] = None) -> str:
+        """
+        Format task description with markdown rendering.
+
+        Args:
+            task: Task dictionary
+            options: Format options
+            max_lines: Maximum number of lines to display (None = all lines)
+
+        Returns:
+            Formatted description string
+        """
         description = task.get('description') or ''
         description = description.strip()
         if not description:
@@ -456,8 +471,16 @@ class TaskDetailFormatter:
         else:
             rendered = strip_markdown(description)
 
+        # Split into lines and apply max_lines limit if specified
+        desc_lines = rendered.split('\n')
+        if max_lines is not None and len(desc_lines) > max_lines:
+            desc_lines = desc_lines[:max_lines]
+            # Add ellipsis to indicate truncation
+            if desc_lines:
+                desc_lines.append("  ...")
+
         # Add indentation for readability
-        for line in rendered.split('\n'):
+        for line in desc_lines:
             lines.append(f"  {line}")
 
         return "\n".join(lines)
@@ -742,6 +765,233 @@ class TaskDetailFormatter:
         # Reverse to get top-down order
         return list(reversed(chain))
 
+    def _get_smart_indicators(self, task: Dict[str, Any], options: FormatOptions) -> List[str]:
+        """
+        Get smart indicators for a task (dependencies, blockers, linked tasks, assignees, due dates, time tracking).
+
+        Args:
+            task: Task dictionary
+            options: Format options
+
+        Returns:
+            List of indicator strings
+        """
+        indicators = []
+
+        # Dependencies and blockers
+        dependencies = task.get('dependencies', [])
+        if dependencies:
+            waiting_on = []
+            blocking = []
+
+            for dep in dependencies:
+                if isinstance(dep, dict):
+                    dep_type = dep.get('type', 'waiting_on')
+                    if dep_type == 'waiting_on':
+                        waiting_on.append(dep.get('task_id'))
+                    elif dep_type == 'blocking':
+                        blocking.append(dep.get('task_id'))
+
+            if waiting_on:
+                count = len(waiting_on)
+                if options.colorize_output:
+                    indicators.append(colorize(f"⏳{count}", TextColor.YELLOW))
+                else:
+                    indicators.append(f"D:{count}")
+
+            if blocking:
+                count = len(blocking)
+                if options.colorize_output:
+                    indicators.append(colorize(f"🚫{count}", TextColor.RED))
+                else:
+                    indicators.append(f"B:{count}")
+
+        # Linked tasks
+        linked_tasks = task.get('linked_tasks', [])
+        if linked_tasks:
+            count = len(linked_tasks)
+            if options.colorize_output:
+                indicators.append(colorize(f"🔗{count}", TextColor.CYAN))
+            else:
+                indicators.append(f"L:{count}")
+
+        # Assignees
+        assignees = task.get('assignees', [])
+        if assignees:
+            if options.colorize_output:
+                if len(assignees) == 1:
+                    assignee = assignees[0]
+                    username = assignee.get('username', '')
+                    initials = ''.join([c[0].upper() for c in username.split('_')[:2]]) if username else '?'
+                    indicators.append(colorize(f"👤{initials}", TextColor.BLUE))
+                else:
+                    indicators.append(colorize(f"👥{len(assignees)}", TextColor.BLUE))
+            else:
+                indicators.append(f"A:{len(assignees)}")
+
+        # Due date warnings
+        due_date = task.get('due_date')
+        if due_date:
+            from datetime import datetime, timezone
+            try:
+                if isinstance(due_date, str):
+                    due_timestamp = int(due_date) / 1000
+                else:
+                    due_timestamp = due_date / 1000
+
+                due_dt = datetime.fromtimestamp(due_timestamp, tz=timezone.utc)
+                now = datetime.now(timezone.utc)
+                days_until_due = (due_dt - now).days
+
+                if days_until_due < 0:
+                    # Overdue
+                    if options.colorize_output:
+                        indicators.append(colorize(f"🔴{abs(days_until_due)}d", TextColor.RED, TextStyle.BOLD))
+                    else:
+                        indicators.append(f"OVERDUE:{abs(days_until_due)}d")
+                elif days_until_due == 0:
+                    # Due today
+                    if options.colorize_output:
+                        indicators.append(colorize("📅TODAY", TextColor.YELLOW, TextStyle.BOLD))
+                    else:
+                        indicators.append("DUE:TODAY")
+                elif days_until_due <= 3:
+                    # Due soon
+                    if options.colorize_output:
+                        indicators.append(colorize(f"⚠️{days_until_due}d", TextColor.YELLOW))
+                    else:
+                        indicators.append(f"DUE:{days_until_due}d")
+            except (ValueError, TypeError):
+                pass
+
+        # Time tracking
+        time_estimate = task.get('time_estimate')
+        time_spent = task.get('time_spent', 0)
+        if time_estimate or time_spent:
+            if time_estimate and time_spent:
+                hours_estimate = time_estimate / 3600000
+                hours_spent = time_spent / 3600000
+                if options.colorize_output:
+                    if hours_spent > hours_estimate:
+                        indicators.append(colorize(f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.RED))
+                    else:
+                        indicators.append(colorize(f"⏱️{hours_spent:.1f}/{hours_estimate:.1f}h", TextColor.GREEN))
+                else:
+                    indicators.append(f"T:{hours_spent:.1f}/{hours_estimate:.1f}h")
+            elif time_estimate:
+                hours_estimate = time_estimate / 3600000
+                if options.colorize_output:
+                    indicators.append(colorize(f"⏱️{hours_estimate:.1f}h", TextColor.CYAN))
+                else:
+                    indicators.append(f"T:{hours_estimate:.1f}h")
+            elif time_spent:
+                hours_spent = time_spent / 3600000
+                if options.colorize_output:
+                    indicators.append(colorize(f"⏱️{hours_spent:.1f}h", TextColor.YELLOW))
+                else:
+                    indicators.append(f"T:{hours_spent:.1f}h")
+
+        return indicators
+
+    def _format_subtask_description(self, task: Dict[str, Any], options: FormatOptions, max_lines: int = 9, indent: str = "  ") -> List[str]:
+        """
+        Format subtask description preview with line limit.
+
+        Args:
+            task: Task dictionary
+            options: Format options
+            max_lines: Maximum number of lines to display
+            indent: Indentation prefix
+
+        Returns:
+            List of formatted description lines
+        """
+        description = task.get('description', '').strip()
+        if not description:
+            return []
+
+        # Unescape content
+        description = unescape_content(description)
+
+        # Render markdown if colorization enabled
+        should_colorize = options.colorize_output or USE_COLORS
+        if should_colorize:
+            rendered = render_markdown(description, colorize_output=True)
+        else:
+            rendered = strip_markdown(description)
+
+        # Split and limit lines
+        desc_lines = rendered.split('\n')
+        if len(desc_lines) > max_lines:
+            desc_lines = desc_lines[:max_lines]
+            desc_lines.append("...")
+
+        # Add indentation and dim color
+        formatted_lines = []
+        for line in desc_lines:
+            formatted_line = f"{indent}{line}"
+            if options.colorize_output:
+                formatted_line = colorize(formatted_line, TextColor.BRIGHT_BLACK)
+            formatted_lines.append(formatted_line)
+
+        return formatted_lines
+
+    def _format_subtask_comments(self, task: Dict[str, Any], status_name: str, options: FormatOptions, indent: str = "  ") -> List[str]:
+        """
+        Format comments for a subtask based on completion status.
+
+        Args:
+            task: Task dictionary
+            status_name: Status name (to check if complete)
+            options: Format options
+            indent: Indentation prefix
+
+        Returns:
+            List of formatted comment lines
+        """
+        comments = task.get('comments', [])
+        if not comments:
+            return []
+
+        # Check if task is completed
+        status_lower = str(status_name).lower().strip() if status_name else ""
+        is_completed = status_lower in ('complete', 'completed', 'done', 'closed')
+
+        lines = []
+
+        if is_completed:
+            # Show comment count only for completed subtasks
+            comment_count = len(comments)
+            comment_line = f"{indent}💬 {comment_count} comment{'s' if comment_count != 1 else ''}"
+            if options.colorize_output:
+                comment_line = colorize(comment_line, TextColor.BRIGHT_BLACK)
+            lines.append(comment_line)
+        else:
+            # Show latest 2 comments for incomplete subtasks
+            # Sort by date descending (newest first)
+            sorted_comments = sorted(
+                comments,
+                key=lambda c: c.get('date', 0) if isinstance(c.get('date'), (int, float)) else 0,
+                reverse=True
+            )
+            latest_comments = sorted_comments[:2]
+
+            for comment in latest_comments:
+                user = comment.get('user', {})
+                username = user.get('username', 'Unknown') if isinstance(user, dict) else 'Unknown'
+                comment_text = comment.get('comment_text', '')
+
+                # Truncate long comments
+                if len(comment_text) > 60:
+                    comment_text = comment_text[:60] + "..."
+
+                comment_line = f"{indent}💬 {username}: {comment_text}"
+                if options.colorize_output:
+                    comment_line = colorize(comment_line, TextColor.CYAN)
+                lines.append(comment_line)
+
+        return lines
+
     def _build_child_tree(
         self,
         parent_id: str,
@@ -751,7 +1001,7 @@ class TaskDetailFormatter:
         max_depth: int = 3
     ) -> List[str]:
         """
-        Recursively build a tree view of child tasks.
+        Recursively build a tree view of child tasks with enhanced details.
 
         Args:
             parent_id: Parent task ID
@@ -777,22 +1027,59 @@ class TaskDetailFormatter:
             prefix = "    " + ("  " * depth)
             branch = "└─" if is_last else "├─"
 
+            # Get child details
             child_name = child.get('name', 'Unnamed')
             child_status = child.get('status', {})
             if isinstance(child_status, dict):
-                child_status = child_status.get('status', '')
+                child_status_name = child_status.get('status', '')
+            else:
+                child_status_name = child_status
 
-            line = f"{prefix}{branch} {child_name}"
+            # Build task line with smart indicators
+            child_line_parts = [f"{prefix}{branch}"]
 
-            if child_status:
-                status_str = f" [{child_status}]"
+            # Add task ID if enabled
+            if options.show_ids and child.get('id'):
+                child_id_str = f"[{child['id']}]"
                 if options.colorize_output:
-                    status_str = colorize(status_str, status_color(child_status))
-                line += status_str
+                    child_id_str = colorize(child_id_str, TextColor.BRIGHT_BLACK)
+                child_line_parts.append(child_id_str)
 
+            # Add smart indicators using RichTaskFormatter logic
+            child_line_parts.extend(self._get_smart_indicators(child, options))
+
+            # Add task type emoji
+            if options.show_type_emoji:
+                task_type = child.get('custom_type') or 'task'
+                emoji = get_task_emoji(task_type, child_name)
+                child_line_parts.append(emoji)
+
+            # Add status icon
+            status_icon = get_status_icon(child_status_name or '', fallback_to_code=True)
             if options.colorize_output:
-                line = colorize(line, TextColor.GREEN)
+                status_icon = colorize(status_icon, status_color(child_status_name))
+            child_line_parts.append(status_icon)
+
+            # Add task name
+            if options.colorize_output:
+                child_name_colored = colorize(child_name, status_color(child_status_name))
+                child_line_parts.append(child_name_colored)
+            else:
+                child_line_parts.append(child_name)
+
+            line = " ".join(child_line_parts)
             lines.append(line)
+
+            # Add description preview (first 9 lines)
+            child_description = child.get('description', '').strip()
+            if child_description:
+                desc_lines = self._format_subtask_description(child, options, max_lines=9, indent=prefix + "  ")
+                lines.extend(desc_lines)
+
+            # Add comments based on completion status
+            comment_lines = self._format_subtask_comments(child, child_status_name, options, indent=prefix + "  ")
+            if comment_lines:
+                lines.extend(comment_lines)
 
             # Recursively add grandchildren
             child_id = child.get('id')
@@ -979,6 +1266,63 @@ class TaskDetailFormatter:
                     if options.colorize_output:
                         url_line = colorize(url_line, TextColor.BRIGHT_BLACK)
                     lines.append(url_line)
+
+        return "\n".join(lines)
+
+    def _format_linked_tasks(self, task: Dict[str, Any], options: FormatOptions) -> str:
+        """
+        Format linked tasks with task type and title (no description).
+
+        Args:
+            task: Task dictionary
+            options: Format options
+
+        Returns:
+            Formatted linked tasks section
+        """
+        linked_tasks = task.get('linked_tasks', [])
+        if not linked_tasks:
+            return ""
+
+        lines = []
+        header = f"🔗 Linked Tasks ({len(linked_tasks)}):"
+        if options.colorize_output:
+            header = colorize(header, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+        lines.append(header)
+
+        for linked in linked_tasks:
+            if isinstance(linked, dict):
+                # Extract task info
+                task_id = linked.get('task_id', '')
+                task_name = linked.get('name', 'Unnamed Task')
+                task_type = linked.get('custom_type') or linked.get('type', 'task')
+
+                # Build task line with type emoji and title
+                task_emoji = get_task_emoji(task_type, task_name) if options.show_type_emoji else ""
+
+                if task_emoji:
+                    task_line = f"  {task_emoji} {task_name}"
+                else:
+                    task_line = f"  • {task_name}"
+
+                # Add task type label
+                if task_type and task_type != 'task':
+                    type_label = f" ({task_type})"
+                    if options.colorize_output:
+                        type_label = colorize(type_label, TextColor.BRIGHT_BLACK)
+                    task_line += type_label
+
+                # Add task ID if enabled
+                if options.show_ids and task_id:
+                    id_str = f" [{task_id}]"
+                    if options.colorize_output:
+                        id_str = colorize(id_str, TextColor.BRIGHT_BLACK)
+                    task_line += id_str
+
+                if options.colorize_output:
+                    task_line = colorize(task_line, TextColor.CYAN)
+
+                lines.append(task_line)
 
         return "\n".join(lines)
 
