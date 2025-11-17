@@ -23,10 +23,16 @@ The mapping file structure:
 
 import json
 import os
-import fcntl
 import time
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
+
+# fcntl is Unix-only, not available on Windows
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
 
 
 class ChecklistMappingManager:
@@ -63,8 +69,9 @@ class ChecklistMappingManager:
 
         try:
             with open(self.mapping_file, 'r') as f:
-                # Acquire shared lock for reading
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                # Acquire shared lock for reading (Unix only)
+                if HAS_FCNTL:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 try:
                     content = f.read()
                     self._mappings = json.loads(content) if content else {}
@@ -73,7 +80,8 @@ class ChecklistMappingManager:
                     if not isinstance(self._mappings, dict):
                         self._mappings = {}
                 finally:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                    if HAS_FCNTL:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
         except (json.JSONDecodeError, IOError) as e:
             # If file is corrupted, start fresh
             self._mappings = {}
@@ -85,27 +93,32 @@ class ChecklistMappingManager:
         parent_dir = Path(self.mapping_file).parent
         parent_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write with exclusive lock
-        lock_acquired = False
-        start_time = time.time()
+        if HAS_FCNTL:
+            # Unix: Use file locking
+            lock_acquired = False
+            start_time = time.time()
 
-        while not lock_acquired and (time.time() - start_time) < self.LOCK_TIMEOUT:
-            try:
-                # Open in write mode, create if doesn't exist
-                with open(self.mapping_file, 'w') as f:
-                    # Acquire exclusive lock for writing
-                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    lock_acquired = True
-                    try:
-                        json.dump(self._mappings, f, indent=2)
-                    finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-            except BlockingIOError:
-                # Lock held by another process, wait and retry
-                time.sleep(0.1)
+            while not lock_acquired and (time.time() - start_time) < self.LOCK_TIMEOUT:
+                try:
+                    # Open in write mode, create if doesn't exist
+                    with open(self.mapping_file, 'w') as f:
+                        # Acquire exclusive lock for writing
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        lock_acquired = True
+                        try:
+                            json.dump(self._mappings, f, indent=2)
+                        finally:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                except BlockingIOError:
+                    # Lock held by another process, wait and retry
+                    time.sleep(0.1)
 
-        if not lock_acquired:
-            raise RuntimeError(f"Could not acquire lock on {self.mapping_file} after {self.LOCK_TIMEOUT}s")
+            if not lock_acquired:
+                raise RuntimeError(f"Could not acquire lock on {self.mapping_file} after {self.LOCK_TIMEOUT}s")
+        else:
+            # Windows: No file locking, just write directly
+            with open(self.mapping_file, 'w') as f:
+                json.dump(self._mappings, f, indent=2)
 
         # Set file permissions to user-only (0600)
         try:
