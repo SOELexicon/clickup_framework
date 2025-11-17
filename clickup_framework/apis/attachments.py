@@ -76,11 +76,12 @@ class AttachmentsAPI(BaseAPI):
             # Restore Content-Type header
             self.client.session.headers.update(original_headers)
 
-    def link_attachments_to_comment(self, comment_id: str, attachment_ids: list) -> Dict[str, Any]:
+    def link_attachments_to_comment(self, task_id: str, comment_id: str, attachment_ids: list) -> Dict[str, Any]:
         """
         Link attachments to a comment (required for inline image preview rendering).
 
         Args:
+            task_id: Task ID that the comment belongs to
             comment_id: Comment ID to link attachments to
             attachment_ids: List of attachment IDs to link
 
@@ -89,7 +90,7 @@ class AttachmentsAPI(BaseAPI):
 
         Note:
             This is required for inline images to render previews in comments.
-            The GUI performs this as a third step after uploading and creating the comment.
+            GUI uses PUT /tasks/v2/attachment with JSON payload.
         """
         payload = {
             "parent_id": int(comment_id),  # Comment ID as parent
@@ -97,5 +98,10 @@ class AttachmentsAPI(BaseAPI):
             "attachments": attachment_ids
         }
 
-        return self._request("PUT", "task/attachment", json=payload)
+        # Try GUI endpoint first (PUT /tasks/v2/attachment)
+        try:
+            return self._request("PUT", "tasks/v2/attachment", json=payload)
+        except Exception:
+            # Fallback to POST endpoint if GUI endpoint fails
+            return self._request("POST", f"task/{task_id}/attachment", json=payload)
 

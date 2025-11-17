@@ -154,9 +154,19 @@ def comment_add_command(args):
 
             comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
 
-            # Note: GUI makes a 3rd API call (PUT /tasks/v2/attachment) to link attachments
-            # This appears to be an internal GUI endpoint not available in public API
-            # Preview rendering may depend on other factors (width, thumbnails, followers)
+            # CRITICAL: Link attachments to comment (3rd API call - required for preview)
+            # POST /task/{task_id}/attachment with parent_id=comment_id, type=2
+            if attachment_ids and comment.get('id'):
+                try:
+                    from clickup_framework.resources import AttachmentsAPI
+                    attachments_api = AttachmentsAPI(client)
+                    attachments_api.link_attachments_to_comment(task_id, comment['id'], attachment_ids)
+                    if getattr(args, 'debug', False):
+                        print(f"✓ Linked {len(attachment_ids)} attachment(s) to comment {comment['id']}")
+                except Exception as e:
+                    # Don't fail the whole operation if linking fails
+                    if getattr(args, 'debug', False):
+                        print(f"⚠️  Warning: Failed to link attachments: {e}", file=sys.stderr)
         else:
             # Plain text
             if getattr(args, 'debug', False):
