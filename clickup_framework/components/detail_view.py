@@ -199,6 +199,11 @@ class TaskDetailFormatter:
         if attachments:
             sections.append(attachments)
 
+        # Documents section
+        documents = self._format_documents(task, options)
+        if documents:
+            sections.append(documents)
+
         # Comments section
         comments = self._format_comments(task, options)
         if comments:
@@ -483,7 +488,7 @@ class TaskDetailFormatter:
         return "\n".join(lines)
 
     def _format_custom_fields(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format custom fields."""
+        """Format custom fields with GUIDs."""
         custom_fields = task.get('custom_fields', [])
         if not custom_fields:
             return ""
@@ -498,15 +503,25 @@ class TaskDetailFormatter:
             if isinstance(field, dict):
                 name = field.get('name', 'Unknown')
                 value = field.get('value', '')
+                field_id = field.get('id', '')  # Get the GUID/field ID
 
                 # Format based on type
                 field_type = field.get('type', '')
                 if field_type == 'drop_down' and isinstance(value, dict):
                     value = value.get('name', value)
 
-                field_label = f"  {name}:"
-                if options.colorize_output:
+                # Format field name with GUID
+                if field_id:
+                    if options.colorize_output:
+                        field_label = f"  {name} " + colorize(f"[{field_id}]", TextColor.BRIGHT_BLACK) + ":"
+                    else:
+                        field_label = f"  {name} [{field_id}]:"
+                else:
+                    field_label = f"  {name}:"
+
+                if options.colorize_output and not field_id:
                     field_label = colorize(field_label, TextColor.BRIGHT_BLACK)
+
                 lines.append(f"{field_label} {value}")
 
         return "\n".join(lines)
@@ -937,8 +952,96 @@ class TaskDetailFormatter:
 
         return "\n".join(lines)
 
+    def _format_documents(self, task: Dict[str, Any], options: FormatOptions) -> str:
+        """Format linked documents with page treeview."""
+        from clickup_framework.components.tree import TreeFormatter
+        from clickup_framework.apis.docs import DocsAPI
+
+        # Check if task has linked docs
+        linked_docs = task.get('linked_docs', [])
+        if not linked_docs and not self.client:
+            return ""
+
+        # If no linked docs in task data, try to fetch from relationships
+        if not linked_docs:
+            return ""
+
+        lines = []
+        header = f"📄 Documents ({len(linked_docs)}):"
+        if options.colorize_output:
+            header = colorize(header, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+        lines.append(header)
+
+        # Fetch and display each document with its pages
+        if self.client:
+            docs_api = DocsAPI(self.client)
+            workspace_id = task.get('team_id', '')
+
+            for doc_ref in linked_docs:
+                if isinstance(doc_ref, dict):
+                    doc_id = doc_ref.get('doc_id', '')
+                    doc_name = doc_ref.get('name', 'Unnamed Document')
+                elif isinstance(doc_ref, str):
+                    doc_id = doc_ref
+                    doc_name = 'Document'
+                else:
+                    continue
+
+                # Format document header
+                if options.colorize_output:
+                    doc_header = colorize(f"\n  📘 {doc_name}", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+                else:
+                    doc_header = f"\n  📘 {doc_name}"
+                lines.append(doc_header)
+
+                # Fetch pages for this document
+                if workspace_id and doc_id:
+                    try:
+                        pages_result = docs_api.get_doc_pages(workspace_id, doc_id)
+                        pages = pages_result.get('pages', [])
+
+                        if pages:
+                            # Build page tree
+                            def format_page_node(page):
+                                page_name = page.get('name', 'Unnamed Page')
+                                if options.colorize_output:
+                                    return colorize(f"📄 {page_name}", TextColor.CYAN)
+                                return f"📄 {page_name}"
+
+                            def get_page_children(page):
+                                # Placeholder for nested pages
+                                return []
+
+                            # Display pages in tree format
+                            for page in pages:
+                                page_lines = TreeFormatter.build_tree(
+                                    [page],
+                                    format_page_node,
+                                    get_page_children,
+                                    prefix="    ",
+                                    is_last=True
+                                )
+                                lines.extend(page_lines)
+                        else:
+                            no_pages = "    (No pages)"
+                            if options.colorize_output:
+                                no_pages = colorize(no_pages, TextColor.BRIGHT_BLACK)
+                            lines.append(no_pages)
+
+                    except Exception:
+                        # If fetching pages fails, just show the document
+                        error_msg = "    (Unable to fetch pages)"
+                        if options.colorize_output:
+                            error_msg = colorize(error_msg, TextColor.BRIGHT_BLACK)
+                        lines.append(error_msg)
+
+        return "\n".join(lines) if len(lines) > 1 else ""
+
     def _format_comments(self, task: Dict[str, Any], options: FormatOptions) -> str:
-        """Format comments section - shows newest comments first."""
+        """Format comments section in threaded treeview format - shows all comments by default."""
+        from clickup_framework.components.tree import TreeFormatter
+        from clickup_framework.resources import CommentsAPI
+
         all_comments = task.get('comments', [])
         if not all_comments:
             return ""
@@ -949,38 +1052,86 @@ class TaskDetailFormatter:
             header = colorize(header, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
         lines.append(header)
 
-        # Sort by date descending (newest first) and show up to 5 most recent comments
+        # Sort by date descending (newest first) - show all comments (not just 5)
         sorted_comments = sorted(
             all_comments,
             key=lambda c: c.get('date', 0) if isinstance(c.get('date'), (int, float)) else 0,
             reverse=True
         )
-        comments = sorted_comments[:5]
 
-        for comment in comments:
-            if isinstance(comment, dict):
-                author = comment.get('user', {}).get('username', 'Unknown') if isinstance(comment.get('user'), dict) else comment.get('user', 'Unknown')
-                date = comment.get('date', '')
-                text = comment.get('comment_text') or comment.get('text', '')
+        # Fetch threaded replies for each comment if we have a client
+        if self.client:
+            comments_api = CommentsAPI(self.client)
+            comments_with_replies = []
 
-                comment_header = f"\n  {author}"
-                if date:
-                    comment_header += f" • {date}"
+            for comment in sorted_comments:
+                comment_copy = comment.copy()
+                comment_copy['_replies'] = []
+
+                # Check if comment has replies
+                reply_count = comment.get('reply_count', 0)
+                if reply_count and int(reply_count) > 0:
+                    try:
+                        # Fetch threaded replies
+                        replies_result = comments_api.get_threaded_comments(comment['id'])
+                        replies = replies_result.get('comments', [])
+                        comment_copy['_replies'] = replies
+                    except Exception:
+                        # If fetching replies fails, just skip them
+                        pass
+
+                comments_with_replies.append(comment_copy)
+        else:
+            comments_with_replies = sorted_comments
+
+        # Format comments using TreeFormatter
+        def format_comment_node(comment):
+            """Format a comment for tree display."""
+            user = comment.get('user', {})
+            username = user.get('username', 'Unknown') if isinstance(user, dict) else 'Unknown'
+            comment_text = comment.get('comment_text', '')
+            reply_count = comment.get('reply_count', 0)
+
+            # Format comment header
+            if options.colorize_output:
+                header_text = colorize(f"{username}", TextColor.BLUE, TextStyle.BOLD)
+                if reply_count and int(reply_count) > 0:
+                    header_text += colorize(f" ({reply_count} replies)", TextColor.BRIGHT_BLACK)
+            else:
+                header_text = f"{username}"
+                if reply_count and int(reply_count) > 0:
+                    header_text += f" ({reply_count} replies)"
+
+            # Truncate comment text for tree display
+            if comment_text:
+                max_len = 80
+                if len(comment_text) > max_len:
+                    text_preview = comment_text[:max_len] + "..."
+                else:
+                    text_preview = comment_text
 
                 if options.colorize_output:
-                    comment_header = colorize(comment_header, TextColor.BLUE, TextStyle.BOLD)
-                lines.append(comment_header)
+                    text_preview = colorize(text_preview, TextColor.WHITE)
 
-                # Show comment text with indentation
-                if text:
-                    for line in text.split('\n'):
-                        lines.append(f"  {line}")
+                return f"{header_text}: {text_preview}"
+            else:
+                return header_text
 
-        if len(all_comments) > 5:
-            more_line = f"\n  ... and {len(all_comments) - 5} more comments"
-            if options.colorize_output:
-                more_line = colorize(more_line, TextColor.BRIGHT_BLACK)
-            lines.append(more_line)
+        def get_comment_children(comment):
+            """Get replies for a comment."""
+            return comment.get('_replies', [])
+
+        # Display using TreeFormatter
+        lines.append("")
+        for comment in comments_with_replies:
+            tree_lines = TreeFormatter.build_tree(
+                [comment],
+                format_comment_node,
+                get_comment_children,
+                prefix="  ",
+                is_last=True
+            )
+            lines.extend(tree_lines)
 
         return "\n".join(lines)
 
