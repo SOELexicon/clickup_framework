@@ -264,8 +264,9 @@ class TestDetailCommand(unittest.TestCase):
 
         sys.stdout = sys.__stdout__
 
-        mock_client_inst.get_task.assert_called_once_with('task_123')
-        mock_client_inst.get_list_tasks.assert_called_once_with('list_123')
+        mock_client_inst.get_task.assert_called_once_with('task_123', include_subtasks=True)
+        # get_list_tasks is called twice: once for root tasks, once for subtasks
+        self.assertEqual(mock_client_inst.get_list_tasks.call_count, 2)
         self.assertIn("Detail View", captured_output.getvalue())
 
     @patch('clickup_framework.commands.detail.ClickUpClient')
