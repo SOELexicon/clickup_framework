@@ -395,8 +395,23 @@ def _format_value_error(error: ValueError, context: Dict, use_color: bool) -> st
 
     suggestions = []
 
+    # Detect if user tried to use "current" as task ID (Lesson 86c6jd7kr)
+    if "current" in error_msg.lower() and ("task" in error_msg.lower() or "invalid" in error_msg.lower()):
+        suggestions = [
+            '⚠️  The cum CLI is stateless - there is no "current" task concept',
+            "Correct usage: cum ca <task_id> \"comment text\"",
+            "Example: cum ca 86c6jqevv \"Added search command\"",
+            "Tip: Task IDs are in URLs like https://app.clickup.com/t/<task_id>",
+            "Alternative: Set context with cum set task <task_id>, then use 'current'",
+        ]
+
+        # Add command-specific example if we can detect the command
+        command = _detect_command_from_context(context)
+        if command:
+            suggestions.insert(1, f"Correct usage for {command}: cum {command} <task_id> [arguments]")
+
     # Context-related value errors
-    if "no current" in error_msg.lower():
+    elif "no current" in error_msg.lower():
         if "workspace" in error_msg.lower():
             suggestions = [
                 "Set current workspace: cum set workspace <workspace_id>",
@@ -404,21 +419,42 @@ def _format_value_error(error: ValueError, context: Dict, use_color: bool) -> st
                 "Or specify workspace explicitly in the command",
             ]
         elif "list" in error_msg.lower():
+            # Enhanced error message for missing --all flag (Lesson 86c6jd7ty)
             suggestions = [
-                "Set current list: cum set list <list_id>",
-                "View available lists: cum hierarchy --all",
-                "Or specify list ID explicitly in the command",
+                "The cum list command requires explicit scope to avoid loading huge workspaces",
+                "Option 1 - Show all workspace tasks: cum ls --all",
+                "Option 2 - Show specific list: cum ls <list_id>",
+                "Example: cum ls 901517518536",
+                "Tip: Get list IDs with: cum hierarchy --all",
             ]
         elif "task" in error_msg.lower():
             suggestions = [
                 "Set current task: cum set task <task_id>",
                 "Or specify task ID explicitly in the command",
+                "Example: cum ca <task_id> \"your comment\"",
             ]
         else:
             suggestions = [
                 "Set required context: cum set <type> <id>",
                 "View current context: cum show",
                 "Or specify the ID explicitly in the command",
+            ]
+
+    # Detect missing required arguments
+    elif "required" in error_msg.lower() or "missing" in error_msg.lower():
+        command = _detect_command_from_context(context)
+        if command:
+            suggestions = [
+                f"Check required arguments for {command} command",
+                f"See usage examples: cum {command} --help",
+                "Common mistake: Arguments are in wrong order",
+                "Tip: Task/list IDs come from ClickUp URLs or cum hierarchy",
+            ]
+        else:
+            suggestions = [
+                "Check that all required arguments are provided",
+                "Review command usage: cum <command> --help",
+                "Verify argument order is correct",
             ]
     else:
         # Generic value error
@@ -435,3 +471,23 @@ def _format_value_error(error: ValueError, context: Dict, use_color: bool) -> st
         suggestions=suggestions,
         no_color=not use_color,
     )
+
+
+def _detect_command_from_context(context: Dict) -> Optional[str]:
+    """
+    Detect the command that was run from context or sys.argv.
+
+    Args:
+        context: Error context dictionary
+
+    Returns:
+        Command name if detected, None otherwise
+    """
+    import sys
+
+    # Try to get from sys.argv
+    if len(sys.argv) > 1:
+        return sys.argv[1]
+
+    # Try to get from context
+    return context.get('command', None)
