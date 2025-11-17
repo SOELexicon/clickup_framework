@@ -111,7 +111,8 @@ class ChecklistTemplateManager:
         # Create the checklist
         checklist_name = template.get("name", template_name)
         response = client.create_checklist(task_id, checklist_name)
-        checklist_id = response["checklist"]["id"]
+        # API response is unwrapped by client, no need for nested ["checklist"] access
+        checklist_id = response["id"]
 
         # Add items to the checklist
         items = template.get("items", [])
@@ -136,7 +137,7 @@ class ChecklistTemplateManager:
             created_items.append(item_response)
 
         return {
-            "checklist": response["checklist"],
+            "checklist": response,  # API response is already unwrapped
             "items": created_items,
             "template_name": template_name
         }

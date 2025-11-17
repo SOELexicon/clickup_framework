@@ -116,7 +116,8 @@ def checklist_create_command(args):
     # Create the checklist
     try:
         checklist = tasks_api.add_checklist(task_id, args.name)
-        checklist_id = checklist['checklist']['id']
+        # API response is unwrapped by client, no need for nested ['checklist'] access
+        checklist_id = checklist['id']
 
         # Auto-map the new checklist
         next_index = mapping_manager.get_next_checklist_index(task_id)
@@ -270,20 +271,15 @@ def checklist_item_add_command(args):
         success_msg = ANSIAnimations.success_message(f"Checklist item added: {args.name}")
         print(f"\n{success_msg}")
 
-        # The API returns: {"checklist": {"items": [...]}}
-        # The new item is the last one in the items array
-        item_id = None
-        if isinstance(result, dict) and 'checklist' in result:
-            items = result.get('checklist', {}).get('items', [])
-            if items:
-                item_id = items[-1].get('id', 'Unknown')
-                print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
+        # API now returns the item directly (unwrapped by client)
+        item_id = result.get('id', 'Unknown') if isinstance(result, dict) else 'Unknown'
+        print(f"Item ID: {colorize(str(item_id), TextColor.BRIGHT_GREEN)}")
 
-                # Auto-map the new item if task_id is known
-                if task_id and item_id and item_id != 'Unknown':
-                    next_index = mapping_manager.get_next_item_index(task_id, checklist_id)
-                    mapping_manager.set_item_mapping(task_id, checklist_id, next_index, item_id)
-                    print(f"Item Index: {colorize(f'[{next_index}]', TextColor.BRIGHT_CYAN)}")
+        # Auto-map the new item if task_id is known
+        if task_id and item_id and item_id != 'Unknown':
+            next_index = mapping_manager.get_next_item_index(task_id, checklist_id)
+            mapping_manager.set_item_mapping(task_id, checklist_id, next_index, item_id)
+            print(f"Item Index: {colorize(f'[{next_index}]', TextColor.BRIGHT_CYAN)}")
 
         if assignee:
             print(f"Assigned to: {assignee}")
@@ -653,7 +649,8 @@ def checklist_clone_command(args):
 
             # Create checklist on target task
             result = client.create_checklist(target_task_id, checklist_name)
-            new_checklist_id = result['checklist']['id']
+            # API response is unwrapped by client, no need for nested ['checklist'] access
+            new_checklist_id = result['id']
 
             # Clone items
             for item in items:
