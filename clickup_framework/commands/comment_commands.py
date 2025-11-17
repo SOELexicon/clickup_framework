@@ -121,9 +121,21 @@ def comment_add_command(args):
         # ClickUp supports both:
         # - comment_text: Plain text (no formatting)
         # - comment: Rich text JSON array (formatted content)
+        image_metadata = {}
+        attachment_ids = []
+
+        # If images were uploaded, get their metadata for inline embedding
+        if upload_images and result.get('image_metadata'):
+            image_metadata = result['image_metadata']
+            attachment_ids = result.get('attachment_ids', [])
+
         if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
             # Use rich text JSON format for markdown
-            comment_data = processor.markdown_formatter.to_json_format(comment_text)
+            comment_data = processor.markdown_formatter.to_json_format(
+                comment_text,
+                image_metadata=image_metadata,
+                attachment_ids=attachment_ids
+            )
 
             # Show debug output if requested
             if getattr(args, 'debug', False):
@@ -232,6 +244,8 @@ def comment_reply_command(args):
 
     try:
         # Create the threaded reply
+        # Note: Threaded replies use comment_text, not rich text format
+        # ClickUp API doesn't support rich text for threaded replies yet
         notify_all = getattr(args, 'notify_all', False)
         comment = comments_api.create_threaded_comment(
             args.cpid,
@@ -477,10 +491,27 @@ def comment_update_command(args):
                     print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Provide --task-id to upload.")
 
     try:
-        # Update the comment
-        # ClickUp comments support markdown directly via comment_text field
-        # (not rich text JSON like some other platforms)
-        updated = comments_api.update(args.comment_id, comment_text=comment_text)
+        # Update the comment with rich text formatting
+        image_metadata = {}
+        attachment_ids = []
+
+        # If images were uploaded, get their metadata for inline embedding
+        if upload_images and task_id and result.get('image_metadata'):
+            image_metadata = result['image_metadata']
+            attachment_ids = result.get('attachment_ids', [])
+
+        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
+            # Use rich text JSON format for markdown
+            comment_data = processor.markdown_formatter.to_json_format(
+                comment_text,
+                image_metadata=image_metadata,
+                attachment_ids=attachment_ids
+            )
+
+            updated = comments_api.update(args.comment_id, comment_data=comment_data)
+        else:
+            # Plain text
+            updated = comments_api.update(args.comment_id, comment_text=comment_text)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment updated")

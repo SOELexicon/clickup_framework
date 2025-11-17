@@ -230,6 +230,8 @@ class ContentProcessor:
                 - upload_results: Results from upload_all_images()
                 - mermaid_blocks: List of mermaid blocks
                 - image_refs: List of image references
+                - image_metadata: Dict mapping image URLs to attachment metadata
+                - attachment_ids: List of attachment IDs
         """
         if self.client is None:
             raise ValueError("ClickUpClient instance required for uploads. Pass client to ContentProcessor constructor.")
@@ -239,8 +241,24 @@ class ContentProcessor:
 
         # Step 2: Upload all images to ClickUp
         upload_results = {'uploaded': [], 'already_uploaded': [], 'errors': []}
+        image_metadata = {}
+        attachment_ids = []
+
         if result['image_refs']:
             upload_results = self.upload_all_images(result['content'], task_id)
+
+            # Build image metadata map for inline embedding
+            for hash_value in result['image_refs']:
+                cached_meta = self.image_embedding.cache.get_image(hash_value)
+                if cached_meta and cached_meta.get('uploaded'):
+                    url = cached_meta.get('upload_url', '')
+                    attachment_data = cached_meta.get('attachment_data', {})
+                    if url and attachment_data:
+                        image_metadata[url] = attachment_data
+                        # Collect attachment ID
+                        attachment_id = attachment_data.get('id')
+                        if attachment_id and attachment_id not in attachment_ids:
+                            attachment_ids.append(attachment_id)
 
         # Step 3: Resolve image handlebars to actual URLs now that images are uploaded
         final_content = result['content']
@@ -256,6 +274,8 @@ class ContentProcessor:
             'mermaid_blocks': result['mermaid_blocks'],
             'image_refs': result['image_refs'],
             'has_markdown': result['has_markdown'],
+            'image_metadata': image_metadata,
+            'attachment_ids': attachment_ids,
         }
 
 
