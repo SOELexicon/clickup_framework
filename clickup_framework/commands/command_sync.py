@@ -95,6 +95,12 @@ COMMAND_CATEGORIES = {
     "update": "Utility",
     # Automation Commands
     "parent_auto_update": "ClickUp Automation",
+    # Comparison Commands
+    "diff": "Utility",
+    # Workflow Commands
+    "jizz": "GIT",
+    # Management Commands
+    "command-sync": "Utility",
 }
 
 
@@ -466,15 +472,128 @@ def discover_cli_commands() -> List[str]:
     Discover all actual CLI commands by parsing cum --help output.
 
     Returns:
-        List of command names
+        List of command names (canonical names, not aliases)
     """
-    # Only use the commands from our known mapping
-    # This ensures we only process actual CLI commands
-    return sorted(list(COMMAND_CATEGORIES.keys()))
+    try:
+        result = subprocess.run(
+            ["cum", "--help"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=10
+        )
+        help_output = result.stdout
+
+        # Find the line with command choices in curly braces
+        # Example: {ansi,assigned,a,attach,attachment,...}
+        discovered_commands = set()
+
+        for line in help_output.split('\n'):
+            # Look for the choices line with curly braces
+            if line.strip().startswith('{') and '}' in line:
+                # Extract everything between { and }
+                choices_text = line[line.find('{')+1:line.find('}')]
+                # Split by comma and clean up
+                all_choices = [c.strip() for c in choices_text.split(',')]
+                discovered_commands.update(all_choices)
+                break
+
+        # If we found commands via parsing, validate and return canonical commands
+        if discovered_commands:
+            # We only process commands that are in COMMAND_CATEGORIES (canonical names)
+            known_commands = set(COMMAND_CATEGORIES.keys())
+
+            # Check if any COMMAND_CATEGORIES entries are missing from help
+            missing_from_help = known_commands - discovered_commands
+            if missing_from_help:
+                print(f"  [WARNING] {len(missing_from_help)} commands in COMMAND_CATEGORIES not found in --help:", file=sys.stderr)
+                for cmd in sorted(missing_from_help):
+                    print(f"    - {cmd}", file=sys.stderr)
+
+            # Return intersection: commands in COMMAND_CATEGORIES that also exist in help
+            available_commands = known_commands & discovered_commands
+
+            return sorted(list(available_commands))
+
+        # Fallback: use the known mapping
+        print("  [WARNING] Could not parse commands from cum --help, using fallback", file=sys.stderr)
+        return sorted(list(COMMAND_CATEGORIES.keys()))
+
+    except Exception as e:
+        print(f"  [WARNING] Error discovering commands: {e}", file=sys.stderr)
+        print("  [WARNING] Using fallback command list", file=sys.stderr)
+        # Fallback to known mapping
+        return sorted(list(COMMAND_CATEGORIES.keys()))
+
+
+def list_missing_commands():
+    """List commands that are discovered but missing from COMMAND_CATEGORIES."""
+    try:
+        result = subprocess.run(
+            ["cum", "--help"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=10
+        )
+        help_output = result.stdout
+
+        # Find the line with command choices
+        discovered_commands = set()
+
+        for line in help_output.split('\n'):
+            if line.strip().startswith('{') and '}' in line:
+                choices_text = line[line.find('{')+1:line.find('}')]
+                all_choices = [c.strip() for c in choices_text.split(',')]
+                discovered_commands.update(all_choices)
+                break
+
+        known_commands = set(COMMAND_CATEGORIES.keys())
+        missing_from_categories = discovered_commands - known_commands
+        missing_from_help = known_commands - discovered_commands
+
+        print("=" * 80)
+        print("Command Discovery Status")
+        print("=" * 80)
+        print(f"Total discovered in cum --help: {len(discovered_commands)}")
+        print(f"Total in COMMAND_CATEGORIES: {len(known_commands)}")
+        print("=" * 80)
+        print()
+
+        if missing_from_categories:
+            print(f"Commands found in --help but MISSING from COMMAND_CATEGORIES ({len(missing_from_categories)}):")
+            for cmd in sorted(missing_from_categories):
+                print(f"  - {cmd}")
+            print()
+        else:
+            print("✓ All commands from --help are in COMMAND_CATEGORIES")
+            print()
+
+        if missing_from_help:
+            print(f"Commands in COMMAND_CATEGORIES but NOT in --help ({len(missing_from_help)}):")
+            for cmd in sorted(missing_from_help):
+                print(f"  - {cmd}")
+            print()
+        else:
+            print("✓ All COMMAND_CATEGORIES entries are in --help")
+            print()
+
+        print("=" * 80)
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def command_sync_command(args):
     """Execute command-sync command."""
+    # Handle --list-missing option
+    if args.list_missing:
+        list_missing_commands()
+        return
+
     list_id = args.list_id
     test_task_id = args.test_task_id
     dry_run = args.dry_run
@@ -601,6 +720,12 @@ help output, syntax, purpose, and execution results.
         '--force',
         action='store_true',
         help='Force update even if task already exists and is up-to-date'
+    )
+
+    parser.add_argument(
+        '--list-missing',
+        action='store_true',
+        help='List commands discovered in --help vs COMMAND_CATEGORIES (for validation)'
     )
 
     parser.set_defaults(func=command_sync_command)
