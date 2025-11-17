@@ -156,6 +156,8 @@ def discover_and_register_commands(subparsers, add_common_args=None):
 
 # Export utility functions for use by command modules
 from .utils import create_format_options, get_list_statuses
+from .base_command import BaseCommand
 
 __all__ = ['discover_commands', 'collect_command_metadata', 'register_all_commands',
-           'discover_and_register_commands', 'create_format_options', 'get_list_statuses']
+           'discover_and_register_commands', 'create_format_options', 'get_list_statuses',
+           'BaseCommand']

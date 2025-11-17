@@ -26,6 +26,10 @@ from .error_formatter import (
     format_missing_context_error,
     format_known_limitation,
 )
+from .image_export import (
+    console_to_jpg,
+    capture_command_output_to_jpg,
+)
 
 __all__ = [
     # datetime
@@ -47,4 +51,7 @@ __all__ = [
     "format_api_error",
     "format_missing_context_error",
     "format_known_limitation",
+    # image export
+    "console_to_jpg",
+    "capture_command_output_to_jpg",
 ]
