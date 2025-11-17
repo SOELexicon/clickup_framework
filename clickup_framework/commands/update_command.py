@@ -35,6 +35,7 @@ def find_all_cum_instances():
                 ['where.exe', 'cum'],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 check=False
             )
             if result.returncode == 0:
@@ -45,6 +46,7 @@ def find_all_cum_instances():
                 ['which', '-a', 'cum'],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 check=False
             )
             if result.returncode == 0:
@@ -56,6 +58,7 @@ def find_all_cum_instances():
                     ['whereis', 'cum'],
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',
                     check=False
                 )
                 if result.returncode == 0:
@@ -107,6 +110,7 @@ def get_python_from_script(script_path):
                     [python_cmd, '--version'],
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',
                     check=False
                 )
                 if result.returncode == 0:
@@ -115,6 +119,7 @@ def get_python_from_script(script_path):
                         ['where.exe', python_cmd],
                         capture_output=True,
                         text=True,
+                        encoding='utf-8',
                         check=False
                     )
                     if where_result.returncode == 0:
@@ -158,6 +163,7 @@ def get_package_info(python_path):
             [python_path, '-m', 'pip', 'show', 'clickup-framework'],
             capture_output=True,
             text=True,
+            encoding='utf-8',
             check=False
         )
 
@@ -355,6 +361,7 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
                         cwd=editable_location,
                         capture_output=True,
                         text=True,
+                        encoding='utf-8',
                         check=True
                     )
 
@@ -555,6 +562,7 @@ def run_git_command(cmd: list, capture_output: bool = True) -> subprocess.Comple
         cmd,
         capture_output=capture_output,
         text=True,
+        encoding='utf-8',
         check=False
     )
 
@@ -810,6 +818,7 @@ def update_version_command(args):
             ['git', '--version'],
             capture_output=True,
             text=True,
+            encoding='utf-8',
             check=False
         )
         if git_check.returncode != 0:
