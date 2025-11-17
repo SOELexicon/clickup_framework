@@ -81,6 +81,7 @@ class MermaidParser(BaseParser):
                 - image_format: Format for images ('png', 'svg') (default: 'png')
                 - embed_above: Whether to embed images above code blocks (default: True)
                 - background_color: Background color for images (default: 'white')
+                - theme: Mermaid theme ('default', 'dark', 'forest', 'neutral') (default: 'dark')
                 - width: Image width in pixels (optional)
                 - height: Image height in pixels (optional)
 
@@ -93,7 +94,8 @@ class MermaidParser(BaseParser):
         convert_to_images = options.get('convert_to_images', True)
         embed_above = options.get('embed_above', True)
         image_format = options.get('image_format', 'png')
-        background_color = options.get('background_color', 'white')
+        background_color = options.get('background_color', 'transparent')
+        theme = options.get('theme', 'dark')
         width = options.get('width', None)
         height = options.get('height', None)
 
@@ -118,6 +120,7 @@ class MermaidParser(BaseParser):
                     block,
                     image_format=image_format,
                     background_color=background_color,
+                    theme=theme,
                     width=width,
                     height=height
                 )
@@ -204,7 +207,8 @@ class MermaidParser(BaseParser):
         self,
         block: MermaidBlock,
         image_format: str = 'png',
-        background_color: str = 'white',
+        background_color: str = 'transparent',
+        theme: str = 'dark',
         width: Optional[int] = None,
         height: Optional[int] = None
     ) -> bool:
@@ -215,6 +219,7 @@ class MermaidParser(BaseParser):
             block: Mermaid block to process
             image_format: Output format ('png' or 'svg')
             background_color: Background color
+            theme: Mermaid theme ('default', 'dark', 'forest', 'neutral')
             width: Image width in pixels (optional)
             height: Image height in pixels (optional)
 
@@ -236,6 +241,7 @@ class MermaidParser(BaseParser):
             output_path=output_path,
             image_format=image_format,
             background_color=background_color,
+            theme=theme,
             width=width,
             height=height
         )
