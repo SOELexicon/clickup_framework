@@ -10,6 +10,68 @@ from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.checklist_mapping import get_mapping_manager
 from clickup_framework.exceptions import ClickUpAPIError
 
+# Metadata for automatic help generation
+COMMAND_METADATA = {
+    "category": "☑️  Checklist Management",
+    "commands": [
+        {
+            "name": "checklist [chk]",
+            "args": "create <task_id> <name>",
+            "description": "Create a new checklist on a task"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "delete <checklist_id> [--force]",
+            "description": "Delete a checklist and all items"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "update <checklist_id> [--name|--position]",
+            "description": "Update checklist properties"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "list <task_id> [--show-ids]",
+            "description": "List all checklists on a task"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "item-add <checklist_id> <name> [--assignee]",
+            "description": "Add item to checklist"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "item-update <checklist_id> <item_id> [OPTIONS]",
+            "description": "Update checklist item"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "item-delete <checklist_id> <item_id>",
+            "description": "Delete checklist item"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "template list",
+            "description": "List available checklist templates"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "template show <name>",
+            "description": "Show template details"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "template apply <task_id> <name>",
+            "description": "Apply template to task"
+        },
+        {
+            "name": "checklist [chk]",
+            "args": "clone <source_task> <target_task>",
+            "description": "Clone checklists between tasks"
+        },
+    ]
+}
+
 
 def _is_uuid(value: str) -> bool:
     """Check if a string is a UUID format."""

@@ -7,6 +7,38 @@ from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.commands.utils import read_text_from_file
 from clickup_framework.parsers import ContentProcessor, ParserContext
 
+# Metadata for automatic help generation
+COMMAND_METADATA = {
+    "category": "💬 Comment Management",
+    "commands": [
+        {
+            "name": "comment_add [ca]",
+            "args": "<task_id> <text>",
+            "description": "Add a comment to a task"
+        },
+        {
+            "name": "comment_list [cl]",
+            "args": "<task_id> [--limit N]",
+            "description": "List comments on a task"
+        },
+        {
+            "name": "comment_update [cu]",
+            "args": "<comment_id> <text>",
+            "description": "Update an existing comment"
+        },
+        {
+            "name": "comment_reply [cr]",
+            "args": "<comment_id> <text>",
+            "description": "Reply to a comment (create threaded reply)"
+        },
+        {
+            "name": "comment_delete [cd]",
+            "args": "<comment_id> [--force]",
+            "description": "Delete a comment"
+        },
+    ]
+}
+
 
 def comment_add_command(args):
     """Add a comment to a task."""
