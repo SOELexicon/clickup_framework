@@ -121,9 +121,9 @@ def register_command(subparsers):
         help='Show comprehensive task details with hierarchical view',
         description='''Display comprehensive details of a single task with enhanced hierarchical view.
 
-Shows the main task (first 2 lines of description) with a detailed tree view of all
-subtasks (first 9 lines each), including smart indicators for dependencies, blockers,
-linked tasks, assignees, due dates, and time tracking.''',
+Shows the main task with full description and a detailed tree view of all subtasks with
+full descriptions, including smart indicators for dependencies, blockers, linked tasks,
+assignees, due dates, and time tracking.''',
         epilog='''Usage:
   • View task details: cum d <task_id>
   • With full context: cum d <task_id> <list_id> (shows relationship tree)
@@ -131,11 +131,12 @@ linked tasks, assignees, due dates, and time tracking.''',
 
 What's Displayed:
   • Task info: status, priority, type, tags, assignees, dates
-  • Main task description (first 2 lines with "..." if truncated)
+  • Full main task description
   • Hierarchical subtask tree with:
-    - First 9 lines of each subtask description
+    - Full description for each subtask
     - Task types (emoji indicators)
     - Smart indicators (⏳ dependencies, 🚫 blockers, 🔗 links, 👤 assignees, 📅 due dates, ⏱️ time)
+    - Visual tree connections with vertical pipes (│) linking subtasks
     - Comments: latest 2 for incomplete subtasks, count only for completed
   • All attachments with proper formatting
   • All custom fields
@@ -151,8 +152,8 @@ Smart Indicators (per DOCS_SMART_INDICATORS.md):
   ⏱️ Time tracking (spent/estimate)
 
 Tips:
-  • The detail view automatically limits the main task description to 2 lines
-  • Each subtask shows up to 9 lines of description
+  • The detail view now shows full descriptions by default (no truncation)
+  • Tree structure uses vertical pipes (│) to connect subtasks visually
   • Use -p/--preset for different detail levels (minimal, summary, full)
   • Incomplete subtasks show latest 2 comments; completed show count only'''
     )

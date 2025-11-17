@@ -99,8 +99,8 @@ class TaskDetailFormatter:
         # Metadata
         sections.append(self._format_metadata(task, options))
 
-        # Description - limit main task to 2 lines for comprehensive detail view
-        description = self._format_description(task, options, max_lines=2)
+        # Description - show full description by default
+        description = self._format_description(task, options, max_lines=None)
         if description:
             sections.append(description)
 
@@ -215,10 +215,8 @@ class TaskDetailFormatter:
         if comments:
             sections.append(comments)
 
-        # Subtasks section (at bottom)
-        subtasks = self._format_subtasks(task, all_tasks, options)
-        if subtasks:
-            sections.append(subtasks)
+        # Note: Subtasks are shown in format_with_context() method using relationship tree
+        # The format_detail() method is for standalone task view without context
 
         # Time tracking section
         time_tracking = self._format_time_tracking(task, options)
@@ -893,14 +891,14 @@ class TaskDetailFormatter:
 
         return indicators
 
-    def _format_subtask_description(self, task: Dict[str, Any], options: FormatOptions, max_lines: int = 9, indent: str = "  ") -> List[str]:
+    def _format_subtask_description(self, task: Dict[str, Any], options: FormatOptions, max_lines: Optional[int] = 9, indent: str = "  ") -> List[str]:
         """
         Format subtask description preview with line limit.
 
         Args:
             task: Task dictionary
             options: Format options
-            max_lines: Maximum number of lines to display
+            max_lines: Maximum number of lines to display (None for no limit)
             indent: Indentation prefix
 
         Returns:
@@ -922,7 +920,7 @@ class TaskDetailFormatter:
 
         # Split and limit lines
         desc_lines = rendered.split('\n')
-        if len(desc_lines) > max_lines:
+        if max_lines is not None and len(desc_lines) > max_lines:
             desc_lines = desc_lines[:max_lines]
             desc_lines.append("...")
 
@@ -1027,6 +1025,12 @@ class TaskDetailFormatter:
             prefix = "    " + ("  " * depth)
             branch = "└─" if is_last else "├─"
 
+            # For continuation lines (descriptions, comments), use │ for non-last items
+            if is_last:
+                continuation_prefix = prefix + "   "  # 3 spaces to match └─ indent
+            else:
+                continuation_prefix = prefix + "│  "  # vertical pipe + 2 spaces
+
             # Get child details
             child_name = child.get('name', 'Unnamed')
             child_status = child.get('status', {})
@@ -1070,14 +1074,14 @@ class TaskDetailFormatter:
             line = " ".join(child_line_parts)
             lines.append(line)
 
-            # Add description preview (first 9 lines)
+            # Add description preview (full description, no line limit)
             child_description = child.get('description', '').strip()
             if child_description:
-                desc_lines = self._format_subtask_description(child, options, max_lines=9, indent=prefix + "  ")
+                desc_lines = self._format_subtask_description(child, options, max_lines=None, indent=continuation_prefix)
                 lines.extend(desc_lines)
 
             # Add comments based on completion status
-            comment_lines = self._format_subtask_comments(child, child_status_name, options, indent=prefix + "  ")
+            comment_lines = self._format_subtask_comments(child, child_status_name, options, indent=continuation_prefix)
             if comment_lines:
                 lines.extend(comment_lines)
 
