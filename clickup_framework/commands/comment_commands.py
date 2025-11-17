@@ -1,6 +1,7 @@
 """Comment management commands for ClickUp Framework CLI."""
 
 import sys
+import os
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -116,6 +117,33 @@ def comment_add_command(args):
             if result.get('unuploaded_images'):
                 print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
 
+    # Get color setting
+    use_color = context.get_ansi_output()
+
+    # Handle image attachments if provided
+    attachment_urls = []
+    if hasattr(args, 'attach_images') and args.attach_images:
+        from clickup_framework.resources import AttachmentsAPI
+        attachments_api = AttachmentsAPI(client)
+        
+        for image_path in args.attach_images:
+            if not os.path.exists(image_path):
+                print(f"Warning: Image not found: {image_path}", file=sys.stderr)
+                continue
+            
+            try:
+                # Upload attachment
+                attachment = attachments_api.create(task_id, image_path)
+                attachment_url = attachment.get('url')
+                if attachment_url:
+                    attachment_urls.append(attachment_url)
+                    if use_color:
+                        print(f"📎 Uploaded: {colorize(os.path.basename(image_path), TextColor.BRIGHT_CYAN)}")
+                    else:
+                        print(f"Uploaded: {os.path.basename(image_path)}")
+            except Exception as e:
+                print(f"Warning: Failed to upload {image_path}: {e}", file=sys.stderr)
+
     try:
         # Create the comment with rich text formatting
         # ClickUp supports both:
@@ -145,14 +173,14 @@ def comment_add_command(args):
                 print(json.dumps(comment_data, indent=2))
                 print("=" * 60 + "\n")
 
-            comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
+            comment = comments_api.create_task_comment(task_id, comment_data=comment_data, attachment_urls=attachment_urls if attachment_urls else None)
         else:
             # Plain text
             if getattr(args, 'debug', False):
                 print("\n" + colorize("Plain Text Mode:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
                 print(f"comment_text: {repr(comment_text)}\n")
 
-            comment = comments_api.create_task_comment(task_id, comment_text=comment_text)
+            comment = comments_api.create_task_comment(task_id, comment_text=comment_text, attachment_urls=attachment_urls if attachment_urls else None)
 
         # Show success message
         success_msg = ANSIAnimations.success_message("Comment added")
@@ -584,6 +612,8 @@ def register_command(subparsers):
                                     help='Skip mermaid diagram processing')
     comment_add_parser.add_argument('--upload-images', action='store_true',
                                     help='Upload images to ClickUp')
+    comment_add_parser.add_argument('--attach-images', nargs='+', metavar='IMAGE_PATH',
+                                    help='Upload and attach images to comment (supports multiple paths)')
     comment_add_parser.add_argument('--image-cache', help='Directory for image cache')
     comment_add_parser.add_argument('--debug', action='store_true',
                                     help='Show generated JSON before sending')

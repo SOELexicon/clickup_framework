@@ -45,7 +45,7 @@ class CommentsAPI:
         """Get all comments on a task."""
         return self.client.get_task_comments(task_id)
 
-    def create_task_comment(self, task_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None, notify_all: bool = False) -> Dict[str, Any]:
+    def create_task_comment(self, task_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None, notify_all: bool = False, attachment_urls: list = None) -> Dict[str, Any]:
         """
         Create a comment on a task.
 
@@ -54,12 +54,13 @@ class CommentsAPI:
             comment_text: Plain comment text (backward compatible)
             comment_data: Rich text comment data (new format)
             notify_all: Notify all assignees (default: False)
+            attachment_urls: List of attachment URLs to include in comment for preview (optional)
 
         Returns:
             Created comment (raw dict)
         """
         # Use existing method from client
-        return self.client.comments.create_task_comment(task_id, comment_text, comment_data)
+        return self.client.comments.create_task_comment(task_id, comment_text, comment_data, attachment_urls)
 
     # View comments
     def get_view_comments(self, view_id: str, **params) -> Dict[str, Any]:

@@ -9,7 +9,7 @@ from .base import BaseAPI
 class CommentsAPI(BaseAPI):
     """Low-level API for comment operations."""
 
-    def create_task_comment(self, task_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    def create_task_comment(self, task_id: str, comment_text: str = None, comment_data: Dict[str, Any] = None, attachment_urls: list = None) -> Dict[str, Any]:
         """
         Add comment to a task.
 
@@ -17,6 +17,7 @@ class CommentsAPI(BaseAPI):
             task_id: Task ID
             comment_text: Plain text comment (backward compatible)
             comment_data: Rich text comment data (new format with "comment" or "comment_text" key)
+            attachment_urls: List of attachment URLs to include in comment for preview (optional)
 
         Returns:
             Created comment
@@ -28,6 +29,38 @@ class CommentsAPI(BaseAPI):
             payload = {"comment_text": comment_text}
         else:
             raise ValueError("Either comment_text or comment_data must be provided")
+
+        # If attachment URLs are provided, include them in the comment for preview
+        # ClickUp displays image previews when images are referenced in the comment body
+        # Based on ClickUp's behavior, we need to include the image URL directly in the comment
+        # The GUI automatically embeds images when they're attached, so we replicate that behavior
+        if attachment_urls:
+            # For both comment_text and rich text formats, we'll append image references
+            # ClickUp may render these as previews if the URLs point to ClickUp attachments
+            images_text = "\n\n" + "\n".join([f"![image]({url})" for url in attachment_urls])
+            
+            if "comment_text" in payload:
+                # Simple: append markdown image syntax to comment text
+                payload["comment_text"] = f"{payload['comment_text']}{images_text}"
+            elif "comment" in payload:
+                # For rich text format, we need to add image segments
+                if isinstance(payload["comment"], list):
+                    # Add newline separator
+                    payload["comment"].append({"text": "\n\n"})
+                    # Add each image as a link (ClickUp may render as preview)
+                    for url in attachment_urls:
+                        # Try multiple formats that ClickUp might recognize
+                        # Format 1: Plain URL (ClickUp might auto-detect as image)
+                        payload["comment"].append({
+                            "text": url,
+                            "attributes": {"link": url}
+                        })
+                        # Format 2: Add newline after each image
+                        payload["comment"].append({"text": "\n"})
+                else:
+                    # Fallback: convert to comment_text format with markdown
+                    original = str(payload.get("comment", ""))
+                    payload = {"comment_text": f"{original}{images_text}"}
 
         response = self._request(
             "POST", f"task/{task_id}/comment", json=payload
