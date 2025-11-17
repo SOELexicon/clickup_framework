@@ -416,7 +416,7 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
 
 
 def show_command_tree():
-    """Display available commands in a tree view."""
+    """Display available commands in a tree view using auto-discovered metadata."""
     import time
     context = get_context_manager()
     use_color = context.get_ansi_output()
@@ -438,7 +438,22 @@ def show_command_tree():
         print("─" * 60)
         print()
 
-    commands = {
+    # Collect metadata from command modules (auto-discovery)
+    from clickup_framework.commands import collect_command_metadata
+    commands = collect_command_metadata()
+
+    # Fallback to hardcoded commands if no metadata found
+    if not commands:
+        commands = _get_fallback_commands()
+
+    # Display commands and examples
+    _display_commands(commands, use_color)
+    _display_examples_and_footer(use_color)
+
+
+def _get_fallback_commands():
+    """Return fallback hardcoded commands if metadata collection fails."""
+    return {
         "📊 View Commands": [
             ("hierarchy [h]", "<list_id|--all> [options]", "Display tasks in hierarchical parent-child view (default: full preset)"),
             ("list [ls, l]", "<list_id|--all> [options]", "Display tasks in hierarchical view (alias for hierarchy)"),
@@ -554,6 +569,9 @@ def show_command_tree():
         ],
     }
 
+
+def _display_commands(commands, use_color):
+    """Display the commands dictionary in tree format."""
     for category, cmds in commands.items():
         # Print category
         if use_color:
@@ -586,6 +604,9 @@ def show_command_tree():
 
         print()  # Blank line between categories
 
+
+def _display_examples_and_footer(use_color):
+    """Display examples and help footer."""
     # Print footer with examples
     if use_color:
         print(colorize("Quick Examples:", TextColor.BRIGHT_WHITE, TextStyle.BOLD))

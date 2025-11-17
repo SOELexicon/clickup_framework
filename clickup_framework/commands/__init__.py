@@ -1,16 +1,30 @@
 """
 Drop-in plugin command loader for CLI.
 
-Each command module in this directory should define a `register_command(subparsers)` function
-that configures its own argument parser and sets the command function.
+Each command module in this directory should define:
+1. A `register_command(subparsers)` function that configures argparse
+2. A `COMMAND_METADATA` dict for automatic help generation (optional but recommended)
 
 Example command module structure:
+    # Metadata for automatic help generation
+    COMMAND_METADATA = {
+        "category": "📊 View Commands",
+        "commands": [
+            {
+                "name": "mycommand [alias1, alias2]",
+                "args": "<arg1> [options]",
+                "description": "Command description shown in help"
+            }
+        ]
+    }
+
     def my_command(args):
         '''Command implementation'''
         pass
 
     def register_command(subparsers):
-        parser = subparsers.add_parser('mycommand', help='Description')
+        parser = subparsers.add_parser('mycommand', aliases=['alias1', 'alias2'],
+                                       help='Description')
         parser.add_argument('arg1', help='Argument 1')
         parser.set_defaults(func=my_command)
 """
@@ -50,6 +64,64 @@ def discover_commands():
     return commands
 
 
+def collect_command_metadata():
+    """
+    Collect COMMAND_METADATA from all command modules for help generation.
+
+    Returns:
+        dict: Dictionary mapping categories to lists of command definitions
+              Format: {category: [(name, args, description), ...]}
+    """
+    from collections import defaultdict
+
+    metadata_by_category = defaultdict(list)
+    commands = discover_commands()
+
+    for module in commands:
+        # Check if module has COMMAND_METADATA
+        if hasattr(module, 'COMMAND_METADATA'):
+            metadata = module.COMMAND_METADATA
+            category = metadata.get('category', '🔧 Other Commands')
+            cmd_list = metadata.get('commands', [])
+
+            for cmd in cmd_list:
+                name = cmd.get('name', 'unknown')
+                args = cmd.get('args', '')
+                desc = cmd.get('description', '')
+                metadata_by_category[category].append((name, args, desc))
+
+    # Sort categories to ensure consistent output
+    # Keep emoji categories in a specific order
+    category_order = [
+        "📊 View Commands",
+        "🎯 Context Management",
+        "✅ Task Management",
+        "💬 Comment Management",
+        "☑️  Checklist Management",
+        "🏷️  Custom Fields",
+        "🤖 Parent Task Automation",
+        "📄 Docs Management",
+        "📦 Export/Dump",
+        "🏗️  Workspace Hierarchy",
+        "🔄 Git Workflow",
+        "🛠️  Utility Commands",
+        "🎨 Configuration",
+    ]
+
+    # Build ordered dict
+    ordered_metadata = {}
+    for cat in category_order:
+        if cat in metadata_by_category:
+            ordered_metadata[cat] = metadata_by_category[cat]
+
+    # Add any remaining categories
+    for cat in sorted(metadata_by_category.keys()):
+        if cat not in ordered_metadata:
+            ordered_metadata[cat] = metadata_by_category[cat]
+
+    return ordered_metadata
+
+
 def register_all_commands(subparsers):
     """
     Register all discovered commands with the argument parser.
@@ -85,5 +157,5 @@ def discover_and_register_commands(subparsers, add_common_args=None):
 # Export utility functions for use by command modules
 from .utils import create_format_options, get_list_statuses
 
-__all__ = ['discover_commands', 'register_all_commands', 'discover_and_register_commands',
-           'create_format_options', 'get_list_statuses']
+__all__ = ['discover_commands', 'collect_command_metadata', 'register_all_commands',
+           'discover_and_register_commands', 'create_format_options', 'get_list_statuses']
