@@ -236,22 +236,14 @@ class ContentProcessor:
 
         # Process content first
         result = self.process(content, **options)
-        processed_content = result['content']
 
         # Upload all images
         upload_results = {'uploaded': [], 'already_uploaded': [], 'errors': []}
         if result['image_refs']:
-            upload_results = self.upload_all_images(processed_content, task_id)
-
-            # After upload, replace {{image:hash}} handlebars with markdown image syntax
-            if upload_results['uploaded'] or upload_results['already_uploaded']:
-                processed_content = self.image_embedding.parse(
-                    processed_content,
-                    resolve_urls=True
-                )
+            upload_results = self.upload_all_images(result['content'], task_id)
 
         return {
-            'content': processed_content,
+            'content': result['content'],
             'upload_results': upload_results,
             'mermaid_blocks': result['mermaid_blocks'],
             'image_refs': result['image_refs'],

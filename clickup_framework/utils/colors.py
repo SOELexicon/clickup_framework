@@ -7,6 +7,7 @@ Provides ANSI color codes and styling for terminal output.
 import os
 import re
 import sys
+import platform
 from enum import Enum
 from typing import Optional
 
@@ -15,6 +16,44 @@ from typing import Optional
 NO_COLOR = os.environ.get("NO_COLOR") is not None
 FORCE_COLOR = os.environ.get("FORCE_COLOR") is not None
 HAS_TTY = sys.stdout.isatty() if hasattr(sys.stdout, "isatty") else False
+
+# Enable VT100 mode for Windows (PowerShell/Windows Terminal)
+def _enable_vt100_mode():
+    """Enable VT100/VT220 terminal mode for Windows to support ANSI escape codes."""
+    if platform.system() == 'Windows':
+        try:
+            import ctypes
+            from ctypes import wintypes
+            
+            kernel32 = ctypes.windll.kernel32
+            
+            # Get console handles
+            STD_OUTPUT_HANDLE = -11
+            STD_ERROR_HANDLE = -12
+            
+            # Enable virtual terminal processing for stdout
+            handle_out = kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+            if handle_out and handle_out != -1:
+                # Get current mode
+                current_mode = wintypes.DWORD()
+                if kernel32.GetConsoleMode(handle_out, ctypes.byref(current_mode)):
+                    # Enable virtual terminal processing (0x0004)
+                    # Also keep existing flags: ENABLE_PROCESSED_OUTPUT (0x0001) | ENABLE_WRAP_AT_EOL_OUTPUT (0x0002)
+                    new_mode = current_mode.value | 0x0004
+                    kernel32.SetConsoleMode(handle_out, new_mode)
+            
+            # Enable virtual terminal processing for stderr
+            handle_err = kernel32.GetStdHandle(STD_ERROR_HANDLE)
+            if handle_err and handle_err != -1:
+                current_mode = wintypes.DWORD()
+                if kernel32.GetConsoleMode(handle_err, ctypes.byref(current_mode)):
+                    new_mode = current_mode.value | 0x0004
+                    kernel32.SetConsoleMode(handle_err, new_mode)
+        except Exception:
+            pass  # If enabling fails, continue anyway
+
+# Enable VT100 mode on import (for Windows)
+_enable_vt100_mode()
 
 # Determine if we should use colors - enable by default unless explicitly disabled
 USE_COLORS = not NO_COLOR

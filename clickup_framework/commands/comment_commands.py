@@ -44,14 +44,13 @@ def comment_add_command(args):
     skip_mermaid = getattr(args, 'skip_mermaid', False)
     upload_images = getattr(args, 'upload_images', False)
 
-    # Always create processor for markdown detection (lightweight)
-    processor = ContentProcessor(
-        context=ParserContext.COMMENT,
-        cache_dir=getattr(args, 'image_cache', None),
-        client=client if upload_images else None
-    )
-
     if process_markdown:
+        processor = ContentProcessor(
+            context=ParserContext.COMMENT,
+            cache_dir=getattr(args, 'image_cache', None),
+            client=client if upload_images else None
+        )
+
         # Process content
         if upload_images:
             # Process and upload images in one step
@@ -201,14 +200,13 @@ def comment_update_command(args):
     # Get task_id for uploads (needed to attach images)
     task_id = getattr(args, 'task_id', None)
 
-    # Always create processor for markdown detection (lightweight)
-    processor = ContentProcessor(
-        context=ParserContext.COMMENT,
-        cache_dir=getattr(args, 'image_cache', None),
-        client=client if upload_images else None
-    )
-
     if process_markdown:
+        processor = ContentProcessor(
+            context=ParserContext.COMMENT,
+            cache_dir=getattr(args, 'image_cache', None),
+            client=client if upload_images else None
+        )
+
         # Process content
         if upload_images and task_id:
             # Process and upload images in one step
