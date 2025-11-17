@@ -437,7 +437,8 @@ class MarkdownFormatter(BaseParser):
         thumbnail_large = attachment_data.get('thumbnail_large', url)
 
         # Get image dimensions if available
-        width = str(attachment_data.get('width', '154'))
+        # Default to 300px width (ClickUp's optimal size) to ensure preview rendering
+        width = str(attachment_data.get('width', '300'))
         natural_width = str(attachment_data.get('size', {}).get('width', '797'))
         natural_height = str(attachment_data.get('size', {}).get('height', '1289'))
 
@@ -509,7 +510,8 @@ class MarkdownFormatter(BaseParser):
         thumbnail_large = attachment_data.get('thumbnail_large', url)
 
         # Get image dimensions if available
-        width = str(attachment_data.get('width', '154'))
+        # Default to 300px width (ClickUp's optimal size) to ensure preview rendering
+        width = str(attachment_data.get('width', '300'))
         natural_width = str(attachment_data.get('size', {}).get('width', '797'))
         natural_height = str(attachment_data.get('size', {}).get('height', '1289'))
 

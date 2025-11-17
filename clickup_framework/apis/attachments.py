@@ -76,3 +76,26 @@ class AttachmentsAPI(BaseAPI):
             # Restore Content-Type header
             self.client.session.headers.update(original_headers)
 
+    def link_attachments_to_comment(self, comment_id: str, attachment_ids: list) -> Dict[str, Any]:
+        """
+        Link attachments to a comment (required for inline image preview rendering).
+
+        Args:
+            comment_id: Comment ID to link attachments to
+            attachment_ids: List of attachment IDs to link
+
+        Returns:
+            Response from API
+
+        Note:
+            This is required for inline images to render previews in comments.
+            The GUI performs this as a third step after uploading and creating the comment.
+        """
+        payload = {
+            "parent_id": int(comment_id),  # Comment ID as parent
+            "type": 2,  # Type 2 = comment attachment (vs type 1 = task attachment)
+            "attachments": attachment_ids
+        }
+
+        return self._request("PUT", "task/attachment", json=payload)
+

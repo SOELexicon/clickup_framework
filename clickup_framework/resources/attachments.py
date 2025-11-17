@@ -50,3 +50,27 @@ class AttachmentsAPI:
             print(f"Uploaded: {attachment['title']}")
         """
         return self.client.create_task_attachment(task_id, file_path, **params)
+
+    def link_attachments_to_comment(self, comment_id: str, attachment_ids: list) -> Dict[str, Any]:
+        """
+        Link attachments to a comment (required for inline image preview rendering).
+
+        Args:
+            comment_id: Comment ID to link attachments to
+            attachment_ids: List of attachment IDs to link
+
+        Returns:
+            Response from API
+
+        Note:
+            This is required for inline images to render previews in comments.
+            The GUI performs this as a third step after uploading and creating the comment.
+
+        Example:
+            # After creating comment with inline images
+            attachments.link_attachments_to_comment(
+                comment_id="90150171709926",
+                attachment_ids=["6522259a-2b14-4d52-9582-0be9371be82f.png"]
+            )
+        """
+        return self.client.attachments.link_attachments_to_comment(comment_id, attachment_ids)

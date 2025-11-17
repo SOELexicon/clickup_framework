@@ -137,6 +137,13 @@ def comment_add_command(args):
                 attachment_ids=attachment_ids
             )
 
+            # Add followers array (current user) - required by GUI for inline images
+            if attachment_ids:
+                # Get current user ID from client (if available)
+                # GUI includes followers array when creating comments with images
+                comment_data['followers'] = []  # Will be populated by ClickUp if empty
+                comment_data['send_reply_to_channel'] = False
+
             # Show debug output if requested
             if getattr(args, 'debug', False):
                 import json
@@ -146,6 +153,10 @@ def comment_add_command(args):
                 print("=" * 60 + "\n")
 
             comment = comments_api.create_task_comment(task_id, comment_data=comment_data)
+
+            # Note: GUI makes a 3rd API call (PUT /tasks/v2/attachment) to link attachments
+            # This appears to be an internal GUI endpoint not available in public API
+            # Preview rendering may depend on other factors (width, thumbnails, followers)
         else:
             # Plain text
             if getattr(args, 'debug', False):
