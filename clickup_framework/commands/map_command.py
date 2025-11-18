@@ -1586,9 +1586,27 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const points = [];
                 const step = Math.max(1, Math.floor(length / 50)); // Sample ~50 points
 
+                // Get the transformation matrix from the path to SVG root
+                const ctm = path.getCTM();
+
                 for (let i = 0; i <= length; i += step) {{
                     const pt = path.getPointAtLength(i);
-                    points.push([pt.x, pt.y]);
+                    // Transform point using CTM to get absolute SVG coordinates
+                    if (ctm) {{
+                        const svgPt = svg.createSVGPoint();
+                        svgPt.x = pt.x;
+                        svgPt.y = pt.y;
+                        const transformed = svgPt.matrixTransform(ctm);
+                        points.push([transformed.x, transformed.y]);
+                    }} else {{
+                        points.push([pt.x, pt.y]);
+                    }}
+                }}
+
+                // Debug first path
+                if (idx === 0) {{
+                    console.log('WebGL: First path CTM:', ctm);
+                    console.log('WebGL: First path points (first 3):', points.slice(0, 3));
                 }}
 
                 pathData.push({{
