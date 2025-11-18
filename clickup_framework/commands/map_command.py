@@ -418,7 +418,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
         mermaid.initialize({{
-            startOnLoad: true,
+            startOnLoad: false,  // We'll manually load content from base64 to avoid HTML parsing
             theme: 'dark',
             themeVariables: {{
                 primaryColor: 'rgba(16, 185, 129, 0.15)',
@@ -875,7 +875,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             </div>
             <div class="diagram-container" id="diagram-container">
                 <div class="mermaid" id="mermaid-diagram" data-mermaid-code-b64="{mermaid_code_b64}">
-{mermaid_code}
+                    <!-- Mermaid code will be loaded from base64 attribute by JavaScript to avoid HTML parsing issues -->
                 </div>
             </div>
         </div>
@@ -1101,24 +1101,39 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
         // Parse mermaid content and build file tree
         function buildFileTree() {{
-            // Get mermaid content from base64 attribute to avoid template string issues
-            const diagramDiv = document.getElementById('mermaid-diagram');
-            const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
-            const mermaidContent = atob(mermaidCodeB64);
+            try {{
+                // Get mermaid content from base64 attribute to avoid template string issues
+                const diagramDiv = document.getElementById('mermaid-diagram');
+                const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
 
-            const nodes = new Map(); // nodeId -> {{ name, file, line }}
-            const fileStructure = {{}};
+                console.log('Base64 attribute found:', !!mermaidCodeB64);
+                console.log('Base64 length:', mermaidCodeB64 ? mermaidCodeB64.length : 0);
 
-            // Extract nodes from mermaid content
-            // New format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
-            // Match pattern: N[digits]["text()<br/>anything<br/>📄 filename<br/>📍 L[start]-[end]"]
-            const nodePattern = /N(\d+)\["([^(]+)\(\)<br\/>[^📄]*📄\s*([^<]+)<br\/>📍\s*L(\d+)-(\d+)"\]/g;
-            let match;
-            let matchCount = 0;
+                if (!mermaidCodeB64) {{
+                    console.error('No base64 data found on mermaid-diagram element');
+                    document.getElementById('file-tree').innerHTML = '<div style="color:#f59e0b;">Error: No diagram data found</div>';
+                    return;
+                }}
 
-            while ((match = nodePattern.exec(mermaidContent)) !== null) {{
-                matchCount++;
-                const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
+                const mermaidContent = atob(mermaidCodeB64);
+                console.log('Decoded mermaid content length:', mermaidContent.length);
+                console.log('Sample content:', mermaidContent.substring(0, 500));
+
+                const nodes = new Map(); // nodeId -> {{ name, file, line }}
+                const fileStructure = {{}};
+
+                // Extract nodes from mermaid content
+                // Format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
+                const nodePattern = /N(\d+)\["([^(]+)\(\)<br\/>[^📄]*📄\s*([^<]+)<br\/>📍\s*L(\d+)-(\d+)"\]/g;
+                let match;
+                let matchCount = 0;
+
+                while ((match = nodePattern.exec(mermaidContent)) !== null) {{
+                    matchCount++;
+                    if (matchCount <= 3) {{
+                        console.log(`Match ${{matchCount}}:`, match[0]);
+                    }}
+                    const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
                 const node = {{
                     id: 'N' + nodeId,
                     name: funcName.trim(),
@@ -1370,11 +1385,54 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             updateTransform();
         }}
 
-        // Build tree when diagram is loaded
+        // Load mermaid content from base64 to avoid HTML parsing issues
+        function loadMermaidContent() {{
+            const diagramDiv = document.getElementById('mermaid-diagram');
+            const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
+
+            if (!mermaidCodeB64) {{
+                console.error('No base64 mermaid content found');
+                return false;
+            }}
+
+            try {{
+                // Decode base64 and set as text content (not innerHTML to avoid parsing)
+                const mermaidCode = atob(mermaidCodeB64);
+                diagramDiv.textContent = mermaidCode;
+                console.log('Loaded mermaid content:', mermaidCode.length, 'characters');
+                return true;
+            }} catch (error) {{
+                console.error('Failed to decode mermaid content:', error);
+                return false;
+            }}
+        }}
+
+        // Initialize: Load content and render diagram
+        if (loadMermaidContent()) {{
+            mermaid.contentLoaded().then(() => {{
+                console.log('Mermaid diagram rendered successfully');
+                // Build tree and effects after diagram is rendered
+                setTimeout(() => {{
+                    buildFileTree();
+                    createPulseEffects();
+                    autoFitDiagram();
+                }}, 500);
+            }}).catch(error => {{
+                console.error('Failed to render mermaid diagram:', error);
+            }});
+        }} else {{
+            console.error('Failed to load mermaid content');
+        }}
+
+        // Build tree when diagram is loaded (fallback for older approach)
         setTimeout(() => {{
-            buildFileTree();
-            createPulseEffects();
-            autoFitDiagram();
+            // Only build if not already built
+            const treeContent = document.getElementById('file-tree').innerHTML;
+            if (!treeContent || treeContent.trim() === '') {{
+                buildFileTree();
+                createPulseEffects();
+                autoFitDiagram();
+            }}
         }}, 1000);
 
         // Keyboard shortcuts
@@ -1396,7 +1454,6 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         mermaid_code_b64 = base64.b64encode(mermaid_content.encode('utf-8')).decode('ascii')
         html_content = html_template.format(
             title=title,
-            mermaid_code=mermaid_content,
             mermaid_code_b64=mermaid_code_b64
         )
 
