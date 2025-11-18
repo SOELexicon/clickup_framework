@@ -19,7 +19,7 @@ COMMAND_METADATA = {
     "commands": [
         {
             "name": "map",
-            "args": "[--python|--csharp|--all-langs] [--swim] [--output OUTPUT] [--install]",
+            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output FILE] [--format FORMAT] [--install]",
             "description": "Generate code map using ctags, optionally export as mermaid diagram"
         },
     ]
@@ -250,9 +250,89 @@ def parse_tags_file(tags_file: Path) -> Dict:
         return {}
 
 
-def generate_mermaid_swimlane(stats: Dict, output_file: str) -> None:
+def check_mmdc_available() -> bool:
+    """Check if mermaid-cli (mmdc) is available."""
+    try:
+        result = subprocess.run(
+            ['mmdc', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        return False
+
+
+def export_mermaid_to_image(markdown_file: str, output_file: str, image_format: str, use_color: bool = False) -> bool:
     """
-    Generate a mermaid flowchart/swimlane diagram from code map statistics.
+    Export mermaid markdown to image using mmdc (mermaid-cli).
+
+    Args:
+        markdown_file: Input markdown file with mermaid diagram
+        output_file: Output image file path
+        image_format: Image format (png, svg, jpg)
+        use_color: Whether to use colored output
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if not check_mmdc_available():
+        error_msg = "ERROR: mmdc (mermaid-cli) not found. Install with: npm install -g @mermaid-js/mermaid-cli"
+        if use_color:
+            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
+        return False
+
+    try:
+        # Map jpg to jpeg for mmdc
+        mmdc_format = 'jpeg' if image_format == 'jpg' else image_format
+
+        cmd = [
+            'mmdc',
+            '-i', markdown_file,
+            '-o', output_file,
+            '-t', 'dark',  # Use dark theme
+            '-b', 'transparent'  # Transparent background
+        ]
+
+        if use_color:
+            print(colorize(f"[PROGRESS] Converting to {image_format.upper()}...", TextColor.BRIGHT_BLUE))
+        else:
+            print(f"[PROGRESS] Converting to {image_format.upper()}...")
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            if use_color:
+                print(colorize(f"[SUCCESS] Image exported: {output_file}", TextColor.GREEN))
+            else:
+                print(f"[SUCCESS] Image exported: {output_file}")
+            return True
+        else:
+            if use_color:
+                print(colorize(f"[ERROR] mmdc failed: {result.stderr}", TextColor.RED), file=sys.stderr)
+            else:
+                print(f"[ERROR] mmdc failed: {result.stderr}", file=sys.stderr)
+            return False
+
+    except Exception as e:
+        if use_color:
+            print(colorize(f"[ERROR] Failed to export image: {e}", TextColor.RED), file=sys.stderr)
+        else:
+            print(f"[ERROR] Failed to export image: {e}", file=sys.stderr)
+        return False
+
+
+def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
+    """
+    Generate a mermaid flowchart diagram from code map statistics.
 
     Args:
         stats: Statistics dictionary from parse_tags_file
@@ -335,6 +415,159 @@ def generate_mermaid_swimlane(stats: Dict, output_file: str) -> None:
             lines.append(f"  - {kind}: {kind_count}")
 
     # Write to file
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+    except Exception as e:
+        print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
+
+
+def generate_mermaid_class(stats: Dict, output_file: str) -> None:
+    """
+    Generate a mermaid class diagram showing code structure.
+
+    Args:
+        stats: Statistics dictionary from parse_tags_file
+        output_file: Output markdown file path
+    """
+    symbols_by_file = stats.get('symbols_by_file', {})
+    by_language = stats.get('by_language', {})
+
+    lines = [
+        "# Code Map - Class Diagram",
+        "",
+        "```mermaid",
+        "classDiagram"
+    ]
+
+    # Track classes and their relationships
+    class_count = 0
+    for file_path, symbols in sorted(symbols_by_file.items()):
+        if class_count >= 15:  # Limit to avoid overwhelming diagram
+            break
+
+        # Find classes in this file
+        classes = [s for s in symbols if s.get('kind') == 'class']
+        for cls in classes:
+            class_name = cls.get('name', 'Unknown')
+            lang = cls.get('language', 'Unknown')
+
+            lines.append(f"    class {class_name} {{")
+            lines.append(f"        <<{lang}>>")
+
+            # Find methods/functions in this class
+            methods = [s for s in symbols if s.get('scope') == class_name and s.get('kind') in ['function', 'method']]
+            for method in methods[:10]:  # Limit methods shown
+                method_name = method.get('name', '')
+                lines.append(f"        +{method_name}()")
+
+            lines.append("    }")
+            class_count += 1
+
+            if class_count >= 15:
+                break
+
+    lines.append("```")
+    lines.append("")
+    lines.extend([
+        "## Statistics",
+        "",
+        f"- **Total Symbols**: {stats.get('total_symbols', 0)}",
+        f"- **Files Analyzed**: {stats.get('files_analyzed', 0)}",
+        f"- **Languages**: {len(by_language)}",
+    ])
+
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+    except Exception as e:
+        print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
+
+
+def generate_mermaid_pie(stats: Dict, output_file: str) -> None:
+    """
+    Generate a mermaid pie chart showing language distribution.
+
+    Args:
+        stats: Statistics dictionary from parse_tags_file
+        output_file: Output markdown file path
+    """
+    by_language = stats.get('by_language', {})
+
+    lines = [
+        "# Code Map - Language Distribution",
+        "",
+        "```mermaid",
+        "pie title Code Distribution by Language"
+    ]
+
+    for lang in sorted(by_language.keys()):
+        count = sum(by_language[lang].values())
+        lines.append(f"    \"{lang}\" : {count}")
+
+    lines.append("```")
+    lines.append("")
+    lines.extend([
+        "## Statistics",
+        "",
+        f"- **Total Symbols**: {stats.get('total_symbols', 0)}",
+        f"- **Files Analyzed**: {stats.get('files_analyzed', 0)}",
+        f"- **Languages**: {len(by_language)}",
+    ])
+
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+    except Exception as e:
+        print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
+
+
+def generate_mermaid_mindmap(stats: Dict, output_file: str) -> None:
+    """
+    Generate a mermaid mindmap showing code structure hierarchy.
+
+    Args:
+        stats: Statistics dictionary from parse_tags_file
+        output_file: Output markdown file path
+    """
+    symbols_by_file = stats.get('symbols_by_file', {})
+    by_language = stats.get('by_language', {})
+
+    lines = [
+        "# Code Map - Mind Map",
+        "",
+        "```mermaid",
+        "mindmap",
+        "  root((Codebase))"
+    ]
+
+    # Group by language
+    for lang in sorted(by_language.keys())[:5]:  # Limit languages
+        lines.append(f"    {lang}")
+
+        # Find files for this language
+        lang_files = []
+        for file_path, symbols in symbols_by_file.items():
+            if symbols and symbols[0].get('language') == lang:
+                lang_files.append((file_path, symbols))
+
+        # Show top files by symbol count
+        lang_files.sort(key=lambda x: len(x[1]), reverse=True)
+        for file_path, symbols in lang_files[:5]:  # Top 5 files per language
+            file_name = Path(file_path).name
+            symbol_count = len(symbols)
+            lines.append(f"      {file_name} ({symbol_count})")
+
+    lines.append("```")
+    lines.append("")
+    lines.extend([
+        "## Statistics",
+        "",
+        f"- **Total Symbols**: {stats.get('total_symbols', 0)}",
+        f"- **Files Analyzed**: {stats.get('files_analyzed', 0)}",
+        f"- **Languages**: {len(by_language)}",
+    ])
+
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
@@ -471,27 +704,64 @@ def map_command(args):
     print()
 
     # Generate mermaid diagram if requested
-    if args.swim:
-        if args.output:
-            mermaid_file = Path(args.output)
-        else:
-            mermaid_file = Path('docs/codemap/diagram.md')
+    mermaid_file = None
+    output_path = None
+    if args.mer:
+        # Map diagram types to generator functions
+        diagram_generators = {
+            'flowchart': generate_mermaid_flowchart,
+            'swim': generate_mermaid_flowchart,  # Alias
+            'class': generate_mermaid_class,
+            'pie': generate_mermaid_pie,
+            'mindmap': generate_mermaid_mindmap,
+        }
+
+        generator = diagram_generators.get(args.mer.lower())
+        if not generator:
+            error_msg = f"Unknown mermaid diagram type: {args.mer}. Valid types: {', '.join(diagram_generators.keys())}"
+            if use_color:
+                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+            else:
+                print(error_msg, file=sys.stderr)
+            sys.exit(1)
+
+        # Determine mermaid markdown output path
+        mermaid_file = Path(f'docs/codemap/diagram_{args.mer}.md')
 
         # Create parent directory if needed
         mermaid_file.parent.mkdir(parents=True, exist_ok=True)
 
         if use_color:
-            print(colorize("[PROGRESS] Generating mermaid diagram...", TextColor.BRIGHT_BLUE))
+            print(colorize(f"[PROGRESS] Generating {args.mer} mermaid diagram...", TextColor.BRIGHT_BLUE))
         else:
-            print("[PROGRESS] Generating mermaid diagram...")
+            print(f"[PROGRESS] Generating {args.mer} mermaid diagram...")
 
-        generate_mermaid_swimlane(stats, str(mermaid_file))
+        generator(stats, str(mermaid_file))
 
         if use_color:
             print(colorize(f"[SUCCESS] Mermaid diagram: {mermaid_file}", TextColor.GREEN))
         else:
             print(f"[SUCCESS] Mermaid diagram: {mermaid_file}")
         print()
+
+        # Export to image if --output is specified
+        if args.output:
+            # Determine image format
+            output_path = Path(args.output)
+            if args.format:
+                image_format = args.format.lower()
+            else:
+                # Infer from file extension
+                ext = output_path.suffix.lstrip('.')
+                image_format = ext if ext in ['png', 'svg', 'jpg'] else 'png'
+
+            # Ensure correct extension
+            if not output_path.suffix or output_path.suffix.lstrip('.') != image_format:
+                output_path = output_path.with_suffix(f'.{image_format}')
+
+            # Export using mmdc
+            if export_mermaid_to_image(str(mermaid_file), str(output_path), image_format, use_color):
+                print()
 
     # Final summary
     if use_color:
@@ -506,8 +776,10 @@ def map_command(args):
     print()
     print("Files:")
     print(f"  - {tags_file} (JSON tags)")
-    if args.swim:
+    if mermaid_file:
         print(f"  - {mermaid_file} (Mermaid diagram)")
+    if args.output and args.mer:
+        print(f"  - {output_path} (Image export)")
     print()
 
 
@@ -545,16 +817,25 @@ def register_command(subparsers):
 
     # Mermaid diagram option
     parser.add_argument(
-        '--swim',
-        action='store_true',
-        help='Generate mermaid swimlane diagram'
+        '--mer',
+        type=str,
+        choices=['flowchart', 'swim', 'class', 'pie', 'mindmap'],
+        help='Generate mermaid diagram (flowchart, class, pie, mindmap)'
     )
 
-    # Output file option
+    # Image output option (requires --mer)
     parser.add_argument(
         '--output',
         type=str,
-        help='Output file for mermaid diagram (default: docs/codemap/diagram.md)'
+        help='Export diagram to image file (png/svg/jpg) using mmdc. Requires --mer and mermaid-cli (npm install -g @mermaid-js/mermaid-cli)'
+    )
+
+    # Image format option
+    parser.add_argument(
+        '--format',
+        type=str,
+        choices=['png', 'svg', 'jpg'],
+        help='Image format for --output (default: inferred from file extension or png)'
     )
 
     parser.set_defaults(func=map_command)
