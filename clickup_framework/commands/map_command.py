@@ -1430,7 +1430,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             console.log('WebGL: Initializing with', edgePathCount, 'edge paths after', createWebGLGlows.retryCount, 'checks');
 
-            // Create canvas overlay
+            // Create canvas overlay - position it relative to SVG, not container
             const canvas = document.createElement('canvas');
             canvas.style.position = 'absolute';
             canvas.style.top = '0';
@@ -1440,8 +1440,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             canvas.style.pointerEvents = 'none';
             canvas.style.zIndex = '100';  // Higher z-index to ensure visibility
 
-            const diagramContainer = document.getElementById('diagram-container');
-            diagramContainer.appendChild(canvas);
+            // Append canvas as sibling to SVG inside mermaid-diagram div
+            // This way canvas and SVG are both transformed together
+            const mermaidDiagram = document.getElementById('mermaid-diagram');
+            mermaidDiagram.appendChild(canvas);
             console.log('WebGL canvas created');
 
             // Setup WebGL context
@@ -1892,13 +1894,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         window.refreshWebGLParticles = function() {{
             console.log('Refreshing WebGL particles...');
             // Remove existing canvas
-            const existingCanvas = document.querySelector('#diagram-container canvas');
+            const existingCanvas = document.querySelector('#mermaid-diagram canvas');
             if (existingCanvas) {{
                 existingCanvas.remove();
             }}
             // Reset retry counters
             createWebGLGlows.lastPathCount = 0;
             createWebGLGlows.retryCount = 0;
+            createWebGLGlows.stableCount = 0;
             // Reinitialize
             createWebGLGlows();
         }};
