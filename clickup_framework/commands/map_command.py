@@ -1576,6 +1576,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             console.log('WebGL: Created', pathData.length, 'animated paths');
 
+            // Debug: Log sample path points to verify coordinates
+            if (pathData.length > 0) {{
+                const samplePath = pathData[0];
+                console.log('WebGL: Sample path has', samplePath.points.length, 'points');
+                console.log('WebGL: First 3 points:', samplePath.points.slice(0, 3));
+                console.log('WebGL: SVG viewBox:', svg.viewBox.baseVal.width, 'x', svg.viewBox.baseVal.height);
+            }}
+
             // Particle data (8 particles per path for trail effect)
             const particlesPerPath = 8;
             const totalParticles = pathData.length * particlesPerPath;
@@ -1607,6 +1615,9 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 frameCount++;
                 if (frameCount === 1) {{
                     console.log('WebGL: First frame rendering');
+                    console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
+                    console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
+                    console.log('WebGL: First 5 particle positions:', Array.from(positions.slice(0, 10)));
                 }}
 
                 // Clear with transparent background
