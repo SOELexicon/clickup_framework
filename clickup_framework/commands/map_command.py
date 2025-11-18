@@ -1522,23 +1522,20 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 }}
 
                 void main() {{
+                    // DEBUG: Simple bright green to test if lines render
+                    gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);  // Solid bright green
+
+                    // TODO: Re-enable fire shader once we confirm lines are visible
+                    /*
                     // Create flowing UV coordinates along the line
-                    // v_texCoord goes 0-1 along line length
-                    // Add perpendicular dimension for fire width
-                    vec2 uv = vec2(v_texCoord, 0.5);  // Center on line
-
-                    // Animate fire flowing along the line
+                    vec2 uv = vec2(v_texCoord, 0.5);
                     float t = u_time;
-                    uv.x -= t * 0.05;  // Flow direction
-
-                    // Create fire effect
+                    uv.x -= t * 0.05;
                     float grad = shade(uv, t);
                     vec3 fireColor = color(grad);
-
-                    // Fade fire intensity based on position
                     float intensity = smoothstep(0.0, 0.2, grad) * smoothstep(1.0, 0.7, grad);
-
                     gl_FragColor = vec4(fireColor * intensity, intensity * 0.9);
+                    */
                 }}
             `;
 
@@ -1745,6 +1742,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 lineSegments.forEach(segment => {{
                     gl.drawArrays(gl.LINE_STRIP, segment.start, segment.count);
                 }});
+
+                // Check for WebGL errors on first frame
+                if (frameCount === 1) {{
+                    const err = gl.getError();
+                    if (err !== gl.NO_ERROR) {{
+                        console.error('WebGL error after first draw:', err);
+                    }} else {{
+                        console.log('WebGL: First draw completed without errors');
+                    }}
+                }}
 
                 requestAnimationFrame(animate);
             }}
