@@ -1453,41 +1453,35 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 return;
             }}
 
-            // Vertex shader - positions particles
+            // Vertex shader - positions line segments
             const vertexShaderSource = `
                 attribute vec2 a_position;
-                attribute float a_age;
-                attribute float a_trail_index;
+                attribute float a_texCoord;  // Position along line (0 to 1)
                 uniform vec2 u_resolution;
                 uniform mat3 u_transform;
-                varying float v_age;
-                varying float v_trail_index;
+                varying float v_texCoord;
 
                 void main() {{
                     vec3 transformed = u_transform * vec3(a_position, 1.0);
                     vec2 clipSpace = (transformed.xy / u_resolution) * 2.0 - 1.0;
                     gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-                    // Much larger particles for visibility
-                    gl_PointSize = 32.0 - (a_trail_index * 2.5);
-                    v_age = a_age;
-                    v_trail_index = a_trail_index;
+                    v_texCoord = a_texCoord;
                 }}
             `;
 
-            // Fragment shader - creates flowing fire effect along paths
+            // Fragment shader - creates flowing fire effect inside line channels
             const fragmentShaderSource = `
                 precision mediump float;
-                varying float v_age;
-                varying float v_trail_index;
+                varying float v_texCoord;  // 0 to 1 along the line
                 uniform float u_time;
 
                 // Noise functions for fire turbulence
                 float rand(vec2 n) {{
-                    return fract(sin(dot(n, vec2(12.9898, 12.1414))) * 43758.5453);
+                    return fract(sin(dot(n, vec2(12.9898, 12.1414))) * 83758.5453);
                 }}
 
                 float noise(vec2 n) {{
-                    vec2 d = vec2(0.0, 1.0);
+                    const vec2 d = vec2(0.0, 1.0);
                     vec2 b = floor(n);
                     vec2 f = smoothstep(vec2(0.0), vec2(1.0), fract(n));
                     return mix(mix(rand(b), rand(b + d.yx), f.x),
@@ -1498,57 +1492,53 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     return noise(n) + noise(n * 2.1) * 0.6 + noise(n * 5.4) * 0.42;
                 }}
 
-                // Green fire color ramp: white hot -> cyan -> emerald -> dark green
-                vec3 fireColor(float t) {{
-                    // Hot white core
-                    vec3 hotCore = vec3(1.0, 1.0, 1.0);
-                    // Bright cyan
-                    vec3 cyan = vec3(0.4, 1.0, 0.9);
-                    // Emerald green
-                    vec3 emerald = vec3(0.063, 0.725, 0.506);
-                    // Dark green tips
-                    vec3 darkGreen = vec3(0.0, 0.3, 0.2);
+                // Flowing fire shader adapted for line channels
+                float shade(vec2 uv, float t) {{
+                    uv.x += uv.y < 0.5 ? 23.0 + t * 0.035 : -11.0 + t * 0.03;
+                    uv.y = abs(uv.y - 0.5);
+                    uv.x *= 35.0;
 
-                    if (t < 0.33) {{
-                        return mix(hotCore, cyan, t * 3.0);
-                    }} else if (t < 0.66) {{
-                        return mix(cyan, emerald, (t - 0.33) * 3.0);
+                    float q = fire(uv - t * 0.013) / 2.0;
+                    vec2 r = vec2(fire(uv + q / 2.0 + t - uv.x - uv.y), fire(uv + q - t));
+
+                    return pow((r.y + r.y) * max(0.0, uv.y) + 0.1, 4.0);
+                }}
+
+                // Green fire color ramp (adapted from reference shader)
+                vec3 ramp(float t) {{
+                    // Green channel fire: bright white -> cyan -> emerald -> dark green
+                    if (t <= 0.5) {{
+                        return vec3(1.0 - t * 1.4, 1.0, 1.05) / t;
                     }} else {{
-                        return mix(emerald, darkGreen, (t - 0.66) * 3.0);
+                        return vec3(0.3 * (1.0 - t) * 2.0, 1.0, 1.05) / t;
                     }}
                 }}
 
+                vec3 color(float grad) {{
+                    grad = sqrt(grad);
+                    vec3 col = ramp(grad);
+                    col /= (1.15 + max(vec3(0.0), col));
+                    return col;
+                }}
+
                 void main() {{
-                    vec2 coord = gl_PointCoord - vec2(0.5);
-                    float dist = length(coord) * 2.0; // Scale for softer edges
+                    // Create flowing UV coordinates along the line
+                    // v_texCoord goes 0-1 along line length
+                    // Add perpendicular dimension for fire width
+                    vec2 uv = vec2(v_texCoord, 0.5);  // Center on line
 
-                    // Create turbulent fire effect with animation
-                    vec2 fireCoord = coord * 8.0 + vec2(v_age * 15.0, u_time * 2.0);
-                    float turbulence = fire(fireCoord);
+                    // Animate fire flowing along the line
+                    float t = u_time;
+                    uv.x -= t * 0.05;  // Flow direction
 
-                    // Trail fade: front is hottest
-                    float trailFade = 1.0 - (v_trail_index / 8.0);
-                    trailFade = pow(trailFade, 1.5);
+                    // Create fire effect
+                    float grad = shade(uv, t);
+                    vec3 fireColor = color(grad);
 
-                    // Soft radial gradient for glow
-                    float radialGlow = 1.0 - smoothstep(0.0, 1.0, dist);
-                    radialGlow = pow(radialGlow, 0.8); // Softer falloff
+                    // Fade fire intensity based on position
+                    float intensity = smoothstep(0.0, 0.2, grad) * smoothstep(1.0, 0.7, grad);
 
-                    // Combine turbulence with radial glow
-                    float fireIntensity = radialGlow * (0.5 + turbulence * 0.5) * trailFade;
-
-                    // Color based on intensity (hot core -> cooler edges)
-                    vec3 color = fireColor(1.0 - fireIntensity);
-
-                    // Very soft alpha for bloomy glow effect
-                    float alpha = fireIntensity * trailFade * 0.8;
-
-                    // Add extra bloom on bright areas
-                    if (fireIntensity > 0.7) {{
-                        alpha *= 1.5; // Boost bright core alpha for more glow
-                    }}
-
-                    gl_FragColor = vec4(color, alpha);
+                    gl_FragColor = vec4(fireColor * intensity, intensity * 0.9);
                 }}
             `;
 
@@ -1582,8 +1572,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             // Get attribute/uniform locations
             const positionLoc = gl.getAttribLocation(program, 'a_position');
-            const ageLoc = gl.getAttribLocation(program, 'a_age');
-            const trailIndexLoc = gl.getAttribLocation(program, 'a_trail_index');
+            const texCoordLoc = gl.getAttribLocation(program, 'a_texCoord');
             const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
             const transformLoc = gl.getUniformLocation(program, 'u_transform');
             const timeLoc = gl.getUniformLocation(program, 'u_time');
@@ -1637,17 +1626,41 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 height: svg.viewBox.baseVal.height
             }});
 
-            // Particle data (8 particles per path for trail effect)
-            const particlesPerPath = 8;
-            const totalParticles = pathData.length * particlesPerPath;
-            const positions = new Float32Array(totalParticles * 2);
-            const ages = new Float32Array(totalParticles);
-            const trailIndices = new Float32Array(totalParticles);
+            // Build vertex data for rendering lines with fire texture
+            // Each path becomes a LINE_STRIP with texture coordinates
+            const lineVertices = [];
+            const lineTexCoords = [];
+            const lineSegments = []; // Track where each path starts/ends
+
+            pathData.forEach(path => {{
+                const startIdx = lineVertices.length / 2;
+
+                path.points.forEach((point, idx) => {{
+                    // Add vertex position
+                    lineVertices.push(point[0], point[1]);
+
+                    // Add texture coordinate (0-1 along path)
+                    const texCoord = idx / (path.points.length - 1);
+                    lineTexCoords.push(texCoord);
+                }});
+
+                const endIdx = lineVertices.length / 2;
+                lineSegments.push({{ start: startIdx, count: endIdx - startIdx }});
+            }});
+
+            const positions = new Float32Array(lineVertices);
+            const texCoords = new Float32Array(lineTexCoords);
 
             // Create buffers
             const positionBuffer = gl.createBuffer();
-            const ageBuffer = gl.createBuffer();
-            const trailIndexBuffer = gl.createBuffer();
+            const texCoordBuffer = gl.createBuffer();
+
+            // Upload static geometry to GPU
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
 
             // Resize canvas to match SVG dimensions (not CSS-transformed container)
             function resizeCanvas() {{
@@ -1668,8 +1681,11 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
-            console.log('WebGL: Starting animation with', totalParticles, 'particles');
-            console.log('WebGL: Particles per path:', particlesPerPath, '×', pathData.length, 'paths');
+            console.log('WebGL: Starting fire channel animation with', lineSegments.length, 'paths');
+            console.log('WebGL: Total vertices:', positions.length / 2);
+
+            // Set line width for visibility
+            gl.lineWidth(3.0);
 
             let frameCount = 0;
             // Animation loop
@@ -1680,43 +1696,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 gl.clearColor(0, 0, 0, 0);
                 gl.clear(gl.COLOR_BUFFER_BIT);
                 gl.enable(gl.BLEND);
-                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE);  // Additive blending for fire glow
 
-                // Update particle positions
-                let particleIdx = 0;
-                pathData.forEach((path, pathIndex) => {{
-                    path.progress = (path.progress + 0.002) % 1.0;  // Slower for better visibility
-
-                    for (let i = 0; i < particlesPerPath; i++) {{
-                        const trailOffset = (i * 0.03);
-                        const progress = (path.progress - trailOffset + 1.0) % 1.0;
-                        const pointIdx = Math.floor(progress * (path.points.length - 1));
-                        const point = path.points[pointIdx];
-
-                        const baseIdx = particleIdx * 2;
-                        positions[baseIdx] = point[0];
-                        positions[baseIdx + 1] = point[1];
-                        ages[particleIdx] = progress;
-                        trailIndices[particleIdx] = i;
-                        particleIdx++;
-                    }}
-                }});
-
-                // Upload data to GPU
+                // Bind vertex attributes (static geometry, set once per frame)
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
                 gl.enableVertexAttribArray(positionLoc);
                 gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
 
-                gl.bindBuffer(gl.ARRAY_BUFFER, ageBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, ages, gl.DYNAMIC_DRAW);
-                gl.enableVertexAttribArray(ageLoc);
-                gl.vertexAttribPointer(ageLoc, 1, gl.FLOAT, false, 0, 0);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, trailIndexBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, trailIndices, gl.DYNAMIC_DRAW);
-                gl.enableVertexAttribArray(trailIndexLoc);
-                gl.vertexAttribPointer(trailIndexLoc, 1, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                gl.enableVertexAttribArray(texCoordLoc);
+                gl.vertexAttribPointer(texCoordLoc, 1, gl.FLOAT, false, 0, 0);
 
                 // Set uniforms
                 gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
@@ -1734,49 +1723,13 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const scaleX = canvas.width / svgWidth;
                 const scaleY = canvas.height / svgHeight;
 
-                // Debug logging on first frame (after variables are defined)
+                // Debug logging on first frame
                 if (frameCount === 1) {{
-                    console.log('WebGL: First frame rendering');
+                    console.log('WebGL: First frame rendering fire channels');
                     console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
                     console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
                     console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
-
-                    // Sample particles from different paths to verify distribution
-                    const sampleSize = Math.min(5, pathData.length);
-                    console.log('WebGL: Sampling particles from', sampleSize, 'different paths:');
-                    for (let pathIdx = 0; pathIdx < sampleSize; pathIdx++) {{
-                        const particleIdx = pathIdx * particlesPerPath; // First particle of each path
-                        const baseIdx = particleIdx * 2;
-                        const pos = [positions[baseIdx], positions[baseIdx + 1]];
-                        console.log(`  Path ${{pathIdx}}: particle at SVG coords [${{pos[0].toFixed(2)}}, ${{pos[1].toFixed(2)}}]`);
-                    }}
-
-                    console.log('WebGL: Last path particle (path', pathData.length - 1, '):');
-                    const lastParticleIdx = (pathData.length - 1) * particlesPerPath;
-                    const lastBaseIdx = lastParticleIdx * 2;
-                    const lastPos = [positions[lastBaseIdx], positions[lastBaseIdx + 1]];
-                    console.log(`  SVG coords: [${{lastPos[0].toFixed(2)}}, ${{lastPos[1].toFixed(2)}}]`);
-
-                    // Calculate actual bounding box of all particles
-                    let pMinX = Infinity, pMinY = Infinity, pMaxX = -Infinity, pMaxY = -Infinity;
-                    for (let i = 0; i < totalParticles; i++) {{
-                        const px = positions[i * 2];
-                        const py = positions[i * 2 + 1];
-                        pMinX = Math.min(pMinX, px);
-                        pMinY = Math.min(pMinY, py);
-                        pMaxX = Math.max(pMaxX, px);
-                        pMaxY = Math.max(pMaxY, py);
-                    }}
-                    console.log('WebGL: Particle bounding box:', {{
-                        min: [pMinX.toFixed(2), pMinY.toFixed(2)],
-                        max: [pMaxX.toFixed(2), pMaxY.toFixed(2)],
-                        width: (pMaxX - pMinX).toFixed(2),
-                        height: (pMaxY - pMinY).toFixed(2),
-                        coverage: {{
-                            x: (((pMaxX - pMinX) / svgWidth) * 100).toFixed(1) + '%',
-                            y: (((pMaxY - pMinY) / svgHeight) * 100).toFixed(1) + '%'
-                        }}
-                    }});
+                    console.log('WebGL: Rendering', lineSegments.length, 'fire channels with flowing green fire');
                 }}
 
                 // Transform matrix: translate by viewBox offset, then scale
@@ -1788,8 +1741,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 ];
                 gl.uniformMatrix3fv(transformLoc, false, transform);
 
-                // Draw particles
-                gl.drawArrays(gl.POINTS, 0, totalParticles);
+                // Draw each path as a LINE_STRIP with flowing fire texture
+                lineSegments.forEach(segment => {{
+                    gl.drawArrays(gl.LINE_STRIP, segment.start, segment.count);
+                }});
 
                 requestAnimationFrame(animate);
             }}
