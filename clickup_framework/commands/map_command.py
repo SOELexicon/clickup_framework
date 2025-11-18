@@ -10,7 +10,7 @@ import urllib.request
 import shutil
 from pathlib import Path
 from collections import defaultdict
-from typing import Optional, Dict, List, Set
+from typing import Optional, Dict, List, Set, Union
 from clickup_framework import get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 
@@ -141,18 +141,20 @@ def install_ctags_locally(use_color: bool = False) -> bool:
         return False
 
 
-def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.json', ctags_exe: Optional[str] = None, ignore_gitignore: bool = False) -> bool:
+def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.json', ctags_exe: Optional[str] = None, ignore_gitignore: bool = False, in_memory: bool = True) -> Union[bool, str]:
     """
     Generate ctags JSON output.
 
     Args:
         language: Language filter ('python', 'csharp', 'all', or None for all)
-        output_file: Output file path
+        output_file: Output file path (only used if in_memory=False)
         ctags_exe: Path to ctags executable (if None, will use system ctags)
         ignore_gitignore: If True, scan bin/obj and other typically ignored directories
+        in_memory: If True, return JSON string; if False, write to file and return success bool
 
     Returns:
-        True if successful, False otherwise
+        If in_memory=True: JSON string on success, None on failure
+        If in_memory=False: True if successful, False otherwise
     """
     if ctags_exe is None:
         ctags_exe = 'ctags'
@@ -163,8 +165,23 @@ def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.jso
         '--fields=+ne',  # n=line number, e=end line
         '--quiet',
         '--exclude=.venv',
+        '--exclude=venv',
+        '--exclude=env',
+        '--exclude=.env',
         '--exclude=node_modules',
         '--exclude=.git',
+        '--exclude=__pycache__',
+        '--exclude=*.pyc',
+        '--exclude=.pytest_cache',
+        '--exclude=.tox',
+        '--exclude=dist',
+        '--exclude=build',
+        '--exclude=*.egg-info',
+        '--exclude=.coverage',
+        '--exclude=htmlcov',
+        '--langmap=C#:+.razor',  # Add Razor component support
+        '--langmap=C#:+.razor.cs',  # Add Razor code-behind support
+        '--langmap=C#:+.cshtml',  # Add Razor view support (traditional Razor Pages)
         '-R',
         '.'
     ]
@@ -185,9 +202,9 @@ def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.jso
         except Exception as e:
             print(f"Warning: Could not process .gitignore: {e}", file=sys.stderr)
     elif not ignore_gitignore:
-        # Normal behavior: exclude build directories
-        cmd.insert(-2, '--exclude=bin')
-        cmd.insert(-2, '--exclude=obj')
+        # Normal behavior: exclude build directories (including nested subdirectories)
+        cmd.insert(-2, '--exclude=**/bin/**')
+        cmd.insert(-2, '--exclude=**/obj/**')
 
     # Add language filter if specified
     if language == 'python':
@@ -197,27 +214,47 @@ def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.jso
     # 'all' or None means no language filter
 
     try:
-        with open(output_file, 'w', encoding='utf-8') as f:
+        if in_memory:
+            # Run ctags and capture output in memory
             result = subprocess.run(
                 cmd,
-                stdout=f,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=60
+                encoding='utf-8',
+                errors='replace',  # Replace invalid UTF-8 with placeholder
+                timeout=300  # 5 minutes for large projects
             )
 
-        return result.returncode == 0
+            if result.returncode == 0:
+                return result.stdout  # Return JSON string
+            else:
+                print(f"Error generating ctags: {result.stderr}", file=sys.stderr)
+                return None
+        else:
+            # Original file-based approach
+            with open(output_file, 'w', encoding='utf-8') as f:
+                result = subprocess.run(
+                    cmd,
+                    stdout=f,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=60
+                )
+
+            return result.returncode == 0
     except Exception as e:
         print(f"Error generating ctags: {e}", file=sys.stderr)
-        return False
+        return None if in_memory else False
 
 
-def parse_tags_file(tags_file: Path) -> Dict:
+def parse_tags_file(tags_file: Union[Path, str], from_string: bool = False) -> Dict:
     """
     Parse ctags JSON output and collect statistics plus call graph data.
 
     Args:
-        tags_file: Path to tags JSON file
+        tags_file: Path to tags JSON file, or JSON string if from_string=True
+        from_string: If True, tags_file is a JSON string; if False, it's a file path
 
     Returns:
         Dictionary with statistics and symbol data
@@ -230,50 +267,56 @@ def parse_tags_file(tags_file: Path) -> Dict:
     files = set()
 
     try:
-        with open(tags_file, encoding='utf-8') as f:
-            for line in f:
-                try:
-                    data = json.loads(line.strip())
-                    if data.get('_type') != 'tag':
-                        continue
+        # Get iterator for lines (either from file or string)
+        if from_string:
+            lines = tags_file.splitlines() if isinstance(tags_file, str) else []
+        else:
+            with open(tags_file, encoding='utf-8') as f:
+                lines = f.readlines()
 
-                    lang = data.get('language', 'Unknown')
-                    kind = data.get('kind', 'other')
-                    path = data.get('path', '')
-                    name = data.get('name', '')
-                    line_num = data.get('line', 0)
-                    scope = data.get('scope', '')
-                    scope_kind = data.get('scopeKind', '')
-
-                    stats[lang][kind] += 1
-                    total += 1
-                    files.add(path)
-
-                    symbol_data = {
-                        'name': name,
-                        'kind': kind,
-                        'language': lang,
-                        'line': line_num,
-                        'end': data.get('end', line_num),  # Capture end line from ctags
-                        'scope': scope,
-                        'scopeKind': scope_kind,
-                        'path': path,
-                        'pattern': data.get('pattern', '')
-                    }
-
-                    # Store symbol info for diagram generation
-                    symbols_by_file[path].append(symbol_data)
-
-                    # Index all functions/methods for call graph
-                    if kind in ['function', 'method']:
-                        full_name = f"{scope}.{name}" if scope else name
-                        all_symbols[full_name] = symbol_data
-                        all_symbols[name] = symbol_data  # Also index by short name
-
-                except json.JSONDecodeError:
+        for line in lines:
+            try:
+                data = json.loads(line.strip())
+                if data.get('_type') != 'tag':
                     continue
-                except Exception:
-                    continue
+
+                lang = data.get('language', 'Unknown')
+                kind = data.get('kind', 'other')
+                path = data.get('path', '')
+                name = data.get('name', '')
+                line_num = data.get('line', 0)
+                scope = data.get('scope', '')
+                scope_kind = data.get('scopeKind', '')
+
+                stats[lang][kind] += 1
+                total += 1
+                files.add(path)
+
+                symbol_data = {
+                    'name': name,
+                    'kind': kind,
+                    'language': lang,
+                    'line': line_num,
+                    'end': data.get('end', line_num),  # Capture end line from ctags
+                    'scope': scope,
+                    'scopeKind': scope_kind,
+                    'path': path,
+                    'pattern': data.get('pattern', '')
+                }
+
+                # Store symbol info for diagram generation
+                symbols_by_file[path].append(symbol_data)
+
+                # Index all functions/methods for call graph
+                if kind in ['function', 'method']:
+                    full_name = f"{scope}.{name}" if scope else name
+                    all_symbols[full_name] = symbol_data
+                    all_symbols[name] = symbol_data  # Also index by short name
+
+            except json.JSONDecodeError:
+                continue
+            except Exception:
+                continue
 
         # Now parse file contents to find function calls using improved pattern matching
         for file_path in files:
@@ -400,7 +443,9 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             flowchart: {{
                 useMaxWidth: false,
                 htmlLabels: true,
-                curve: 'linear'
+                curve: 'linear',
+                nodeSpacing: 100,
+                rankSpacing: 100
             }},
             sequence: {{
                 useMaxWidth: false,
@@ -592,6 +637,50 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             align-items: center;
             gap: 0.5rem;
         }}
+        .spacing-control {{
+            font-size: 0.875rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }}
+        .spacing-slider {{
+            width: 150px;
+            height: 4px;
+            border-radius: 2px;
+            background: #1e293b;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }}
+        .spacing-slider::-webkit-slider-thumb {{
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }}
+        .spacing-slider::-moz-range-thumb {{
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }}
+        .spacing-slider::-webkit-slider-thumb:hover {{
+            background: #34d399;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+        }}
+        .spacing-slider::-moz-range-thumb:hover {{
+            background: #34d399;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+        }}
         .diagram-wrapper {{
             flex: 1;
             position: relative;
@@ -764,6 +853,13 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     <strong id="zoom-level">100%</strong>
                     <span style="margin-left: 1rem">💡 Scroll to zoom, drag to pan</span>
                 </span>
+                <span class="spacing-control">
+                    <span>Spacing:</span>
+                    <input type="range" class="spacing-slider" id="spacing-slider"
+                           min="50" max="300" value="100" step="10"
+                           oninput="updateSpacing(this.value)">
+                    <strong id="spacing-value">100px</strong>
+                </span>
             </div>
         </div>
         <div class="main-content">
@@ -778,7 +874,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 <p>Rendering diagram...</p>
             </div>
             <div class="diagram-container" id="diagram-container">
-                <div class="mermaid" id="mermaid-diagram">
+                <div class="mermaid" id="mermaid-diagram" data-mermaid-code-b64="{mermaid_code_b64}">
 {mermaid_code}
                 </div>
             </div>
@@ -838,6 +934,87 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             updateTransform();
         }}
 
+        function updateSpacing(value) {{
+            const spacingValue = parseInt(value);
+            document.getElementById('spacing-value').textContent = spacingValue + 'px';
+
+            // Update mermaid configuration with new spacing
+            mermaid.initialize({{
+                startOnLoad: false,
+                theme: 'dark',
+                themeVariables: {{
+                    primaryColor: '#10b981',
+                    primaryTextColor: '#10b981',
+                    primaryBorderColor: '#10b981',
+                    lineColor: '#10b981',
+                    secondaryColor: '#8b5cf6',
+                    tertiaryColor: '#ec4899',
+                    background: '#0a0a0a',
+                    mainBkg: '#0d1f1a',
+                    secondBkg: '#1a1625',
+                    tertiaryBkg: '#1f0a1a',
+                    clusterBkg: 'rgba(16, 185, 129, 0.05)',
+                    clusterBorder: '#10b981',
+                    edgeLabelBackground: 'rgba(10, 10, 10, 0.8)',
+                    nodeTextColor: '#10b981'
+                }},
+                flowchart: {{
+                    useMaxWidth: false,
+                    htmlLabels: true,
+                    curve: 'linear',
+                    nodeSpacing: spacingValue,
+                    rankSpacing: spacingValue
+                }},
+                sequence: {{
+                    useMaxWidth: false,
+                    wrap: true,
+                    height: 600
+                }},
+                class: {{
+                    useMaxWidth: false
+                }},
+                er: {{
+                    useMaxWidth: false
+                }},
+                securityLevel: 'loose',
+                logLevel: 'info'
+            }});
+
+            // Re-render the diagram with proper cleanup
+            const diagramDiv = document.getElementById('mermaid-diagram');
+            const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
+
+            if (mermaidCodeB64) {{
+                try {{
+                    // Decode base64 mermaid code
+                    const mermaidCode = atob(mermaidCodeB64);
+
+                    // Clear old diagram completely (remove SVG and all children)
+                    diagramDiv.innerHTML = '';
+
+                    // Reset to mermaid class and insert raw mermaid code
+                    diagramDiv.className = 'mermaid';
+                    diagramDiv.removeAttribute('data-processed');
+                    diagramDiv.textContent = mermaidCode;
+
+                    // Reset zoom/pan for new diagram
+                    scale = 1;
+                    translateX = 0;
+                    translateY = 0;
+                    updateTransform();
+
+                    // Re-render on next tick to ensure DOM is ready
+                    setTimeout(() => {{
+                        mermaid.contentLoaded();
+                        // Reinitialize animations after render completes
+                        setTimeout(createPulseEffects, 500);
+                    }}, 0);
+                }} catch (error) {{
+                    console.error('Failed to update spacing:', error);
+                }}
+            }}
+        }}
+
         // Mouse wheel zoom - zoom towards cursor
         container.addEventListener('wheel', (e) => {{
             e.preventDefault();
@@ -847,17 +1024,21 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            // Calculate point in diagram space before zoom
-            const pointX = (mouseX - translateX) / scale;
-            const pointY = (mouseY - translateY) / scale;
+            // With transform "translate(tx,ty) scale(s)", screen coords = (diagram + translate) * scale
+            // So: diagram = screen / scale - translate
+            // Calculate the point in diagram space that's currently under cursor
+            const pointX = mouseX / scale - translateX;
+            const pointY = mouseY / scale - translateY;
 
-            // Apply zoom
+            // Calculate new scale
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             const newScale = Math.max(0.1, Math.min(5, scale * delta));
 
-            // Adjust translation to keep the same point under cursor
-            translateX = mouseX - pointX * newScale;
-            translateY = mouseY - pointY * newScale;
+            // Calculate new translation to keep same diagram point under cursor
+            // We want: mouseX = (pointX + new_translateX) * newScale
+            // So: new_translateX = mouseX / newScale - pointX
+            translateX = mouseX / newScale - pointX;
+            translateY = mouseY / newScale - pointY;
             scale = newScale;
 
             updateTransform();
@@ -920,15 +1101,23 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
         // Parse mermaid content and build file tree
         function buildFileTree() {{
-            const mermaidContent = `{mermaid_code}`;
+            // Get mermaid content from base64 attribute to avoid template string issues
+            const diagramDiv = document.getElementById('mermaid-diagram');
+            const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
+            const mermaidContent = atob(mermaidCodeB64);
+
             const nodes = new Map(); // nodeId -> {{ name, file, line }}
             const fileStructure = {{}};
 
-            // Extract nodes from mermaid content (format: N0["function()<br/>📄 file.py<br/>📍 L10-20"])
-            const nodePattern = /N(\d+)\["([^(]+)\(\)[^📄]*📄\s*([^<]+)<br\/>📍\s*L(\d+)-(\d+)"\]/g;
+            // Extract nodes from mermaid content
+            // New format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
+            // Match pattern: N[digits]["text()<br/>anything<br/>📄 filename<br/>📍 L[start]-[end]"]
+            const nodePattern = /N(\d+)\["([^(]+)\(\)<br\/>[^📄]*📄\s*([^<]+)<br\/>📍\s*L(\d+)-(\d+)"\]/g;
             let match;
+            let matchCount = 0;
 
             while ((match = nodePattern.exec(mermaidContent)) !== null) {{
+                matchCount++;
                 const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
                 const node = {{
                     id: 'N' + nodeId,
@@ -946,30 +1135,38 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 fileStructure[node.file].push(node);
             }}
 
+            console.log('buildFileTree: Found', matchCount, 'nodes');
+            console.log('buildFileTree: Files found:', Object.keys(fileStructure).length);
+
             // Build HTML tree
             const treeHTML = [];
             const sortedFiles = Object.keys(fileStructure).sort();
 
-            for (const fileName of sortedFiles) {{
-                const funcs = fileStructure[fileName];
-                treeHTML.push(`
-                    <div class="tree-item tree-file" onclick="highlightFile('${{fileName}}')">
-                        <span class="icon">📄</span>
-                        <span>${{fileName}}</span>
-                    </div>
-                    <div class="tree-children">
-                `);
-
-                for (const func of funcs) {{
+            if (sortedFiles.length === 0) {{
+                treeHTML.push('<div class="tree-item" style="color: #f59e0b;">No files found. Check console for regex match issues.</div>');
+                console.warn('No files matched. Sample mermaid content:', mermaidContent.substring(0, 500));
+            }} else {{
+                for (const fileName of sortedFiles) {{
+                    const funcs = fileStructure[fileName];
                     treeHTML.push(`
-                        <div class="tree-item tree-function" data-node-id="${{func.id}}" onclick="navigateToNode('${{func.id}}')">
-                            <span class="icon">⚡</span>
-                            <span>${{func.name}}() :${{func.lineStart}}</span>
+                        <div class="tree-item tree-file" onclick="highlightFile('${{fileName}}')">
+                            <span class="icon">📄</span>
+                            <span>${{fileName}}</span>
                         </div>
+                        <div class="tree-children">
                     `);
-                }}
 
-                treeHTML.push('</div>');
+                    for (const func of funcs) {{
+                        treeHTML.push(`
+                            <div class="tree-item tree-function" data-node-id="${{func.id}}" onclick="navigateToNode('${{func.id}}')">
+                                <span class="icon">⚡</span>
+                                <span>${{func.name}}() :${{func.lineStart}}</span>
+                            </div>
+                        `);
+                    }}
+
+                    treeHTML.push('</div>');
+                }}
             }}
 
             document.getElementById('file-tree').innerHTML = treeHTML.join('');
@@ -988,9 +1185,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 return;
             }}
 
-            // Get the bounding box of the node
+            // Get the bounding box of the node in SVG coordinate space
             const nodeBBox = nodeElement.getBBox();
-            const svgRect = svg.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
 
             // Calculate the center of the node in SVG coordinates
@@ -1001,11 +1197,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             scale = 1.5;
 
             // Center the node in the viewport
+            // With transform "translate(tx,ty) scale(s)": screen = (svg + translate) * scale
+            // We want: viewportCenter = (nodeCenter + translate) * scale
+            // So: translate = viewportCenter / scale - nodeCenter
             const viewportCenterX = containerRect.width / 2;
             const viewportCenterY = containerRect.height / 2;
 
-            translateX = viewportCenterX - nodeCenterX * scale;
-            translateY = viewportCenterY - nodeCenterY * scale;
+            translateX = viewportCenterX / scale - nodeCenterX;
+            translateY = viewportCenterY / scale - nodeCenterY;
 
             updateTransform();
 
@@ -1049,65 +1248,88 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }});
         }});
 
-        // Optimized: Add subtle pulse effects to only a few edges for performance
+        // Enhanced pulse effects with fading trails
         function createPulseEffects() {{
             const svg = document.querySelector('#mermaid-diagram svg');
             if (!svg) return;
 
-            // Create a defs section for the pulse marker
+            // Create a defs section for gradients
             let defs = svg.querySelector('defs');
             if (!defs) {{
                 defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
                 svg.insertBefore(defs, svg.firstChild);
             }}
 
-            // Add radial gradient for pulse
+            // Add larger radial gradient for pulse
             const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
             gradient.setAttribute('id', 'pulse-gradient');
             gradient.innerHTML = `
-                <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.8" />
+                <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                <stop offset="50%" style="stop-color:#10b981;stop-opacity:0.6" />
                 <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
             `;
             defs.appendChild(gradient);
 
-            // Only animate every 5th edge for performance
+            // Only animate selected edges for performance
             const edgePaths = svg.querySelectorAll('.edgePath path');
-            const maxPulses = Math.min(10, Math.floor(edgePaths.length / 5)); // Max 10 pulses
+            const maxPulses = Math.min(10, Math.floor(edgePaths.length / 5));
 
             for (let i = 0; i < maxPulses; i++) {{
                 const index = i * Math.floor(edgePaths.length / maxPulses);
                 const path = edgePaths[index];
                 if (!path) continue;
 
-                const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                pulse.setAttribute('r', '3');
-                pulse.setAttribute('fill', 'url(#pulse-gradient)');
-
-                path.parentNode.appendChild(pulse);
-
                 const pathLength = path.getTotalLength();
-                let distance = (i * 100) % pathLength;
+                const trailLength = 8; // Number of trail segments
+                const trail = [];
+
+                // Create trail segments
+                for (let j = 0; j < trailLength; j++) {{
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    const opacity = 1 - (j / trailLength); // Fade out progressively
+                    const radius = 6 - (j * 0.5); // Get smaller progressively
+
+                    circle.setAttribute('r', radius);
+                    circle.setAttribute('fill', 'url(#pulse-gradient)');
+                    circle.setAttribute('opacity', opacity);
+                    circle.style.filter = 'blur(1px)';
+
+                    path.parentNode.appendChild(circle);
+                    trail.push(circle);
+                }}
+
+                let distance = (i * 150) % pathLength;
                 let lastTime = performance.now();
 
                 function animatePulse(currentTime) {{
                     const deltaTime = currentTime - lastTime;
 
-                    // Only update every 16ms (60fps) instead of every frame
+                    // 60fps cap
                     if (deltaTime < 16) {{
                         requestAnimationFrame(animatePulse);
                         return;
                     }}
 
                     lastTime = currentTime;
-                    distance += 2; // Slower speed
+                    distance += 3; // Moderate speed
 
                     if (distance > pathLength) {{
                         distance = 0;
                     }}
 
-                    const point = path.getPointAtLength(distance);
-                    pulse.setAttribute('cx', point.x);
-                    pulse.setAttribute('cy', point.y);
+                    // Update each trail segment
+                    for (let j = 0; j < trailLength; j++) {{
+                        const segmentDistance = distance - (j * 15); // Space segments out
+                        let actualDistance = segmentDistance;
+
+                        if (actualDistance < 0) {{
+                            actualDistance = pathLength + actualDistance;
+                        }}
+
+                        const point = path.getPointAtLength(actualDistance % pathLength);
+                        trail[j].setAttribute('cx', point.x);
+                        trail[j].setAttribute('cy', point.y);
+                    }}
 
                     requestAnimationFrame(animatePulse);
                 }}
@@ -1116,10 +1338,43 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
         }}
 
+        // Auto-fit diagram to viewport on load
+        function autoFitDiagram() {{
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) {{
+                setTimeout(autoFitDiagram, 100);
+                return;
+            }}
+
+            const svgBBox = svg.getBBox();
+            const containerRect = container.getBoundingClientRect();
+
+            // Add padding to container size
+            const paddingPercent = 0.05; // 5% padding
+            const availableWidth = containerRect.width * (1 - paddingPercent * 2);
+            const availableHeight = containerRect.height * (1 - paddingPercent * 2);
+
+            // Calculate scale to fit entire diagram
+            const scaleX = availableWidth / svgBBox.width;
+            const scaleY = availableHeight / svgBBox.height;
+            scale = Math.min(scaleX, scaleY, 1);
+
+            // Center the diagram accounting for bounding box offset
+            const scaledWidth = svgBBox.width * scale;
+            const scaledHeight = svgBBox.height * scale;
+
+            // Calculate centering: center of viewport - center of scaled content
+            translateX = (containerRect.width - scaledWidth) / 2 / scale - svgBBox.x;
+            translateY = (containerRect.height - scaledHeight) / 2 / scale - svgBBox.y;
+
+            updateTransform();
+        }}
+
         // Build tree when diagram is loaded
         setTimeout(() => {{
             buildFileTree();
             createPulseEffects();
+            autoFitDiagram();
         }}, 1000);
 
         // Keyboard shortcuts
@@ -1135,9 +1390,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 </html>'''
 
     try:
+        import html
+        import base64
+        # Encode mermaid code in base64 to avoid HTML escaping issues
+        mermaid_code_b64 = base64.b64encode(mermaid_content.encode('utf-8')).decode('ascii')
         html_content = html_template.format(
             title=title,
-            mermaid_code=mermaid_content
+            mermaid_code=mermaid_content,
+            mermaid_code_b64=mermaid_code_b64
         )
 
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -1568,8 +1828,8 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         "# Code Map - Execution Flow (Call Graph)",
         "",
         "```mermaid",
-        "%%{init: {'flowchart': {'curve': 'linear', 'defaultRenderer': 'elk'}, 'theme': 'dark'}}%%",
-        "graph LR"
+        "%%{init: {'flowchart': {'curve': 'linear', 'defaultRenderer': 'elk', 'nodeSpacing': 100, 'rankSpacing': 100}, 'theme': 'dark'}}%%",
+        "graph TD"
     ]
 
     # Find entry points (functions not called by others)
@@ -1580,8 +1840,8 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
     entry_points = [func for func in function_calls.keys()
                    if func not in called_functions][:15]  # Even more entry points
 
-    # Group functions by class/module
-    functions_by_class = defaultdict(list)
+    # Group functions by folder/directory
+    functions_by_folder = defaultdict(lambda: defaultdict(list))  # folder -> class -> [functions]
     processed = set()
     node_count = 0
     node_ids = {}  # Map func_name to node_id
@@ -1596,13 +1856,22 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         symbol = all_symbols.get(func_name, {})
         scope = symbol.get('scope', '')
 
-        # Group by class or module
+        # Get folder path from file path
+        file_path = symbol.get('path', '')
+        if file_path:
+            folder = str(Path(file_path).parent)
+            # Normalize path separators and handle current directory
+            folder = folder.replace('\\', '/').replace('.', 'root')
+        else:
+            folder = 'root'
+
+        # Group by folder, then by class or module
         if scope:
-            functions_by_class[scope].append(func_name)
+            functions_by_folder[folder][scope].append(func_name)
         else:
             # Use file as grouping if no class
             file_name = Path(symbol.get('path', 'global')).stem
-            functions_by_class[f"module_{file_name}"].append(func_name)
+            functions_by_folder[folder][f"module_{file_name}"].append(func_name)
 
         node_count += 1
 
@@ -1618,36 +1887,90 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
             break
         collect_functions(entry, depth=0, max_depth=8)
 
-    # Generate subgraphs for each class/module
+    # Transform folder->class into folder->file_component->class for grouping related files
+    def group_by_file_components(functions_by_folder, all_symbols):
+        """Group related files (e.g., Component.razor + Component.razor.cs) together."""
+        file_components = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        # Result: file_components[folder][base_file_name][class_name] = [functions]
+
+        for folder, classes_dict in functions_by_folder.items():
+            for class_name, funcs in classes_dict.items():
+                for func_name in funcs:
+                    symbol = all_symbols.get(func_name, {})
+                    file_path = symbol.get('path', '')
+
+                    if file_path:
+                        path_obj = Path(file_path)
+                        base_name = path_obj.stem
+
+                        # Handle compound extensions: Component.razor.cs -> Component
+                        if base_name.endswith('.razor'):
+                            base_name = base_name[:-6]
+
+                        # Group by base file name
+                        file_components[folder][base_name][class_name].append(func_name)
+                    else:
+                        # Fallback for functions without file path
+                        file_components[folder]['unknown'][class_name].append(func_name)
+
+        return file_components
+
+    file_components = group_by_file_components(functions_by_folder, all_symbols)
+
+    # Generate subgraphs for each folder with nested file components
     subgraph_count = 0
-    for class_name, funcs in sorted(functions_by_class.items())[:20]:  # More subgraphs
-        if not funcs:
+    file_sg_count = 0
+
+    for folder, files_dict in sorted(file_components.items())[:20]:  # Limit folders
+        if not files_dict:
             continue
 
-        subgraph_id = f"SG{subgraph_count}"
+        folder_sg_id = f"SG{subgraph_count}"
         subgraph_count += 1
 
-        # Clean class name for display
-        display_name = class_name.replace('module_', '📦 ')
+        # Clean folder name for display
+        display_folder = folder.replace('root', '📁 .').replace('/', ' / ')
+        if not display_folder.startswith('📁'):
+            display_folder = f"📁 {display_folder}"
 
-        # Start subgraph
-        lines.append(f"    subgraph {subgraph_id}[\"{display_name}\"]")
+        # Start folder subgraph
+        lines.append(f"    subgraph {folder_sg_id}[\"{display_folder}\"]")
 
-        # Add nodes for functions in this class
-        for func_name in funcs[:15]:  # More functions per subgraph
-            symbol = all_symbols.get(func_name, {})
-            node_id = f"N{len(node_ids)}"
-            node_ids[func_name] = node_id
+        # Iterate through file components in this folder
+        for base_file_name, classes_dict in sorted(files_dict.items()):
+            if not classes_dict:
+                continue
 
-            display_func = func_name.split('.')[-1]
-            file_name = Path(symbol.get('path', '')).name
-            line_start = symbol.get('line', 0)
-            line_end = symbol.get('end', line_start)  # Use actual end line from ctags
+            # Create nested file component subgraph
+            file_sg_id = f"FSG{file_sg_count}"
+            file_sg_count += 1
 
-            # Create node with line numbers
-            lines.append(f"        {node_id}[\"{display_func}()<br/>📄 {file_name}<br/>📍 L{line_start}-{line_end}\"]")
+            lines.append(f"        subgraph {file_sg_id}[\"📄 {base_file_name}\"]")
 
-        lines.append("    end")
+            # Add all functions from all classes in this file component
+            for class_name, funcs in sorted(classes_dict.items()):
+                if not funcs:
+                    continue
+
+                for func_name in funcs[:15]:  # Limit functions
+                    symbol = all_symbols.get(func_name, {})
+                    node_id = f"N{len(node_ids)}"
+                    node_ids[func_name] = node_id
+
+                    display_func = func_name.split('.')[-1]
+                    file_name = Path(symbol.get('path', '')).name
+                    line_start = symbol.get('line', 0)
+                    line_end = symbol.get('end', line_start)
+
+                    # Show class/module in node if available
+                    class_display = class_name.replace('module_', '')
+
+                    # Create node with class, file, and line numbers (file also shown in subgraph title for context)
+                    lines.append(f"            {node_id}[\"{display_func}()<br/>🔧 {class_display}<br/>📄 {file_name}<br/>📍 L{line_start}-{line_end}\"]")
+
+            lines.append("        end")  # Close file component subgraph
+
+        lines.append("    end")  # Close folder subgraph
         lines.append("")
 
     # Define colors for subgraphs and edges (using very dark shades for subtle backgrounds)
@@ -1659,16 +1982,18 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         ("fill:#1f0d18,stroke:#ec4899,color:#ec4899,stroke-width:2px", "#ec4899", "pink"),     # Very dark pink
     ]
 
-    # Build node-to-color mapping based on which subgraph they belong to
+    # Build node-to-color mapping based on which folder they belong to
     node_to_color = {}
-    for i, (class_name, funcs) in enumerate(sorted(functions_by_class.items())[:20]):
+    for i, (folder, files_dict) in enumerate(sorted(file_components.items())[:20]):
         _, edge_color, _ = colors[i % len(colors)]
-        for func in funcs:
-            full_name = f"{class_name.replace('📦 ', '')}.{func}" if not class_name.startswith('📦 ') else func
-            # Try both full name and short name
-            for potential_name in [full_name, func]:
-                if potential_name in node_ids:
-                    node_to_color[node_ids[potential_name]] = edge_color
+        for base_file_name, classes_dict in files_dict.items():
+            for class_name, funcs in classes_dict.items():
+                for func in funcs:
+                    full_name = f"{class_name.replace('module_', '')}.{func}" if class_name.startswith('module_') else func
+                    # Try both full name and short name
+                    for potential_name in [full_name, func]:
+                        if potential_name in node_ids:
+                            node_to_color[node_ids[potential_name]] = edge_color
 
     # Add connections with color-coded edges matching destination
     lines.append("    %% Connections")
@@ -1720,12 +2045,15 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         "## Legend",
         "- 🟣 **Purple nodes**: Entry points (functions not called by others)",
         "- 🟢 **Green-bordered nodes**: Called functions",
-        "- **Subgraphs**: Group functions by class/module",
+        "- **Folder Subgraphs**: Group by directory",
+        "- **File Subgraphs**: Group related files (e.g., Component.razor + Component.razor.cs)",
         "- **Line numbers**: Show start-end lines in source file",
         "",
         f"## Statistics",
         f"- **Total Functions Mapped**: {len(processed)}",
-        f"- **Classes/Modules**: {len(functions_by_class)}",
+        f"- **Folders**: {len(file_components)}",
+        f"- **File Components**: {sum(len(files) for files in file_components.values())}",
+        f"- **Classes/Modules**: {sum(sum(len(classes) for classes in files.values()) for files in file_components.values())}",
         f"- **Total Call Relationships**: {sum(len(calls) for calls in function_calls.values())}",
         f"- **Entry Points Found**: {len(entry_points)}",
     ])
@@ -1910,14 +2238,29 @@ def map_command(args):
         print(f"[INFO] Output: {tags_file}")
     print()
 
-    # Generate ctags
+    # Check if old tags file exists and warn if too large
+    if tags_file.exists():
+        file_size_mb = tags_file.stat().st_size / (1024 * 1024)
+        if file_size_mb > 50:  # Warn if > 50MB
+            warning_msg = f"[WARNING] Existing tags file is {file_size_mb:.1f}MB - this may indicate too many files are being scanned"
+            if use_color:
+                print(colorize(warning_msg, TextColor.YELLOW))
+                print(colorize("  Consider adding more exclusions or using --python/--csharp filters", TextColor.YELLOW))
+            else:
+                print(warning_msg)
+                print("  Consider adding more exclusions or using --python/--csharp filters")
+            print()
+
+    # Generate ctags (in-memory for performance)
     if use_color:
         print(colorize("[PROGRESS] Generating tags...", TextColor.BRIGHT_BLUE))
     else:
         print("[PROGRESS] Generating tags...")
 
     ignore_gitignore = getattr(args, 'ignore_gitignore', False)
-    if not generate_ctags(language, str(tags_file), ctags_exe, ignore_gitignore):
+    tags_json = generate_ctags(language, str(tags_file), ctags_exe, ignore_gitignore, in_memory=True)
+
+    if not tags_json:
         error_msg = "[ERROR] Failed to generate ctags"
         if use_color:
             print(colorize(error_msg, TextColor.RED), file=sys.stderr)
@@ -1925,18 +2268,25 @@ def map_command(args):
             print(error_msg, file=sys.stderr)
         sys.exit(1)
 
+    # Optionally write to file for debugging/caching
+    try:
+        with open(tags_file, 'w', encoding='utf-8') as f:
+            f.write(tags_json)
+    except Exception:
+        pass  # Non-critical if file write fails
+
     if use_color:
         print(colorize("[SUCCESS] Tags generated successfully", TextColor.GREEN))
     else:
         print("[SUCCESS] Tags generated successfully")
 
-    # Parse and analyze tags
+    # Parse and analyze tags (from memory)
     if use_color:
         print(colorize("[PROGRESS] Analyzing symbols...", TextColor.BRIGHT_BLUE))
     else:
         print("[PROGRESS] Analyzing symbols...")
 
-    stats = parse_tags_file(tags_file)
+    stats = parse_tags_file(tags_json, from_string=True)
 
     if not stats:
         error_msg = "[ERROR] Failed to parse tags file"
