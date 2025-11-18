@@ -295,7 +295,10 @@ def export_mermaid_to_image(markdown_file: str, output_file: str, image_format: 
             '-i', markdown_file,
             '-o', output_file,
             '-t', 'dark',  # Use dark theme
-            '-b', 'transparent'  # Transparent background
+            '-b', 'transparent',  # Transparent background
+            '-w', '4000',  # High width for better resolution
+            '-H', '3000',  # High height
+            '-s', '3'  # Scale factor for even higher quality
         ]
 
         if use_color:
@@ -334,7 +337,7 @@ def export_mermaid_to_image(markdown_file: str, output_file: str, image_format: 
 
 def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
     """
-    Generate a mermaid flowchart diagram from code map statistics.
+    Generate a mermaid flowchart diagram showing directory structure with symbol details.
 
     Args:
         stats: Statistics dictionary from parse_tags_file
@@ -345,53 +348,83 @@ def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
 
     # Build mermaid diagram
     lines = [
-        "# Code Map Diagram",
+        "# Code Map - Architecture Diagram",
         "",
         "```mermaid",
         "graph TB"
     ]
 
-    # Add language nodes
-    lang_nodes = {}
-    for idx, lang in enumerate(sorted(by_language.keys())):
-        node_id = f"L{idx}"
-        lang_nodes[lang] = node_id
-        lines.append(f"    {node_id}[{lang}]")
+    # Group files by directory
+    dir_structure = defaultdict(list)
+    for file_path, symbols in symbols_by_file.items():
+        if symbols:
+            dir_name = str(Path(file_path).parent)
+            if dir_name == '.':
+                dir_name = 'root'
+            dir_structure[dir_name].append((file_path, symbols))
+
+    # Sort directories and limit
+    sorted_dirs = sorted(dir_structure.keys())[:10]
+
+    # Create directory nodes
+    dir_nodes = {}
+    for idx, dir_name in enumerate(sorted_dirs):
+        dir_id = f"DIR{idx}"
+        dir_nodes[dir_name] = dir_id
+        # Count total symbols in directory
+        total_symbols = sum(len(syms) for _, syms in dir_structure[dir_name])
+        safe_dir = dir_name.replace('\\', '/').replace('clickup_framework/', '')
+        lines.append(f"    {dir_id}[\"{safe_dir}<br/>{total_symbols} symbols\"]")
+        lines.append(f"    style {dir_id} fill:#1e3a8a,stroke:#60a5fa,stroke-width:3px")
 
     lines.append("")
 
-    # Add file nodes grouped by language
+    # Add file nodes with more detail
     file_count = 0
-    file_nodes = {}
-    for file_path, symbols in sorted(symbols_by_file.items()):
-        if not symbols:
-            continue
+    for dir_name in sorted_dirs:
+        files = sorted(dir_structure[dir_name], key=lambda x: len(x[1]), reverse=True)[:5]  # Top 5 files per dir
 
-        # Get language from first symbol
-        lang = symbols[0].get('language', 'Unknown')
+        for file_path, symbols in files:
+            file_id = f"F{file_count}"
+            file_name = Path(file_path).name
 
-        # Create file node
-        file_id = f"F{file_count}"
-        file_nodes[file_path] = file_id
-        file_name = Path(file_path).name
+            # Count different symbol types
+            classes = sum(1 for s in symbols if s.get('kind') == 'class')
+            functions = sum(1 for s in symbols if s.get('kind') in ['function', 'method'])
+            members = sum(1 for s in symbols if s.get('kind') in ['member', 'variable'])
 
-        # Count symbols by kind
-        kind_counts = defaultdict(int)
-        for sym in symbols:
-            kind_counts[sym.get('kind', 'other')] += 1
+            # Build detailed label
+            parts = []
+            if classes: parts.append(f"📦 {classes} classes")
+            if functions: parts.append(f"⚙️ {functions} funcs")
+            if members: parts.append(f"📊 {members} vars")
 
-        # Create label with counts
-        kind_summary = ", ".join(f"{k}:{v}" for k, v in sorted(kind_counts.items()))
-        lines.append(f"    {file_id}[\"{file_name}<br/>{kind_summary}\"]")
+            detail = "<br/>".join(parts) if parts else f"{len(symbols)} symbols"
+            lines.append(f"    {file_id}[\"{file_name}<br/>{detail}\"]")
 
-        # Link to language
-        if lang in lang_nodes:
-            lines.append(f"    {lang_nodes[lang]} --> {file_id}")
+            # Link file to directory
+            if dir_name in dir_nodes:
+                lines.append(f"    {dir_nodes[dir_name]} --> {file_id}")
 
-        file_count += 1
+            # Add class nodes for files with classes
+            if classes > 0 and classes <= 5:
+                class_symbols = [s for s in symbols if s.get('kind') == 'class']
+                for cls_idx, cls in enumerate(class_symbols):
+                    cls_id = f"C{file_count}_{cls_idx}"
+                    cls_name = cls.get('name', 'Unknown')
 
-        # Limit files to avoid overwhelming diagram
-        if file_count >= 20:
+                    # Count methods in this class
+                    methods = [s for s in symbols if s.get('scope') == cls_name and s.get('kind') in ['function', 'method']]
+                    lines.append(f"    {cls_id}[\"{cls_name}<br/>{len(methods)} methods\"]")
+                    lines.append(f"    style {cls_id} fill:#065f46,stroke:#34d399")
+                    lines.append(f"    {file_id} --> {cls_id}")
+
+            file_count += 1
+
+            if file_count >= 30:
+                break
+
+        if file_count >= 30:
             break
 
     lines.append("```")
@@ -426,7 +459,7 @@ def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
 
 def generate_mermaid_class(stats: Dict, output_file: str) -> None:
     """
-    Generate a mermaid class diagram showing code structure.
+    Generate a mermaid class diagram showing detailed code structure with inheritance.
 
     Args:
         stats: Statistics dictionary from parse_tags_file
@@ -442,32 +475,82 @@ def generate_mermaid_class(stats: Dict, output_file: str) -> None:
         "classDiagram"
     ]
 
-    # Track classes and their relationships
+    # Track classes and their details
+    all_classes = {}
     class_count = 0
+
     for file_path, symbols in sorted(symbols_by_file.items()):
-        if class_count >= 15:  # Limit to avoid overwhelming diagram
+        if class_count >= 20:
             break
 
         # Find classes in this file
         classes = [s for s in symbols if s.get('kind') == 'class']
         for cls in classes:
             class_name = cls.get('name', 'Unknown')
-            lang = cls.get('language', 'Unknown')
 
-            lines.append(f"    class {class_name} {{")
-            lines.append(f"        <<{lang}>>")
+            # Skip if we already have this class
+            if class_name in all_classes:
+                continue
 
-            # Find methods/functions in this class
-            methods = [s for s in symbols if s.get('scope') == class_name and s.get('kind') in ['function', 'method']]
-            for method in methods[:10]:  # Limit methods shown
-                method_name = method.get('name', '')
-                lines.append(f"        +{method_name}()")
+            all_classes[class_name] = {
+                'file': Path(file_path).name,
+                'line': cls.get('line', 0),
+                'methods': [],
+                'members': []
+            }
 
-            lines.append("    }")
+            # Find methods in this class
+            methods = [s for s in symbols
+                      if s.get('scope') == class_name
+                      and s.get('kind') in ['function', 'method']]
+
+            # Find members/attributes
+            members = [s for s in symbols
+                      if s.get('scope') == class_name
+                      and s.get('kind') in ['member', 'variable']]
+
+            all_classes[class_name]['methods'] = methods[:15]
+            all_classes[class_name]['members'] = members[:10]
+
             class_count += 1
 
-            if class_count >= 15:
-                break
+    # Generate class definitions with details
+    for class_name, details in sorted(all_classes.items()):
+        lines.append(f"    class {class_name} {{")
+
+        # Add file annotation
+        lines.append(f"        <<{details['file']}>>")
+
+        # Add members
+        for member in details['members']:
+            member_name = member.get('name', '')
+            lines.append(f"        -{member_name}")
+
+        # Add methods with visibility
+        for method in details['methods']:
+            method_name = method.get('name', '')
+            # Determine visibility based on naming convention
+            if method_name.startswith('_'):
+                visibility = '-'  # private
+            elif method_name.startswith('__'):
+                visibility = '-'  # private
+            else:
+                visibility = '+'  # public
+            lines.append(f"        {visibility}{method_name}()")
+
+        lines.append("    }")
+
+    # Try to detect inheritance relationships
+    lines.append("")
+    lines.append("    %% Inheritance relationships")
+    for class_name in all_classes.keys():
+        # Common base class patterns
+        if 'Base' in class_name:
+            # Find classes that might inherit from this
+            for other_class in all_classes.keys():
+                if other_class != class_name and 'Base' not in other_class:
+                    if any(word in other_class for word in class_name.replace('Base', '').split()):
+                        lines.append(f"    {class_name} <|-- {other_class}")
 
     lines.append("```")
     lines.append("")
