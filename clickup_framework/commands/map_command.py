@@ -1576,12 +1576,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 // Set uniforms (include current zoom/pan transform)
                 gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
 
-                // Build transform matrix from SVG transform
-                const svgTransform = svg.getCTM();
+                // Build transform matrix matching the diagram-container's CSS transform
+                // The diagram-container already has scale and translate applied via CSS
                 const transform = [
-                    svgTransform.a * scale, svgTransform.b * scale, 0,
-                    svgTransform.c * scale, svgTransform.d * scale, 0,
-                    (svgTransform.e + translateX) * scale, (svgTransform.f + translateY) * scale, 1
+                    scale, 0, 0,
+                    0, scale, 0,
+                    translateX * scale, translateY * scale, 1
                 ];
                 gl.uniformMatrix3fv(transformLoc, false, transform);
 
@@ -1689,6 +1689,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             if (e.key === 'f' || e.key === 'F') toggleFullscreen();
             if (e.key === 'b' || e.key === 'B') toggleSidebar();
         }});
+
+        // Make functions globally accessible for inline onclick handlers
+        window.navigateToNode = navigateToNode;
+        window.highlightFile = highlightFile;
+        window.toggleSidebar = toggleSidebar;
+        window.toggleFullscreen = toggleFullscreen;
+        window.zoomIn = zoomIn;
+        window.zoomOut = zoomOut;
+        window.resetZoom = resetZoom;
+        window.updateSpacing = updateSpacing;
     </script>
 </body>
 </html>'''
