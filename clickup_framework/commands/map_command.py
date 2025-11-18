@@ -1392,7 +1392,32 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         // WebGL-accelerated glow particles for high-performance rendering
         function createWebGLGlows() {{
             const svg = document.querySelector('#mermaid-diagram svg');
-            if (!svg) return;
+            if (!svg) {{
+                console.warn('SVG not found, retrying WebGL initialization...');
+                setTimeout(createWebGLGlows, 200);
+                return;
+            }}
+
+            // Wait for paths to be fully rendered - check multiple times
+            const edgePathCount = svg.querySelectorAll('.edgePath path').length;
+
+            // Store last count to detect when rendering stabilizes
+            if (!createWebGLGlows.lastPathCount) {{
+                createWebGLGlows.lastPathCount = 0;
+                createWebGLGlows.retryCount = 0;
+            }}
+
+            createWebGLGlows.retryCount++;
+
+            // If path count is still increasing or we haven't seen enough paths yet
+            if (edgePathCount !== createWebGLGlows.lastPathCount && createWebGLGlows.retryCount < 20) {{
+                console.log('WebGL: Found', edgePathCount, 'paths (was', createWebGLGlows.lastPathCount, '), waiting for rendering to stabilize...');
+                createWebGLGlows.lastPathCount = edgePathCount;
+                setTimeout(createWebGLGlows, 300);
+                return;
+            }}
+
+            console.log('WebGL: Initializing with', edgePathCount, 'edge paths after', createWebGLGlows.retryCount, 'checks');
 
             // Create canvas overlay
             const canvas = document.createElement('canvas');
@@ -1831,12 +1856,28 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
         }});
 
+        // Global function to refresh WebGL particles (callable from console or keyboard)
+        window.refreshWebGLParticles = function() {{
+            console.log('Refreshing WebGL particles...');
+            // Remove existing canvas
+            const existingCanvas = document.querySelector('#diagram-container canvas');
+            if (existingCanvas) {{
+                existingCanvas.remove();
+            }}
+            // Reset retry counters
+            createWebGLGlows.lastPathCount = 0;
+            createWebGLGlows.retryCount = 0;
+            // Reinitialize
+            createWebGLGlows();
+        }};
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {{
             if (e.key === '+' || e.key === '=') zoomIn();
             if (e.key === '-' || e.key === '_') zoomOut();
             if (e.key === '0') resetZoom();
             if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+            if (e.key === 'r' || e.key === 'R') window.refreshWebGLParticles(); // R to refresh particles
             if (e.key === 'b' || e.key === 'B') toggleSidebar();
         }});
 
