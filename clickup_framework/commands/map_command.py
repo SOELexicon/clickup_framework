@@ -1146,7 +1146,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 // Extract nodes from mermaid content
                 // Format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
                 // Use more flexible regex that doesn't rely on emoji matching
-                const nodePattern = /N(\\d+)\\["([^(]+)\\(\\)<br\\/>[^<]*<br\\/>[^<]*\\s*([^<]+)<br\\/>[^<]*\\s*L(\\d+)-(\\d+)"\\]/g;
+                const nodePattern = /N(\\d+)\\["([^(]+)\\(\\)<br\\/>[^<]*<br\\/>.*?\\s+([^<]+)<br\\/>[^<]*L(\\d+)-(\\d+)"\\]/g;
                 let match;
                 let matchCount = 0;
 
