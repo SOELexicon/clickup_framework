@@ -2666,6 +2666,21 @@ def map_command(args):
                 print("  Consider adding more exclusions or using --python/--csharp filters")
             print()
 
+    # Delete old tags file to prevent accumulation
+    if tags_file.exists():
+        try:
+            tags_file.unlink()
+            if use_color:
+                print(colorize("[INFO] Deleted old tags file", TextColor.BRIGHT_BLUE))
+            else:
+                print("[INFO] Deleted old tags file")
+        except Exception as e:
+            if use_color:
+                print(colorize(f"[WARNING] Could not delete old tags file: {e}", TextColor.YELLOW))
+            else:
+                print(f"[WARNING] Could not delete old tags file: {e}")
+        print()
+
     # Generate ctags (in-memory for performance)
     if use_color:
         print(colorize("[PROGRESS] Generating tags...", TextColor.BRIGHT_BLUE))
