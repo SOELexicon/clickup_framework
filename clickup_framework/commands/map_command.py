@@ -1007,10 +1007,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     updateTransform();
 
                     // Re-render on next tick to ensure DOM is ready
-                    setTimeout(() => {{
-                        mermaid.contentLoaded();
-                        // Reinitialize animations after render completes
-                        setTimeout(createPulseEffects, 500);
+                    setTimeout(async () => {{
+                        try {{
+                            await mermaid.run({{
+                                querySelector: '.mermaid'
+                            }});
+                            // Reinitialize WebGL animations after render completes
+                            setTimeout(createWebGLGlows, 500);
+                        }} catch (err) {{
+                            console.error('Failed to re-render diagram:', err);
+                        }}
                     }}, 0);
                 }} catch (error) {{
                     console.error('Failed to update spacing:', error);
@@ -1127,7 +1133,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
                 // Extract nodes from mermaid content
                 // Format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
-                const nodePattern = /N(\d+)\["([^(]+)\(\)<br\/>[^📄]*📄\s*([^<]+)<br\/>📍\s*L(\d+)-(\d+)"\]/g;
+                // Use more flexible regex that doesn't rely on emoji matching
+                const nodePattern = /N(\d+)\["([^(]+)\(\)<br\/>[^<]*<br\/>[^<]*\s*([^<]+)<br\/>[^<]*\s*L(\d+)-(\d+)"\]/g;
                 let match;
                 let matchCount = 0;
 
@@ -1360,6 +1367,212 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
         }}
 
+        // WebGL-accelerated glow particles for high-performance rendering
+        function createWebGLGlows() {{
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) return;
+
+            // Create canvas overlay
+            const canvas = document.createElement('canvas');
+            canvas.style.position = 'absolute';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '10';
+
+            const diagramContainer = document.getElementById('diagram-container');
+            diagramContainer.appendChild(canvas);
+
+            // Setup WebGL context
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {{
+                console.warn('WebGL not supported, falling back to SVG animations');
+                return;
+            }}
+
+            // Vertex shader - positions particles
+            const vertexShaderSource = `
+                attribute vec2 a_position;
+                attribute float a_age;
+                attribute float a_trail_index;
+                uniform vec2 u_resolution;
+                uniform mat3 u_transform;
+                varying float v_age;
+                varying float v_trail_index;
+
+                void main() {{
+                    vec3 transformed = u_transform * vec3(a_position, 1.0);
+                    vec2 clipSpace = (transformed.xy / u_resolution) * 2.0 - 1.0;
+                    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+                    gl_PointSize = 12.0 - (a_trail_index * 1.2);
+                    v_age = a_age;
+                    v_trail_index = a_trail_index;
+                }}
+            `;
+
+            // Fragment shader - creates glow effect
+            const fragmentShaderSource = `
+                precision mediump float;
+                varying float v_age;
+                varying float v_trail_index;
+
+                void main() {{
+                    vec2 coord = gl_PointCoord - vec2(0.5);
+                    float dist = length(coord);
+                    if (dist > 0.5) discard;
+
+                    float alpha = (1.0 - v_trail_index / 8.0) * (1.0 - dist * 2.0);
+                    vec3 color = vec3(0.063, 0.725, 0.506); // #10b981
+                    gl_FragColor = vec4(color, alpha * 0.8);
+                }}
+            `;
+
+            // Compile shaders
+            function compileShader(source, type) {{
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {{
+                    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                    return null;
+                }}
+                return shader;
+            }}
+
+            const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
+            const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+
+            // Create program
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {{
+                console.error('Program link error:', gl.getProgramInfoLog(program));
+                return;
+            }}
+
+            gl.useProgram(program);
+
+            // Get attribute/uniform locations
+            const positionLoc = gl.getAttribLocation(program, 'a_position');
+            const ageLoc = gl.getAttribLocation(program, 'a_age');
+            const trailIndexLoc = gl.getAttribLocation(program, 'a_trail_index');
+            const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
+            const transformLoc = gl.getUniformLocation(program, 'u_transform');
+
+            // Extract path data from SVG
+            const edgePaths = svg.querySelectorAll('.edgePath path');
+            const pathData = [];
+
+            edgePaths.forEach((path, idx) => {{
+                if (idx % 2 !== 0) return; // Animate every other path for performance
+                const length = path.getTotalLength();
+                const points = [];
+                const step = Math.max(1, Math.floor(length / 50)); // Sample ~50 points
+
+                for (let i = 0; i <= length; i += step) {{
+                    const pt = path.getPointAtLength(i);
+                    points.push([pt.x, pt.y]);
+                }}
+
+                pathData.push({{
+                    points,
+                    length,
+                    progress: Math.random() // Start at random position
+                }});
+            }});
+
+            // Particle data (8 particles per path for trail effect)
+            const particlesPerPath = 8;
+            const totalParticles = pathData.length * particlesPerPath;
+            const positions = new Float32Array(totalParticles * 2);
+            const ages = new Float32Array(totalParticles);
+            const trailIndices = new Float32Array(totalParticles);
+
+            // Create buffers
+            const positionBuffer = gl.createBuffer();
+            const ageBuffer = gl.createBuffer();
+            const trailIndexBuffer = gl.createBuffer();
+
+            // Resize canvas to match container
+            function resizeCanvas() {{
+                const rect = diagramContainer.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }}
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Animation loop
+            function animate() {{
+                resizeCanvas();
+
+                // Clear with transparent background
+                gl.clearColor(0, 0, 0, 0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+                // Update particle positions
+                let particleIdx = 0;
+                pathData.forEach((path, pathIndex) => {{
+                    path.progress = (path.progress + 0.005) % 1.0;
+
+                    for (let i = 0; i < particlesPerPath; i++) {{
+                        const trailOffset = (i * 0.03);
+                        const progress = (path.progress - trailOffset + 1.0) % 1.0;
+                        const pointIdx = Math.floor(progress * (path.points.length - 1));
+                        const point = path.points[pointIdx];
+
+                        const baseIdx = particleIdx * 2;
+                        positions[baseIdx] = point[0];
+                        positions[baseIdx + 1] = point[1];
+                        ages[particleIdx] = progress;
+                        trailIndices[particleIdx] = i;
+                        particleIdx++;
+                    }}
+                }});
+
+                // Upload data to GPU
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
+                gl.enableVertexAttribArray(positionLoc);
+                gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, ageBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, ages, gl.DYNAMIC_DRAW);
+                gl.enableVertexAttribArray(ageLoc);
+                gl.vertexAttribPointer(ageLoc, 1, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, trailIndexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, trailIndices, gl.DYNAMIC_DRAW);
+                gl.enableVertexAttribArray(trailIndexLoc);
+                gl.vertexAttribPointer(trailIndexLoc, 1, gl.FLOAT, false, 0, 0);
+
+                // Set uniforms (include current zoom/pan transform)
+                gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
+
+                // Build transform matrix from SVG transform
+                const svgTransform = svg.getCTM();
+                const transform = [
+                    svgTransform.a * scale, svgTransform.b * scale, 0,
+                    svgTransform.c * scale, svgTransform.d * scale, 0,
+                    (svgTransform.e + translateX) * scale, (svgTransform.f + translateY) * scale, 1
+                ];
+                gl.uniformMatrix3fv(transformLoc, false, transform);
+
+                // Draw particles
+                gl.drawArrays(gl.POINTS, 0, totalParticles);
+
+                requestAnimationFrame(animate);
+            }}
+
+            animate();
+        }}
+
         // Auto-fit diagram to viewport on load
         function autoFitDiagram() {{
             const svg = document.querySelector('#mermaid-diagram svg');
@@ -1415,36 +1628,36 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         }}
 
         // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {{
+        document.addEventListener('DOMContentLoaded', async () => {{
             console.log('DOM ready, initializing diagram...');
 
             // Load content and render diagram
             if (loadMermaidContent()) {{
-                mermaid.contentLoaded().then(() => {{
+                try {{
+                    // Use mermaid.run() for v10 API - it finds and renders all .mermaid elements
+                    await mermaid.run({{
+                        querySelector: '.mermaid'
+                    }});
                     console.log('Mermaid diagram rendered successfully');
+
                     // Build tree and effects after diagram is rendered
                     setTimeout(() => {{
                         buildFileTree();
-                        createPulseEffects();
+                        createWebGLGlows(); // GPU-accelerated particle effects
                         autoFitDiagram();
                     }}, 500);
-                }}).catch(error => {{
+                }} catch (error) {{
                     console.error('Failed to render mermaid diagram:', error);
-                }});
+                    // Try fallback rendering
+                    setTimeout(() => {{
+                        buildFileTree();
+                        createWebGLGlows(); // GPU-accelerated fallback
+                        autoFitDiagram();
+                    }}, 1000);
+                }}
             }} else {{
                 console.error('Failed to load mermaid content');
             }}
-
-            // Build tree when diagram is loaded (fallback for older approach)
-            setTimeout(() => {{
-                // Only build if not already built
-                const treeContent = document.getElementById('file-tree').innerHTML;
-                if (!treeContent || treeContent.trim() === '') {{
-                    buildFileTree();
-                    createPulseEffects();
-                    autoFitDiagram();
-                }}
-            }}, 1000);
         }});
 
         // Keyboard shortcuts
