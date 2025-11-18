@@ -1460,49 +1460,55 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     return noise(n) + noise(n * 2.1) * 0.6 + noise(n * 5.4) * 0.42;
                 }}
 
-                // Fire color ramp: white hot -> yellow -> orange -> red
+                // Green fire color ramp: white hot -> cyan -> emerald -> dark green
                 vec3 fireColor(float t) {{
-                    // Hot core
-                    vec3 hotCore = vec3(1.0, 1.0, 0.9);
-                    // Yellow flame
-                    vec3 yellow = vec3(1.0, 0.8, 0.2);
-                    // Orange
-                    vec3 orange = vec3(1.0, 0.4, 0.0);
-                    // Red tips
-                    vec3 red = vec3(0.8, 0.1, 0.0);
+                    // Hot white core
+                    vec3 hotCore = vec3(1.0, 1.0, 1.0);
+                    // Bright cyan
+                    vec3 cyan = vec3(0.4, 1.0, 0.9);
+                    // Emerald green
+                    vec3 emerald = vec3(0.063, 0.725, 0.506);
+                    // Dark green tips
+                    vec3 darkGreen = vec3(0.0, 0.3, 0.2);
 
                     if (t < 0.33) {{
-                        return mix(hotCore, yellow, t * 3.0);
+                        return mix(hotCore, cyan, t * 3.0);
                     }} else if (t < 0.66) {{
-                        return mix(yellow, orange, (t - 0.33) * 3.0);
+                        return mix(cyan, emerald, (t - 0.33) * 3.0);
                     }} else {{
-                        return mix(orange, red, (t - 0.66) * 3.0);
+                        return mix(emerald, darkGreen, (t - 0.66) * 3.0);
                     }}
                 }}
 
                 void main() {{
                     vec2 coord = gl_PointCoord - vec2(0.5);
-                    float dist = length(coord);
+                    float dist = length(coord) * 2.0; // Scale for softer edges
 
-                    // Discard pixels outside circle
-                    if (dist > 0.5) discard;
-
-                    // Create turbulent fire effect
-                    vec2 fireCoord = coord * 6.0 + vec2(v_age * 10.0, u_time * 0.5);
+                    // Create turbulent fire effect with animation
+                    vec2 fireCoord = coord * 8.0 + vec2(v_age * 15.0, u_time * 2.0);
                     float turbulence = fire(fireCoord);
 
                     // Trail fade: front is hottest
                     float trailFade = 1.0 - (v_trail_index / 8.0);
-                    trailFade = pow(trailFade, 2.0);
+                    trailFade = pow(trailFade, 1.5);
 
-                    // Fire intensity based on distance and turbulence
-                    float fireIntensity = (1.0 - dist * 2.0) * turbulence * trailFade;
+                    // Soft radial gradient for glow
+                    float radialGlow = 1.0 - smoothstep(0.0, 1.0, dist);
+                    radialGlow = pow(radialGlow, 0.8); // Softer falloff
+
+                    // Combine turbulence with radial glow
+                    float fireIntensity = radialGlow * (0.5 + turbulence * 0.5) * trailFade;
 
                     // Color based on intensity (hot core -> cooler edges)
                     vec3 color = fireColor(1.0 - fireIntensity);
 
-                    // Alpha with soft edges
-                    float alpha = smoothstep(0.0, 0.4, fireIntensity) * trailFade;
+                    // Very soft alpha for bloomy glow effect
+                    float alpha = fireIntensity * trailFade * 0.8;
+
+                    // Add extra bloom on bright areas
+                    if (fireIntensity > 0.7) {{
+                        alpha *= 1.5; // Boost bright core alpha for more glow
+                    }}
 
                     gl_FragColor = vec4(color, alpha);
                 }}
