@@ -1738,15 +1738,6 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const scaleX = canvas.width / svgWidth;
                 const scaleY = canvas.height / svgHeight;
 
-                // Debug logging on first frame
-                if (frameCount === 1) {{
-                    console.log('WebGL: First frame rendering fire channels');
-                    console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
-                    console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
-                    console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
-                    console.log('WebGL: Rendering', lineSegments.length, 'fire channels with flowing green fire');
-                }}
-
                 // Transform matrix: translate by viewBox offset, then scale
                 // (CSS transform on canvas element handles pan/zoom to avoid double transformation)
                 const transform = [
@@ -1755,6 +1746,33 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     -svgX * scaleX, -svgY * scaleY, 1
                 ];
                 gl.uniformMatrix3fv(transformLoc, false, transform);
+
+                // Debug logging on first frame
+                if (frameCount === 1) {{
+                    console.log('WebGL: First frame rendering fire channels');
+                    console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
+                    console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
+                    console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
+                    console.log('WebGL: Transform matrix:', transform);
+                    console.log('WebGL: Rendering', lineSegments.length, 'fire channels with flowing green fire');
+
+                    // Debug: sample an SVG path point and show expected vs actual
+                    const testPath = edgePaths[0];
+                    const testPt = testPath.getPointAtLength(0);
+                    console.log('WebGL: SVG path start (raw):', testPt.x, testPt.y);
+                    const testCTM = testPath.getCTM();
+                    if (testCTM) {{
+                        const svgPt = svg.createSVGPoint();
+                        svgPt.x = testPt.x;
+                        svgPt.y = testPt.y;
+                        const transformed = svgPt.matrixTransform(testCTM);
+                        console.log('WebGL: SVG path start (CTM transformed):', transformed.x, transformed.y);
+                    }}
+
+                    // Get actual screen position of path
+                    const bbox = testPath.getBBox();
+                    console.log('WebGL: SVG path BBox:', bbox.x, bbox.y, bbox.width, 'x', bbox.height);
+                }}
 
                 // Draw each path as a LINE_STRIP with flowing fire texture
                 lineSegments.forEach(segment => {{
