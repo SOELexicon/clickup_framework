@@ -1399,11 +1399,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             canvas.style.position = 'absolute';
             canvas.style.top = '0';
             canvas.style.left = '0';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
             canvas.style.pointerEvents = 'none';
-            canvas.style.zIndex = '10';
+            canvas.style.zIndex = '100';  // Higher z-index to ensure visibility
 
             const diagramContainer = document.getElementById('diagram-container');
             diagramContainer.appendChild(canvas);
+            console.log('WebGL canvas created');
 
             // Setup WebGL context
             const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -1426,8 +1429,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     vec3 transformed = u_transform * vec3(a_position, 1.0);
                     vec2 clipSpace = (transformed.xy / u_resolution) * 2.0 - 1.0;
                     gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-                    // Larger particles for more visible soft glow
-                    gl_PointSize = 18.0 - (a_trail_index * 1.5);
+                    // Much larger particles for visibility
+                    gl_PointSize = 32.0 - (a_trail_index * 2.5);
                     v_age = a_age;
                     v_trail_index = a_trail_index;
                 }}
@@ -1458,15 +1461,15 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     float trailFade = 1.0 - (v_trail_index / 8.0);
                     trailFade = pow(trailFade, 1.5); // Exponential falloff looks better
 
-                    // Final alpha combines intensity and trail fade
-                    float alpha = intensity * trailFade;
+                    // Final alpha combines intensity and trail fade - much brighter!
+                    float alpha = intensity * trailFade * 1.5;
 
-                    // Color with slight variation based on trail position
-                    vec3 color = vec3(0.063, 0.725, 0.506); // #10b981 emerald
+                    // Brighter emerald color for better visibility
+                    vec3 color = vec3(0.2, 1.0, 0.7); // Bright emerald green
                     // Add subtle color shift for trail depth
-                    color += vec3(0.02, 0.05, 0.08) * (1.0 - trailFade);
+                    color += vec3(0.1, 0.15, 0.2) * (1.0 - trailFade);
 
-                    gl_FragColor = vec4(color, alpha * 0.9);
+                    gl_FragColor = vec4(color, alpha);
                 }}
             `;
 
@@ -1509,6 +1512,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const edgePaths = svg.querySelectorAll('.edgePath path');
             const pathData = [];
 
+            console.log('WebGL: Found', edgePaths.length, 'edge paths');
+
             edgePaths.forEach((path, idx) => {{
                 // With WebGL we can animate ALL paths without performance issues
                 const length = path.getTotalLength();
@@ -1526,6 +1531,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     progress: Math.random() // Start at random position
                 }});
             }});
+
+            console.log('WebGL: Created', pathData.length, 'animated paths');
 
             // Particle data (8 particles per path for trail effect)
             const particlesPerPath = 8;
@@ -1549,9 +1556,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
+            console.log('WebGL: Starting animation with', totalParticles, 'particles');
+
+            let frameCount = 0;
             // Animation loop
             function animate() {{
                 resizeCanvas();
+                frameCount++;
+                if (frameCount === 1) {{
+                    console.log('WebGL: First frame rendering');
+                }}
 
                 // Clear with transparent background
                 gl.clearColor(0, 0, 0, 0);
@@ -1562,7 +1576,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 // Update particle positions
                 let particleIdx = 0;
                 pathData.forEach((path, pathIndex) => {{
-                    path.progress = (path.progress + 0.005) % 1.0;
+                    path.progress = (path.progress + 0.002) % 1.0;  // Slower for better visibility
 
                     for (let i = 0; i < particlesPerPath; i++) {{
                         const trailOffset = (i * 0.03);
@@ -1687,7 +1701,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     setTimeout(() => {{
                         buildFileTree();
                         createWebGLGlows(); // GPU-accelerated particle effects
-                        autoFitDiagram();
+                        // Don't auto-fit - it causes off-screen positioning
+                        // User can press Reset (0 key) to fit if needed
                     }}, 500);
                 }} catch (error) {{
                     console.error('Failed to render mermaid diagram:', error);
@@ -1695,7 +1710,6 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     setTimeout(() => {{
                         buildFileTree();
                         createWebGLGlows(); // GPU-accelerated fallback
-                        autoFitDiagram();
                     }}, 1000);
                 }}
             }} else {{
