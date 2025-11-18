@@ -7,7 +7,7 @@ import subprocess
 import re
 from pathlib import Path
 from typing import Optional, Tuple
-from clickup_framework import get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
@@ -256,25 +256,25 @@ def show_package_progress(current_package: str, duration: float = 1.5, use_color
         print(f"  Updating {current_package}...")
         time.sleep(duration)
         return
-    
+
     bar_length = 40
     one_liner_index = 0
-    
+
     # Package name with white sheen
     package_text = ANSIAnimations.white_sheen_text(f"  📦 {current_package}", TextColor.BRIGHT_CYAN)
     print(package_text)
-    
+
     for i in range(bar_length + 1):
         percent = int((i / bar_length) * 100)
         filled = '█' * i
         empty = '░' * (bar_length - i)
-        
+
         # Rotate one-liner every few frames
         if i % 3 == 0:
             one_liner_index = (one_liner_index + 1) % len(one_liners)
-        
+
         current_liner = one_liners[one_liner_index]
-        
+
         # Color progression
         if percent < 33:
             color = TextColor.BRIGHT_CYAN
@@ -282,19 +282,19 @@ def show_package_progress(current_package: str, duration: float = 1.5, use_color
             color = TextColor.BRIGHT_MAGENTA
         else:
             color = TextColor.BRIGHT_YELLOW
-        
+
         colored_filled = colorize(filled, color)
         bar = f"{colored_filled}{empty}"
-        
+
         # One-liner with white sheen
         liner_text = ANSIAnimations.white_sheen_text(current_liner, TextColor.BRIGHT_MAGENTA)
-        
+
         # Print progress bar and one-liner on same line, clear previous
         # Use \r to return to start of line, then \033[K to clear to end of line
         print(f"\r\033[K    [{bar}] {percent}%  {liner_text}", end='', flush=True)
-        
+
         time.sleep(duration / bar_length)
-    
+
     # Final print
     colored_filled = colorize('█' * bar_length, TextColor.BRIGHT_YELLOW)
     final_liner = ANSIAnimations.white_sheen_text(one_liners[one_liner_index], TextColor.BRIGHT_GREEN)
@@ -456,109 +456,6 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             action = "reinstall" if fresh_load else "update"
             print(colorize(f"  ✗ Failed to {action}: {e}", TextColor.RED) if use_color else f"  ✗ Failed to {action}: {e}", file=sys.stderr)
             return False
-
-
-def update_cum_command(args):
-    """Update the cum tool in all Python environments where it's installed."""
-    from clickup_framework import __version__
-
-    context = get_context_manager()
-    use_color = context.get_ansi_output()
-    fresh_load = getattr(args, 'fresh_load', False)
-
-    # Show current version
-    if use_color:
-        print(colorize(f"Current version: {__version__}", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-    else:
-        print(f"Current version: {__version__}")
-    print()
-
-    # Find all cum instances
-    if use_color:
-        print(colorize("Searching for all cum instances on the system...", TextColor.BRIGHT_YELLOW))
-    else:
-        print("Searching for all cum instances on the system...")
-
-    instances = find_all_cum_instances()
-
-    if not instances:
-        print(colorize("No cum instances found!", TextColor.RED) if use_color else "No cum instances found!", file=sys.stderr)
-        sys.exit(1)
-
-    if use_color:
-        print(colorize(f"Found {len(instances)} instance(s):", TextColor.BRIGHT_GREEN))
-    else:
-        print(f"Found {len(instances)} instance(s):")
-
-    for instance in instances:
-        print(f"  • {instance}")
-
-    # Update each instance
-    updated_count = 0
-    failed_count = 0
-
-    for instance in instances:
-        python_path = get_python_from_script(instance)
-
-        if not python_path:
-            print()
-            if use_color:
-                print(colorize(f"⚠ Could not determine Python for: {instance}", TextColor.YELLOW))
-            else:
-                print(f"⚠ Could not determine Python for: {instance}")
-            failed_count += 1
-            continue
-
-        # Verify python exists
-        if not os.path.isfile(python_path):
-            print()
-            if use_color:
-                print(colorize(f"⚠ Python not found at: {python_path}", TextColor.YELLOW))
-            else:
-                print(f"⚠ Python not found at: {python_path}")
-            failed_count += 1
-            continue
-
-        if update_instance(instance, python_path, use_color, fresh_load=fresh_load):
-            updated_count += 1
-        else:
-            failed_count += 1
-
-    # Summary
-    print()
-    print("=" * 60)
-    if use_color:
-        if updated_count > 0:
-            print(colorize(f"✓ Successfully updated {updated_count} instance(s)", TextColor.BRIGHT_GREEN))
-        if failed_count > 0:
-            print(colorize(f"✗ Failed to update {failed_count} instance(s)", TextColor.RED))
-    else:
-        if updated_count > 0:
-            print(f"✓ Successfully updated {updated_count} instance(s)")
-        if failed_count > 0:
-            print(f"✗ Failed to update {failed_count} instance(s)")
-
-    if updated_count > 0:
-        # Try to get the new version
-        try:
-            import importlib
-            import clickup_framework
-            importlib.reload(clickup_framework)
-            from clickup_framework import __version__ as new_version
-
-            print()
-            if use_color:
-                success_msg = ANSIAnimations.success_message(f"Update complete! Version: {new_version}")
-                print(success_msg)
-            else:
-                print(f"Update complete! Version: {new_version}")
-        except Exception:
-            if use_color:
-                print(colorize("Update complete!", TextColor.BRIGHT_GREEN))
-            else:
-                print("Update complete!")
-
-    sys.exit(0 if failed_count == 0 else 1)
 
 
 # ============================================================================
@@ -816,142 +713,248 @@ def interactive_bump(use_color: bool = True) -> Optional[str]:
     return new_version
 
 
-def update_version_command(args):
+class UpdateCumCommand(BaseCommand):
+    """Update the cum tool in all Python environments where it's installed."""
+
+    def execute(self):
+        """Execute the update cum command."""
+        from clickup_framework import __version__
+
+        use_color = self.context.get_ansi_output()
+        fresh_load = getattr(self.args, 'fresh_load', False)
+
+        # Show current version
+        if use_color:
+            self.print(colorize(f"Current version: {__version__}", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        else:
+            self.print(f"Current version: {__version__}")
+        self.print()
+
+        # Find all cum instances
+        if use_color:
+            self.print(colorize("Searching for all cum instances on the system...", TextColor.BRIGHT_YELLOW))
+        else:
+            self.print("Searching for all cum instances on the system...")
+
+        instances = find_all_cum_instances()
+
+        if not instances:
+            self.error("No cum instances found!")
+
+        if use_color:
+            self.print(colorize(f"Found {len(instances)} instance(s):", TextColor.BRIGHT_GREEN))
+        else:
+            self.print(f"Found {len(instances)} instance(s):")
+
+        for instance in instances:
+            self.print(f"  • {instance}")
+
+        # Update each instance
+        updated_count = 0
+        failed_count = 0
+
+        for instance in instances:
+            python_path = get_python_from_script(instance)
+
+            if not python_path:
+                self.print()
+                if use_color:
+                    self.print(colorize(f"⚠ Could not determine Python for: {instance}", TextColor.YELLOW))
+                else:
+                    self.print(f"⚠ Could not determine Python for: {instance}")
+                failed_count += 1
+                continue
+
+            # Verify python exists
+            if not os.path.isfile(python_path):
+                self.print()
+                if use_color:
+                    self.print(colorize(f"⚠ Python not found at: {python_path}", TextColor.YELLOW))
+                else:
+                    self.print(f"⚠ Python not found at: {python_path}")
+                failed_count += 1
+                continue
+
+            if update_instance(instance, python_path, use_color, fresh_load=fresh_load):
+                updated_count += 1
+            else:
+                failed_count += 1
+
+        # Summary
+        self.print()
+        self.print("=" * 60)
+        if use_color:
+            if updated_count > 0:
+                self.print(colorize(f"✓ Successfully updated {updated_count} instance(s)", TextColor.BRIGHT_GREEN))
+            if failed_count > 0:
+                self.print(colorize(f"✗ Failed to update {failed_count} instance(s)", TextColor.RED))
+        else:
+            if updated_count > 0:
+                self.print(f"✓ Successfully updated {updated_count} instance(s)")
+            if failed_count > 0:
+                self.print(f"✗ Failed to update {failed_count} instance(s)")
+
+        if updated_count > 0:
+            # Try to get the new version
+            try:
+                import importlib
+                import clickup_framework
+                importlib.reload(clickup_framework)
+                from clickup_framework import __version__ as new_version
+
+                self.print()
+                if use_color:
+                    success_msg = ANSIAnimations.success_message(f"Update complete! Version: {new_version}")
+                    self.print(success_msg)
+                else:
+                    self.print(f"Update complete! Version: {new_version}")
+            except Exception:
+                if use_color:
+                    self.print(colorize("Update complete!", TextColor.BRIGHT_GREEN))
+                else:
+                    self.print("Update complete!")
+
+        import sys
+        sys.exit(0 if failed_count == 0 else 1)
+
+
+class UpdateVersionCommand(BaseCommand):
     """Update the project version by creating a new git tag."""
-    context = get_context_manager()
-    use_color = context.get_ansi_output()
 
-    # Check if git is available
-    try:
-        git_check = subprocess.run(
-            ['git', '--version'],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            check=False
-        )
-        if git_check.returncode != 0:
-            error_msg = "Error: git command not found. Please install git and try again."
-            if use_color:
-                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
-            else:
-                print(error_msg, file=sys.stderr)
-            sys.stderr.flush()
-            sys.exit(1)
-    except FileNotFoundError:
-        error_msg = "Error: git command not found. Please install git and try again."
-        if use_color:
-            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
-        else:
-            print(error_msg, file=sys.stderr)
-        sys.stderr.flush()
-        sys.exit(1)
+    def execute(self):
+        """Execute the update version command."""
+        use_color = self.context.get_ansi_output()
 
-    # Check if we're in a git repository
-    result = run_git_command(['git', 'rev-parse', '--git-dir'])
-    if result.returncode != 0:
-        error_msg = "Error: Not in a git repository"
-        if use_color:
-            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
-            print(colorize("This command must be run from within the clickup_framework git repository.", TextColor.YELLOW), file=sys.stderr)
-        else:
-            print(error_msg, file=sys.stderr)
-            print("This command must be run from within the clickup_framework git repository.", file=sys.stderr)
-        sys.stderr.flush()
-        sys.exit(1)
-
-    # Determine new version
-    new_version = None
-
-    # Handle quick increment flags
-    if hasattr(args, 'major') and args.major:
-        increment_type = 'major'
-    elif hasattr(args, 'minor') and args.minor:
-        increment_type = 'minor'
-    elif hasattr(args, 'patch') and args.patch:
-        increment_type = 'patch'
-    else:
-        increment_type = None
-
-    # Handle specific version argument
-    if hasattr(args, 'version') and args.version:
+        # Check if git is available
         try:
-            parse_version(args.version)
-            new_version = args.version
-            msg = f"Setting version to: {new_version}"
+            git_check = subprocess.run(
+                ['git', '--version'],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                check=False
+            )
+            if git_check.returncode != 0:
+                self.error("Error: git command not found. Please install git and try again.")
+        except FileNotFoundError:
+            self.error("Error: git command not found. Please install git and try again.")
+
+        # Check if we're in a git repository
+        result = run_git_command(['git', 'rev-parse', '--git-dir'])
+        if result.returncode != 0:
+            error_msg = "Error: Not in a git repository"
             if use_color:
-                print(colorize(msg, TextColor.BRIGHT_CYAN))
+                self.print_error(colorize(error_msg, TextColor.RED))
+                self.print_error(colorize("This command must be run from within the clickup_framework git repository.", TextColor.YELLOW))
             else:
-                print(msg)
-        except ValueError as e:
-            error_msg = f"Error: {e}"
-            if use_color:
-                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
-            else:
-                print(error_msg, file=sys.stderr)
-            sys.stderr.flush()
+                self.print_error(error_msg)
+                self.print_error("This command must be run from within the clickup_framework git repository.")
+            import sys
             sys.exit(1)
-    elif increment_type:
-        current_version = get_latest_tag()
-        if not current_version:
-            msg = "No version tags found. Creating initial version 0.1.0"
-            if use_color:
-                print(colorize(msg, TextColor.YELLOW))
+
+        # Determine new version
+        new_version = None
+
+        # Handle quick increment flags
+        if hasattr(self.args, 'major') and self.args.major:
+            increment_type = 'major'
+        elif hasattr(self.args, 'minor') and self.args.minor:
+            increment_type = 'minor'
+        elif hasattr(self.args, 'patch') and self.args.patch:
+            increment_type = 'patch'
+        else:
+            increment_type = None
+
+        # Handle specific version argument
+        if hasattr(self.args, 'version') and self.args.version:
+            try:
+                parse_version(self.args.version)
+                new_version = self.args.version
+                msg = f"Setting version to: {new_version}"
+                if use_color:
+                    self.print(colorize(msg, TextColor.BRIGHT_CYAN))
+                else:
+                    self.print(msg)
+            except ValueError as e:
+                self.error(f"Error: {e}")
+        elif increment_type:
+            current_version = get_latest_tag()
+            if not current_version:
+                msg = "No version tags found. Creating initial version 0.1.0"
+                if use_color:
+                    self.print(colorize(msg, TextColor.YELLOW))
+                else:
+                    self.print(msg)
+                new_version = "0.1.0"
             else:
-                print(msg)
-            new_version = "0.1.0"
+                new_version = increment_version(current_version, increment_type)
+                msg = f"Bumping {increment_type} version: {current_version} -> {new_version}"
+                if use_color:
+                    self.print(colorize(msg, TextColor.BRIGHT_CYAN))
+                else:
+                    self.print(msg)
         else:
-            new_version = increment_version(current_version, increment_type)
-            msg = f"Bumping {increment_type} version: {current_version} -> {new_version}"
+            # Interactive mode
             if use_color:
-                print(colorize(msg, TextColor.BRIGHT_CYAN))
+                self.print(colorize("No version specified. Starting interactive mode...", TextColor.BRIGHT_YELLOW))
             else:
-                print(msg)
-    else:
-        # Interactive mode
-        if use_color:
-            print(colorize("No version specified. Starting interactive mode...", TextColor.BRIGHT_YELLOW))
-        else:
-            print("No version specified. Starting interactive mode...")
-        print()
-        sys.stdout.flush()
-        new_version = interactive_bump(use_color)
+                self.print("No version specified. Starting interactive mode...")
+            self.print()
+            import sys
+            sys.stdout.flush()
+            new_version = interactive_bump(use_color)
 
-    if not new_version:
-        sys.exit(1)
+        if not new_version:
+            import sys
+            sys.exit(1)
 
-    # Check for --no-push flag
-    no_push = hasattr(args, 'no_push') and args.no_push
+        # Check for --no-push flag
+        no_push = hasattr(self.args, 'no_push') and self.args.no_push
 
-    # Create and push the tag
-    success = create_and_push_tag(new_version, push=not no_push, use_color=use_color)
+        # Create and push the tag
+        success = create_and_push_tag(new_version, push=not no_push, use_color=use_color)
 
-    if success:
-        print()
-        print("=" * 60)
-        success_msg = f"✓ Version {new_version} tagged successfully!"
-        if use_color:
-            print(colorize(success_msg, TextColor.BRIGHT_GREEN, TextStyle.BOLD))
-        else:
-            print(success_msg)
-
-        if not no_push:
-            push_msg = "✓ Tag pushed to origin"
+        if success:
+            self.print()
+            self.print("=" * 60)
+            success_msg = f"✓ Version {new_version} tagged successfully!"
             if use_color:
-                print(colorize(push_msg, TextColor.BRIGHT_GREEN))
+                self.print(colorize(success_msg, TextColor.BRIGHT_GREEN, TextStyle.BOLD))
             else:
-                print(push_msg)
+                self.print(success_msg)
 
-        print()
-        update_msg = "Run 'cum update cum' to update to the new version."
-        if use_color:
-            print(colorize(update_msg, TextColor.BRIGHT_YELLOW))
+            if not no_push:
+                push_msg = "✓ Tag pushed to origin"
+                if use_color:
+                    self.print(colorize(push_msg, TextColor.BRIGHT_GREEN))
+                else:
+                    self.print(push_msg)
+
+            self.print()
+            update_msg = "Run 'cum update cum' to update to the new version."
+            if use_color:
+                self.print(colorize(update_msg, TextColor.BRIGHT_YELLOW))
+            else:
+                self.print(update_msg)
+            self.print("=" * 60)
+            import sys
+            sys.exit(0)
         else:
-            print(update_msg)
-        print("=" * 60)
-        sys.exit(0)
-    else:
-        sys.exit(1)
+            import sys
+            sys.exit(1)
+
+
+# Backward compatibility wrappers
+def update_cum_command(args):
+    """Command wrapper for update cum."""
+    command = UpdateCumCommand(args, command_name='update')
+    command.execute()
+
+
+def update_version_command(args):
+    """Command wrapper for update version."""
+    command = UpdateVersionCommand(args, command_name='update')
+    command.execute()
 
 
 def register_command(subparsers):
