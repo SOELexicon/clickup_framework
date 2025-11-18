@@ -20,7 +20,7 @@ COMMAND_METADATA = {
     "commands": [
         {
             "name": "map",
-            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output FILE] [--format FORMAT] [--install]",
+            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output FILE] [--format FORMAT] [--install] [--ignore-gitignore]",
             "description": "Generate code map using ctags, optionally export as mermaid diagram"
         },
     ]
@@ -141,7 +141,7 @@ def install_ctags_locally(use_color: bool = False) -> bool:
         return False
 
 
-def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.json', ctags_exe: Optional[str] = None) -> bool:
+def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.json', ctags_exe: Optional[str] = None, ignore_gitignore: bool = False) -> bool:
     """
     Generate ctags JSON output.
 
@@ -149,6 +149,7 @@ def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.jso
         language: Language filter ('python', 'csharp', 'all', or None for all)
         output_file: Output file path
         ctags_exe: Path to ctags executable (if None, will use system ctags)
+        ignore_gitignore: If True, scan bin/obj and other typically ignored directories
 
     Returns:
         True if successful, False otherwise
@@ -159,15 +160,34 @@ def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.jso
     cmd = [
         ctags_exe,
         '--output-format=json',
+        '--fields=+ne',  # n=line number, e=end line
         '--quiet',
         '--exclude=.venv',
         '--exclude=node_modules',
-        '--exclude=bin',
-        '--exclude=obj',
         '--exclude=.git',
         '-R',
         '.'
     ]
+
+    # Process .gitignore file
+    gitignore_path = Path('.gitignore')
+    if ignore_gitignore and gitignore_path.exists():
+        try:
+            with open(gitignore_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    # Skip empty lines and comments
+                    if line and not line.startswith('#'):
+                        # Remove leading slash if present
+                        pattern = line.lstrip('/')
+                        # Add as exception to override gitignore
+                        cmd.insert(-2, f'--exclude-exception={pattern}')
+        except Exception as e:
+            print(f"Warning: Could not process .gitignore: {e}", file=sys.stderr)
+    elif not ignore_gitignore:
+        # Normal behavior: exclude build directories
+        cmd.insert(-2, '--exclude=bin')
+        cmd.insert(-2, '--exclude=obj')
 
     # Add language filter if specified
     if language == 'python':
@@ -234,6 +254,7 @@ def parse_tags_file(tags_file: Path) -> Dict:
                         'kind': kind,
                         'language': lang,
                         'line': line_num,
+                        'end': data.get('end', line_num),  # Capture end line from ctags
                         'scope': scope,
                         'scopeKind': scope_kind,
                         'path': path,
@@ -1579,8 +1600,8 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         "# Code Map - Execution Flow (Call Graph)",
         "",
         "```mermaid",
-        "%%{init: {'flowchart': {'curve': 'linear'}, 'theme': 'dark'}}%%",
-        "graph TB"
+        "%%{init: {'flowchart': {'curve': 'linear', 'defaultRenderer': 'elk'}, 'theme': 'dark'}}%%",
+        "graph LR"
     ]
 
     # Find entry points (functions not called by others)
@@ -1600,7 +1621,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
     def collect_functions(func_name, depth=0, max_depth=8):
         nonlocal node_count
 
-        if depth > max_depth or func_name in processed or node_count >= 150:
+        if depth > max_depth or func_name in processed or node_count >= 50:
             return
 
         processed.add(func_name)
@@ -1619,13 +1640,13 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
 
         # Recursively collect called functions
         calls = function_calls.get(func_name, [])
-        for called_func in calls[:10]:  # Capture more calls per function
+        for called_func in calls[:3]:  # Limit calls per function for clarity
             if called_func not in processed:
                 collect_functions(called_func, depth + 1, max_depth)
 
     # Collect all functions starting from entry points
     for entry in entry_points:
-        if node_count >= 150:
+        if node_count >= 50:
             break
         collect_functions(entry, depth=0, max_depth=8)
 
@@ -1653,10 +1674,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
             display_func = func_name.split('.')[-1]
             file_name = Path(symbol.get('path', '')).name
             line_start = symbol.get('line', 0)
-
-            # Try to estimate end line (approximate)
-            # In real implementation, ctags can provide this with --fields=+ne
-            line_end = line_start + 10  # Placeholder
+            line_end = symbol.get('end', line_start)  # Use actual end line from ctags
 
             # Create node with line numbers
             lines.append(f"        {node_id}[\"{display_func}()<br/>📄 {file_name}<br/>📍 L{line_start}-{line_end}\"]")
@@ -1664,20 +1682,50 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         lines.append("    end")
         lines.append("")
 
-    # Add connections between nodes with thick, visible arrows
+    # Define colors for subgraphs and edges
+    colors = [
+        ("fill:rgba(16,185,129,0.08),stroke:#10b981,color:#10b981,stroke-width:2px", "#10b981", "emerald"),  # Emerald
+        ("fill:rgba(139,92,246,0.08),stroke:#8b5cf6,color:#8b5cf6,stroke-width:2px", "#8b5cf6", "purple"),   # Purple
+        ("fill:rgba(6,182,212,0.08),stroke:#06b6d4,color:#06b6d4,stroke-width:2px", "#06b6d4", "cyan"),      # Cyan
+        ("fill:rgba(245,158,11,0.08),stroke:#f59e0b,color:#f59e0b,stroke-width:2px", "#f59e0b", "amber"),    # Amber
+        ("fill:rgba(236,72,153,0.08),stroke:#ec4899,color:#ec4899,stroke-width:2px", "#ec4899", "pink"),     # Pink
+    ]
+
+    # Build node-to-color mapping based on which subgraph they belong to
+    node_to_color = {}
+    for i, (class_name, funcs) in enumerate(sorted(functions_by_class.items())[:20]):
+        _, edge_color, _ = colors[i % len(colors)]
+        for func in funcs:
+            full_name = f"{class_name.replace('📦 ', '')}.{func}" if not class_name.startswith('📦 ') else func
+            # Try both full name and short name
+            for potential_name in [full_name, func]:
+                if potential_name in node_ids:
+                    node_to_color[node_ids[potential_name]] = edge_color
+
+    # Add connections with color-coded edges matching destination
     lines.append("    %% Connections")
     link_count = 0
+    link_styles = []
+
     for func_name, calls in function_calls.items():
         if func_name not in node_ids:
             continue
 
         from_id = node_ids[func_name]
-        for called_func in calls[:10]:  # Show more connections
+        for called_func in calls[:3]:  # Limit to 3 calls per function for clarity
             if called_func in node_ids:
                 to_id = node_ids[called_func]
-                # Use thick arrows with labels
+                edge_color = node_to_color.get(to_id, '#10b981')  # Default to green
+
                 lines.append(f"    {from_id} ==> {to_id}")
+                link_styles.append(f"    linkStyle {link_count} stroke:{edge_color},stroke-width:3px")
                 link_count += 1
+
+    lines.append("")
+
+    # Apply link styles
+    for style in link_styles:
+        lines.append(style)
 
     lines.append("")
 
@@ -1685,16 +1733,8 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
     lines.append("    %% Styling - Green/Black/Purple Theme")
 
     # Style subgraphs with different faded colors
-    colors = [
-        ("fill:rgba(16,185,129,0.08),stroke:#10b981,color:#10b981,stroke-width:2px", "emerald"),  # Faded emerald
-        ("fill:rgba(139,92,246,0.08),stroke:#8b5cf6,color:#8b5cf6,stroke-width:2px", "purple"),   # Faded purple
-        ("fill:rgba(6,182,212,0.08),stroke:#06b6d4,color:#06b6d4,stroke-width:2px", "cyan"),     # Faded cyan
-        ("fill:rgba(245,158,11,0.08),stroke:#f59e0b,color:#f59e0b,stroke-width:2px", "amber"),    # Faded amber
-        ("fill:rgba(236,72,153,0.08),stroke:#ec4899,color:#ec4899,stroke-width:2px", "pink"),     # Faded pink
-    ]
-
     for i in range(subgraph_count):
-        color_style, _ = colors[i % len(colors)]
+        color_style, _, _ = colors[i % len(colors)]
         lines.append(f"    style SG{i} {color_style}")
 
     # Style nodes with faded backgrounds
@@ -1908,7 +1948,8 @@ def map_command(args):
     else:
         print("[PROGRESS] Generating tags...")
 
-    if not generate_ctags(language, str(tags_file), ctags_exe):
+    ignore_gitignore = getattr(args, 'ignore_gitignore', False)
+    if not generate_ctags(language, str(tags_file), ctags_exe, ignore_gitignore):
         error_msg = "[ERROR] Failed to generate ctags"
         if use_color:
             print(colorize(error_msg, TextColor.RED), file=sys.stderr)
@@ -2088,6 +2129,13 @@ def register_command(subparsers):
         '--all-langs',
         action='store_true',
         help='Generate map for all supported languages'
+    )
+
+    # Gitignore option
+    parser.add_argument(
+        '--ignore-gitignore',
+        action='store_true',
+        help='Scan files that would normally be excluded by .gitignore (e.g., bin/, obj/ for C# projects)'
     )
 
     # Installation option
