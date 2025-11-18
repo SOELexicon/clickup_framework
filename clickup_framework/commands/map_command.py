@@ -312,6 +312,403 @@ def check_mmdc_available() -> bool:
         return False
 
 
+def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = "Code Map", use_color: bool = False) -> bool:
+    """
+    Export mermaid diagram to interactive HTML with zoom, pan, and animations.
+
+    Args:
+        mermaid_content: Mermaid diagram code
+        output_file: Output HTML file path
+        title: Page title
+        use_color: Whether to use colored output
+
+    Returns:
+        True if successful, False otherwise
+    """
+    html_template = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({{
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {{
+                primaryColor: '#1e3a8a',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#60a5fa',
+                lineColor: '#93c5fd',
+                secondaryColor: '#065f46',
+                tertiaryColor: '#dc2626',
+                background: '#0f172a',
+                mainBkg: '#1e293b',
+                secondBkg: '#334155',
+                lineColor: '#64748b',
+                border1: '#475569',
+                border2: '#64748b',
+                arrowheadColor: '#60a5fa',
+                fontFamily: 'ui-monospace, monospace'
+            }},
+            flowchart: {{
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis'
+            }},
+            sequence: {{
+                useMaxWidth: false,
+                wrap: true,
+                height: 600
+            }},
+            class: {{
+                useMaxWidth: false
+            }},
+            er: {{
+                useMaxWidth: false
+            }},
+            securityLevel: 'loose',
+            logLevel: 'info'
+        }});
+    </script>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow: hidden;
+        }}
+        .container {{
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }}
+        .header {{
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }}
+        .header h1 {{
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #60a5fa;
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+        }}
+        .controls {{
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+        .btn {{
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }}
+        .btn:hover {{
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }}
+        .btn:active {{
+            transform: translateY(0);
+        }}
+        .zoom-info {{
+            font-size: 0.875rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+        .diagram-wrapper {{
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+        }}
+        .diagram-container {{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            transform-origin: center center;
+            transition: transform 0.3s ease;
+            cursor: grab;
+        }}
+        .diagram-container:active {{
+            cursor: grabbing;
+        }}
+        .diagram-container.zoomed {{
+            cursor: move;
+        }}
+        #mermaid-diagram {{
+            display: inline-block;
+            background: rgba(30, 41, 59, 0.5);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+                        0 0 50px rgba(96, 165, 250, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+        }}
+        /* Mermaid node animations */
+        @keyframes fadeInUp {{
+            from {{
+                opacity: 0;
+                transform: translateY(20px);
+            }}
+            to {{
+                opacity: 1;
+                transform: translateY(0);
+            }}
+        }}
+        .node, .cluster, .edgePath {{
+            animation: fadeInUp 0.5s ease-out backwards;
+        }}
+        .node:nth-child(1) {{ animation-delay: 0.05s; }}
+        .node:nth-child(2) {{ animation-delay: 0.1s; }}
+        .node:nth-child(3) {{ animation-delay: 0.15s; }}
+        .node:nth-child(4) {{ animation-delay: 0.2s; }}
+        .node:nth-child(5) {{ animation-delay: 0.25s; }}
+        /* Hover effects */
+        .node {{
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }}
+        .node:hover {{
+            filter: brightness(1.3) drop-shadow(0 0 10px rgba(96, 165, 250, 0.8));
+            transform: scale(1.05);
+        }}
+        .edgePath {{
+            transition: all 0.2s ease;
+        }}
+        .edgePath:hover path {{
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 5px rgba(147, 197, 253, 0.8));
+        }}
+        /* Loading animation */
+        .loading {{
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }}
+        .spinner {{
+            border: 4px solid #334155;
+            border-top: 4px solid #60a5fa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        .fullscreen {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+        }}
+        .fullscreen .diagram-container {{
+            padding: 1rem;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="header">
+            <h1>🗺️ {title}</h1>
+            <div class="controls">
+                <button class="btn" onclick="zoomIn()">🔍 Zoom In</button>
+                <button class="btn" onclick="zoomOut()">🔍 Zoom Out</button>
+                <button class="btn" onclick="resetZoom()">↺ Reset</button>
+                <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                <button class="btn" onclick="downloadSVG()">💾 Download SVG</button>
+                <span class="zoom-info">
+                    <span>Zoom:</span>
+                    <strong id="zoom-level">100%</strong>
+                    <span style="margin-left: 1rem">💡 Scroll to zoom, drag to pan</span>
+                </span>
+            </div>
+        </div>
+        <div class="diagram-wrapper">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Rendering diagram...</p>
+            </div>
+            <div class="diagram-container" id="diagram-container">
+                <div class="mermaid" id="mermaid-diagram">
+{mermaid_code}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        const container = document.getElementById('diagram-container');
+        const zoomLevelEl = document.getElementById('zoom-level');
+
+        // Hide loading when mermaid is ready
+        window.addEventListener('load', () => {{
+            setTimeout(() => {{
+                document.getElementById('loading').style.display = 'none';
+
+                // Add click handlers to nodes
+                document.querySelectorAll('.node').forEach(node => {{
+                    node.addEventListener('click', (e) => {{
+                        const label = node.querySelector('text')?.textContent;
+                        if (label) {{
+                            alert('Node: ' + label);
+                        }}
+                    }});
+                }});
+            }}, 500);
+        }});
+
+        function updateTransform() {{
+            container.style.transform = `translate(${{translateX}}px, ${{translateY}}px) scale(${{scale}})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + '%';
+            container.classList.toggle('zoomed', scale !== 1);
+        }}
+
+        function zoomIn() {{
+            scale = Math.min(scale * 1.2, 5);
+            updateTransform();
+        }}
+
+        function zoomOut() {{
+            scale = Math.max(scale / 1.2, 0.1);
+            updateTransform();
+        }}
+
+        function resetZoom() {{
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }}
+
+        // Mouse wheel zoom
+        container.addEventListener('wheel', (e) => {{
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale = Math.max(0.1, Math.min(5, scale * delta));
+            updateTransform();
+        }});
+
+        // Drag to pan
+        container.addEventListener('mousedown', (e) => {{
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        }});
+
+        document.addEventListener('mousemove', (e) => {{
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        }});
+
+        document.addEventListener('mouseup', () => {{
+            isDragging = false;
+        }});
+
+        // Fullscreen
+        function toggleFullscreen() {{
+            const elem = document.getElementById('container');
+            if (!document.fullscreenElement) {{
+                elem.requestFullscreen().catch(err => {{
+                    console.log('Fullscreen error:', err);
+                }});
+            }} else {{
+                document.exitFullscreen();
+            }}
+        }}
+
+        // Download SVG
+        function downloadSVG() {{
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (svg) {{
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], {{ type: 'image/svg+xml' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'diagram.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+            }}
+        }}
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {{
+            if (e.key === '+' || e.key === '=') zoomIn();
+            if (e.key === '-' || e.key === '_') zoomOut();
+            if (e.key === '0') resetZoom();
+            if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+        }});
+    </script>
+</body>
+</html>'''
+
+    try:
+        html_content = html_template.format(
+            title=title,
+            mermaid_code=mermaid_content
+        )
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+        if use_color:
+            print(colorize(f"[SUCCESS] Interactive HTML: {output_file}", TextColor.GREEN))
+        else:
+            print(f"[SUCCESS] Interactive HTML: {output_file}")
+
+        return True
+
+    except Exception as e:
+        if use_color:
+            print(colorize(f"[ERROR] Failed to generate HTML: {e}", TextColor.RED), file=sys.stderr)
+        else:
+            print(f"[ERROR] Failed to generate HTML: {e}", file=sys.stderr)
+        return False
+
+
 def export_mermaid_to_image(markdown_file: str, output_file: str, image_format: str, use_color: bool = False) -> bool:
     """
     Export mermaid markdown to image using mmdc (mermaid-cli).
@@ -1082,25 +1479,47 @@ def map_command(args):
             print(f"[SUCCESS] Mermaid diagram: {mermaid_file}")
         print()
 
-        # Export to image if --output is specified
+        # Export to image or HTML if --output is specified
         if args.output:
-            # Determine image format
             output_path = Path(args.output)
-            if args.format:
-                image_format = args.format.lower()
+
+            # Check if HTML output is requested
+            if args.html or output_path.suffix.lower() == '.html':
+                # Read mermaid content from markdown file
+                with open(mermaid_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # Extract mermaid code block
+                    import re
+                    match = re.search(r'```mermaid\n(.*?)\n```', content, re.DOTALL)
+                    if match:
+                        mermaid_code = match.group(1)
+                        if not output_path.suffix:
+                            output_path = output_path.with_suffix('.html')
+                        export_success = export_mermaid_to_html(
+                            mermaid_code,
+                            str(output_path),
+                            title=f"Code Map - {args.mer.title()}",
+                            use_color=use_color
+                        )
+                        if export_success:
+                            print()
             else:
-                # Infer from file extension
-                ext = output_path.suffix.lstrip('.')
-                image_format = ext if ext in ['png', 'svg', 'jpg'] else 'png'
+                # Image export
+                if args.format:
+                    image_format = args.format.lower()
+                else:
+                    # Infer from file extension
+                    ext = output_path.suffix.lstrip('.')
+                    image_format = ext if ext in ['png', 'svg', 'jpg'] else 'png'
 
-            # Ensure correct extension
-            if not output_path.suffix or output_path.suffix.lstrip('.') != image_format:
-                output_path = output_path.with_suffix(f'.{image_format}')
+                # Ensure correct extension
+                if not output_path.suffix or output_path.suffix.lstrip('.') != image_format:
+                    output_path = output_path.with_suffix(f'.{image_format}')
 
-            # Export using mmdc
-            export_success = export_mermaid_to_image(str(mermaid_file), str(output_path), image_format, use_color)
-            if export_success:
-                print()
+                # Export using mmdc
+                export_success = export_mermaid_to_image(str(mermaid_file), str(output_path), image_format, use_color)
+                if export_success:
+                    print()
 
     # Final summary
     if use_color:
@@ -1175,6 +1594,13 @@ def register_command(subparsers):
         type=str,
         choices=['png', 'svg', 'jpg'],
         help='Image format for --output (default: inferred from file extension or png)'
+    )
+
+    # Interactive HTML option
+    parser.add_argument(
+        '--html',
+        action='store_true',
+        help='Generate interactive HTML with zoom, pan, animations, and click handlers'
     )
 
     parser.set_defaults(func=map_command)
