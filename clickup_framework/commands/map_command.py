@@ -1436,38 +1436,73 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 }}
             `;
 
-            // Fragment shader - creates soft glow effect inspired by Shadertoy
+            // Fragment shader - creates flowing fire effect along paths
             const fragmentShaderSource = `
                 precision mediump float;
                 varying float v_age;
                 varying float v_trail_index;
+                uniform float u_time;
+
+                // Noise functions for fire turbulence
+                float rand(vec2 n) {{
+                    return fract(sin(dot(n, vec2(12.9898, 12.1414))) * 43758.5453);
+                }}
+
+                float noise(vec2 n) {{
+                    vec2 d = vec2(0.0, 1.0);
+                    vec2 b = floor(n);
+                    vec2 f = smoothstep(vec2(0.0), vec2(1.0), fract(n));
+                    return mix(mix(rand(b), rand(b + d.yx), f.x),
+                              mix(rand(b + d.xy), rand(b + d.yy), f.x), f.y);
+                }}
+
+                float fire(vec2 n) {{
+                    return noise(n) + noise(n * 2.1) * 0.6 + noise(n * 5.4) * 0.42;
+                }}
+
+                // Fire color ramp: white hot -> yellow -> orange -> red
+                vec3 fireColor(float t) {{
+                    // Hot core
+                    vec3 hotCore = vec3(1.0, 1.0, 0.9);
+                    // Yellow flame
+                    vec3 yellow = vec3(1.0, 0.8, 0.2);
+                    // Orange
+                    vec3 orange = vec3(1.0, 0.4, 0.0);
+                    // Red tips
+                    vec3 red = vec3(0.8, 0.1, 0.0);
+
+                    if (t < 0.33) {{
+                        return mix(hotCore, yellow, t * 3.0);
+                    }} else if (t < 0.66) {{
+                        return mix(yellow, orange, (t - 0.33) * 3.0);
+                    }} else {{
+                        return mix(orange, red, (t - 0.66) * 3.0);
+                    }}
+                }}
 
                 void main() {{
                     vec2 coord = gl_PointCoord - vec2(0.5);
-                    float dist = length(coord) * 2.0;
+                    float dist = length(coord);
 
-                    // Soft glow with multiple layers
-                    // Core bright center
-                    float core = 1.0 - smoothstep(0.0, 0.3, dist);
-                    // Medium glow
-                    float glow1 = 1.0 - smoothstep(0.0, 0.6, dist);
-                    // Outer soft glow
-                    float glow2 = 1.0 - smoothstep(0.0, 1.0, dist);
+                    // Discard pixels outside circle
+                    if (dist > 0.5) discard;
 
-                    // Combine layers with different intensities
-                    float intensity = core * 1.0 + glow1 * 0.5 + glow2 * 0.2;
+                    // Create turbulent fire effect
+                    vec2 fireCoord = coord * 6.0 + vec2(v_age * 10.0, u_time * 0.5);
+                    float turbulence = fire(fireCoord);
 
-                    // Trail fade: front particles are brightest
+                    // Trail fade: front is hottest
                     float trailFade = 1.0 - (v_trail_index / 8.0);
-                    trailFade = pow(trailFade, 1.5); // Exponential falloff looks better
+                    trailFade = pow(trailFade, 2.0);
 
-                    // Final alpha combines intensity and trail fade - much brighter!
-                    float alpha = intensity * trailFade * 1.5;
+                    // Fire intensity based on distance and turbulence
+                    float fireIntensity = (1.0 - dist * 2.0) * turbulence * trailFade;
 
-                    // Brighter emerald color for better visibility
-                    vec3 color = vec3(0.2, 1.0, 0.7); // Bright emerald green
-                    // Add subtle color shift for trail depth
-                    color += vec3(0.1, 0.15, 0.2) * (1.0 - trailFade);
+                    // Color based on intensity (hot core -> cooler edges)
+                    vec3 color = fireColor(1.0 - fireIntensity);
+
+                    // Alpha with soft edges
+                    float alpha = smoothstep(0.0, 0.4, fireIntensity) * trailFade;
 
                     gl_FragColor = vec4(color, alpha);
                 }}
@@ -1507,6 +1542,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const trailIndexLoc = gl.getAttribLocation(program, 'a_trail_index');
             const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
             const transformLoc = gl.getUniformLocation(program, 'u_transform');
+            const timeLoc = gl.getUniformLocation(program, 'u_time');
 
             // Extract path data from SVG
             const edgePaths = svg.querySelectorAll('.edgePath path');
@@ -1609,15 +1645,25 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 gl.enableVertexAttribArray(trailIndexLoc);
                 gl.vertexAttribPointer(trailIndexLoc, 1, gl.FLOAT, false, 0, 0);
 
-                // Set uniforms (include current zoom/pan transform)
+                // Set uniforms
                 gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
+                gl.uniform1f(timeLoc, performance.now() * 0.001); // Time in seconds
 
-                // Build transform matrix matching the diagram-container's CSS transform
-                // The diagram-container already has scale and translate applied via CSS
+                // Get SVG viewBox for proper coordinate transformation
+                const viewBox = svg.viewBox.baseVal;
+                const svgWidth = viewBox.width || svg.width.baseVal.value;
+                const svgHeight = viewBox.height || svg.height.baseVal.value;
+
+                // Calculate transform from SVG coordinates to canvas pixels
+                // Account for: SVG viewBox -> canvas size, plus user's scale/translate
+                const scaleX = (canvas.width / svgWidth) * scale;
+                const scaleY = (canvas.height / svgHeight) * scale;
+
+                // Transform matrix: [scaleX, 0, 0, scaleY, translateX, translateY]
                 const transform = [
-                    scale, 0, 0,
-                    0, scale, 0,
-                    translateX * scale, translateY * scale, 1
+                    scaleX, 0, 0,
+                    0, scaleY, 0,
+                    translateX, translateY, 1
                 ];
                 gl.uniformMatrix3fv(transformLoc, false, transform);
 
