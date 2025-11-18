@@ -257,7 +257,8 @@ def check_mmdc_available() -> bool:
             ['mmdc', '--version'],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
+            shell=True  # Use shell on Windows to find mmdc
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
@@ -306,7 +307,8 @@ def export_mermaid_to_image(markdown_file: str, output_file: str, image_format: 
             cmd,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            shell=True  # Use shell on Windows
         )
 
         if result.returncode == 0:
@@ -706,6 +708,7 @@ def map_command(args):
     # Generate mermaid diagram if requested
     mermaid_file = None
     output_path = None
+    export_success = False
     if args.mer:
         # Map diagram types to generator functions
         diagram_generators = {
@@ -760,7 +763,8 @@ def map_command(args):
                 output_path = output_path.with_suffix(f'.{image_format}')
 
             # Export using mmdc
-            if export_mermaid_to_image(str(mermaid_file), str(output_path), image_format, use_color):
+            export_success = export_mermaid_to_image(str(mermaid_file), str(output_path), image_format, use_color)
+            if export_success:
                 print()
 
     # Final summary
@@ -778,7 +782,7 @@ def map_command(args):
     print(f"  - {tags_file} (JSON tags)")
     if mermaid_file:
         print(f"  - {mermaid_file} (Mermaid diagram)")
-    if args.output and args.mer:
+    if export_success and output_path:
         print(f"  - {output_path} (Image export)")
     print()
 
