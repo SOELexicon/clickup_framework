@@ -1661,15 +1661,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const svgHeight = viewBox.height || svg.height.baseVal.value;
 
                 // Calculate transform from SVG coordinates to canvas pixels
-                // Account for: SVG viewBox -> canvas size, plus user's scale/translate
-                const scaleX = (canvas.width / svgWidth) * scale;
-                const scaleY = (canvas.height / svgHeight) * scale;
+                // Only convert coordinate systems - CSS transform handles pan/zoom
+                const scaleX = canvas.width / svgWidth;
+                const scaleY = canvas.height / svgHeight;
 
-                // Transform matrix: [scaleX, 0, 0, scaleY, translateX, translateY]
+                // Transform matrix: only coordinate system conversion, no pan/zoom
+                // (CSS transform on canvas element handles pan/zoom to avoid double transformation)
                 const transform = [
                     scaleX, 0, 0,
                     0, scaleY, 0,
-                    translateX, translateY, 1
+                    0, 0, 1
                 ];
                 gl.uniformMatrix3fv(transformLoc, false, transform);
 
