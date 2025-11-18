@@ -882,7 +882,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // Re-import mermaid for this script module (ES modules cache imports efficiently)
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
         let scale = 1;
         let translateX = 0;
         let translateY = 0;
