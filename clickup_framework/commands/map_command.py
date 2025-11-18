@@ -1611,17 +1611,27 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const ageBuffer = gl.createBuffer();
             const trailIndexBuffer = gl.createBuffer();
 
-            // Resize canvas to match container
+            // Resize canvas to match SVG dimensions (not CSS-transformed container)
             function resizeCanvas() {{
-                const rect = diagramContainer.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
+                // Use SVG's actual dimensions, not the CSS-transformed container size
+                const viewBox = svg.viewBox.baseVal;
+                const svgWidth = viewBox.width || svg.width.baseVal.value;
+                const svgHeight = viewBox.height || svg.height.baseVal.value;
+
+                // Set canvas to reasonable size based on SVG aspect ratio
+                // Use fixed width and calculate height to maintain aspect ratio
+                const targetWidth = 2000; // Fixed reference width
+                const aspectRatio = svgHeight / svgWidth;
+                canvas.width = targetWidth;
+                canvas.height = Math.round(targetWidth * aspectRatio);
+
                 gl.viewport(0, 0, canvas.width, canvas.height);
             }}
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
             console.log('WebGL: Starting animation with', totalParticles, 'particles');
+            console.log('WebGL: Particles per path:', particlesPerPath, '×', pathData.length, 'paths');
 
             let frameCount = 0;
             // Animation loop
@@ -1692,13 +1702,22 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
                     console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
                     console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
-                    console.log('WebGL: First 5 particle positions (SVG coords):', Array.from(positions.slice(0, 10)));
-                    // Calculate what these should be in canvas coords with viewBox offset
-                    const p0Canvas = [(positions[0] - svgX) * scaleX, (positions[1] - svgY) * scaleY];
-                    console.log('WebGL: First particle in canvas coords (with offset):', p0Canvas);
-                    // And in clip space
-                    const p0Clip = [(p0Canvas[0] / canvas.width) * 2 - 1, (p0Canvas[1] / canvas.height) * 2 - 1];
-                    console.log('WebGL: First particle in clip space:', p0Clip);
+
+                    // Sample particles from different paths to verify distribution
+                    const sampleSize = Math.min(5, pathData.length);
+                    console.log('WebGL: Sampling particles from', sampleSize, 'different paths:');
+                    for (let pathIdx = 0; pathIdx < sampleSize; pathIdx++) {{
+                        const particleIdx = pathIdx * particlesPerPath; // First particle of each path
+                        const baseIdx = particleIdx * 2;
+                        const pos = [positions[baseIdx], positions[baseIdx + 1]];
+                        console.log(`  Path ${{pathIdx}}: particle at SVG coords [${{pos[0].toFixed(2)}}, ${{pos[1].toFixed(2)}}]`);
+                    }}
+
+                    console.log('WebGL: Last path particle (path', pathData.length - 1, '):');
+                    const lastParticleIdx = (pathData.length - 1) * particlesPerPath;
+                    const lastBaseIdx = lastParticleIdx * 2;
+                    const lastPos = [positions[lastBaseIdx], positions[lastBaseIdx + 1]];
+                    console.log(`  SVG coords: [${{lastPos[0].toFixed(2)}}, ${{lastPos[1].toFixed(2)}}]`);
                 }}
 
                 // Transform matrix: translate by viewBox offset, then scale
