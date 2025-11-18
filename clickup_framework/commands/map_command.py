@@ -1553,19 +1553,32 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 return;
             }}
 
-            // Vertex shader - positions line segments
+            // Vertex shader - positions thick line segments with width
             const vertexShaderSource = `
                 attribute vec2 a_position;
-                attribute float a_texCoord;  // Position along line (0 to 1)
+                attribute float a_texCoord;     // Position along line (0 to 1)
+                attribute float a_perpCoord;    // Position across line (-1 to 1)
+                attribute vec2 a_normal;        // Perpendicular normal vector
                 uniform vec2 u_resolution;
                 uniform mat3 u_transform;
+                uniform float u_lineWidth;      // Line width in pixels
                 varying float v_texCoord;
+                varying float v_perpCoord;
 
                 void main() {{
+                    // Transform center position
                     vec3 transformed = u_transform * vec3(a_position, 1.0);
-                    vec2 clipSpace = (transformed.xy / u_resolution) * 2.0 - 1.0;
+
+                    // Offset by perpendicular normal to create width
+                    vec2 offset = a_normal * a_perpCoord * u_lineWidth;
+                    vec2 finalPos = transformed.xy + offset;
+
+                    // Convert to clip space
+                    vec2 clipSpace = (finalPos / u_resolution) * 2.0 - 1.0;
                     gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
                     v_texCoord = a_texCoord;
+                    v_perpCoord = a_perpCoord;
                 }}
             `;
 
@@ -1622,20 +1635,22 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 }}
 
                 void main() {{
-                    // DEBUG: Simple bright green to test if lines render
-                    gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);  // Solid bright green
-
-                    // TODO: Re-enable fire shader once we confirm lines are visible
-                    /*
-                    // Create flowing UV coordinates along the line
-                    vec2 uv = vec2(v_texCoord, 0.5);
+                    // Create flowing UV coordinates using perpendicular position
+                    // v_texCoord: 0-1 along line length
+                    // v_perpCoord: -1 to 1 across line width
+                    vec2 uv = vec2(v_texCoord, (v_perpCoord + 1.0) * 0.5);  // Map perp to 0-1
                     float t = u_time;
-                    uv.x -= t * 0.05;
+                    uv.x -= t * 0.05;  // Flow along line
+
+                    // Create fire effect
                     float grad = shade(uv, t);
                     vec3 fireColor = color(grad);
-                    float intensity = smoothstep(0.0, 0.2, grad) * smoothstep(1.0, 0.7, grad);
-                    gl_FragColor = vec4(fireColor * intensity, intensity * 0.9);
-                    */
+
+                    // Fade intensity at edges for soft appearance
+                    float edgeFade = 1.0 - abs(v_perpCoord);  // Fade at ±1
+                    float intensity = smoothstep(0.0, 0.2, grad) * smoothstep(1.0, 0.7, grad) * edgeFade;
+
+                    gl_FragColor = vec4(fireColor * intensity, intensity * 0.8);
                 }}
             `;
 
@@ -1670,9 +1685,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             // Get attribute/uniform locations
             const positionLoc = gl.getAttribLocation(program, 'a_position');
             const texCoordLoc = gl.getAttribLocation(program, 'a_texCoord');
+            const perpCoordLoc = gl.getAttribLocation(program, 'a_perpCoord');
+            const normalLoc = gl.getAttribLocation(program, 'a_normal');
             const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
             const transformLoc = gl.getUniformLocation(program, 'u_transform');
             const timeLoc = gl.getUniformLocation(program, 'u_time');
+            const lineWidthLoc = gl.getUniformLocation(program, 'u_lineWidth');
 
             // Extract path data from SVG
             const edgePaths = svg.querySelectorAll('.edgePath path');
@@ -1729,23 +1747,59 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 height: svg.viewBox.baseVal.height
             }});
 
-            // Build vertex data for rendering lines with fire texture
-            // Each path becomes a LINE_STRIP with texture coordinates
+            // Build vertex data for thick lines using triangle strips
             const lineVertices = [];
             const lineTexCoords = [];
+            const linePerpCoords = [];
+            const lineNormals = [];
             const lineSegments = []; // Track where each path starts/ends
 
             pathData.forEach(path => {{
+                const points = path.points;
                 const startIdx = lineVertices.length / 2;
 
-                path.points.forEach((point, idx) => {{
-                    // Add vertex position
-                    lineVertices.push(point[0], point[1]);
+                // For each segment in the path
+                for (let i = 0; i < points.length; i++) {{
+                    const curr = points[i];
+                    const texCoord = i / (points.length - 1);
 
-                    // Add texture coordinate (0-1 along path)
-                    const texCoord = idx / (path.points.length - 1);
+                    // Calculate normal direction (perpendicular to line direction)
+                    let normal = [0, 0];
+                    if (i < points.length - 1) {{
+                        // Forward direction
+                        const next = points[i + 1];
+                        const dx = next[0] - curr[0];
+                        const dy = next[1] - curr[1];
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        if (len > 0) {{
+                            // Perpendicular: rotate by 90° (swap and negate one component)
+                            normal = [-dy / len, dx / len];
+                        }}
+                    }} else if (i > 0) {{
+                        // Use previous segment's direction for last point
+                        const prev = points[i - 1];
+                        const dx = curr[0] - prev[0];
+                        const dy = curr[1] - prev[1];
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        if (len > 0) {{
+                            normal = [-dy / len, dx / len];
+                        }}
+                    }}
+
+                    // Create two vertices for this point (top and bottom of line)
+                    // Triangle strip order: alternate between -1 and +1 perp coords
+                    // Vertex 1: perpCoord = -1 (one side)
+                    lineVertices.push(curr[0], curr[1]);
                     lineTexCoords.push(texCoord);
-                }});
+                    linePerpCoords.push(-1.0);
+                    lineNormals.push(normal[0], normal[1]);
+
+                    // Vertex 2: perpCoord = +1 (other side)
+                    lineVertices.push(curr[0], curr[1]);
+                    lineTexCoords.push(texCoord);
+                    linePerpCoords.push(1.0);
+                    lineNormals.push(normal[0], normal[1]);
+                }}
 
                 const endIdx = lineVertices.length / 2;
                 lineSegments.push({{ start: startIdx, count: endIdx - startIdx }});
@@ -1753,10 +1807,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             const positions = new Float32Array(lineVertices);
             const texCoords = new Float32Array(lineTexCoords);
+            const perpCoords = new Float32Array(linePerpCoords);
+            const normals = new Float32Array(lineNormals);
 
             // Create buffers
             const positionBuffer = gl.createBuffer();
             const texCoordBuffer = gl.createBuffer();
+            const perpCoordBuffer = gl.createBuffer();
+            const normalBuffer = gl.createBuffer();
 
             // Upload static geometry to GPU
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -1764,6 +1822,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, perpCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, perpCoords, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
 
             // Resize canvas to match SVG dimensions (not CSS-transformed container)
             function resizeCanvas() {{
@@ -1786,9 +1850,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             console.log('WebGL: Starting fire channel animation with', lineSegments.length, 'paths');
             console.log('WebGL: Total vertices:', positions.length / 2);
-
-            // Set line width for visibility
-            gl.lineWidth(3.0);
+            console.log('WebGL: Triangle strip vertices (2 per point)');
 
             let frameCount = 0;
             // Animation loop
@@ -1801,7 +1863,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 gl.enable(gl.BLEND);
                 gl.blendFunc(gl.SRC_ALPHA, gl.ONE);  // Additive blending for fire glow
 
-                // Bind vertex attributes (static geometry, set once per frame)
+                // Bind all vertex attributes
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
                 gl.enableVertexAttribArray(positionLoc);
                 gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
@@ -1810,9 +1872,18 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 gl.enableVertexAttribArray(texCoordLoc);
                 gl.vertexAttribPointer(texCoordLoc, 1, gl.FLOAT, false, 0, 0);
 
+                gl.bindBuffer(gl.ARRAY_BUFFER, perpCoordBuffer);
+                gl.enableVertexAttribArray(perpCoordLoc);
+                gl.vertexAttribPointer(perpCoordLoc, 1, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+                gl.enableVertexAttribArray(normalLoc);
+                gl.vertexAttribPointer(normalLoc, 2, gl.FLOAT, false, 0, 0);
+
                 // Set uniforms
                 gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
                 gl.uniform1f(timeLoc, performance.now() * 0.001); // Time in seconds
+                gl.uniform1f(lineWidthLoc, 5.0); // Line width in pixels
 
                 // Get SVG viewBox for proper coordinate transformation
                 const viewBox = svg.viewBox.baseVal;
@@ -1845,9 +1916,9 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     console.log('WebGL: Rendering', lineSegments.length, 'fire channels');
                 }}
 
-                // Draw each path as a LINE_STRIP with flowing fire texture
+                // Draw each path as a TRIANGLE_STRIP with flowing fire texture
                 lineSegments.forEach(segment => {{
-                    gl.drawArrays(gl.LINE_STRIP, segment.start, segment.count);
+                    gl.drawArrays(gl.TRIANGLE_STRIP, segment.start, segment.count);
                 }});
 
                 // Check for WebGL errors on first frame
