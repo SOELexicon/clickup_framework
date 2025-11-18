@@ -445,7 +445,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 htmlLabels: true,
                 curve: 'linear',
                 nodeSpacing: 100,
-                rankSpacing: 100
+                rankSpacing: 100,
+                defaultRenderer: 'elk'
+            }},
+            elk: {{
+                mergeEdges: true,
+                nodePlacementStrategy: 'SIMPLE'
             }},
             sequence: {{
                 useMaxWidth: false,
@@ -459,7 +464,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 useMaxWidth: false
             }},
             securityLevel: 'loose',
-            logLevel: 'info'
+            logLevel: 'error',
+            arrowMarkerAbsolute: true
         }});
     </script>
     <style>
@@ -966,7 +972,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     htmlLabels: true,
                     curve: 'linear',
                     nodeSpacing: spacingValue,
-                    rankSpacing: spacingValue
+                    rankSpacing: spacingValue,
+                    defaultRenderer: 'elk'
+                }},
+                elk: {{
+                    mergeEdges: true,
+                    nodePlacementStrategy: 'SIMPLE'
                 }},
                 sequence: {{
                     useMaxWidth: false,
@@ -980,7 +991,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     useMaxWidth: false
                 }},
                 securityLevel: 'loose',
-                logLevel: 'info'
+                logLevel: 'error',
+                arrowMarkerAbsolute: true
             }});
 
             // Re-render the diagram with proper cleanup
