@@ -193,7 +193,7 @@ def generate_ctags(language: Optional[str] = None, output_file: str = '.tags.jso
 
 def parse_tags_file(tags_file: Path) -> Dict:
     """
-    Parse ctags JSON output and collect statistics.
+    Parse ctags JSON output and collect statistics plus call graph data.
 
     Args:
         tags_file: Path to tags JSON file
@@ -203,6 +203,8 @@ def parse_tags_file(tags_file: Path) -> Dict:
     """
     stats = defaultdict(lambda: defaultdict(int))
     symbols_by_file = defaultdict(list)
+    all_symbols = {}  # name -> symbol data
+    function_calls = defaultdict(set)  # function -> set of functions it might call
     total = 0
     files = set()
 
@@ -219,31 +221,76 @@ def parse_tags_file(tags_file: Path) -> Dict:
                     path = data.get('path', '')
                     name = data.get('name', '')
                     line_num = data.get('line', 0)
+                    scope = data.get('scope', '')
+                    scope_kind = data.get('scopeKind', '')
 
                     stats[lang][kind] += 1
                     total += 1
                     files.add(path)
 
-                    # Store symbol info for diagram generation
-                    symbols_by_file[path].append({
+                    symbol_data = {
                         'name': name,
                         'kind': kind,
                         'language': lang,
                         'line': line_num,
-                        'scope': data.get('scope', ''),
-                        'scopeKind': data.get('scopeKind', '')
-                    })
+                        'scope': scope,
+                        'scopeKind': scope_kind,
+                        'path': path,
+                        'pattern': data.get('pattern', '')
+                    }
+
+                    # Store symbol info for diagram generation
+                    symbols_by_file[path].append(symbol_data)
+
+                    # Index all functions/methods for call graph
+                    if kind in ['function', 'method']:
+                        full_name = f"{scope}.{name}" if scope else name
+                        all_symbols[full_name] = symbol_data
+                        all_symbols[name] = symbol_data  # Also index by short name
+
                 except json.JSONDecodeError:
                     continue
                 except Exception:
                     continue
+
+        # Now parse file contents to find function calls
+        for file_path in files:
+            try:
+                full_path = Path(file_path)
+                if not full_path.exists():
+                    continue
+
+                with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+
+                # Find functions defined in this file
+                file_functions = [s for s in symbols_by_file[file_path]
+                                if s['kind'] in ['function', 'method']]
+
+                for func in file_functions:
+                    func_name = func['name']
+                    full_func_name = f"{func['scope']}.{func_name}" if func['scope'] else func_name
+
+                    # Look for function calls in the pattern/code
+                    # This is approximate - searches for function_name( patterns
+                    for other_func_name in all_symbols.keys():
+                        if other_func_name == func_name:
+                            continue
+                        # Simple pattern: function_name(
+                        if f"{other_func_name}(" in content:
+                            function_calls[full_func_name].add(other_func_name)
+
+            except Exception:
+                continue
 
         return {
             'total_symbols': total,
             'files_analyzed': len(files),
             'by_language': dict(stats),
             'symbols_by_file': dict(symbols_by_file),
-            'files': sorted(files)
+            'files': sorted(files),
+            'all_symbols': all_symbols,
+            'function_calls': {k: list(v) for k, v in function_calls.items()}
         }
     except Exception as e:
         print(f"Error parsing tags file: {e}", file=sys.stderr)
@@ -660,6 +707,209 @@ def generate_mermaid_mindmap(stats: Dict, output_file: str) -> None:
         print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
 
 
+def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
+    """
+    Generate a mermaid flowchart showing actual code execution flow (function calls).
+
+    Args:
+        stats: Statistics dictionary from parse_tags_file
+        output_file: Output markdown file path
+    """
+    function_calls = stats.get('function_calls', {})
+    all_symbols = stats.get('all_symbols', {})
+
+    lines = [
+        "# Code Map - Execution Flow (Call Graph)",
+        "",
+        "```mermaid",
+        "graph LR"
+    ]
+
+    # Find entry points (functions not called by others)
+    called_functions = set()
+    for calls in function_calls.values():
+        called_functions.update(calls)
+
+    entry_points = [func for func in function_calls.keys()
+                   if func not in called_functions][:5]  # Limit entry points
+
+    # Build call graph starting from entry points
+    processed = set()
+    node_count = 0
+
+    def add_function_calls(func_name, depth=0, max_depth=3):
+        nonlocal node_count
+
+        if depth > max_depth or func_name in processed or node_count >= 50:
+            return
+
+        processed.add(func_name)
+        func_id = f"F{node_count}"
+        node_count += 1
+
+        # Get function details
+        symbol = all_symbols.get(func_name, {})
+        file_name = Path(symbol.get('path', '')).name if symbol else 'unknown'
+        display_name = func_name.split('.')[-1]  # Just function name, not full path
+
+        lines.append(f"    {func_id}[\"{display_name}<br/>{file_name}\"]")
+
+        # Add styling based on depth
+        if depth == 0:
+            lines.append(f"    style {func_id} fill:#dc2626,stroke:#991b1b,stroke-width:3px")
+        elif depth == 1:
+            lines.append(f"    style {func_id} fill:#ea580c,stroke:#c2410c")
+        elif depth == 2:
+            lines.append(f"    style {func_id} fill:#ca8a04,stroke:#a16207")
+        else:
+            lines.append(f"    style {func_id} fill:#16a34a,stroke:#15803d")
+
+        # Process calls from this function
+        calls = function_calls.get(func_name, [])
+        for called_func in calls[:5]:  # Limit branches
+            if called_func in processed:
+                # Find existing node ID
+                for i, line in enumerate(lines):
+                    if f'"{called_func.split(".")[-1]}<br/>' in line:
+                        # Extract node ID
+                        existing_id = line.strip().split('[')[0]
+                        lines.append(f"    {func_id} --> {existing_id}")
+                        break
+            else:
+                called_id = f"F{node_count}"
+                add_function_calls(called_func, depth + 1, max_depth)
+                lines.append(f"    {func_id} --> {called_id}")
+
+    # Start from entry points
+    for entry in entry_points:
+        if node_count >= 50:
+            break
+        add_function_calls(entry, depth=0, max_depth=3)
+
+    lines.append("```")
+    lines.append("")
+    lines.extend([
+        "## Legend",
+        "- 🔴 Red: Entry points (not called by other functions)",
+        "- 🟠 Orange: First-level calls",
+        "- 🟡 Yellow: Second-level calls",
+        "- 🟢 Green: Third-level calls",
+        "",
+        f"## Statistics",
+        f"- **Total Functions Mapped**: {len(processed)}",
+        f"- **Total Call Relationships**: {sum(len(calls) for calls in function_calls.values())}",
+        f"- **Entry Points Found**: {len(entry_points)}",
+    ])
+
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+    except Exception as e:
+        print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
+
+
+def generate_mermaid_sequence(stats: Dict, output_file: str) -> None:
+    """
+    Generate a mermaid sequence diagram showing typical execution flow.
+
+    Args:
+        stats: Statistics dictionary from parse_tags_file
+        output_file: Output markdown file path
+    """
+    function_calls = stats.get('function_calls', {})
+    all_symbols = stats.get('all_symbols', {})
+    symbols_by_file = stats.get('symbols_by_file', {})
+
+    lines = [
+        "# Code Map - Sequence Diagram",
+        "",
+        "```mermaid",
+        "sequenceDiagram"
+    ]
+
+    # Find main entry points (common patterns)
+    entry_patterns = ['main', '__init__', 'run', 'execute', 'start', 'process']
+    entry_funcs = []
+
+    for func_name in function_calls.keys():
+        short_name = func_name.split('.')[-1].lower()
+        if any(pattern in short_name for pattern in entry_patterns):
+            entry_funcs.append(func_name)
+
+    if not entry_funcs:
+        # Fallback: find functions with most calls
+        entry_funcs = sorted(function_calls.keys(),
+                           key=lambda f: len(function_calls.get(f, [])),
+                           reverse=True)[:3]
+
+    # Generate sequence for first entry point
+    if entry_funcs:
+        entry = entry_funcs[0]
+        symbol = all_symbols.get(entry, {})
+        scope = symbol.get('scope', '')
+
+        # Identify participants (classes/modules)
+        participants = set()
+        if scope:
+            participants.add(scope)
+
+        # Trace through calls
+        def trace_calls(func, depth=0, max_depth=5):
+            if depth > max_depth:
+                return
+
+            symbol = all_symbols.get(func, {})
+            scope = symbol.get('scope', 'Module')
+            func_short = func.split('.')[-1]
+
+            if scope:
+                participants.add(scope)
+
+            # Add calls
+            for called in function_calls.get(func, [])[:3]:  # Limit to 3 calls per function
+                called_symbol = all_symbols.get(called, {})
+                called_scope = called_symbol.get('scope', 'Module')
+                called_short = called.split('.')[-1]
+
+                if called_scope:
+                    participants.add(called_scope)
+
+                from_participant = scope if scope else 'Module'
+                to_participant = called_scope if called_scope else 'Module'
+
+                lines.append(f"    {from_participant}->>+{to_participant}: {called_short}()")
+                trace_calls(called, depth + 1, max_depth)
+                lines.append(f"    {to_participant}-->>-{from_participant}: return")
+
+        # Add participants
+        for participant in sorted(participants)[:10]:  # Limit participants
+            lines.insert(3, f"    participant {participant}")
+
+        # Trace from entry point
+        entry_short = entry.split('.')[-1]
+        entry_scope = all_symbols.get(entry, {}).get('scope', 'Main')
+        if entry_scope:
+            lines.append(f"    Note over {entry_scope}: {entry_short}() starts")
+        trace_calls(entry, depth=0, max_depth=4)
+
+    lines.append("```")
+    lines.append("")
+    lines.extend([
+        "## Description",
+        "This sequence diagram shows the typical execution flow starting from an entry point.",
+        "Arrows show function calls and returns between different components.",
+        "",
+        f"## Entry Point",
+        f"- Starting from: `{entry_funcs[0] if entry_funcs else 'N/A'}`",
+    ])
+
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+    except Exception as e:
+        print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
+
+
 def map_command(args):
     """Generate code map using ctags."""
     context = get_context_manager()
@@ -800,6 +1050,8 @@ def map_command(args):
             'class': generate_mermaid_class,
             'pie': generate_mermaid_pie,
             'mindmap': generate_mermaid_mindmap,
+            'sequence': generate_mermaid_sequence,
+            'flow': generate_mermaid_code_flow,
         }
 
         generator = diagram_generators.get(args.mer.lower())
@@ -906,8 +1158,8 @@ def register_command(subparsers):
     parser.add_argument(
         '--mer',
         type=str,
-        choices=['flowchart', 'swim', 'class', 'pie', 'mindmap'],
-        help='Generate mermaid diagram (flowchart, class, pie, mindmap)'
+        choices=['flowchart', 'swim', 'class', 'pie', 'mindmap', 'sequence', 'flow'],
+        help='Generate mermaid diagram: flowchart (structure), flow (execution flow/calls), sequence, class, pie, mindmap'
     )
 
     # Image output option (requires --mer)
