@@ -593,6 +593,90 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         .sidebar.collapsed ~ .toggle-sidebar {{
             left: 0;
         }}
+        /* Right sidebar for node details */
+        .node-details {{
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 350px;
+            background: rgba(10, 10, 10, 0.98);
+            border-left: 2px solid #8b5cf6;
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            box-shadow: -4px 0 6px -1px rgba(139, 92, 246, 0.3);
+            z-index: 1001;
+        }}
+        .node-details.visible {{
+            transform: translateX(0);
+        }}
+        .node-details h2 {{
+            color: #8b5cf6;
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid rgba(139, 92, 246, 0.4);
+            text-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }}
+        .node-details .close-btn {{
+            background: transparent;
+            border: none;
+            color: #8b5cf6;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }}
+        .node-details .close-btn:hover {{
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+        }}
+        .node-details .detail-section {{
+            margin-bottom: 1.5rem;
+        }}
+        .node-details .detail-label {{
+            color: #10b981;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }}
+        .node-details .detail-value {{
+            color: #e2e8f0;
+            font-size: 0.9375rem;
+            font-family: ui-monospace, monospace;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            word-break: break-word;
+        }}
+        .node-details .detail-value.multiline {{
+            white-space: pre-wrap;
+        }}
+        .node-details .tag {{
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.8125rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }}
+        .node-details .node-icon {{
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }}
         .header {{
             background: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(10px);
@@ -703,6 +787,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             transform-origin: center center;
             cursor: grab;
             will-change: transform;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }}
         .diagram-container:active {{
             cursor: grabbing;
@@ -885,6 +973,18 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 </div>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- Node details sidebar -->
+    <div class="node-details" id="node-details">
+        <h2>
+            <span id="node-details-title">Node Details</span>
+            <button class="close-btn" onclick="closeNodeDetails()">&times;</button>
+        </h2>
+        <div class="node-icon" id="node-icon"></div>
+        <div id="node-details-content">
+            <p style="color: #64748b; text-align: center; margin-top: 2rem;">Click a node to view details</p>
         </div>
     </div>
 
@@ -1914,6 +2014,95 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             if (e.key === 'b' || e.key === 'B') toggleSidebar();
         }});
 
+        // Node details sidebar functions
+        function showNodeDetails(nodeElement) {{
+            const detailsPanel = document.getElementById('node-details');
+            const contentDiv = document.getElementById('node-details-content');
+            const iconDiv = document.getElementById('node-icon');
+            const titleSpan = document.getElementById('node-details-title');
+
+            // Extract node information from the Mermaid node
+            const nodeText = nodeElement.querySelector('.nodeLabel')?.textContent || '';
+            const nodeId = nodeElement.id || '';
+
+            // Parse node text (format: "FunctionName()<br/>📦 module<br/>📄 file.py<br/>📍 L123-456")
+            const lines = nodeText.split('\\n').map(l => l.trim()).filter(l => l);
+
+            let nodeName = lines[0] || 'Unknown';
+            let module = '';
+            let file = '';
+            let lineRange = '';
+            let icon = '📦';
+
+            // Parse each line
+            lines.forEach(line => {{
+                if (line.includes('📦')) module = line.replace('📦', '').trim();
+                if (line.includes('📄')) file = line.replace('📄', '').trim();
+                if (line.includes('📍')) lineRange = line.replace('📍', '').trim();
+                if (line.includes('()')) icon = '🔧'; // Function
+                if (line.includes('class ')) icon = '🏛️'; // Class
+            }});
+
+            // Update sidebar content
+            titleSpan.textContent = 'Node Details';
+            iconDiv.textContent = icon;
+
+            contentDiv.innerHTML = `
+                <div class="detail-section">
+                    <div class="detail-label">Name</div>
+                    <div class="detail-value">${{nodeName}}</div>
+                </div>
+                ${{module ? `
+                <div class="detail-section">
+                    <div class="detail-label">Module</div>
+                    <div class="detail-value">${{module}}</div>
+                </div>
+                ` : ''}}
+                ${{file ? `
+                <div class="detail-section">
+                    <div class="detail-label">File</div>
+                    <div class="detail-value">${{file}}</div>
+                </div>
+                ` : ''}}
+                ${{lineRange ? `
+                <div class="detail-section">
+                    <div class="detail-label">Lines</div>
+                    <div class="detail-value">${{lineRange}}</div>
+                </div>
+                ` : ''}}
+                <div class="detail-section">
+                    <div class="detail-label">Node ID</div>
+                    <div class="detail-value">${{nodeId}}</div>
+                </div>
+            `;
+
+            // Show the panel
+            detailsPanel.classList.add('visible');
+        }}
+
+        function closeNodeDetails() {{
+            const detailsPanel = document.getElementById('node-details');
+            detailsPanel.classList.remove('visible');
+        }}
+
+        function setupNodeClickHandlers() {{
+            // Wait for diagram to be fully rendered
+            setTimeout(() => {{
+                const nodes = document.querySelectorAll('.node');
+                nodes.forEach(node => {{
+                    node.style.cursor = 'pointer';
+                    node.addEventListener('click', (e) => {{
+                        e.stopPropagation();
+                        showNodeDetails(node);
+                    }});
+                }});
+                console.log('Node click handlers set up for', nodes.length, 'nodes');
+            }}, 1000);
+        }}
+
+        // Call setup after diagram is rendered
+        setupNodeClickHandlers();
+
         // Make functions globally accessible for inline onclick handlers
         window.navigateToNode = navigateToNode;
         window.highlightFile = highlightFile;
@@ -1923,6 +2112,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         window.zoomOut = zoomOut;
         window.resetZoom = resetZoom;
         window.updateSpacing = updateSpacing;
+        window.closeNodeDetails = closeNodeDetails;
     </script>
 </body>
 </html>'''
