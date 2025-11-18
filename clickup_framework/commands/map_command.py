@@ -1686,26 +1686,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const points = [];
                 const step = Math.max(1, Math.floor(length / 50)); // Sample ~50 points
 
-                // Get the transformation matrix from the path to SVG root
-                const ctm = path.getCTM();
-
                 for (let i = 0; i <= length; i += step) {{
                     const pt = path.getPointAtLength(i);
-                    // Transform point using CTM to get absolute SVG coordinates
-                    if (ctm) {{
-                        const svgPt = svg.createSVGPoint();
-                        svgPt.x = pt.x;
-                        svgPt.y = pt.y;
-                        const transformed = svgPt.matrixTransform(ctm);
-                        points.push([transformed.x, transformed.y]);
-                    }} else {{
-                        points.push([pt.x, pt.y]);
-                    }}
+                    // Use raw points - they're already in SVG coordinate space
+                    points.push([pt.x, pt.y]);
                 }}
 
                 // Debug first path
                 if (idx === 0) {{
-                    console.log('WebGL: First path CTM:', ctm);
                     console.log('WebGL: First path points (first 3):', points.slice(0, 3));
                 }}
 
@@ -1854,24 +1842,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
                     console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
                     console.log('WebGL: Transform matrix:', transform);
-                    console.log('WebGL: Rendering', lineSegments.length, 'fire channels with flowing green fire');
-
-                    // Debug: sample an SVG path point and show expected vs actual
-                    const testPath = edgePaths[0];
-                    const testPt = testPath.getPointAtLength(0);
-                    console.log('WebGL: SVG path start (raw):', testPt.x, testPt.y);
-                    const testCTM = testPath.getCTM();
-                    if (testCTM) {{
-                        const svgPt = svg.createSVGPoint();
-                        svgPt.x = testPt.x;
-                        svgPt.y = testPt.y;
-                        const transformed = svgPt.matrixTransform(testCTM);
-                        console.log('WebGL: SVG path start (CTM transformed):', transformed.x, transformed.y);
-                    }}
-
-                    // Get actual screen position of path
-                    const bbox = testPath.getBBox();
-                    console.log('WebGL: SVG path BBox:', bbox.x, bbox.y, bbox.width, 'x', bbox.height);
+                    console.log('WebGL: Rendering', lineSegments.length, 'fire channels');
                 }}
 
                 // Draw each path as a LINE_STRIP with flowing fire texture
