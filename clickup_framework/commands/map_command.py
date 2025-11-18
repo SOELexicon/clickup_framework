@@ -2010,7 +2010,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
                 to_id = node_ids[called_func]
                 edge_color = node_to_color.get(to_id, '#10b981')  # Default to green
 
-                lines.append(f"    {from_id} ==> {to_id}")
+                lines.append(f"    {from_id} --> {to_id}")
                 link_styles.append(f"    linkStyle {link_count} stroke:{edge_color},stroke-width:3px")
                 link_count += 1
 
