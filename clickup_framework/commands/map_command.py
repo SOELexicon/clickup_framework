@@ -1613,13 +1613,6 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             function animate() {{
                 resizeCanvas();
                 frameCount++;
-                if (frameCount === 1) {{
-                    console.log('WebGL: First frame rendering');
-                    console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
-                    console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
-                    console.log('WebGL: First 5 particle positions:', Array.from(positions.slice(0, 10)));
-                }}
-
                 // Clear with transparent background
                 gl.clearColor(0, 0, 0, 0);
                 gl.clear(gl.COLOR_BUFFER_BIT);
@@ -1675,6 +1668,15 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 // Only convert coordinate systems - CSS transform handles pan/zoom
                 const scaleX = canvas.width / svgWidth;
                 const scaleY = canvas.height / svgHeight;
+
+                // Debug logging on first frame (after variables are defined)
+                if (frameCount === 1) {{
+                    console.log('WebGL: First frame rendering');
+                    console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
+                    console.log('WebGL: SVG viewBox:', svgWidth, 'x', svgHeight);
+                    console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
+                    console.log('WebGL: First 5 particle positions:', Array.from(positions.slice(0, 10)));
+                }}
 
                 // Transform matrix: only coordinate system conversion, no pan/zoom
                 // (CSS transform on canvas element handles pan/zoom to avoid double transformation)
