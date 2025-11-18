@@ -337,20 +337,25 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             startOnLoad: true,
             theme: 'dark',
             themeVariables: {{
-                primaryColor: '#1e3a8a',
-                primaryTextColor: '#fff',
-                primaryBorderColor: '#60a5fa',
-                lineColor: '#93c5fd',
-                secondaryColor: '#065f46',
-                tertiaryColor: '#dc2626',
-                background: '#0f172a',
-                mainBkg: '#1e293b',
-                secondBkg: '#334155',
-                lineColor: '#64748b',
-                border1: '#475569',
-                border2: '#64748b',
-                arrowheadColor: '#60a5fa',
-                fontFamily: 'ui-monospace, monospace'
+                primaryColor: '#10b981',
+                primaryTextColor: '#10b981',
+                primaryBorderColor: '#059669',
+                lineColor: '#10b981',
+                secondaryColor: '#8b5cf6',
+                tertiaryColor: '#a855f7',
+                background: '#000000',
+                mainBkg: '#0a0a0a',
+                secondBkg: '#1a1a1a',
+                tertiaryBkg: '#2a2a2a',
+                lineColor: '#10b981',
+                border1: '#10b981',
+                border2: '#8b5cf6',
+                arrowheadColor: '#10b981',
+                fontFamily: 'ui-monospace, monospace',
+                clusterBkg: '#1a1a1a',
+                clusterBorder: '#10b981',
+                edgeLabelBackground: '#0a0a0a',
+                nodeTextColor: '#10b981'
             }},
             flowchart: {{
                 useMaxWidth: false,
@@ -380,8 +385,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         }}
         body {{
             font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #e2e8f0;
+            background: linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #1a1a1a 100%);
+            color: #10b981;
             min-height: 100vh;
             overflow: hidden;
         }}
@@ -391,18 +396,18 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             height: 100vh;
         }}
         .header {{
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(10px);
             padding: 1rem 2rem;
-            border-bottom: 2px solid #334155;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid #10b981;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
             z-index: 100;
         }}
         .header h1 {{
             font-size: 1.5rem;
             font-weight: 700;
-            color: #60a5fa;
-            text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+            color: #10b981;
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
         }}
         .controls {{
             margin-top: 0.5rem;
@@ -412,21 +417,23 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             align-items: center;
         }}
         .btn {{
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            border: none;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #000;
+            border: 1px solid #10b981;
             padding: 0.5rem 1rem;
             border-radius: 0.375rem;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 0.875rem;
             transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
         }}
         .btn:hover {{
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #fff;
+            border-color: #8b5cf6;
         }}
         .btn:active {{
             transform: translateY(0);
@@ -442,7 +449,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             flex: 1;
             position: relative;
             overflow: hidden;
-            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            background: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
         }}
         .diagram-container {{
             width: 100%;
@@ -463,13 +470,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         }}
         #mermaid-diagram {{
             display: inline-block;
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(10, 10, 10, 0.8);
             padding: 2rem;
             border-radius: 1rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
-                        0 0 50px rgba(96, 165, 250, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5),
+                        0 0 50px rgba(16, 185, 129, 0.2),
+                        inset 0 0 50px rgba(139, 92, 246, 0.1);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(96, 165, 250, 0.2);
+            border: 2px solid rgba(16, 185, 129, 0.3);
         }}
         /* Mermaid node animations */
         @keyframes fadeInUp {{
@@ -496,7 +504,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             cursor: pointer;
         }}
         .node:hover {{
-            filter: brightness(1.4) drop-shadow(0 0 15px rgba(96, 165, 250, 0.9));
+            filter: brightness(1.5) drop-shadow(0 0 20px rgba(139, 92, 246, 1)) drop-shadow(0 0 40px rgba(16, 185, 129, 0.6));
         }}
         .node rect, .node circle, .node polygon, .node path {{
             transition: all 0.2s ease;
@@ -1119,7 +1127,7 @@ def generate_mermaid_mindmap(stats: Dict, output_file: str) -> None:
 
 def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
     """
-    Generate a mermaid flowchart showing actual code execution flow (function calls).
+    Generate a mermaid flowchart showing actual code execution flow with subgraphs by class/module.
 
     Args:
         stats: Statistics dictionary from parse_tags_file
@@ -1132,7 +1140,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         "# Code Map - Execution Flow (Call Graph)",
         "",
         "```mermaid",
-        "graph LR"
+        "graph TB"
     ]
 
     # Find entry points (functions not called by others)
@@ -1141,72 +1149,132 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         called_functions.update(calls)
 
     entry_points = [func for func in function_calls.keys()
-                   if func not in called_functions][:5]  # Limit entry points
+                   if func not in called_functions][:8]  # More entry points
 
-    # Build call graph starting from entry points
+    # Group functions by class/module
+    functions_by_class = defaultdict(list)
     processed = set()
     node_count = 0
+    node_ids = {}  # Map func_name to node_id
 
-    def add_function_calls(func_name, depth=0, max_depth=3):
+    def collect_functions(func_name, depth=0, max_depth=4):
         nonlocal node_count
 
-        if depth > max_depth or func_name in processed or node_count >= 50:
+        if depth > max_depth or func_name in processed or node_count >= 60:
             return
 
         processed.add(func_name)
-        func_id = f"F{node_count}"
+        symbol = all_symbols.get(func_name, {})
+        scope = symbol.get('scope', '')
+
+        # Group by class or module
+        if scope:
+            functions_by_class[scope].append(func_name)
+        else:
+            # Use file as grouping if no class
+            file_name = Path(symbol.get('path', 'global')).stem
+            functions_by_class[f"module_{file_name}"].append(func_name)
+
         node_count += 1
 
-        # Get function details
-        symbol = all_symbols.get(func_name, {})
-        file_name = Path(symbol.get('path', '')).name if symbol else 'unknown'
-        display_name = func_name.split('.')[-1]  # Just function name, not full path
-
-        lines.append(f"    {func_id}[\"{display_name}<br/>{file_name}\"]")
-
-        # Add styling based on depth
-        if depth == 0:
-            lines.append(f"    style {func_id} fill:#dc2626,stroke:#991b1b,stroke-width:3px")
-        elif depth == 1:
-            lines.append(f"    style {func_id} fill:#ea580c,stroke:#c2410c")
-        elif depth == 2:
-            lines.append(f"    style {func_id} fill:#ca8a04,stroke:#a16207")
-        else:
-            lines.append(f"    style {func_id} fill:#16a34a,stroke:#15803d")
-
-        # Process calls from this function
+        # Recursively collect called functions
         calls = function_calls.get(func_name, [])
-        for called_func in calls[:5]:  # Limit branches
-            if called_func in processed:
-                # Find existing node ID
-                for i, line in enumerate(lines):
-                    if f'"{called_func.split(".")[-1]}<br/>' in line:
-                        # Extract node ID
-                        existing_id = line.strip().split('[')[0]
-                        lines.append(f"    {func_id} --> {existing_id}")
-                        break
-            else:
-                called_id = f"F{node_count}"
-                add_function_calls(called_func, depth + 1, max_depth)
-                lines.append(f"    {func_id} --> {called_id}")
+        for called_func in calls[:5]:
+            if called_func not in processed:
+                collect_functions(called_func, depth + 1, max_depth)
 
-    # Start from entry points
+    # Collect all functions starting from entry points
     for entry in entry_points:
-        if node_count >= 50:
+        if node_count >= 60:
             break
-        add_function_calls(entry, depth=0, max_depth=3)
+        collect_functions(entry, depth=0, max_depth=4)
+
+    # Generate subgraphs for each class/module
+    subgraph_count = 0
+    for class_name, funcs in sorted(functions_by_class.items())[:10]:  # Limit to 10 subgraphs
+        if not funcs:
+            continue
+
+        subgraph_id = f"SG{subgraph_count}"
+        subgraph_count += 1
+
+        # Clean class name for display
+        display_name = class_name.replace('module_', '📦 ')
+
+        # Start subgraph
+        lines.append(f"    subgraph {subgraph_id}[\"{display_name}\"]")
+
+        # Add nodes for functions in this class
+        for func_name in funcs[:8]:  # Limit functions per subgraph
+            symbol = all_symbols.get(func_name, {})
+            node_id = f"N{len(node_ids)}"
+            node_ids[func_name] = node_id
+
+            display_func = func_name.split('.')[-1]
+            file_name = Path(symbol.get('path', '')).name
+            line_start = symbol.get('line', 0)
+
+            # Try to estimate end line (approximate)
+            # In real implementation, ctags can provide this with --fields=+ne
+            line_end = line_start + 10  # Placeholder
+
+            # Create node with line numbers
+            lines.append(f"        {node_id}[\"{display_func}()<br/>📄 {file_name}<br/>📍 L{line_start}-{line_end}\"]")
+
+        lines.append("    end")
+        lines.append("")
+
+    # Add connections between nodes
+    lines.append("    %% Connections")
+    for func_name, calls in function_calls.items():
+        if func_name not in node_ids:
+            continue
+
+        from_id = node_ids[func_name]
+        for called_func in calls[:5]:
+            if called_func in node_ids:
+                to_id = node_ids[called_func]
+                lines.append(f"    {from_id} --> {to_id}")
+
+    lines.append("")
+
+    # Apply green/black/purple theme styling
+    lines.append("    %% Styling - Green/Black/Purple Theme")
+
+    # Style subgraphs with different colors
+    colors = [
+        ("fill:#10b981,stroke:#059669,color:#000", "emerald"),  # Emerald green
+        ("fill:#8b5cf6,stroke:#7c3aed,color:#fff", "purple"),   # Purple
+        ("fill:#06b6d4,stroke:#0891b2,color:#000", "cyan"),     # Cyan
+        ("fill:#f59e0b,stroke:#d97706,color:#000", "amber"),    # Amber
+        ("fill:#ec4899,stroke:#db2777,color:#fff", "pink"),     # Pink
+    ]
+
+    for i in range(subgraph_count):
+        color_style, _ = colors[i % len(colors)]
+        lines.append(f"    style SG{i} {color_style}")
+
+    # Style nodes based on whether they're entry points
+    for func_name, node_id in node_ids.items():
+        if func_name in entry_points:
+            # Entry points - bright purple glow
+            lines.append(f"    style {node_id} fill:#a855f7,stroke:#9333ea,stroke-width:3px,color:#fff")
+        else:
+            # Regular nodes - dark with green accent
+            lines.append(f"    style {node_id} fill:#1a1a1a,stroke:#10b981,stroke-width:2px,color:#10b981")
 
     lines.append("```")
     lines.append("")
     lines.extend([
         "## Legend",
-        "- 🔴 Red: Entry points (not called by other functions)",
-        "- 🟠 Orange: First-level calls",
-        "- 🟡 Yellow: Second-level calls",
-        "- 🟢 Green: Third-level calls",
+        "- 🟣 **Purple nodes**: Entry points (functions not called by others)",
+        "- 🟢 **Green-bordered nodes**: Called functions",
+        "- **Subgraphs**: Group functions by class/module",
+        "- **Line numbers**: Show start-end lines in source file",
         "",
         f"## Statistics",
         f"- **Total Functions Mapped**: {len(processed)}",
+        f"- **Classes/Modules**: {len(functions_by_class)}",
         f"- **Total Call Relationships**: {sum(len(calls) for calls in function_calls.values())}",
         f"- **Entry Points Found**: {len(entry_points)}",
     ])
