@@ -1682,13 +1682,13 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         lines.append("    end")
         lines.append("")
 
-    # Define colors for subgraphs and edges
+    # Define colors for subgraphs and edges (using very dark shades for subtle backgrounds)
     colors = [
-        ("fill:rgba(16,185,129,0.08),stroke:#10b981,color:#10b981,stroke-width:2px", "#10b981", "emerald"),  # Emerald
-        ("fill:rgba(139,92,246,0.08),stroke:#8b5cf6,color:#8b5cf6,stroke-width:2px", "#8b5cf6", "purple"),   # Purple
-        ("fill:rgba(6,182,212,0.08),stroke:#06b6d4,color:#06b6d4,stroke-width:2px", "#06b6d4", "cyan"),      # Cyan
-        ("fill:rgba(245,158,11,0.08),stroke:#f59e0b,color:#f59e0b,stroke-width:2px", "#f59e0b", "amber"),    # Amber
-        ("fill:rgba(236,72,153,0.08),stroke:#ec4899,color:#ec4899,stroke-width:2px", "#ec4899", "pink"),     # Pink
+        ("fill:#0d1f1a,stroke:#10b981,color:#10b981,stroke-width:2px", "#10b981", "emerald"),  # Very dark emerald
+        ("fill:#1a1625,stroke:#8b5cf6,color:#8b5cf6,stroke-width:2px", "#8b5cf6", "purple"),   # Very dark purple
+        ("fill:#0c1c20,stroke:#06b6d4,color:#06b6d4,stroke-width:2px", "#06b6d4", "cyan"),     # Very dark cyan
+        ("fill:#211a0d,stroke:#f59e0b,color:#f59e0b,stroke-width:2px", "#f59e0b", "amber"),    # Very dark amber
+        ("fill:#1f0d18,stroke:#ec4899,color:#ec4899,stroke-width:2px", "#ec4899", "pink"),     # Very dark pink
     ]
 
     # Build node-to-color mapping based on which subgraph they belong to
@@ -1737,14 +1737,14 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         color_style, _, _ = colors[i % len(colors)]
         lines.append(f"    style SG{i} {color_style}")
 
-    # Style nodes with faded backgrounds
+    # Style nodes with subtle backgrounds
     for func_name, node_id in node_ids.items():
         if func_name in entry_points:
             # Entry points - subtle purple with glow border
-            lines.append(f"    style {node_id} fill:rgba(139,92,246,0.15),stroke:#8b5cf6,stroke-width:3px,color:#a855f7")
+            lines.append(f"    style {node_id} fill:#1a1625,stroke:#8b5cf6,stroke-width:3px,color:#a855f7")
         else:
-            # Regular nodes - very dark transparent with green border
-            lines.append(f"    style {node_id} fill:rgba(10,10,10,0.4),stroke:#10b981,stroke-width:2px,color:#10b981")
+            # Regular nodes - very dark with green border
+            lines.append(f"    style {node_id} fill:#0a0a0a,stroke:#10b981,stroke-width:2px,color:#10b981")
 
     lines.append("```")
     lines.append("")
