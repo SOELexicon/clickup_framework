@@ -339,18 +339,17 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             themeVariables: {{
                 primaryColor: '#10b981',
                 primaryTextColor: '#10b981',
-                primaryBorderColor: '#059669',
-                lineColor: '#10b981',
+                primaryBorderColor: '#34d399',
+                lineColor: '#34d399',
                 secondaryColor: '#8b5cf6',
                 tertiaryColor: '#a855f7',
                 background: '#000000',
                 mainBkg: '#0a0a0a',
                 secondBkg: '#1a1a1a',
                 tertiaryBkg: '#2a2a2a',
-                lineColor: '#10b981',
                 border1: '#10b981',
                 border2: '#8b5cf6',
-                arrowheadColor: '#10b981',
+                arrowheadColor: '#34d399',
                 fontFamily: 'ui-monospace, monospace',
                 clusterBkg: '#1a1a1a',
                 clusterBorder: '#10b981',
@@ -470,14 +469,18 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         }}
         #mermaid-diagram {{
             display: inline-block;
-            background: rgba(10, 10, 10, 0.8);
+            background: rgba(10, 10, 10, 0.95);
             padding: 2rem;
             border-radius: 1rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5),
-                        0 0 50px rgba(16, 185, 129, 0.2),
-                        inset 0 0 50px rgba(139, 92, 246, 0.1);
+                        0 0 50px rgba(16, 185, 129, 0.3),
+                        inset 0 0 50px rgba(139, 92, 246, 0.15);
             backdrop-filter: blur(10px);
-            border: 2px solid rgba(16, 185, 129, 0.3);
+            border: 2px solid rgba(16, 185, 129, 0.4);
+        }}
+        /* Ensure SVG elements are visible */
+        #mermaid-diagram svg {{
+            filter: drop-shadow(0 0 1px rgba(52, 211, 153, 0.3));
         }}
         /* Mermaid node animations */
         @keyframes fadeInUp {{
@@ -515,12 +518,26 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         .node:hover path {{
             stroke-width: 3px !important;
         }}
+        /* Enhanced edge/arrow visibility */
+        .edgePath path {{
+            stroke: #34d399 !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.8));
+        }}
         .edgePath {{
             transition: filter 0.2s ease;
         }}
         .edgePath:hover path {{
-            stroke-width: 3px !important;
-            filter: drop-shadow(0 0 8px rgba(147, 197, 253, 0.8));
+            stroke-width: 5px !important;
+            stroke: #a855f7 !important;
+            filter: drop-shadow(0 0 12px rgba(168, 85, 247, 1)) drop-shadow(0 0 20px rgba(52, 211, 153, 0.8));
+        }}
+        .edgePath marker path {{
+            fill: #34d399 !important;
+            filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.8));
+        }}
+        .edgePath:hover marker path {{
+            fill: #a855f7 !important;
         }}
         /* Loading animation */
         .loading {{
@@ -1224,8 +1241,9 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         lines.append("    end")
         lines.append("")
 
-    # Add connections between nodes
+    # Add connections between nodes with thick, visible arrows
     lines.append("    %% Connections")
+    link_count = 0
     for func_name, calls in function_calls.items():
         if func_name not in node_ids:
             continue
@@ -1234,7 +1252,9 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         for called_func in calls[:5]:
             if called_func in node_ids:
                 to_id = node_ids[called_func]
-                lines.append(f"    {from_id} --> {to_id}")
+                # Use thick arrows with labels
+                lines.append(f"    {from_id} ==> {to_id}")
+                link_count += 1
 
     lines.append("")
 
