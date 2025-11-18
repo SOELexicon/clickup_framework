@@ -1207,10 +1207,16 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const svg = document.querySelector('#mermaid-diagram svg');
             if (!svg) return;
 
-            // Find the node element (mermaid uses g elements with class="node" and id matching nodeId)
-            const nodeElement = svg.querySelector(`#${{nodeId}}`);
+            // Mermaid v10 with ELK renderer uses IDs like "flowchart-N0-123" instead of just "N0"
+            // Try exact match first, then partial match
+            let nodeElement = svg.querySelector(`#${{nodeId}}`);
+            if (!nodeElement) {{
+                // Try finding node by partial ID match (contains our nodeId)
+                nodeElement = svg.querySelector(`g.node[id*="${{nodeId}}"]`);
+            }}
             if (!nodeElement) {{
                 console.warn('Node not found:', nodeId);
+                console.log('Available node IDs:', Array.from(svg.querySelectorAll('g.node')).map(n => n.id));
                 return;
             }}
 
@@ -1254,7 +1260,11 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             items.forEach(item => {{
                 const nodeId = item.getAttribute('data-node-id');
-                const nodeElement = svg.querySelector(`#${{nodeId}}`);
+                // Try exact match first, then partial match
+                let nodeElement = svg.querySelector(`#${{nodeId}}`);
+                if (!nodeElement) {{
+                    nodeElement = svg.querySelector(`g.node[id*="${{nodeId}}"]`);
+                }}
                 if (nodeElement && item.textContent.includes(fileName)) {{
                     nodeElement.classList.add('highlighted');
                     setTimeout(() => nodeElement.classList.remove('highlighted'), 2000);
