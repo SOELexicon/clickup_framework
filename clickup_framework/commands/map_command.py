@@ -1663,6 +1663,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const viewBox = svg.viewBox.baseVal;
                 const svgWidth = viewBox.width || svg.width.baseVal.value;
                 const svgHeight = viewBox.height || svg.height.baseVal.value;
+                const svgX = viewBox.x || 0;  // ViewBox X offset
+                const svgY = viewBox.y || 0;  // ViewBox Y offset
 
                 // Calculate transform from SVG coordinates to canvas pixels
                 // Only convert coordinate systems - CSS transform handles pan/zoom
@@ -1673,23 +1675,23 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 if (frameCount === 1) {{
                     console.log('WebGL: First frame rendering');
                     console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
-                    console.log('WebGL: SVG viewBox:', svgWidth, 'x', svgHeight);
+                    console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
                     console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
                     console.log('WebGL: First 5 particle positions (SVG coords):', Array.from(positions.slice(0, 10)));
-                    // Calculate what these should be in canvas coords
-                    const p0Canvas = [positions[0] * scaleX, positions[1] * scaleY];
-                    console.log('WebGL: First particle in canvas coords:', p0Canvas);
+                    // Calculate what these should be in canvas coords with viewBox offset
+                    const p0Canvas = [(positions[0] - svgX) * scaleX, (positions[1] - svgY) * scaleY];
+                    console.log('WebGL: First particle in canvas coords (with offset):', p0Canvas);
                     // And in clip space
                     const p0Clip = [(p0Canvas[0] / canvas.width) * 2 - 1, (p0Canvas[1] / canvas.height) * 2 - 1];
                     console.log('WebGL: First particle in clip space:', p0Clip);
                 }}
 
-                // Transform matrix: only coordinate system conversion, no pan/zoom
+                // Transform matrix: translate by viewBox offset, then scale
                 // (CSS transform on canvas element handles pan/zoom to avoid double transformation)
                 const transform = [
                     scaleX, 0, 0,
                     0, scaleY, 0,
-                    0, 0, 1
+                    -svgX * scaleX, -svgY * scaleY, 1
                 ];
                 gl.uniformMatrix3fv(transformLoc, false, transform);
 
