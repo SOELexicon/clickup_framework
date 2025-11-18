@@ -1404,13 +1404,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     vec3 transformed = u_transform * vec3(a_position, 1.0);
                     vec2 clipSpace = (transformed.xy / u_resolution) * 2.0 - 1.0;
                     gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-                    gl_PointSize = 12.0 - (a_trail_index * 1.2);
+                    // Larger particles for more visible soft glow
+                    gl_PointSize = 18.0 - (a_trail_index * 1.5);
                     v_age = a_age;
                     v_trail_index = a_trail_index;
                 }}
             `;
 
-            // Fragment shader - creates glow effect
+            // Fragment shader - creates soft glow effect inspired by Shadertoy
             const fragmentShaderSource = `
                 precision mediump float;
                 varying float v_age;
@@ -1418,12 +1419,32 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
                 void main() {{
                     vec2 coord = gl_PointCoord - vec2(0.5);
-                    float dist = length(coord);
-                    if (dist > 0.5) discard;
+                    float dist = length(coord) * 2.0;
 
-                    float alpha = (1.0 - v_trail_index / 8.0) * (1.0 - dist * 2.0);
-                    vec3 color = vec3(0.063, 0.725, 0.506); // #10b981
-                    gl_FragColor = vec4(color, alpha * 0.8);
+                    // Soft glow with multiple layers
+                    // Core bright center
+                    float core = 1.0 - smoothstep(0.0, 0.3, dist);
+                    // Medium glow
+                    float glow1 = 1.0 - smoothstep(0.0, 0.6, dist);
+                    // Outer soft glow
+                    float glow2 = 1.0 - smoothstep(0.0, 1.0, dist);
+
+                    // Combine layers with different intensities
+                    float intensity = core * 1.0 + glow1 * 0.5 + glow2 * 0.2;
+
+                    // Trail fade: front particles are brightest
+                    float trailFade = 1.0 - (v_trail_index / 8.0);
+                    trailFade = pow(trailFade, 1.5); // Exponential falloff looks better
+
+                    // Final alpha combines intensity and trail fade
+                    float alpha = intensity * trailFade;
+
+                    // Color with slight variation based on trail position
+                    vec3 color = vec3(0.063, 0.725, 0.506); // #10b981 emerald
+                    // Add subtle color shift for trail depth
+                    color += vec3(0.02, 0.05, 0.08) * (1.0 - trailFade);
+
+                    gl_FragColor = vec4(color, alpha * 0.9);
                 }}
             `;
 
@@ -1467,7 +1488,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const pathData = [];
 
             edgePaths.forEach((path, idx) => {{
-                if (idx % 2 !== 0) return; // Animate every other path for performance
+                // With WebGL we can animate ALL paths without performance issues
                 const length = path.getTotalLength();
                 const points = [];
                 const step = Math.max(1, Math.floor(length / 50)); // Sample ~50 points
