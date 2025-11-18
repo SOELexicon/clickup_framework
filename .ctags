@@ -1,0 +1,88 @@
+# Universal ctags configuration - Optimized for .NET + Python + Node projects
+# Place in project root as .ctags or .ctags.d/default.ctags
+
+# ===== OUTPUT =====
+--output-format=json
+--fields=+l +e +S +n
+
+# ===== EXCLUSIONS (Silence these warnings) =====
+--exclude=.git
+--exclude=.gitignore
+--exclude=.venv
+--exclude=venv
+--exclude=env
+--exclude=.env
+--exclude=node_modules
+--exclude=__pycache__
+--exclude=.pytest_cache
+--exclude=.mypy_cache
+--exclude=.ruff_cache
+--exclude=dist
+--exclude=build
+--exclude=*.egg-info
+--exclude=.idea
+--exclude=.vscode
+--exclude=.vs
+--exclude=.vsconfig
+
+# Windows/.NET specific
+--exclude=bin
+--exclude=obj
+--exclude=packages
+--exclude=.nupkg
+
+# Third-party and generated
+--exclude=node_modules
+--exclude=bower_components
+--exclude=.bundle
+--exclude=vendor
+--exclude=site-packages
+
+# Build and temp
+--exclude=tmp
+--exclude=temp
+--exclude=.sass-cache
+--exclude=.cache
+--exclude=*.min.js
+--exclude=*.min.css
+
+# ===== LANGUAGES =====
+# Include all by default, or restrict to what you use:
+--languages=all
+
+# To restrict to specific languages (faster):
+# --languages=Python,C#,JavaScript,TypeScript,HTML,CSS,JSON,YAML
+
+# ===== EXTRAS & FIELDS =====
+--extras=+p
+--fields-C#=+{accessSpecifier}
+--fields-Python=+{decorators}
+
+# ===== OPTIONS =====
+# Suppress "null tag" warnings (common in minified/compiled code)
+--quiet
+
+# Use line numbers instead of patterns for better performance
+--line-directives
+
+# Sort output
+--sort=yes
+
+# ===== LANGUAGE-SPECIFIC =====
+
+# Python: Include decorators and docstrings
+--python-kinds=+x
+
+# C#: Full .NET support
+--C#-kinds=+L
+
+# JavaScript: Include anonymous functions
+--javascript-kinds=+L
+
+# ===== PERFORMANCE TUNING =====
+# Uncomment if you want faster indexing but lose some info:
+# --fields=-S  # Remove search patterns (speeds things up)
+
+# For very large projects, consider running separately:
+# ctags -R src/  (just your code)
+# ctags -R tests/ (just tests)

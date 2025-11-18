@@ -3,6 +3,7 @@
 import sys
 import os
 import json
+import re
 import subprocess
 import zipfile
 import urllib.request
@@ -253,7 +254,7 @@ def parse_tags_file(tags_file: Path) -> Dict:
                 except Exception:
                     continue
 
-        # Now parse file contents to find function calls
+        # Now parse file contents to find function calls using improved pattern matching
         for file_path in files:
             try:
                 full_path = Path(file_path)
@@ -263,6 +264,16 @@ def parse_tags_file(tags_file: Path) -> Dict:
                 with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
 
+                # Remove strings and comments to reduce false positives
+                # Remove single-line comments (# in Python, // in C#)
+                content_clean = re.sub(r'#.*?$', '', content, flags=re.MULTILINE)
+                content_clean = re.sub(r'//.*?$', '', content_clean, flags=re.MULTILINE)
+                # Remove multi-line comments (/* */ in C#)
+                content_clean = re.sub(r'/\*.*?\*/', '', content_clean, flags=re.DOTALL)
+                # Remove string literals (basic approach - may not catch all edge cases)
+                content_clean = re.sub(r'"(?:[^"\\]|\\.)*"', '', content_clean)
+                content_clean = re.sub(r"'(?:[^'\\]|\\.)*'", '', content_clean)
+
                 # Find functions defined in this file
                 file_functions = [s for s in symbols_by_file[file_path]
                                 if s['kind'] in ['function', 'method']]
@@ -271,13 +282,22 @@ def parse_tags_file(tags_file: Path) -> Dict:
                     func_name = func['name']
                     full_func_name = f"{func['scope']}.{func_name}" if func['scope'] else func_name
 
-                    # Look for function calls in the pattern/code
-                    # This is approximate - searches for function_name( patterns
+                    # Look for function calls using regex with word boundaries
                     for other_func_name in all_symbols.keys():
-                        if other_func_name == func_name:
+                        if other_func_name == func_name or other_func_name == full_func_name:
                             continue
-                        # Simple pattern: function_name(
-                        if f"{other_func_name}(" in content:
+
+                        short_name = other_func_name.split('.')[-1]
+
+                        # Skip very short names to avoid false positives
+                        if len(short_name) < 3:
+                            continue
+
+                        # Use regex with word boundaries for accurate matching
+                        # Pattern: word boundary, function name, optional whitespace, opening paren
+                        pattern = r'\b' + re.escape(short_name) + r'\s*\('
+
+                        if re.search(pattern, content_clean):
                             function_calls[full_func_name].add(other_func_name)
 
             except Exception:
@@ -337,29 +357,29 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             startOnLoad: true,
             theme: 'dark',
             themeVariables: {{
-                primaryColor: '#10b981',
+                primaryColor: 'rgba(16, 185, 129, 0.15)',
                 primaryTextColor: '#10b981',
-                primaryBorderColor: '#34d399',
+                primaryBorderColor: '#10b981',
                 lineColor: '#34d399',
-                secondaryColor: '#8b5cf6',
-                tertiaryColor: '#a855f7',
+                secondaryColor: 'rgba(139, 92, 246, 0.15)',
+                tertiaryColor: 'rgba(168, 85, 247, 0.15)',
                 background: '#000000',
-                mainBkg: '#0a0a0a',
-                secondBkg: '#1a1a1a',
-                tertiaryBkg: '#2a2a2a',
+                mainBkg: 'rgba(10, 10, 10, 0.3)',
+                secondBkg: 'rgba(26, 26, 26, 0.3)',
+                tertiaryBkg: 'rgba(42, 42, 42, 0.3)',
                 border1: '#10b981',
                 border2: '#8b5cf6',
-                arrowheadColor: '#34d399',
+                arrowheadColor: '#10b981',
                 fontFamily: 'ui-monospace, monospace',
-                clusterBkg: '#1a1a1a',
+                clusterBkg: 'rgba(26, 26, 26, 0.2)',
                 clusterBorder: '#10b981',
-                edgeLabelBackground: '#0a0a0a',
+                edgeLabelBackground: 'rgba(10, 10, 10, 0.8)',
                 nodeTextColor: '#10b981'
             }},
             flowchart: {{
                 useMaxWidth: false,
                 htmlLabels: true,
-                curve: 'basis'
+                curve: 'linear'
             }},
             sequence: {{
                 useMaxWidth: false,
@@ -393,6 +413,113 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             display: flex;
             flex-direction: column;
             height: 100vh;
+        }}
+        .main-content {{
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }}
+        .sidebar {{
+            width: 300px;
+            background: rgba(10, 10, 10, 0.95);
+            border-right: 2px solid #10b981;
+            overflow-y: auto;
+            padding: 1rem;
+            box-shadow: 4px 0 6px -1px rgba(16, 185, 129, 0.3);
+            transition: transform 0.3s ease;
+        }}
+        .sidebar.collapsed {{
+            transform: translateX(-100%);
+        }}
+        .sidebar h2 {{
+            color: #10b981;
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }}
+        .sidebar-search {{
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #10b981;
+            padding: 0.5rem;
+            color: #10b981;
+            border-radius: 0.25rem;
+            margin-bottom: 1rem;
+            font-family: ui-monospace, monospace;
+        }}
+        .sidebar-search:focus {{
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }}
+        .file-tree {{
+            list-style: none;
+            padding: 0;
+        }}
+        .tree-item {{
+            padding: 0.375rem 0.5rem;
+            margin: 0.25rem 0;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-family: ui-monospace, monospace;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+        .tree-item:hover {{
+            background: rgba(16, 185, 129, 0.2);
+            padding-left: 0.75rem;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }}
+        .tree-item.active {{
+            background: rgba(139, 92, 246, 0.3);
+            border-left: 3px solid #8b5cf6;
+            padding-left: 0.75rem;
+        }}
+        .tree-item .icon {{
+            flex-shrink: 0;
+        }}
+        .tree-folder {{
+            font-weight: 600;
+            color: #8b5cf6;
+        }}
+        .tree-file {{
+            color: #10b981;
+        }}
+        .tree-function {{
+            color: #06b6d4;
+            padding-left: 1.5rem;
+            font-size: 0.8125rem;
+        }}
+        .tree-children {{
+            padding-left: 1rem;
+            border-left: 1px solid rgba(16, 185, 129, 0.2);
+            margin-left: 0.5rem;
+        }}
+        .toggle-sidebar {{
+            position: absolute;
+            left: 300px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(16, 185, 129, 0.9);
+            border: none;
+            color: #000;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0 0.25rem 0.25rem 0;
+            z-index: 1000;
+            transition: all 0.3s;
+        }}
+        .toggle-sidebar:hover {{
+            background: #8b5cf6;
+            color: #fff;
+        }}
+        .sidebar.collapsed ~ .toggle-sidebar {{
+            left: 0;
         }}
         .header {{
             background: rgba(0, 0, 0, 0.9);
@@ -482,6 +609,22 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         #mermaid-diagram svg {{
             filter: drop-shadow(0 0 1px rgba(52, 211, 153, 0.3));
         }}
+        /* Node highlight animation */
+        .node.highlighted rect,
+        .node.highlighted polygon {{
+            stroke: #8b5cf6 !important;
+            stroke-width: 4px !important;
+            filter: drop-shadow(0 0 20px rgba(139, 92, 246, 1));
+            animation: pulse-highlight 1s ease-in-out;
+        }}
+        @keyframes pulse-highlight {{
+            0%, 100% {{
+                stroke-width: 4px;
+            }}
+            50% {{
+                stroke-width: 6px;
+            }}
+        }}
         /* Mermaid node animations */
         @keyframes fadeInUp {{
             from {{
@@ -518,26 +661,81 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         .node:hover path {{
             stroke-width: 3px !important;
         }}
-        /* Enhanced edge/arrow visibility */
+        /* Enhanced edge/arrow visibility - Circuit board style with pulse */
         .edgePath path {{
-            stroke: #34d399 !important;
-            stroke-width: 3px !important;
-            filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.8));
+            stroke: #000000 !important;
+            stroke-width: 6px !important;
+            stroke-linecap: square !important;
+            filter: drop-shadow(0 0 2px rgba(16, 185, 129, 1))
+                    drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))
+                    drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
         }}
+        /* Pulse animation traveling down the line */
+        .edgePath::before {{
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }}
+        .edgePath path {{
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 0;
+            animation: none;
+        }}
+        /* Create pulse effect using outline */
         .edgePath {{
-            transition: filter 0.2s ease;
+            transition: all 0.3s ease;
+            position: relative;
+        }}
+        /* Animated overlay for pulse effect */
+        @keyframes travel-pulse {{
+            0% {{
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }}
+            100% {{
+                stroke-dashoffset: -1000;
+                opacity: 0.3;
+            }}
+        }}
+        .edgePath path {{
+            position: relative;
+        }}
+        /* Add pulsing glow that travels */
+        .edgePath {{
+            animation: edge-pulse 2s linear infinite;
+        }}
+        @keyframes edge-pulse {{
+            0% {{
+                filter: drop-shadow(0 0 2px rgba(16, 185, 129, 1))
+                        drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))
+                        drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+            }}
+            50% {{
+                filter: drop-shadow(0 0 4px rgba(16, 185, 129, 1))
+                        drop-shadow(0 0 8px rgba(16, 185, 129, 1))
+                        drop-shadow(0 0 12px rgba(16, 185, 129, 0.7));
+            }}
+            100% {{
+                filter: drop-shadow(0 0 2px rgba(16, 185, 129, 1))
+                        drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))
+                        drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+            }}
         }}
         .edgePath:hover path {{
-            stroke-width: 5px !important;
-            stroke: #a855f7 !important;
-            filter: drop-shadow(0 0 12px rgba(168, 85, 247, 1)) drop-shadow(0 0 20px rgba(52, 211, 153, 0.8));
+            stroke-width: 8px !important;
+            stroke: #000000 !important;
+            filter: drop-shadow(0 0 4px rgba(139, 92, 246, 1))
+                    drop-shadow(0 0 8px rgba(139, 92, 246, 0.8))
+                    drop-shadow(0 0 12px rgba(139, 92, 246, 0.6));
         }}
         .edgePath marker path {{
-            fill: #34d399 !important;
-            filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.8));
+            fill: #10b981 !important;
+            filter: drop-shadow(0 0 4px rgba(16, 185, 129, 1));
         }}
         .edgePath:hover marker path {{
-            fill: #a855f7 !important;
+            fill: #8b5cf6 !important;
+            filter: drop-shadow(0 0 6px rgba(139, 92, 246, 1));
         }}
         /* Loading animation */
         .loading {{
@@ -582,6 +780,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 <button class="btn" onclick="zoomOut()">🔍 Zoom Out</button>
                 <button class="btn" onclick="resetZoom()">↺ Reset</button>
                 <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                <button class="btn" onclick="toggleSidebar()">📁 Files</button>
                 <button class="btn" onclick="downloadSVG()">💾 Download SVG</button>
                 <span class="zoom-info">
                     <span>Zoom:</span>
@@ -590,7 +789,13 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 </span>
             </div>
         </div>
-        <div class="diagram-wrapper">
+        <div class="main-content">
+            <div class="sidebar" id="sidebar">
+                <h2>📁 File Explorer</h2>
+                <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search files..." />
+                <div id="file-tree"></div>
+            </div>
+            <div class="diagram-wrapper">
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p>Rendering diagram...</p>
@@ -600,6 +805,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 {mermaid_code}
                 </div>
             </div>
+        </div>
         </div>
     </div>
 
@@ -655,11 +861,28 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             updateTransform();
         }}
 
-        // Mouse wheel zoom
+        // Mouse wheel zoom - zoom towards cursor
         container.addEventListener('wheel', (e) => {{
             e.preventDefault();
+
+            // Get mouse position relative to container
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Calculate point in diagram space before zoom
+            const pointX = (mouseX - translateX) / scale;
+            const pointY = (mouseY - translateY) / scale;
+
+            // Apply zoom
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            scale = Math.max(0.1, Math.min(5, scale * delta));
+            const newScale = Math.max(0.1, Math.min(5, scale * delta));
+
+            // Adjust translation to keep the same point under cursor
+            translateX = mouseX - pointX * newScale;
+            translateY = mouseY - pointY * newScale;
+            scale = newScale;
+
             updateTransform();
         }});
 
@@ -712,12 +935,211 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
         }}
 
+        // Sidebar functionality
+        function toggleSidebar() {{
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }}
+
+        // Parse mermaid content and build file tree
+        function buildFileTree() {{
+            const mermaidContent = `{mermaid_code}`;
+            const nodes = new Map(); // nodeId -> {{ name, file, line }}
+            const fileStructure = {{}};
+
+            // Extract nodes from mermaid content (format: N0["function()<br/>📄 file.py<br/>📍 L10-20"])
+            const nodePattern = /N(\d+)\["([^(]+)\(\)[^📄]*📄\s*([^<]+)<br\/>📍\s*L(\d+)-(\d+)"\]/g;
+            let match;
+
+            while ((match = nodePattern.exec(mermaidContent)) !== null) {{
+                const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
+                const node = {{
+                    id: 'N' + nodeId,
+                    name: funcName.trim(),
+                    file: fileName.trim(),
+                    lineStart: parseInt(lineStart),
+                    lineEnd: parseInt(lineEnd)
+                }};
+                nodes.set(node.id, node);
+
+                // Build file structure
+                if (!fileStructure[node.file]) {{
+                    fileStructure[node.file] = [];
+                }}
+                fileStructure[node.file].push(node);
+            }}
+
+            // Build HTML tree
+            const treeHTML = [];
+            const sortedFiles = Object.keys(fileStructure).sort();
+
+            for (const fileName of sortedFiles) {{
+                const funcs = fileStructure[fileName];
+                treeHTML.push(`
+                    <div class="tree-item tree-file" onclick="highlightFile('${{fileName}}')">
+                        <span class="icon">📄</span>
+                        <span>${{fileName}}</span>
+                    </div>
+                    <div class="tree-children">
+                `);
+
+                for (const func of funcs) {{
+                    treeHTML.push(`
+                        <div class="tree-item tree-function" data-node-id="${{func.id}}" onclick="navigateToNode('${{func.id}}')">
+                            <span class="icon">⚡</span>
+                            <span>${{func.name}}() :${{func.lineStart}}</span>
+                        </div>
+                    `);
+                }}
+
+                treeHTML.push('</div>');
+            }}
+
+            document.getElementById('file-tree').innerHTML = treeHTML.join('');
+        }}
+
+        // Navigate to a specific node in the diagram
+        function navigateToNode(nodeId) {{
+            // Find the node in the SVG
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) return;
+
+            // Find the node element (mermaid uses g elements with class="node" and id matching nodeId)
+            const nodeElement = svg.querySelector(`#${{nodeId}}`);
+            if (!nodeElement) {{
+                console.warn('Node not found:', nodeId);
+                return;
+            }}
+
+            // Get the bounding box of the node
+            const nodeBBox = nodeElement.getBBox();
+            const svgRect = svg.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            // Calculate the center of the node in SVG coordinates
+            const nodeCenterX = nodeBBox.x + nodeBBox.width / 2;
+            const nodeCenterY = nodeBBox.y + nodeBBox.height / 2;
+
+            // Set scale to 1.5 for better visibility
+            scale = 1.5;
+
+            // Center the node in the viewport
+            const viewportCenterX = containerRect.width / 2;
+            const viewportCenterY = containerRect.height / 2;
+
+            translateX = viewportCenterX - nodeCenterX * scale;
+            translateY = viewportCenterY - nodeCenterY * scale;
+
+            updateTransform();
+
+            // Highlight the node temporarily
+            nodeElement.classList.add('highlighted');
+            setTimeout(() => nodeElement.classList.remove('highlighted'), 2000);
+
+            // Update active state in sidebar
+            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+            const sidebarItem = document.querySelector(`[data-node-id="${{nodeId}}"]`);
+            if (sidebarItem) sidebarItem.classList.add('active');
+        }}
+
+        function highlightFile(fileName) {{
+            // Highlight all nodes from this file
+            const items = document.querySelectorAll(`[data-node-id]`);
+            const svg = document.querySelector('#mermaid-diagram svg');
+
+            items.forEach(item => {{
+                const nodeId = item.getAttribute('data-node-id');
+                const nodeElement = svg.querySelector(`#${{nodeId}}`);
+                if (nodeElement && item.textContent.includes(fileName)) {{
+                    nodeElement.classList.add('highlighted');
+                    setTimeout(() => nodeElement.classList.remove('highlighted'), 2000);
+                }}
+            }});
+        }}
+
+        // Search functionality
+        document.getElementById('sidebar-search').addEventListener('input', (e) => {{
+            const searchTerm = e.target.value.toLowerCase();
+            const treeItems = document.querySelectorAll('.tree-item');
+
+            treeItems.forEach(item => {{
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {{
+                    item.style.display = 'flex';
+                }} else {{
+                    item.style.display = 'none';
+                }}
+            }});
+        }});
+
+        // Create traveling pulse effects on edges
+        function createPulseEffects() {{
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) return;
+
+            // Create a defs section for the pulse marker
+            let defs = svg.querySelector('defs');
+            if (!defs) {{
+                defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                svg.insertBefore(defs, svg.firstChild);
+            }}
+
+            // Add radial gradient for pulse
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+            gradient.setAttribute('id', 'pulse-gradient');
+            gradient.innerHTML = `
+                <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                <stop offset="50%" style="stop-color:#10b981;stop-opacity:0.6" />
+                <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
+            `;
+            defs.appendChild(gradient);
+
+            // Find all edge paths
+            const edgePaths = svg.querySelectorAll('.edgePath path');
+            edgePaths.forEach((path, index) => {{
+                // Create pulse circle
+                const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                pulse.setAttribute('r', '4');
+                pulse.setAttribute('fill', 'url(#pulse-gradient)');
+                pulse.style.filter = 'drop-shadow(0 0 4px rgba(16, 185, 129, 1))';
+
+                // Insert pulse after path
+                path.parentNode.appendChild(pulse);
+
+                // Animate pulse along path
+                const pathLength = path.getTotalLength();
+                let distance = (index * 200) % pathLength; // Stagger start positions
+
+                function animatePulse() {{
+                    distance += 3; // Speed of pulse
+                    if (distance > pathLength) {{
+                        distance = 0;
+                    }}
+
+                    const point = path.getPointAtLength(distance);
+                    pulse.setAttribute('cx', point.x);
+                    pulse.setAttribute('cy', point.y);
+
+                    requestAnimationFrame(animatePulse);
+                }}
+
+                animatePulse();
+            }});
+        }}
+
+        // Build tree when diagram is loaded
+        setTimeout(() => {{
+            buildFileTree();
+            createPulseEffects();
+        }}, 1000);
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {{
             if (e.key === '+' || e.key === '=') zoomIn();
             if (e.key === '-' || e.key === '_') zoomOut();
             if (e.key === '0') resetZoom();
             if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+            if (e.key === 'b' || e.key === 'B') toggleSidebar();
         }});
     </script>
 </body>
@@ -1157,6 +1579,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         "# Code Map - Execution Flow (Call Graph)",
         "",
         "```mermaid",
+        "%%{init: {'flowchart': {'curve': 'linear'}, 'theme': 'dark'}}%%",
         "graph TB"
     ]
 
@@ -1166,7 +1589,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         called_functions.update(calls)
 
     entry_points = [func for func in function_calls.keys()
-                   if func not in called_functions][:8]  # More entry points
+                   if func not in called_functions][:15]  # Even more entry points
 
     # Group functions by class/module
     functions_by_class = defaultdict(list)
@@ -1174,10 +1597,10 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
     node_count = 0
     node_ids = {}  # Map func_name to node_id
 
-    def collect_functions(func_name, depth=0, max_depth=4):
+    def collect_functions(func_name, depth=0, max_depth=8):
         nonlocal node_count
 
-        if depth > max_depth or func_name in processed or node_count >= 60:
+        if depth > max_depth or func_name in processed or node_count >= 150:
             return
 
         processed.add(func_name)
@@ -1196,19 +1619,19 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
 
         # Recursively collect called functions
         calls = function_calls.get(func_name, [])
-        for called_func in calls[:5]:
+        for called_func in calls[:10]:  # Capture more calls per function
             if called_func not in processed:
                 collect_functions(called_func, depth + 1, max_depth)
 
     # Collect all functions starting from entry points
     for entry in entry_points:
-        if node_count >= 60:
+        if node_count >= 150:
             break
-        collect_functions(entry, depth=0, max_depth=4)
+        collect_functions(entry, depth=0, max_depth=8)
 
     # Generate subgraphs for each class/module
     subgraph_count = 0
-    for class_name, funcs in sorted(functions_by_class.items())[:10]:  # Limit to 10 subgraphs
+    for class_name, funcs in sorted(functions_by_class.items())[:20]:  # More subgraphs
         if not funcs:
             continue
 
@@ -1222,7 +1645,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         lines.append(f"    subgraph {subgraph_id}[\"{display_name}\"]")
 
         # Add nodes for functions in this class
-        for func_name in funcs[:8]:  # Limit functions per subgraph
+        for func_name in funcs[:15]:  # More functions per subgraph
             symbol = all_symbols.get(func_name, {})
             node_id = f"N{len(node_ids)}"
             node_ids[func_name] = node_id
@@ -1249,7 +1672,7 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
             continue
 
         from_id = node_ids[func_name]
-        for called_func in calls[:5]:
+        for called_func in calls[:10]:  # Show more connections
             if called_func in node_ids:
                 to_id = node_ids[called_func]
                 # Use thick arrows with labels
@@ -1261,27 +1684,27 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
     # Apply green/black/purple theme styling
     lines.append("    %% Styling - Green/Black/Purple Theme")
 
-    # Style subgraphs with different colors
+    # Style subgraphs with different faded colors
     colors = [
-        ("fill:#10b981,stroke:#059669,color:#000", "emerald"),  # Emerald green
-        ("fill:#8b5cf6,stroke:#7c3aed,color:#fff", "purple"),   # Purple
-        ("fill:#06b6d4,stroke:#0891b2,color:#000", "cyan"),     # Cyan
-        ("fill:#f59e0b,stroke:#d97706,color:#000", "amber"),    # Amber
-        ("fill:#ec4899,stroke:#db2777,color:#fff", "pink"),     # Pink
+        ("fill:rgba(16,185,129,0.08),stroke:#10b981,color:#10b981,stroke-width:2px", "emerald"),  # Faded emerald
+        ("fill:rgba(139,92,246,0.08),stroke:#8b5cf6,color:#8b5cf6,stroke-width:2px", "purple"),   # Faded purple
+        ("fill:rgba(6,182,212,0.08),stroke:#06b6d4,color:#06b6d4,stroke-width:2px", "cyan"),     # Faded cyan
+        ("fill:rgba(245,158,11,0.08),stroke:#f59e0b,color:#f59e0b,stroke-width:2px", "amber"),    # Faded amber
+        ("fill:rgba(236,72,153,0.08),stroke:#ec4899,color:#ec4899,stroke-width:2px", "pink"),     # Faded pink
     ]
 
     for i in range(subgraph_count):
         color_style, _ = colors[i % len(colors)]
         lines.append(f"    style SG{i} {color_style}")
 
-    # Style nodes based on whether they're entry points
+    # Style nodes with faded backgrounds
     for func_name, node_id in node_ids.items():
         if func_name in entry_points:
-            # Entry points - bright purple glow
-            lines.append(f"    style {node_id} fill:#a855f7,stroke:#9333ea,stroke-width:3px,color:#fff")
+            # Entry points - subtle purple with glow border
+            lines.append(f"    style {node_id} fill:rgba(139,92,246,0.15),stroke:#8b5cf6,stroke-width:3px,color:#a855f7")
         else:
-            # Regular nodes - dark with green accent
-            lines.append(f"    style {node_id} fill:#1a1a1a,stroke:#10b981,stroke-width:2px,color:#10b981")
+            # Regular nodes - very dark transparent with green border
+            lines.append(f"    style {node_id} fill:rgba(10,10,10,0.4),stroke:#10b981,stroke-width:2px,color:#10b981")
 
     lines.append("```")
     lines.append("")
