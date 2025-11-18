@@ -1185,6 +1185,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
 
             document.getElementById('file-tree').innerHTML = treeHTML.join('');
+            }} catch (error) {{
+                console.error('Error in buildFileTree:', error);
+                document.getElementById('file-tree').innerHTML = '<div style="color:#ef4444;">Error building file tree. Check console for details.</div>';
+            }}
         }}
 
         // Navigate to a specific node in the diagram
@@ -1407,33 +1411,38 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
         }}
 
-        // Initialize: Load content and render diagram
-        if (loadMermaidContent()) {{
-            mermaid.contentLoaded().then(() => {{
-                console.log('Mermaid diagram rendered successfully');
-                // Build tree and effects after diagram is rendered
-                setTimeout(() => {{
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {{
+            console.log('DOM ready, initializing diagram...');
+
+            // Load content and render diagram
+            if (loadMermaidContent()) {{
+                mermaid.contentLoaded().then(() => {{
+                    console.log('Mermaid diagram rendered successfully');
+                    // Build tree and effects after diagram is rendered
+                    setTimeout(() => {{
+                        buildFileTree();
+                        createPulseEffects();
+                        autoFitDiagram();
+                    }}, 500);
+                }}).catch(error => {{
+                    console.error('Failed to render mermaid diagram:', error);
+                }});
+            }} else {{
+                console.error('Failed to load mermaid content');
+            }}
+
+            // Build tree when diagram is loaded (fallback for older approach)
+            setTimeout(() => {{
+                // Only build if not already built
+                const treeContent = document.getElementById('file-tree').innerHTML;
+                if (!treeContent || treeContent.trim() === '') {{
                     buildFileTree();
                     createPulseEffects();
                     autoFitDiagram();
-                }}, 500);
-            }}).catch(error => {{
-                console.error('Failed to render mermaid diagram:', error);
-            }});
-        }} else {{
-            console.error('Failed to load mermaid content');
-        }}
-
-        // Build tree when diagram is loaded (fallback for older approach)
-        setTimeout(() => {{
-            // Only build if not already built
-            const treeContent = document.getElementById('file-tree').innerHTML;
-            if (!treeContent || treeContent.trim() === '') {{
-                buildFileTree();
-                createPulseEffects();
-                autoFitDiagram();
-            }}
-        }}, 1000);
+                }}
+            }}, 1000);
+        }});
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {{
