@@ -295,8 +295,11 @@ def _rich_ansi_to_jpg(
                         return True
             except ImportError:
                 pass
+        except Exception:
+            # SVG conversion failed, continue to cleanup
+            pass
     except Exception:
-        # SVG method failed, clean up and raise
+        # SVG method failed, continue to cleanup
         pass
 
     # Clean up temp files
