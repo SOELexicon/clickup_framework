@@ -1576,13 +1576,28 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             console.log('WebGL: Created', pathData.length, 'animated paths');
 
-            // Debug: Log sample path points to verify coordinates
-            if (pathData.length > 0) {{
-                const samplePath = pathData[0];
-                console.log('WebGL: Sample path has', samplePath.points.length, 'points');
-                console.log('WebGL: First 3 points:', samplePath.points.slice(0, 3));
-                console.log('WebGL: SVG viewBox:', svg.viewBox.baseVal.width, 'x', svg.viewBox.baseVal.height);
-            }}
+            // Debug: Calculate bounding box of ALL path points
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            pathData.forEach(path => {{
+                path.points.forEach(([x, y]) => {{
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }});
+            }});
+            console.log('WebGL: Path points bounding box:', {{
+                min: [minX, minY],
+                max: [maxX, maxY],
+                width: maxX - minX,
+                height: maxY - minY
+            }});
+            console.log('WebGL: SVG viewBox:', {{
+                x: svg.viewBox.baseVal.x,
+                y: svg.viewBox.baseVal.y,
+                width: svg.viewBox.baseVal.width,
+                height: svg.viewBox.baseVal.height
+            }});
 
             // Particle data (8 particles per path for trail effect)
             const particlesPerPath = 8;
@@ -1747,8 +1762,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
 
             try {{
-                // Decode base64 and set as text content (not innerHTML to avoid parsing)
-                const mermaidCode = atob(mermaidCodeB64);
+                // Decode base64 to bytes, then UTF-8 decode for proper emoji support
+                const base64Bytes = atob(mermaidCodeB64);
+                // Convert binary string to UTF-8 using TextDecoder
+                const bytes = new Uint8Array(base64Bytes.length);
+                for (let i = 0; i < base64Bytes.length; i++) {{
+                    bytes[i] = base64Bytes.charCodeAt(i);
+                }}
+                const mermaidCode = new TextDecoder('utf-8').decode(bytes);
                 diagramDiv.textContent = mermaidCode;
                 console.log('Loaded mermaid content:', mermaidCode.length, 'characters');
                 return true;
