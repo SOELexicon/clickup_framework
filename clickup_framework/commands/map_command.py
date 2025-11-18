@@ -452,8 +452,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             justify-content: center;
             padding: 2rem;
             transform-origin: center center;
-            transition: transform 0.3s ease;
             cursor: grab;
+            will-change: transform;
         }}
         .diagram-container:active {{
             cursor: grabbing;
@@ -490,21 +490,29 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         .node:nth-child(3) {{ animation-delay: 0.15s; }}
         .node:nth-child(4) {{ animation-delay: 0.2s; }}
         .node:nth-child(5) {{ animation-delay: 0.25s; }}
-        /* Hover effects */
+        /* Hover effects - avoid transform conflicts */
         .node {{
-            transition: all 0.2s ease;
+            transition: filter 0.2s ease, opacity 0.2s ease;
             cursor: pointer;
         }}
         .node:hover {{
-            filter: brightness(1.3) drop-shadow(0 0 10px rgba(96, 165, 250, 0.8));
-            transform: scale(1.05);
+            filter: brightness(1.4) drop-shadow(0 0 15px rgba(96, 165, 250, 0.9));
+        }}
+        .node rect, .node circle, .node polygon, .node path {{
+            transition: all 0.2s ease;
+        }}
+        .node:hover rect,
+        .node:hover circle,
+        .node:hover polygon,
+        .node:hover path {{
+            stroke-width: 3px !important;
         }}
         .edgePath {{
-            transition: all 0.2s ease;
+            transition: filter 0.2s ease;
         }}
         .edgePath:hover path {{
             stroke-width: 3px !important;
-            filter: drop-shadow(0 0 5px rgba(147, 197, 253, 0.8));
+            filter: drop-shadow(0 0 8px rgba(147, 197, 253, 0.8));
         }}
         /* Loading animation */
         .loading {{
@@ -599,7 +607,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         }});
 
         function updateTransform() {{
-            container.style.transform = `translate(${{translateX}}px, ${{translateY}}px) scale(${{scale}})`;
+            // Use translate3d for better performance and to avoid conflicts
+            container.style.transform = `translate3d(${{translateX}}px, ${{translateY}}px, 0) scale(${{scale}})`;
             zoomLevelEl.textContent = Math.round(scale * 100) + '%';
             container.classList.toggle('zoomed', scale !== 1);
         }}
@@ -629,8 +638,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             updateTransform();
         }});
 
-        // Drag to pan
+        // Drag to pan - avoid dragging when clicking nodes
         container.addEventListener('mousedown', (e) => {{
+            // Don't start dragging if clicking on a node
+            if (e.target.closest('.node')) {{
+                return;
+            }}
             isDragging = true;
             startX = e.clientX - translateX;
             startY = e.clientY - translateY;
