@@ -682,81 +682,37 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         .node:hover path {{
             stroke-width: 3px !important;
         }}
-        /* Enhanced edge/arrow visibility - Circuit board style with pulse */
+        /* Enhanced edge/arrow visibility - Circuit board style */
         .edgePath path {{
             stroke: #000000 !important;
-            stroke-width: 6px !important;
+            stroke-width: 4px !important;
             stroke-linecap: square !important;
-            filter: drop-shadow(0 0 2px rgba(16, 185, 129, 1))
-                    drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))
-                    drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+            filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.8));
+            transition: all 0.2s ease;
         }}
-        /* Pulse animation traveling down the line */
-        .edgePath::before {{
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }}
-        .edgePath path {{
-            stroke-dasharray: 1000;
-            stroke-dashoffset: 0;
-            animation: none;
-        }}
-        /* Create pulse effect using outline */
+        /* Subtle pulse effect */
         .edgePath {{
-            transition: all 0.3s ease;
-            position: relative;
-        }}
-        /* Animated overlay for pulse effect */
-        @keyframes travel-pulse {{
-            0% {{
-                stroke-dashoffset: 0;
-                opacity: 1;
-            }}
-            100% {{
-                stroke-dashoffset: -1000;
-                opacity: 0.3;
-            }}
-        }}
-        .edgePath path {{
-            position: relative;
-        }}
-        /* Add pulsing glow that travels */
-        .edgePath {{
-            animation: edge-pulse 2s linear infinite;
+            animation: edge-pulse 4s ease-in-out infinite;
         }}
         @keyframes edge-pulse {{
-            0% {{
-                filter: drop-shadow(0 0 2px rgba(16, 185, 129, 1))
-                        drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))
-                        drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+            0%, 100% {{
+                opacity: 0.9;
             }}
             50% {{
-                filter: drop-shadow(0 0 4px rgba(16, 185, 129, 1))
-                        drop-shadow(0 0 8px rgba(16, 185, 129, 1))
-                        drop-shadow(0 0 12px rgba(16, 185, 129, 0.7));
-            }}
-            100% {{
-                filter: drop-shadow(0 0 2px rgba(16, 185, 129, 1))
-                        drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))
-                        drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+                opacity: 1;
             }}
         }}
         .edgePath:hover path {{
-            stroke-width: 8px !important;
-            stroke: #000000 !important;
-            filter: drop-shadow(0 0 4px rgba(139, 92, 246, 1))
-                    drop-shadow(0 0 8px rgba(139, 92, 246, 0.8))
-                    drop-shadow(0 0 12px rgba(139, 92, 246, 0.6));
+            stroke-width: 5px !important;
+            filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.9));
         }}
         .edgePath marker path {{
             fill: #10b981 !important;
-            filter: drop-shadow(0 0 4px rgba(16, 185, 129, 1));
+            filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.8));
         }}
         .edgePath:hover marker path {{
             fill: #8b5cf6 !important;
-            filter: drop-shadow(0 0 6px rgba(139, 92, 246, 1));
+            filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.9));
         }}
         /* Loading animation */
         .loading {{
@@ -1093,7 +1049,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }});
         }});
 
-        // Create traveling pulse effects on edges
+        // Optimized: Add subtle pulse effects to only a few edges for performance
         function createPulseEffects() {{
             const svg = document.querySelector('#mermaid-diagram svg');
             if (!svg) return;
@@ -1109,30 +1065,42 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
             gradient.setAttribute('id', 'pulse-gradient');
             gradient.innerHTML = `
-                <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
-                <stop offset="50%" style="stop-color:#10b981;stop-opacity:0.6" />
+                <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.8" />
                 <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
             `;
             defs.appendChild(gradient);
 
-            // Find all edge paths
+            // Only animate every 5th edge for performance
             const edgePaths = svg.querySelectorAll('.edgePath path');
-            edgePaths.forEach((path, index) => {{
-                // Create pulse circle
-                const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                pulse.setAttribute('r', '4');
-                pulse.setAttribute('fill', 'url(#pulse-gradient)');
-                pulse.style.filter = 'drop-shadow(0 0 4px rgba(16, 185, 129, 1))';
+            const maxPulses = Math.min(10, Math.floor(edgePaths.length / 5)); // Max 10 pulses
 
-                // Insert pulse after path
+            for (let i = 0; i < maxPulses; i++) {{
+                const index = i * Math.floor(edgePaths.length / maxPulses);
+                const path = edgePaths[index];
+                if (!path) continue;
+
+                const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                pulse.setAttribute('r', '3');
+                pulse.setAttribute('fill', 'url(#pulse-gradient)');
+
                 path.parentNode.appendChild(pulse);
 
-                // Animate pulse along path
                 const pathLength = path.getTotalLength();
-                let distance = (index * 200) % pathLength; // Stagger start positions
+                let distance = (i * 100) % pathLength;
+                let lastTime = performance.now();
 
-                function animatePulse() {{
-                    distance += 3; // Speed of pulse
+                function animatePulse(currentTime) {{
+                    const deltaTime = currentTime - lastTime;
+
+                    // Only update every 16ms (60fps) instead of every frame
+                    if (deltaTime < 16) {{
+                        requestAnimationFrame(animatePulse);
+                        return;
+                    }}
+
+                    lastTime = currentTime;
+                    distance += 2; // Slower speed
+
                     if (distance > pathLength) {{
                         distance = 0;
                     }}
@@ -1144,8 +1112,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     requestAnimationFrame(animatePulse);
                 }}
 
-                animatePulse();
-            }});
+                requestAnimationFrame(animatePulse);
+            }}
         }}
 
         // Build tree when diagram is loaded
