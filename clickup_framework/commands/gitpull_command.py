@@ -1,27 +1,36 @@
 """Git pull command with rebase."""
 
 import subprocess
-import sys
 from pathlib import Path
+from clickup_framework.commands.base_command import BaseCommand
+
+
+class PullCommand(BaseCommand):
+    """Execute git pull --rebase in current directory."""
+
+    def execute(self):
+        """Execute the pull command."""
+        # Check if in Git repository
+        git_dir = Path('.git')
+        if not git_dir.exists():
+            self.error("Not in a Git repository")
+
+        # Execute git pull --rebase
+        result = subprocess.run(
+            ['git', 'pull', '--rebase'],
+            capture_output=False,  # Show output in real-time
+            text=True
+        )
+
+        # Exit with Git's exit code
+        import sys
+        sys.exit(result.returncode)
 
 
 def pull_command(args):
-    """Execute git pull --rebase in current directory."""
-    # Check if in Git repository
-    git_dir = Path('.git')
-    if not git_dir.exists():
-        print("Error: Not in a Git repository", file=sys.stderr)
-        sys.exit(1)
-
-    # Execute git pull --rebase
-    result = subprocess.run(
-        ['git', 'pull', '--rebase'],
-        capture_output=False,  # Show output in real-time
-        text=True
-    )
-
-    # Exit with Git's exit code
-    sys.exit(result.returncode)
+    """Command wrapper for backward compatibility."""
+    command = PullCommand(args, command_name='pull')
+    command.execute()
 
 
 def register_command(subparsers, add_common_args=None):

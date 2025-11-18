@@ -117,7 +117,7 @@ def register_command(subparsers):
     """Register the detail command with argparse."""
     parser = subparsers.add_parser(
         'detail',
-        aliases=['d'],
+        aliases=['d', 'task'],
         help='Show comprehensive task details with hierarchical view',
         description='''Display comprehensive details of a single task with enhanced hierarchical view.
 
@@ -125,9 +125,11 @@ Shows the main task with full description and a detailed tree view of all subtas
 full descriptions, including smart indicators for dependencies, blockers, linked tasks,
 assignees, due dates, and time tracking.''',
         epilog='''Usage:
-  • View task details: cum d <task_id>
+  • View task details: cum detail <task_id>
+  • Use shorter alias: cum d <task_id>
+  • Use task alias: cum task <task_id>
   • With full context: cum d <task_id> <list_id> (shows relationship tree)
-  • Use alias: cum d current (view current task)
+  • View current: cum d current (or cum task current)
 
 What's Displayed:
   • Task info: status, priority, type, tags, assignees, dates

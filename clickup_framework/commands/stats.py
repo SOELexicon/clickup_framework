@@ -1,9 +1,8 @@
 """Stats command."""
 
-import sys
-from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import get_list_statuses, resolve_list_id
+from clickup_framework.commands.utils import get_list_statuses
 
 
 def get_task_type_emoji(task_type):
@@ -122,45 +121,55 @@ def format_type_stats(type_stats):
     return output
 
 
+class StatsCommand(BaseCommand):
+    """
+    Stats Command using BaseCommand.
+    """
+
+    def execute(self):
+        """Execute the stats command."""
+        display = DisplayManager(self.client)
+
+        # Resolve list ID from either list ID, task ID, or "current" keyword
+        list_id = self.resolve_list(self.args.list_id)
+
+        result = self.client.get_list_tasks(list_id, include_closed=self.args.include_closed)
+        tasks = result.get('tasks', [])
+
+        # Filter by type if specified
+        if self.args.type:
+            tasks = [t for t in tasks if (t.get('custom_type') or 'Task') == self.args.type]
+            if not tasks:
+                self.print_error(f"No tasks found with type: {self.args.type}")
+                return
+
+        # Show available statuses
+        # Note: stats command doesn't have colorize arg, so default to True
+        status_line = get_list_statuses(self.client, list_id, use_color=True)
+        if status_line:
+            self.print(status_line)
+            self.print()  # Empty line for spacing
+
+        if getattr(self.args, 'by_type', False):
+            # Show breakdown by type
+            type_stats = get_task_type_stats(tasks)
+            output = format_type_stats(type_stats)
+        else:
+            # Show regular summary
+            output = display.summary_stats(tasks)
+
+        self.print(output)
+
+
 def stats_command(args):
-    """Display task statistics."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    display = DisplayManager(client)
+    """
+    Command function wrapper for backward compatibility.
 
-    # Resolve list ID from either list ID, task ID, or "current" keyword
-    try:
-        list_id = resolve_list_id(client, args.list_id, context)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    result = client.get_list_tasks(list_id, include_closed=args.include_closed)
-    tasks = result.get('tasks', [])
-
-    # Filter by type if specified
-    if args.type:
-        tasks = [t for t in tasks if (t.get('custom_type') or 'Task') == args.type]
-        if not tasks:
-            print(f"No tasks found with type: {args.type}", file=sys.stderr)
-            sys.exit(0)
-
-    # Show available statuses
-    # Note: stats command doesn't have colorize arg, so default to True
-    status_line = get_list_statuses(client, list_id, use_color=True)
-    if status_line:
-        print(status_line)
-        print()  # Empty line for spacing
-
-    if getattr(args, 'by_type', False):
-        # Show breakdown by type
-        type_stats = get_task_type_stats(tasks)
-        output = format_type_stats(type_stats)
-    else:
-        # Show regular summary
-        output = display.summary_stats(tasks)
-
-    print(output)
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = StatsCommand(args, command_name='stats')
+    command.execute()
 
 
 def register_command(subparsers, add_common_args=None):

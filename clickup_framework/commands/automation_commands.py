@@ -1,6 +1,6 @@
 """Automation management commands for ClickUp Framework CLI."""
 
-import sys
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.automation.config import (
     load_automation_config,
     save_automation_config,
@@ -10,117 +10,180 @@ from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
 
-def parent_auto_update_status_command(args):
+class ParentAutoUpdateStatusCommand(BaseCommand):
     """Display current automation configuration status."""
-    config = load_automation_config()
 
-    print("\n" + colorize("Parent Task Auto-Update Configuration", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-    print("=" * 50)
-    print()
+    def execute(self):
+        """Execute the status command."""
+        config = load_automation_config()
 
-    # Status
-    status_text = "✅ Enabled" if config.enabled else "❌ Disabled"
-    print(f"Status: {status_text}")
-    print(f"Post Comments: {'✅ Yes' if config.post_comment else '❌ No'}")
-    print(f"Update Delay: {config.update_delay_seconds} seconds")
-    print(f"Retry on Failure: {'✅ Yes' if config.retry_on_failure else '❌ No'} (max {config.max_retries} attempts)")
-    print()
+        self.print("\n" + colorize("Parent Task Auto-Update Configuration", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        self.print("=" * 50)
+        self.print()
 
-    # Trigger statuses
-    print(colorize(f"Trigger Statuses ({len(config.trigger_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
-    for status in config.trigger_statuses:
-        print(f"  • {status}")
-    print()
+        # Status
+        status_text = "✅ Enabled" if config.enabled else "❌ Disabled"
+        self.print(f"Status: {status_text}")
+        self.print(f"Post Comments: {'✅ Yes' if config.post_comment else '❌ No'}")
+        self.print(f"Update Delay: {config.update_delay_seconds} seconds")
+        self.print(f"Retry on Failure: {'✅ Yes' if config.retry_on_failure else '❌ No'} (max {config.max_retries} attempts)")
+        self.print()
 
-    # Parent inactive statuses
-    print(colorize(f"Parent Inactive Statuses ({len(config.parent_inactive_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
-    for status in config.parent_inactive_statuses:
-        print(f"  • {status}")
-    print()
+        # Trigger statuses
+        self.print(colorize(f"Trigger Statuses ({len(config.trigger_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+        for status in config.trigger_statuses:
+            self.print(f"  • {status}")
+        self.print()
 
-    print(f"Target Status for Parent: \"{config.parent_target_status}\"")
-    print()
+        # Parent inactive statuses
+        self.print(colorize(f"Parent Inactive Statuses ({len(config.parent_inactive_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+        for status in config.parent_inactive_statuses:
+            self.print(f"  • {status}")
+        self.print()
+
+        self.print(f"Target Status for Parent: \"{config.parent_target_status}\"")
+        self.print()
+
+
+class ParentAutoUpdateEnableCommand(BaseCommand):
+    """Enable parent task auto-update automation."""
+
+    def execute(self):
+        """Execute the enable command."""
+        update_config_value('enabled', True)
+
+        success_msg = ANSIAnimations.success_message("Parent task auto-update enabled")
+        self.print(success_msg)
+        self.print("\nSubtasks set to 'in progress' will now automatically update parent tasks.")
+
+
+class ParentAutoUpdateDisableCommand(BaseCommand):
+    """Disable parent task auto-update automation."""
+
+    def execute(self):
+        """Execute the disable command."""
+        update_config_value('enabled', False)
+
+        self.print(ANSIAnimations.warning_message("Parent task auto-update disabled"))
+        self.print("\nYou will need to manually update parent tasks when starting subtasks.")
+
+
+class ParentAutoUpdateConfigCommand(BaseCommand):
+    """Configure automation settings."""
+
+    def execute(self):
+        """Execute the config command."""
+        key = self.args.key
+        value = self.args.value
+
+        # Type conversion for boolean and int values
+        if value.lower() in ['true', 'false']:
+            value = value.lower() == 'true'
+        elif value.isdigit():
+            value = int(value)
+
+        try:
+            update_config_value(key, value)
+
+            success_msg = ANSIAnimations.success_message("Configuration updated")
+            self.print(success_msg)
+            self.print(f"\n{key} = {value}")
+
+        except ValueError as e:
+            self.error(str(e))
+
+
+class ParentAutoUpdateAddTriggerCommand(BaseCommand):
+    """Add a status to the trigger list."""
+
+    def execute(self):
+        """Execute the add-trigger command."""
+        config = load_automation_config()
+
+        if self.args.status not in config.trigger_statuses:
+            config.trigger_statuses.append(self.args.status)
+            save_automation_config(config)
+
+            success_msg = ANSIAnimations.success_message("Added trigger status")
+            self.print(success_msg)
+            self.print(f"\nStatus '{self.args.status}' will now trigger parent updates.")
+        else:
+            self.print(f"Status '{self.args.status}' is already in the trigger list.")
+
+
+class ParentAutoUpdateRemoveTriggerCommand(BaseCommand):
+    """Remove a status from the trigger list."""
+
+    def execute(self):
+        """Execute the remove-trigger command."""
+        config = load_automation_config()
+
+        if self.args.status in config.trigger_statuses:
+            config.trigger_statuses.remove(self.args.status)
+            save_automation_config(config)
+
+            success_msg = ANSIAnimations.success_message("Removed trigger status")
+            self.print(success_msg)
+            self.print(f"\nStatus '{self.args.status}' will no longer trigger parent updates.")
+        else:
+            self.print(f"Status '{self.args.status}' is not in the trigger list.")
+
+
+class ParentAutoUpdateListTriggersCommand(BaseCommand):
+    """List all trigger statuses."""
+
+    def execute(self):
+        """Execute the list-triggers command."""
+        config = load_automation_config()
+
+        self.print(colorize("Trigger Statuses:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        self.print()
+        for i, status in enumerate(config.trigger_statuses, 1):
+            self.print(f"  {i}. {status}")
+        self.print()
+
+
+# Backward compatibility wrappers
+def parent_auto_update_status_command(args):
+    """Command wrapper for status."""
+    command = ParentAutoUpdateStatusCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def parent_auto_update_enable_command(args):
-    """Enable parent task auto-update automation."""
-    update_config_value('enabled', True)
-
-    success_msg = ANSIAnimations.success_message("Parent task auto-update enabled")
-    print(success_msg)
-    print("\nSubtasks set to 'in progress' will now automatically update parent tasks.")
+    """Command wrapper for enable."""
+    command = ParentAutoUpdateEnableCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def parent_auto_update_disable_command(args):
-    """Disable parent task auto-update automation."""
-    update_config_value('enabled', False)
-
-    print(ANSIAnimations.warning_message("Parent task auto-update disabled"))
-    print("\nYou will need to manually update parent tasks when starting subtasks.")
+    """Command wrapper for disable."""
+    command = ParentAutoUpdateDisableCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def parent_auto_update_config_command(args):
-    """Configure automation settings."""
-    key = args.key
-    value = args.value
-
-    # Type conversion for boolean and int values
-    if value.lower() in ['true', 'false']:
-        value = value.lower() == 'true'
-    elif value.isdigit():
-        value = int(value)
-
-    try:
-        update_config_value(key, value)
-
-        success_msg = ANSIAnimations.success_message(f"Configuration updated")
-        print(success_msg)
-        print(f"\n{key} = {value}")
-
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for config."""
+    command = ParentAutoUpdateConfigCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def parent_auto_update_add_trigger_command(args):
-    """Add a status to the trigger list."""
-    config = load_automation_config()
-
-    if args.status not in config.trigger_statuses:
-        config.trigger_statuses.append(args.status)
-        save_automation_config(config)
-
-        success_msg = ANSIAnimations.success_message(f"Added trigger status")
-        print(success_msg)
-        print(f"\nStatus '{args.status}' will now trigger parent updates.")
-    else:
-        print(f"Status '{args.status}' is already in the trigger list.")
+    """Command wrapper for add-trigger."""
+    command = ParentAutoUpdateAddTriggerCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def parent_auto_update_remove_trigger_command(args):
-    """Remove a status from the trigger list."""
-    config = load_automation_config()
-
-    if args.status in config.trigger_statuses:
-        config.trigger_statuses.remove(args.status)
-        save_automation_config(config)
-
-        success_msg = ANSIAnimations.success_message(f"Removed trigger status")
-        print(success_msg)
-        print(f"\nStatus '{args.status}' will no longer trigger parent updates.")
-    else:
-        print(f"Status '{args.status}' is not in the trigger list.")
+    """Command wrapper for remove-trigger."""
+    command = ParentAutoUpdateRemoveTriggerCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def parent_auto_update_list_triggers_command(args):
-    """List all trigger statuses."""
-    config = load_automation_config()
-
-    print(colorize("Trigger Statuses:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-    print()
-    for i, status in enumerate(config.trigger_statuses, 1):
-        print(f"  {i}. {status}")
-    print()
+    """Command wrapper for list-triggers."""
+    command = ParentAutoUpdateListTriggersCommand(args, command_name='parent_auto_update')
+    command.execute()
 
 
 def register_command(subparsers):

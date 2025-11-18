@@ -146,8 +146,8 @@ class BaseCommand:
         """Print with optional colorization."""
         print(*args, **kwargs)
     
-    def print_color(self, text: str, color: TextColor = TextColor.BRIGHT_WHITE, 
-                   style: TextStyle = TextStyle.NORMAL):
+    def print_color(self, text: str, color: TextColor = TextColor.BRIGHT_WHITE,
+                   style: TextStyle = None):
         """Print colorized text."""
         if self.use_color:
             print(colorize(text, color, style))

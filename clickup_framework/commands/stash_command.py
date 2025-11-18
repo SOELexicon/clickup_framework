@@ -1,38 +1,55 @@
 """Git stash command - wrapper for git stash operations."""
 
 import subprocess
-import sys
+from clickup_framework.commands.base_command import BaseCommand
+
+
+class StashCommand(BaseCommand):
+    """
+    Git Stash Command using BaseCommand.
+    """
+
+    def execute(self):
+        """Execute git stash operations."""
+        # Build git stash command
+        cmd = ['git', 'stash']
+
+        # Add subcommand if provided
+        if self.args.subcommand:
+            cmd.append(self.args.subcommand)
+
+        # Add additional arguments
+        if self.args.args:
+            cmd.extend(self.args.args)
+
+        # Execute git stash
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True
+        )
+
+        # Print output
+        if result.stdout:
+            self.print(result.stdout.strip())
+
+        if result.stderr:
+            self.print_error(result.stderr.strip())
+
+        # Exit with same code as git stash
+        if result.returncode != 0:
+            exit(result.returncode)
 
 
 def stash_command(args):
-    """Execute git stash operations."""
-    # Build git stash command
-    cmd = ['git', 'stash']
+    """
+    Command function wrapper for backward compatibility.
 
-    # Add subcommand if provided
-    if args.subcommand:
-        cmd.append(args.subcommand)
-
-    # Add additional arguments
-    if args.args:
-        cmd.extend(args.args)
-
-    # Execute git stash
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True
-    )
-
-    # Print output
-    if result.stdout:
-        print(result.stdout.strip())
-
-    if result.stderr:
-        print(result.stderr.strip(), file=sys.stderr)
-
-    # Exit with same code as git stash
-    sys.exit(result.returncode)
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = StashCommand(args, command_name='stash')
+    command.execute()
 
 
 def register_command(subparsers, add_common_args=None):

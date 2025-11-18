@@ -1,239 +1,245 @@
 """Space management commands for ClickUp Framework CLI."""
 
-import sys
-from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources.workspaces import WorkspacesAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
 
 
-def space_create_command(args):
+class SpaceCreateCommand(BaseCommand):
     """Create a new space in a workspace/team."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    workspaces_api = WorkspacesAPI(client)
 
-    # Resolve team/workspace ID
-    try:
-        team_id = context.resolve_id('workspace', args.team_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    def execute(self):
+        """Execute the space create command."""
+        workspaces_api = WorkspacesAPI(self.client)
 
-    # Build space data
-    space_data = {}
-    if args.multiple_assignees is not None:
-        space_data['multiple_assignees'] = args.multiple_assignees
-    if args.features:
-        space_data['features'] = {}
-        if 'due_dates' in args.features:
-            space_data['features']['due_dates'] = {'enabled': True}
-        if 'time_tracking' in args.features:
-            space_data['features']['time_tracking'] = {'enabled': True}
-        if 'tags' in args.features:
-            space_data['features']['tags'] = {'enabled': True}
-        if 'time_estimates' in args.features:
-            space_data['features']['time_estimates'] = {'enabled': True}
-        if 'checklists' in args.features:
-            space_data['features']['checklists'] = {'enabled': True}
-        if 'custom_fields' in args.features:
-            space_data['features']['custom_fields'] = {'enabled': True}
-        if 'remap_dependencies' in args.features:
-            space_data['features']['dependency_warning'] = {'enabled': True}
-        if 'remap_closed_due_date' in args.features:
-            space_data['features']['remap_closed_due_date'] = {'enabled': True}
+        # Resolve team/workspace ID
+        team_id = self.resolve_id(self.args.team_id)
 
-    # Create the space
-    try:
-        new_space = workspaces_api.create_space(team_id, args.name, **space_data)
+        # Build space data
+        space_data = {}
+        if self.args.multiple_assignees is not None:
+            space_data['multiple_assignees'] = self.args.multiple_assignees
+        if self.args.features:
+            space_data['features'] = {}
+            if 'due_dates' in self.args.features:
+                space_data['features']['due_dates'] = {'enabled': True}
+            if 'time_tracking' in self.args.features:
+                space_data['features']['time_tracking'] = {'enabled': True}
+            if 'tags' in self.args.features:
+                space_data['features']['tags'] = {'enabled': True}
+            if 'time_estimates' in self.args.features:
+                space_data['features']['time_estimates'] = {'enabled': True}
+            if 'checklists' in self.args.features:
+                space_data['features']['checklists'] = {'enabled': True}
+            if 'custom_fields' in self.args.features:
+                space_data['features']['custom_fields'] = {'enabled': True}
+            if 'remap_dependencies' in self.args.features:
+                space_data['features']['dependency_warning'] = {'enabled': True}
+            if 'remap_closed_due_date' in self.args.features:
+                space_data['features']['remap_closed_due_date'] = {'enabled': True}
 
-        success_msg = ANSIAnimations.success_message(f"Space created: {args.name}")
-        print(f"\n{success_msg}")
-        print(f"Space ID: {colorize(new_space['id'], TextColor.BRIGHT_GREEN)}")
+        # Create the space
+        try:
+            new_space = workspaces_api.create_space(team_id, self.args.name, **space_data)
 
-        if args.verbose:
-            print(f"Team/Workspace ID: {team_id}")
-            if space_data:
-                print("\nFeatures configured:")
-                for key, value in space_data.items():
-                    print(f"  {key}: {value}")
+            success_msg = ANSIAnimations.success_message(f"Space created: {self.args.name}")
+            self.print(f"\n{success_msg}")
+            self.print(f"Space ID: {colorize(new_space['id'], TextColor.BRIGHT_GREEN)}")
 
-    except ClickUpAPIError as e:
-        print(f"Error creating space: {e}", file=sys.stderr)
-        sys.exit(1)
+            if self.args.verbose:
+                self.print(f"Team/Workspace ID: {team_id}")
+                if space_data:
+                    self.print("\nFeatures configured:")
+                    for key, value in space_data.items():
+                        self.print(f"  {key}: {value}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error creating space: {e}")
+
+
+class SpaceUpdateCommand(BaseCommand):
+    """Update a space."""
+
+    def execute(self):
+        """Execute the space update command."""
+        workspaces_api = WorkspacesAPI(self.client)
+
+        # Resolve space ID
+        space_id = self.resolve_id(self.args.space_id)
+
+        # Build updates
+        updates = {}
+        if self.args.name:
+            updates['name'] = self.args.name
+        if self.args.color:
+            updates['color'] = self.args.color
+        if self.args.private is not None:
+            updates['private'] = self.args.private
+        if self.args.admin_can_manage is not None:
+            updates['admin_can_manage'] = self.args.admin_can_manage
+        if self.args.multiple_assignees is not None:
+            updates['multiple_assignees'] = self.args.multiple_assignees
+
+        if not updates:
+            self.error("No updates specified. Use --name, --color, --private, --admin-can-manage, or --multiple-assignees")
+
+        # Update the space
+        try:
+            workspaces_api.update_space(space_id, **updates)
+            success_msg = ANSIAnimations.success_message("Space updated successfully")
+            self.print(f"\n{success_msg}")
+
+            if self.args.verbose:
+                self.print(f"\nSpace ID: {space_id}")
+                self.print("Updates applied:")
+                for key, value in updates.items():
+                    self.print(f"  {key}: {value}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error updating space: {e}")
+
+
+class SpaceDeleteCommand(BaseCommand):
+    """Delete a space."""
+
+    def execute(self):
+        """Execute the space delete command."""
+        # Resolve space ID
+        space_id = self.resolve_id(self.args.space_id)
+
+        # Show warning
+        self.print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the space and all its folders, lists, and tasks.")
+
+        if not self.args.force:
+            response = input("Are you sure? [y/N]: ")
+            if response.lower() not in ['y', 'yes']:
+                self.print("Cancelled.")
+                return
+
+        # Delete the space
+        try:
+            self.client.delete_space(space_id)
+            success_msg = ANSIAnimations.success_message("Space deleted successfully")
+            self.print(f"\n{success_msg}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error deleting space: {e}")
+
+
+class SpaceGetCommand(BaseCommand):
+    """Get space details."""
+
+    def execute(self):
+        """Execute the space get command."""
+        # Resolve space ID
+        space_id = self.resolve_id(self.args.space_id)
+
+        # Get the space
+        try:
+            space_data = self.client.get_space(space_id)
+
+            # Display space details
+            self.print(f"\n{colorize(space_data.get('name', 'Unnamed Space'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+            self.print(f"ID: {colorize(space_data['id'], TextColor.BRIGHT_GREEN)}")
+
+            if space_data.get('private'):
+                self.print(f"Privacy: Private")
+            else:
+                self.print(f"Privacy: Public")
+
+            if space_data.get('multiple_assignees'):
+                self.print(f"Multiple Assignees: Enabled")
+
+            # Show features
+            if space_data.get('features'):
+                self.print(f"\n{colorize('Features:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                features = space_data['features']
+                for feature_name, feature_data in features.items():
+                    if isinstance(feature_data, dict) and feature_data.get('enabled'):
+                        self.print(f"  ✓ {feature_name.replace('_', ' ').title()}")
+
+            # Show folders
+            if space_data.get('folders'):
+                folder_count = len(space_data['folders'])
+                self.print(f"\n{colorize(f'Folders ({folder_count}):', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                for folder in space_data['folders']:
+                    self.print(f"  • {folder.get('name', 'Unnamed')} ({folder['id']})")
+
+            if self.args.verbose:
+                self.print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                import json
+                self.print(json.dumps(space_data, indent=2))
+
+        except ClickUpAPIError as e:
+            self.error(f"Error getting space: {e}")
+
+
+class SpaceListCommand(BaseCommand):
+    """List all spaces in a workspace/team."""
+
+    def execute(self):
+        """Execute the space list command."""
+        # Resolve team/workspace ID
+        team_id = self.resolve_id(self.args.team_id)
+
+        # Get spaces
+        try:
+            spaces_data = self.client.get_team_spaces(team_id, archived=self.args.archived)
+            spaces = spaces_data.get('spaces', [])
+
+            space_count = len(spaces)
+            self.print(f"\n{colorize(f'Spaces in Workspace ({space_count}):', TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+            self.print()
+
+            for space in spaces:
+                privacy = "🔒 Private" if space.get('private') else "🌐 Public"
+                self.print(f"{colorize(space.get('name', 'Unnamed'), TextColor.BRIGHT_GREEN)} {privacy}")
+                self.print(f"  ID: {colorize(space['id'], TextColor.BRIGHT_BLACK)}")
+
+                if space.get('folders'):
+                    self.print(f"  Folders: {len(space['folders'])}")
+
+                if self.args.show_details:
+                    if space.get('statuses'):
+                        self.print(f"  Statuses: {', '.join([s['status'] for s in space['statuses']])}")
+
+                self.print()
+
+        except ClickUpAPIError as e:
+            self.error(f"Error listing spaces: {e}")
+
+
+# Backward compatibility wrappers
+def space_create_command(args):
+    """Command wrapper for space create."""
+    command = SpaceCreateCommand(args, command_name='space')
+    command.execute()
 
 
 def space_update_command(args):
-    """Update a space."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    workspaces_api = WorkspacesAPI(client)
-
-    # Resolve space ID
-    try:
-        space_id = context.resolve_id('space', args.space_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Build updates
-    updates = {}
-    if args.name:
-        updates['name'] = args.name
-    if args.color:
-        updates['color'] = args.color
-    if args.private is not None:
-        updates['private'] = args.private
-    if args.admin_can_manage is not None:
-        updates['admin_can_manage'] = args.admin_can_manage
-    if args.multiple_assignees is not None:
-        updates['multiple_assignees'] = args.multiple_assignees
-
-    if not updates:
-        print("Error: No updates specified. Use --name, --color, --private, --admin-can-manage, or --multiple-assignees", file=sys.stderr)
-        sys.exit(1)
-
-    # Update the space
-    try:
-        workspaces_api.update_space(space_id, **updates)
-        success_msg = ANSIAnimations.success_message("Space updated successfully")
-        print(f"\n{success_msg}")
-
-        if args.verbose:
-            print(f"\nSpace ID: {space_id}")
-            print("Updates applied:")
-            for key, value in updates.items():
-                print(f"  {key}: {value}")
-
-    except ClickUpAPIError as e:
-        print(f"Error updating space: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for space update."""
+    command = SpaceUpdateCommand(args, command_name='space')
+    command.execute()
 
 
 def space_delete_command(args):
-    """Delete a space."""
-    context = get_context_manager()
-    client = ClickUpClient()
-
-    # Resolve space ID
-    try:
-        space_id = context.resolve_id('space', args.space_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Show warning
-    print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the space and all its folders, lists, and tasks.")
-
-    if not args.force:
-        response = input("Are you sure? [y/N]: ")
-        if response.lower() not in ['y', 'yes']:
-            print("Cancelled.")
-            return
-
-    # Delete the space
-    try:
-        client.delete_space(space_id)
-        success_msg = ANSIAnimations.success_message("Space deleted successfully")
-        print(f"\n{success_msg}")
-
-    except ClickUpAPIError as e:
-        print(f"Error deleting space: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for space delete."""
+    command = SpaceDeleteCommand(args, command_name='space')
+    command.execute()
 
 
 def space_get_command(args):
-    """Get space details."""
-    context = get_context_manager()
-    client = ClickUpClient()
-
-    # Resolve space ID
-    try:
-        space_id = context.resolve_id('space', args.space_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Get the space
-    try:
-        space_data = client.get_space(space_id)
-
-        # Display space details
-        print(f"\n{colorize(space_data.get('name', 'Unnamed Space'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-        print(f"ID: {colorize(space_data['id'], TextColor.BRIGHT_GREEN)}")
-
-        if space_data.get('private'):
-            print(f"Privacy: Private")
-        else:
-            print(f"Privacy: Public")
-
-        if space_data.get('multiple_assignees'):
-            print(f"Multiple Assignees: Enabled")
-
-        # Show features
-        if space_data.get('features'):
-            print(f"\n{colorize('Features:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-            features = space_data['features']
-            for feature_name, feature_data in features.items():
-                if isinstance(feature_data, dict) and feature_data.get('enabled'):
-                    print(f"  ✓ {feature_name.replace('_', ' ').title()}")
-
-        # Show folders
-        if space_data.get('folders'):
-            folder_count = len(space_data['folders'])
-            print(f"\n{colorize(f'Folders ({folder_count}):', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-            for folder in space_data['folders']:
-                print(f"  • {folder.get('name', 'Unnamed')} ({folder['id']})")
-
-        if args.verbose:
-            print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-            import json
-            print(json.dumps(space_data, indent=2))
-
-    except ClickUpAPIError as e:
-        print(f"Error getting space: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for space get."""
+    command = SpaceGetCommand(args, command_name='space')
+    command.execute()
 
 
 def space_list_command(args):
-    """List all spaces in a workspace/team."""
-    context = get_context_manager()
-    client = ClickUpClient()
-
-    # Resolve team/workspace ID
-    try:
-        team_id = context.resolve_id('workspace', args.team_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Get spaces
-    try:
-        spaces_data = client.get_team_spaces(team_id, archived=args.archived)
-        spaces = spaces_data.get('spaces', [])
-
-        space_count = len(spaces)
-        print(f"\n{colorize(f'Spaces in Workspace ({space_count}):', TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-        print()
-
-        for space in spaces:
-            privacy = "🔒 Private" if space.get('private') else "🌐 Public"
-            print(f"{colorize(space.get('name', 'Unnamed'), TextColor.BRIGHT_GREEN)} {privacy}")
-            print(f"  ID: {colorize(space['id'], TextColor.BRIGHT_BLACK)}")
-
-            if space.get('folders'):
-                print(f"  Folders: {len(space['folders'])}")
-
-            if args.show_details:
-                if space.get('statuses'):
-                    print(f"  Statuses: {', '.join([s['status'] for s in space['statuses']])}")
-
-            print()
-
-    except ClickUpAPIError as e:
-        print(f"Error listing spaces: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Command wrapper for space list."""
+    command = SpaceListCommand(args, command_name='space')
+    command.execute()
 
 
 def register_command(subparsers):

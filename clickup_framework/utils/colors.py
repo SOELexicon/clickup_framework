@@ -657,3 +657,60 @@ def get_task_emoji(task_type: str, task_name: Optional[str] = None) -> str:
 
     # Return the corresponding emoji or default to task emoji
     return TASK_TYPE_EMOJI.get(normalized_type, TASK_TYPE_EMOJI["task"])
+
+
+def get_progress_state(status: str, use_color: bool = True) -> str:
+    """
+    Get formatted progress state indicator for a task status.
+
+    Returns a colored progress label based on the task status:
+    - [to do] - Gray - For Open, To Do, Backlog
+    - [in progress] - Blue - For In Progress, In Development, Working
+    - [complete] - Green - For Complete, Done, Closed
+    - [blocked] - Red - For Blocked, On Hold, Paused
+
+    Args:
+        status: Task status string
+        use_color: Whether to apply color coding (default: True)
+
+    Returns:
+        Formatted progress state indicator string
+
+    Examples:
+        >>> get_progress_state("open")
+        '\033[90m[to do]\033[0m'
+        >>> get_progress_state("in progress")
+        '\033[94m[in progress]\033[0m'
+        >>> get_progress_state("complete")
+        '\033[92m[complete]\033[0m'
+    """
+    if not status:
+        return colorize("[unknown]", TextColor.BRIGHT_BLACK) if use_color else "[unknown]"
+
+    status_lower = str(status).lower().strip()
+
+    # Map statuses to progress states
+    if status_lower in ("to do", "todo", "open", "backlog", "ready"):
+        label = "[to do]"
+        color = TextColor.BRIGHT_BLACK  # Gray
+    elif status_lower in ("in progress", "in development", "in dev", "wip", "working", "started"):
+        label = "[in progress]"
+        color = TextColor.BRIGHT_BLUE  # Blue
+    elif status_lower in ("complete", "completed", "done", "closed", "resolved", "finished"):
+        label = "[complete]"
+        color = TextColor.BRIGHT_GREEN  # Green
+    elif status_lower in ("blocked", "block", "on hold", "waiting", "paused"):
+        label = "[blocked]"
+        color = TextColor.BRIGHT_RED  # Red
+    elif status_lower in ("testing", "test", "qa", "validation", "validating"):
+        label = "[testing]"
+        color = TextColor.CYAN  # Cyan
+    elif status_lower in ("in review", "review", "approval", "pending approval", "awaiting approval"):
+        label = "[in review]"
+        color = TextColor.MAGENTA  # Magenta
+    else:
+        # For unknown statuses, show the status code
+        label = f"[{status_to_code(status).lower()}]"
+        color = TextColor.WHITE
+
+    return colorize(label, color) if use_color else label
