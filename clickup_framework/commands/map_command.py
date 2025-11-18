@@ -1409,12 +1409,23 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             createWebGLGlows.retryCount++;
 
-            // If path count is still increasing or we haven't seen enough paths yet
-            if (edgePathCount !== createWebGLGlows.lastPathCount && createWebGLGlows.retryCount < 20) {{
+            // Wait longer if paths are still being added
+            // Need to see same count at least 3 times before considering it stable
+            if (!createWebGLGlows.stableCount) createWebGLGlows.stableCount = 0;
+
+            if (edgePathCount !== createWebGLGlows.lastPathCount) {{
                 console.log('WebGL: Found', edgePathCount, 'paths (was', createWebGLGlows.lastPathCount, '), waiting for rendering to stabilize...');
                 createWebGLGlows.lastPathCount = edgePathCount;
-                setTimeout(createWebGLGlows, 300);
+                createWebGLGlows.stableCount = 0; // Reset stability counter
+                setTimeout(createWebGLGlows, 500);
                 return;
+            }} else {{
+                createWebGLGlows.stableCount++;
+                if (createWebGLGlows.stableCount < 3 && createWebGLGlows.retryCount < 30) {{
+                    console.log('WebGL: Path count stable at', edgePathCount, '(check', createWebGLGlows.stableCount, 'of 3)');
+                    setTimeout(createWebGLGlows, 500);
+                    return;
+                }}
             }}
 
             console.log('WebGL: Initializing with', edgePathCount, 'edge paths after', createWebGLGlows.retryCount, 'checks');
@@ -1743,6 +1754,27 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     const lastBaseIdx = lastParticleIdx * 2;
                     const lastPos = [positions[lastBaseIdx], positions[lastBaseIdx + 1]];
                     console.log(`  SVG coords: [${{lastPos[0].toFixed(2)}}, ${{lastPos[1].toFixed(2)}}]`);
+
+                    // Calculate actual bounding box of all particles
+                    let pMinX = Infinity, pMinY = Infinity, pMaxX = -Infinity, pMaxY = -Infinity;
+                    for (let i = 0; i < totalParticles; i++) {{
+                        const px = positions[i * 2];
+                        const py = positions[i * 2 + 1];
+                        pMinX = Math.min(pMinX, px);
+                        pMinY = Math.min(pMinY, py);
+                        pMaxX = Math.max(pMaxX, px);
+                        pMaxY = Math.max(pMaxY, py);
+                    }}
+                    console.log('WebGL: Particle bounding box:', {{
+                        min: [pMinX.toFixed(2), pMinY.toFixed(2)],
+                        max: [pMaxX.toFixed(2), pMaxY.toFixed(2)],
+                        width: (pMaxX - pMinX).toFixed(2),
+                        height: (pMaxY - pMinY).toFixed(2),
+                        coverage: {{
+                            x: (((pMaxX - pMinX) / svgWidth) * 100).toFixed(1) + '%',
+                            y: (((pMaxY - pMinY) / svgHeight) * 100).toFixed(1) + '%'
+                        }}
+                    }});
                 }}
 
                 // Transform matrix: translate by viewBox offset, then scale
