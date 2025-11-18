@@ -1675,7 +1675,13 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
                     console.log('WebGL: SVG viewBox:', svgWidth, 'x', svgHeight);
                     console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
-                    console.log('WebGL: First 5 particle positions:', Array.from(positions.slice(0, 10)));
+                    console.log('WebGL: First 5 particle positions (SVG coords):', Array.from(positions.slice(0, 10)));
+                    // Calculate what these should be in canvas coords
+                    const p0Canvas = [positions[0] * scaleX, positions[1] * scaleY];
+                    console.log('WebGL: First particle in canvas coords:', p0Canvas);
+                    // And in clip space
+                    const p0Clip = [(p0Canvas[0] / canvas.width) * 2 - 1, (p0Canvas[1] / canvas.height) * 2 - 1];
+                    console.log('WebGL: First particle in clip space:', p0Clip);
                 }}
 
                 // Transform matrix: only coordinate system conversion, no pan/zoom

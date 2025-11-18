@@ -1,0 +1,2 @@
+This is a test file to verify the worktree is working correctly.
+Edits made here won't conflict with the main directory.
