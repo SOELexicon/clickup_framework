@@ -1682,7 +1682,9 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         mermaid_code_b64 = base64.b64encode(mermaid_content.encode('utf-8')).decode('ascii')
         html_content = html_template.format(
             title=title,
-            mermaid_code_b64=mermaid_code_b64
+            mermaid_code_b64=mermaid_code_b64,
+            vertex_shader=vertex_shader,
+            fragment_shader=fragment_shader
         )
 
         with open(output_file, 'w', encoding='utf-8') as f:
