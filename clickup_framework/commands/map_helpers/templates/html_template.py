@@ -541,9 +541,172 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         .fullscreen .diagram-container {{
             padding: 1rem;
         }}
+
+        /* Settings Panel */
+        .settings-panel {{
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 280px;
+            max-width: 320px;
+            z-index: 10000;
+            font-family: ui-monospace, monospace;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }}
+        .settings-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #10b981;
+        }}
+        .settings-title {{
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1rem;
+        }}
+        .settings-toggle {{
+            background: none;
+            border: none;
+            color: #10b981;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 1.2rem;
+        }}
+        .settings-toggle:hover {{
+            background: rgba(16, 185, 129, 0.1);
+        }}
+        .settings-panel.collapsed .settings-content {{
+            display: none;
+        }}
+        .settings-group {{
+            margin-bottom: 1rem;
+        }}
+        .settings-label {{
+            color: #6ee7b7;
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }}
+        .settings-select, .settings-input {{
+            width: 100%;
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid #10b981;
+            color: #10b981;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: ui-monospace, monospace;
+            font-size: 0.85rem;
+        }}
+        .settings-select:focus, .settings-input:focus {{
+            outline: none;
+            border-color: #34d399;
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2);
+        }}
+        .settings-slider {{
+            width: 100%;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(16, 185, 129, 0.3);
+            outline: none;
+        }}
+        .settings-slider::-webkit-slider-thumb {{
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+        }}
+        .settings-slider::-moz-range-thumb {{
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            border: none;
+        }}
+        .settings-value {{
+            color: #34d399;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            text-align: right;
+        }}
+        .settings-button {{
+            width: 100%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            color: #000;
+            padding: 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            transition: transform 0.2s;
+        }}
+        .settings-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }}
+        .settings-button:active {{
+            transform: translateY(0);
+        }}
     </style>
 </head>
 <body>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <span class="settings-title">⚙️ Settings</span>
+            <button class="settings-toggle" onclick="toggleSettings()">−</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-group">
+                <label class="settings-label">Shader Effect</label>
+                <select class="settings-select" id="shaderSelect" onchange="updateShader()">
+                    <option value="fire" selected>🔥 Fire Flow</option>
+                    <option value="glow">✨ Glow</option>
+                    <option value="pulse">💫 Pulse</option>
+                    <option value="none">⚪ None</option>
+                </select>
+            </div>
+            
+            <div class="settings-group">
+                <label class="settings-label">Line Width</label>
+                <input type="range" class="settings-slider" id="lineWidthSlider" 
+                       min="1" max="20" value="4" step="0.5" oninput="updateLineWidth(this.value)">
+                <div class="settings-value" id="lineWidthValue">4.0px</div>
+            </div>
+            
+            <div class="settings-group">
+                <label class="settings-label">Animation Speed</label>
+                <input type="range" class="settings-slider" id="speedSlider" 
+                       min="0.1" max="3" value="1" step="0.1" oninput="updateSpeed(this.value)">
+                <div class="settings-value" id="speedValue">1.0x</div>
+            </div>
+            
+            <div class="settings-group">
+                <label class="settings-label">Path Density</label>
+                <input type="range" class="settings-slider" id="densitySlider" 
+                       min="0.1" max="2" value="0.5" step="0.1" oninput="updateDensity(this.value)">
+                <div class="settings-value" id="densityValue">0.5px</div>
+            </div>
+        </div>
+    </div>
+
     <div class="container" id="container">
         <div class="header">
             <h1>🗺️ {title}</h1>
@@ -653,6 +816,50 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             translateX = 0;
             translateY = 0;
             updateTransform();
+        }}
+
+
+        // Settings Panel State
+        let settings = {{
+            shader: 'fire',
+            lineWidth: 4,
+            speed: 1,
+            density: 0.5,
+            shaderEnabled: true
+        }};
+
+        function toggleSettings() {{
+            const panel = document.getElementById('settingsPanel');
+            const button = panel.querySelector('.settings-toggle');
+            panel.classList.toggle('collapsed');
+            button.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+        }}
+
+        function updateShader() {{
+            const select = document.getElementById('shaderSelect');
+            settings.shader = select.value;
+            settings.shaderEnabled = settings.shader !== 'none';
+            console.log('Shader updated to:', settings.shader);
+            // WebGL will use this in the render loop
+        }}
+
+        function updateLineWidth(value) {{
+            settings.lineWidth = parseFloat(value);
+            document.getElementById('lineWidthValue').textContent = value + 'px';
+            console.log('Line width updated to:', settings.lineWidth);
+        }}
+
+        function updateSpeed(value) {{
+            settings.speed = parseFloat(value);
+            document.getElementById('speedValue').textContent = value + 'x';
+            console.log('Animation speed updated to:', settings.speed);
+        }}
+
+        function updateDensity(value) {{
+            settings.density = parseFloat(value);
+            document.getElementById('densityValue').textContent = value + 'px';
+            console.log('Path density will be', settings.density, 'px (requires regeneration)');
+            // This would require rebuilding the geometry, so just log for now
         }}
 
         function updateSpacing(value) {{
@@ -1219,12 +1426,19 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 // With WebGL we can animate ALL paths without performance issues
                 const length = path.getTotalLength();
                 const points = [];
-                const step = Math.max(1, Math.floor(length / 50)); // Sample ~50 points
+                // Use 0.5 pixel steps for smooth curves - this prevents corner cutting
+                const step = 0.5;
 
                 for (let i = 0; i <= length; i += step) {{
                     const pt = path.getPointAtLength(i);
                     // Use raw points - they're already in SVG coordinate space
                     points.push([pt.x, pt.y]);
+                }}
+
+                // Always add the final point to ensure complete path coverage
+                if (points.length === 0 || length > 0) {{
+                    const finalPt = path.getPointAtLength(length);
+                    points.push([finalPt.x, finalPt.y]);
                 }}
 
                 // Debug first path
@@ -1399,8 +1613,8 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
                 // Set uniforms
                 gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-                gl.uniform1f(timeLoc, performance.now() * 0.001); // Time in seconds
-                gl.uniform1f(lineWidthLoc, 5.0); // Line width in pixels
+                gl.uniform1f(timeLoc, performance.now() * 0.001 * settings.speed); // Time with speed multiplier
+                gl.uniform1f(lineWidthLoc, settings.lineWidth); // Line width from settings
 
                 // Get SVG viewBox for proper coordinate transformation
                 const viewBox = svg.viewBox.baseVal;
