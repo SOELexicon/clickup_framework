@@ -3,7 +3,7 @@
 import sys
 import base64
 from clickup_framework.utils.colors import colorize, TextColor
-from .shader_loader import get_fire_shaders
+from .shader_loader import get_all_shaders
 
 
 def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = "Code Map", use_color: bool = False) -> bool:
@@ -20,7 +20,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         True if successful, False otherwise
     """
     # Load WebGL shaders from external files
-    vertex_shader, fragment_shader = get_fire_shaders()
+    all_shaders = get_all_shaders()
     html_template = '''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -671,37 +671,38 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
     <div class="settings-panel" id="settingsPanel">
         <div class="settings-header">
             <span class="settings-title">⚙️ Settings</span>
-            <button class="settings-toggle" onclick="toggleSettings()">−</button>
+            <button class="settings-toggle" id="settingsToggle">−</button>
         </div>
         <div class="settings-content">
             <div class="settings-group">
                 <label class="settings-label">Shader Effect</label>
-                <select class="settings-select" id="shaderSelect" onchange="updateShader()">
+                <select class="settings-select" id="shaderSelect">
                     <option value="fire" selected>🔥 Fire Flow</option>
                     <option value="glow">✨ Glow</option>
                     <option value="pulse">💫 Pulse</option>
+                    <option value="ghost">👻 Ghost Flow</option>
                     <option value="none">⚪ None</option>
                 </select>
             </div>
-            
+
             <div class="settings-group">
                 <label class="settings-label">Line Width</label>
-                <input type="range" class="settings-slider" id="lineWidthSlider" 
-                       min="1" max="20" value="4" step="0.5" oninput="updateLineWidth(this.value)">
+                <input type="range" class="settings-slider" id="lineWidthSlider"
+                       min="1" max="20" value="4" step="0.5">
                 <div class="settings-value" id="lineWidthValue">4.0px</div>
             </div>
-            
+
             <div class="settings-group">
                 <label class="settings-label">Animation Speed</label>
-                <input type="range" class="settings-slider" id="speedSlider" 
-                       min="0.1" max="3" value="1" step="0.1" oninput="updateSpeed(this.value)">
+                <input type="range" class="settings-slider" id="speedSlider"
+                       min="0.1" max="3" value="1" step="0.1">
                 <div class="settings-value" id="speedValue">1.0x</div>
             </div>
-            
+
             <div class="settings-group">
                 <label class="settings-label">Path Density</label>
-                <input type="range" class="settings-slider" id="densitySlider" 
-                       min="0.1" max="2" value="0.5" step="0.1" oninput="updateDensity(this.value)">
+                <input type="range" class="settings-slider" id="densitySlider"
+                       min="0.1" max="2" value="0.5" step="0.1">
                 <div class="settings-value" id="densityValue">0.5px</div>
             </div>
         </div>
@@ -860,6 +861,45 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             document.getElementById('densityValue').textContent = value + 'px';
             console.log('Path density will be', settings.density, 'px (requires regeneration)');
             // This would require rebuilding the geometry, so just log for now
+        }}
+
+        // Initialize settings panel event listeners
+        function initializeSettingsPanel() {{
+            // Toggle button
+            const toggleBtn = document.getElementById('settingsToggle');
+            if (toggleBtn) {{
+                toggleBtn.addEventListener('click', toggleSettings);
+            }}
+
+            // Shader select
+            const shaderSelect = document.getElementById('shaderSelect');
+            if (shaderSelect) {{
+                shaderSelect.addEventListener('change', updateShader);
+            }}
+
+            // Line width slider
+            const lineWidthSlider = document.getElementById('lineWidthSlider');
+            if (lineWidthSlider) {{
+                lineWidthSlider.addEventListener('input', function() {{
+                    updateLineWidth(this.value);
+                }});
+            }}
+
+            // Speed slider
+            const speedSlider = document.getElementById('speedSlider');
+            if (speedSlider) {{
+                speedSlider.addEventListener('input', function() {{
+                    updateSpeed(this.value);
+                }});
+            }}
+
+            // Density slider
+            const densitySlider = document.getElementById('densitySlider');
+            if (densitySlider) {{
+                densitySlider.addEventListener('input', function() {{
+                    updateDensity(this.value);
+                }});
+            }}
         }}
 
         function updateSpacing(value) {{
@@ -1349,19 +1389,25 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             console.log('WebGL: Initializing with', edgePathCount, 'edge paths after', createWebGLGlows.retryCount, 'checks');
 
-            // Create canvas overlay - position it relative to SVG, not container
+            // Create canvas overlay - position it to match SVG position
             const canvas = document.createElement('canvas');
+            const mermaidDiagram = document.getElementById('mermaid-diagram');
+
+            // Get computed padding to offset canvas correctly
+            const computedStyle = window.getComputedStyle(mermaidDiagram);
+            const paddingTop = parseFloat(computedStyle.paddingTop);
+            const paddingLeft = parseFloat(computedStyle.paddingLeft);
+
             canvas.style.position = 'absolute';
-            canvas.style.top = '0';
-            canvas.style.left = '0';
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
+            canvas.style.top = paddingTop + 'px';  // Account for container padding
+            canvas.style.left = paddingLeft + 'px';  // Account for container padding
+            canvas.style.width = `calc(100% - ${{paddingLeft + parseFloat(computedStyle.paddingRight)}}px)`;
+            canvas.style.height = `calc(100% - ${{paddingTop + parseFloat(computedStyle.paddingBottom)}}px)`;
             canvas.style.pointerEvents = 'none';
             canvas.style.zIndex = '100';  // Higher z-index to ensure visibility
 
             // Append canvas as sibling to SVG inside mermaid-diagram div
             // This way canvas and SVG are both transformed together
-            const mermaidDiagram = document.getElementById('mermaid-diagram');
             mermaidDiagram.appendChild(canvas);
             console.log('WebGL canvas created');
 
@@ -1372,11 +1418,25 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 return;
             }}
 
-            // Vertex shader - loaded from external file
-            const vertexShaderSource = `{vertex_shader}`;
-
-            // Fragment shader - loaded from external file
-            const fragmentShaderSource = `{fragment_shader}`;
+            // Load all shader sources
+            const shaderSources = {{
+                fire: {{
+                    vertex: `{fire_vertex}`,
+                    fragment: `{fire_fragment}`
+                }},
+                glow: {{
+                    vertex: `{glow_vertex}`,
+                    fragment: `{glow_fragment}`
+                }},
+                pulse: {{
+                    vertex: `{pulse_vertex}`,
+                    fragment: `{pulse_fragment}`
+                }},
+                ghost: {{
+                    vertex: `{ghost_vertex}`,
+                    fragment: `{ghost_fragment}`
+                }}
+            }};
 
             // Compile shaders
             function compileShader(source, type) {{
@@ -1390,31 +1450,55 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 return shader;
             }}
 
-            const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
-            const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+            // Create a shader program from vertex and fragment shaders
+            function createProgram(vertexSource, fragmentSource) {{
+                const vertexShader = compileShader(vertexSource, gl.VERTEX_SHADER);
+                const fragmentShader = compileShader(fragmentSource, gl.FRAGMENT_SHADER);
 
-            // Create program
-            const program = gl.createProgram();
-            gl.attachShader(program, vertexShader);
-            gl.attachShader(program, fragmentShader);
-            gl.linkProgram(program);
+                if (!vertexShader || !fragmentShader) {{
+                    console.error('Failed to compile shaders');
+                    return null;
+                }}
 
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {{
-                console.error('Program link error:', gl.getProgramInfoLog(program));
-                return;
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {{
+                    console.error('Program link error:', gl.getProgramInfoLog(program));
+                    return null;
+                }}
+
+                return program;
             }}
 
-            gl.useProgram(program);
+            // Compile all shader programs
+            const programs = {{}};
+            for (const [name, sources] of Object.entries(shaderSources)) {{
+                programs[name] = createProgram(sources.vertex, sources.fragment);
+                console.log(`WebGL: Compiled ${{name}} shader program`);
+            }}
 
-            // Get attribute/uniform locations
-            const positionLoc = gl.getAttribLocation(program, 'a_position');
-            const texCoordLoc = gl.getAttribLocation(program, 'a_texCoord');
-            const perpCoordLoc = gl.getAttribLocation(program, 'a_perpCoord');
-            const normalLoc = gl.getAttribLocation(program, 'a_normal');
-            const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
-            const transformLoc = gl.getUniformLocation(program, 'u_transform');
-            const timeLoc = gl.getUniformLocation(program, 'u_time');
-            const lineWidthLoc = gl.getUniformLocation(program, 'u_lineWidth');
+            // Start with fire shader
+            let currentProgram = programs.fire;
+            gl.useProgram(currentProgram);
+
+            // Get attribute/uniform locations for current program
+            function getLocations(program) {{
+                return {{
+                    positionLoc: gl.getAttribLocation(program, 'a_position'),
+                    texCoordLoc: gl.getAttribLocation(program, 'a_texCoord'),
+                    perpCoordLoc: gl.getAttribLocation(program, 'a_perpCoord'),
+                    normalLoc: gl.getAttribLocation(program, 'a_normal'),
+                    resolutionLoc: gl.getUniformLocation(program, 'u_resolution'),
+                    transformLoc: gl.getUniformLocation(program, 'u_transform'),
+                    timeLoc: gl.getUniformLocation(program, 'u_time'),
+                    lineWidthLoc: gl.getUniformLocation(program, 'u_lineWidth')
+                }};
+            }}
+
+            let locations = getLocations(currentProgram);
 
             // Extract path data from SVG
             const edgePaths = svg.querySelectorAll('.edgePath path');
@@ -1562,14 +1646,17 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
             // Resize canvas to match SVG dimensions (not CSS-transformed container)
             function resizeCanvas() {{
-                // Use SVG's actual dimensions, not the CSS-transformed container size
+                // CRITICAL: Use SVG viewBox dimensions, NOT getBoundingClientRect()
+                // getBoundingClientRect() includes CSS transforms (zoom/pan) which causes
+                // the canvas to resize during user interactions, breaking alignment.
+                // The CSS transform on the canvas element handles visual zoom/pan.
                 const viewBox = svg.viewBox.baseVal;
                 const svgWidth = viewBox.width || svg.width.baseVal.value;
                 const svgHeight = viewBox.height || svg.height.baseVal.value;
 
-                // Set canvas to reasonable size based on SVG aspect ratio
-                // Use fixed width and calculate height to maintain aspect ratio
-                const targetWidth = 2000; // Fixed reference width
+                // Use a high-resolution fixed width for quality
+                // Calculate height to maintain viewBox aspect ratio
+                const targetWidth = 2000;
                 const aspectRatio = svgHeight / svgWidth;
                 canvas.width = targetWidth;
                 canvas.height = Math.round(targetWidth * aspectRatio);
@@ -1588,6 +1675,23 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             function animate() {{
                 resizeCanvas();
                 frameCount++;
+
+                // Check if shader effect should be rendered
+                if (!settings.shaderEnabled || settings.shader === 'none') {{
+                    // Skip rendering but keep animation loop running
+                    requestAnimationFrame(animate);
+                    return;
+                }}
+
+                // Switch shader program if changed
+                const selectedProgram = programs[settings.shader] || programs.fire;
+                if (selectedProgram !== currentProgram) {{
+                    currentProgram = selectedProgram;
+                    gl.useProgram(currentProgram);
+                    locations = getLocations(currentProgram);
+                    console.log(`WebGL: Switched to ${{settings.shader}} shader`);
+                }}
+
                 // Clear with transparent background
                 gl.clearColor(0, 0, 0, 0);
                 gl.clear(gl.COLOR_BUFFER_BIT);
@@ -1596,25 +1700,25 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
                 // Bind all vertex attributes
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-                gl.enableVertexAttribArray(positionLoc);
-                gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(locations.positionLoc);
+                gl.vertexAttribPointer(locations.positionLoc, 2, gl.FLOAT, false, 0, 0);
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-                gl.enableVertexAttribArray(texCoordLoc);
-                gl.vertexAttribPointer(texCoordLoc, 1, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(locations.texCoordLoc);
+                gl.vertexAttribPointer(locations.texCoordLoc, 1, gl.FLOAT, false, 0, 0);
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, perpCoordBuffer);
-                gl.enableVertexAttribArray(perpCoordLoc);
-                gl.vertexAttribPointer(perpCoordLoc, 1, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(locations.perpCoordLoc);
+                gl.vertexAttribPointer(locations.perpCoordLoc, 1, gl.FLOAT, false, 0, 0);
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-                gl.enableVertexAttribArray(normalLoc);
-                gl.vertexAttribPointer(normalLoc, 2, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(locations.normalLoc);
+                gl.vertexAttribPointer(locations.normalLoc, 2, gl.FLOAT, false, 0, 0);
 
                 // Set uniforms
-                gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-                gl.uniform1f(timeLoc, performance.now() * 0.001 * settings.speed); // Time with speed multiplier
-                gl.uniform1f(lineWidthLoc, settings.lineWidth); // Line width from settings
+                gl.uniform2f(locations.resolutionLoc, canvas.width, canvas.height);
+                gl.uniform1f(locations.timeLoc, performance.now() * 0.001 * settings.speed); // Time with speed multiplier
+                gl.uniform1f(locations.lineWidthLoc, settings.lineWidth); // Line width from settings
 
                 // Get SVG viewBox for proper coordinate transformation
                 const viewBox = svg.viewBox.baseVal;
@@ -1635,7 +1739,7 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     0, scaleY, 0,
                     -svgX * scaleX, -svgY * scaleY, 1
                 ];
-                gl.uniformMatrix3fv(transformLoc, false, transform);
+                gl.uniformMatrix3fv(locations.transformLoc, false, transform);
 
                 // Debug logging on first frame
                 if (frameCount === 1) {{
@@ -1731,6 +1835,9 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', async () => {{
             console.log('DOM ready, initializing diagram...');
+
+            // Initialize settings panel event listeners
+            initializeSettingsPanel();
 
             // Load content and render diagram
             if (loadMermaidContent()) {{
@@ -1897,8 +2004,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         html_content = html_template.format(
             title=title,
             mermaid_code_b64=mermaid_code_b64,
-            vertex_shader=vertex_shader,
-            fragment_shader=fragment_shader
+            fire_vertex=all_shaders['fire']['vertex'],
+            fire_fragment=all_shaders['fire']['fragment'],
+            glow_vertex=all_shaders['glow']['vertex'],
+            glow_fragment=all_shaders['glow']['fragment'],
+            pulse_vertex=all_shaders['pulse']['vertex'],
+            pulse_fragment=all_shaders['pulse']['fragment'],
+            ghost_vertex=all_shaders['ghost']['vertex'],
+            ghost_fragment=all_shaders['ghost']['fragment']
         )
 
         with open(output_file, 'w', encoding='utf-8') as f:

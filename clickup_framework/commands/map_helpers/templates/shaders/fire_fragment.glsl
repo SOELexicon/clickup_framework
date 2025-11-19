@@ -62,8 +62,10 @@ void main() {
     float grad = shade(uv, t);
     vec3 fireColor = color(grad);
 
-    // Fade intensity at edges for soft appearance
+    // Keep fire contained inside the line boundaries
     float edgeFade = 1.0 - abs(v_perpCoord);  // Fade at ±1
+    // Stronger containment: hard cutoff at 0.85, smooth fade from 0.7 to 0.85
+    edgeFade = smoothstep(0.85, 0.7, abs(v_perpCoord));
     float intensity = smoothstep(0.0, 0.2, grad) * smoothstep(1.0, 0.7, grad) * edgeFade;
 
     gl_FragColor = vec4(fireColor * intensity, intensity * 0.8);
