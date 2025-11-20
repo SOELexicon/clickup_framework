@@ -6,23 +6,7 @@ from .base_generator import BaseGenerator
 from ..core.metadata_store import MetadataStore
 from ..core.node_manager import NodeManager
 from ..formatters.label_formatter import LabelFormatter
-
-
-# Helper function for directory tree scanning
-# NOTE: This function needs to be imported from the appropriate module or created
-def scan_directory_structure(base_path: str, max_depth: int = 3):
-    """
-    Scan directory structure and return tree representation.
-
-    This is a placeholder - the actual implementation should be imported
-    from mermaid.builders.tree_builder or implemented here.
-    """
-    # For now, return a basic structure
-    # TODO: Import from TreeBuilder or implement proper scanning
-    return {
-        '__subdirs__': {},
-        '__files__': {}
-    }
+from ..builders.tree_builder import TreeBuilder
 
 
 class CodeFlowGenerator(BaseGenerator):
@@ -141,7 +125,10 @@ class CodeFlowGenerator(BaseGenerator):
 
         base_path_str = str(base_path)
         print(f"[INFO] Scanning directory structure from: {base_path_str}")
-        dir_tree = scan_directory_structure(base_path_str, max_depth=3)
+
+        # Use TreeBuilder to scan directory structure
+        tree_builder = TreeBuilder(base_path_str, max_depth=3)
+        dir_tree = tree_builder.scan_directory_structure()
 
         # Group functions by folder
         functions_by_folder = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
@@ -166,49 +153,13 @@ class CodeFlowGenerator(BaseGenerator):
 
         self._functions_by_folder = functions_by_folder
 
-        # Nested helper function to populate tree
-        def populate_tree_with_functions(dir_tree, functions_by_folder, base_path_str):
-            for folder_path, files_dict in functions_by_folder.items():
-                if folder_path == 'root':
-                    if '__files__' not in dir_tree:
-                        dir_tree['__files__'] = {}
-                    dir_tree['__files__'].update(files_dict)
-                    continue
-
-                parts = folder_path.replace('\\\\', '/').split('/')
-                current = dir_tree
-                for part in parts:
-                    if part in ('', '.'):
-                        continue
-                    subdirs = current.get('__subdirs__', {})
-                    if part in subdirs:
-                        current = subdirs[part]
-                    else:
-                        break
-                else:
-                    if '__files__' not in current:
-                        current['__files__'] = {}
-                    current['__files__'].update(files_dict)
-            return dir_tree
-
-        populate_tree_with_functions(dir_tree, functions_by_folder, base_path_str)
+        # Populate tree with functions using TreeBuilder
+        dir_tree = tree_builder.populate_tree_with_functions(dir_tree, functions_by_folder)
         print(f"[INFO] Populated directory tree with collected functions")
 
         # Subgraph generation state
         subgraph_count = 0
         file_sg_count = 0
-
-        def has_functions_in_tree(tree_node):
-            files_dict = tree_node.get('__files__', {})
-            if files_dict:
-                for file_classes in files_dict.values():
-                    if any(file_classes.values()):
-                        return True
-            subdirs = tree_node.get('__subdirs__', {})
-            for subdir_node in subdirs.values():
-                if has_functions_in_tree(subdir_node):
-                    return True
-            return False
 
         def generate_nested_subgraphs(tree, depth=0, path_parts=[], skip_root=True):
             nonlocal subgraph_count, file_sg_count
@@ -223,7 +174,7 @@ class CodeFlowGenerator(BaseGenerator):
 
             for dir_name in sorted(tree.keys()):
                 node = tree[dir_name]
-                if not has_functions_in_tree(node):
+                if not tree_builder.has_functions_in_tree(node):
                     continue
 
                 files_dict = node.get('__files__', {})
