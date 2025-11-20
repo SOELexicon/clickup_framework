@@ -3,6 +3,7 @@
 from pathlib import Path
 from .base_generator import BaseGenerator
 from ..config import get_config
+from ..exceptions import DataValidationError
 
 
 class ClassDiagramGenerator(BaseGenerator):
@@ -17,7 +18,11 @@ class ClassDiagramGenerator(BaseGenerator):
         """Validate class diagram specific inputs."""
         symbols_by_file = self.stats.get('symbols_by_file', {})
         if not symbols_by_file:
-            raise ValueError("No symbols_by_file data found in stats")
+            raise DataValidationError.missing_required_field(
+                field_name='symbols_by_file',
+                generator_type='class_diagram',
+                stats_keys=list(self.stats.keys())
+            )
 
     def generate_body(self, **kwargs) -> None:
         """Generate class diagram body."""

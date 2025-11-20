@@ -1,6 +1,7 @@
 """Pie chart diagram generator."""
 
 from .base_generator import BaseGenerator
+from ..exceptions import DataValidationError
 
 
 class PieChartGenerator(BaseGenerator):
@@ -10,7 +11,11 @@ class PieChartGenerator(BaseGenerator):
         """Validate pie chart diagram specific inputs."""
         by_language = self.stats.get('by_language', {})
         if not by_language:
-            raise ValueError("No by_language data found in stats")
+            raise DataValidationError.missing_required_field(
+                field_name='by_language',
+                generator_type='pie_chart',
+                stats_keys=list(self.stats.keys())
+            )
 
     def generate_body(self, **kwargs) -> None:
         """Generate pie chart diagram body."""

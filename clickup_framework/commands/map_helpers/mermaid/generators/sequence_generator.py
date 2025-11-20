@@ -2,6 +2,7 @@
 
 from .base_generator import BaseGenerator
 from ..config import get_config
+from ..exceptions import DataValidationError
 
 
 class SequenceGenerator(BaseGenerator):
@@ -16,8 +17,18 @@ class SequenceGenerator(BaseGenerator):
         """Validate sequence diagram specific inputs."""
         function_calls = self.stats.get('function_calls', {})
         all_symbols = self.stats.get('all_symbols', {})
-        if not function_calls or not all_symbols:
-            raise ValueError("No function_calls or all_symbols data found in stats")
+        if not function_calls:
+            raise DataValidationError.missing_required_field(
+                field_name='function_calls',
+                generator_type='sequence',
+                stats_keys=list(self.stats.keys())
+            )
+        if not all_symbols:
+            raise DataValidationError.missing_required_field(
+                field_name='all_symbols',
+                generator_type='sequence',
+                stats_keys=list(self.stats.keys())
+            )
 
     def generate_body(self, **kwargs) -> None:
         """Generate sequence diagram body."""

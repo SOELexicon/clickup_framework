@@ -9,6 +9,7 @@ Different formats can be used based on diagram size and detail requirements:
 """
 from typing import Dict, Any
 from pathlib import Path
+from ..exceptions import ConfigurationError
 
 
 class LabelFormatter:
@@ -36,7 +37,11 @@ class LabelFormatter:
             default_format: Default format to use ('minimal', 'simple', 'medium', 'detailed', 'verbose')
         """
         if default_format not in self.FORMATS:
-            raise ValueError(f"Invalid format: {default_format}. Must be one of {list(self.FORMATS.keys())}")
+            raise ConfigurationError.invalid_value(
+                config_name='default_format',
+                value=default_format,
+                valid_values=list(self.FORMATS.keys())
+            )
         self.default_format = default_format
 
     def format_function_label(

@@ -3,6 +3,7 @@
 from pathlib import Path
 from .base_generator import BaseGenerator
 from ..config import get_config
+from ..exceptions import DataValidationError
 
 
 class MindmapGenerator(BaseGenerator):
@@ -17,8 +18,18 @@ class MindmapGenerator(BaseGenerator):
         """Validate mindmap diagram specific inputs."""
         symbols_by_file = self.stats.get('symbols_by_file', {})
         by_language = self.stats.get('by_language', {})
-        if not symbols_by_file or not by_language:
-            raise ValueError("No symbols_by_file or by_language data found in stats")
+        if not symbols_by_file:
+            raise DataValidationError.missing_required_field(
+                field_name='symbols_by_file',
+                generator_type='mindmap',
+                stats_keys=list(self.stats.keys())
+            )
+        if not by_language:
+            raise DataValidationError.missing_required_field(
+                field_name='by_language',
+                generator_type='mindmap',
+                stats_keys=list(self.stats.keys())
+            )
 
     def generate_body(self, **kwargs) -> None:
         """Generate mindmap diagram body."""

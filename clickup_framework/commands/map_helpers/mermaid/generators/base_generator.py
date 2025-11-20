@@ -31,6 +31,7 @@ from ..core.metadata_store import MetadataStore
 from ..styling import ThemeManager
 from ..profiling import PerformanceProfiler, register_profile
 from ..config import get_config
+from ..exceptions import MermaidGenerationError, FileOperationError
 from ...mermaid_validator import validate_and_raise
 
 
@@ -262,15 +263,27 @@ class BaseGenerator(ABC):
             2. JSON metadata file (if metadata store has data)
 
         Raises:
-            Exception: If file writing fails
+            FileOperationError: If file writing fails
         """
         # Write diagram markdown file
         try:
             with open(self.output_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(self.lines))
+        except PermissionError as e:
+            raise FileOperationError.cannot_write(
+                file_path=self.output_file,
+                reason="Permission denied"
+            ) from e
+        except OSError as e:
+            raise FileOperationError.cannot_write(
+                file_path=self.output_file,
+                reason=str(e)
+            ) from e
         except Exception as e:
-            print(f"Error writing diagram file: {e}", file=sys.stderr)
-            raise
+            raise FileOperationError.cannot_write(
+                file_path=self.output_file,
+                reason=f"Unexpected error: {type(e).__name__}: {e}"
+            ) from e
 
         # Write metadata file if metadata exists
         if self.metadata_store and self.metadata_store.has_data():
@@ -279,7 +292,7 @@ class BaseGenerator(ABC):
                 with open(metadata_file, 'w', encoding='utf-8') as f:
                     f.write(self.metadata_store.export_json(indent=2))
             except Exception as e:
-                print(f"Warning: Could not write metadata file: {e}", file=sys.stderr)
+                print(f"[WARNING] Could not write metadata file: {e}", file=sys.stderr)
 
     def _handle_error(self, error: Exception) -> None:
         """Log error with helpful context.
@@ -287,9 +300,14 @@ class BaseGenerator(ABC):
         Args:
             error: The exception that occurred
         """
-        print(f"[ERROR] Diagram generation failed: {error}", file=sys.stderr)
-        print(f"[INFO] Output file: {self.output_file}", file=sys.stderr)
-        print(f"[INFO] Lines generated: {len(self.lines)}", file=sys.stderr)
+        # If it's one of our custom exceptions with rich formatting, use it
+        if isinstance(error, MermaidGenerationError):
+            print(error.format_error(), file=sys.stderr)
+        else:
+            # Fall back to generic error logging
+            print(f"[ERROR] Diagram generation failed: {error}", file=sys.stderr)
+            print(f"[INFO] Output file: {self.output_file}", file=sys.stderr)
+            print(f"[INFO] Lines generated: {len(self.lines)}", file=sys.stderr)
 
     def _handle_profile_report(self) -> None:
         """Handle performance profile report based on configuration.

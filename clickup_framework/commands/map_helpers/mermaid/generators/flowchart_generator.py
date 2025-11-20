@@ -4,6 +4,7 @@ from pathlib import Path
 from collections import defaultdict
 from .base_generator import BaseGenerator
 from ..config import get_config
+from ..exceptions import DataValidationError
 
 
 class FlowchartGenerator(BaseGenerator):
@@ -18,7 +19,11 @@ class FlowchartGenerator(BaseGenerator):
         """Validate flowchart diagram specific inputs."""
         symbols_by_file = self.stats.get('symbols_by_file', {})
         if not symbols_by_file:
-            raise ValueError("No symbols_by_file data found in stats")
+            raise DataValidationError.missing_required_field(
+                field_name='symbols_by_file',
+                generator_type='flowchart',
+                stats_keys=list(self.stats.keys())
+            )
 
     def generate_body(self, **kwargs) -> None:
         """Generate flowchart diagram body."""
