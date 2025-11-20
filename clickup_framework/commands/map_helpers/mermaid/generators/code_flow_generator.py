@@ -7,10 +7,16 @@ from ..core.metadata_store import MetadataStore
 from ..core.node_manager import NodeManager
 from ..formatters.label_formatter import LabelFormatter
 from ..builders.tree_builder import TreeBuilder
+from ..config import get_config
 
 
 class CodeFlowGenerator(BaseGenerator):
     """Generate code execution flow diagrams with hierarchical subgraphs."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize code flow generator with configuration."""
+        super().__init__(*args, **kwargs)
+        self.config = get_config().code_flow
 
     def validate_inputs(self, **kwargs) -> None:
         """Validate code flow diagram specific inputs."""
@@ -54,7 +60,7 @@ class CodeFlowGenerator(BaseGenerator):
             f"- **Classes/Modules**: {sum(sum(len(classes) for classes in files.values()) for files in functions_by_folder.values())}",
             f"- **Total Call Relationships**: {sum(len(calls) for calls in function_calls.values())}",
             f"- **Entry Points Found**: {len(entry_points)}",
-            f"- **Directory Tree Depth**: 3 (configurable)",
+            f"- **Directory Tree Depth**: {self.config.tree_depth} (configurable)",
         ])
 
     def generate_body(self, **kwargs) -> None:
@@ -75,20 +81,20 @@ class CodeFlowGenerator(BaseGenerator):
             called_functions.update(calls)
 
         entry_points = [func for func in function_calls.keys()
-                       if func not in called_functions][:10]
+                       if func not in called_functions][:self.config.max_entry_points]
         self._entry_points = entry_points
 
         # Collect functions
         collected_symbols = {}
         for entry in entry_points:
-            if len(node_manager.processed) >= 80:
+            if len(node_manager.processed) >= self.config.max_nodes:
                 break
             collected = node_manager.collect_functions_recursive(
                 entry,
                 function_calls,
                 all_symbols,
-                max_depth=8,
-                max_nodes=80
+                max_depth=self.config.max_collection_depth,
+                max_nodes=self.config.max_nodes
             )
             for func_name in collected:
                 if func_name in all_symbols:
@@ -127,7 +133,7 @@ class CodeFlowGenerator(BaseGenerator):
         print(f"[INFO] Scanning directory structure from: {base_path_str}")
 
         # Use TreeBuilder to scan directory structure
-        tree_builder = TreeBuilder(base_path_str, max_depth=3)
+        tree_builder = TreeBuilder(base_path_str, max_depth=self.config.tree_depth)
         dir_tree = tree_builder.scan_directory_structure()
 
         # Group functions by folder
@@ -227,7 +233,7 @@ class CodeFlowGenerator(BaseGenerator):
                     else:
                         node_indent = "    " * (depth + 2)
 
-                    for func_name in funcs[:50]:
+                    for func_name in funcs[:self.config.max_functions_per_class]:
                         node_id = node_manager.get_node_id(func_name)
                         if not node_id:
                             continue
@@ -248,7 +254,7 @@ class CodeFlowGenerator(BaseGenerator):
 
         # Color mapping
         node_to_color = {}
-        for i, (folder, files_dict) in enumerate(sorted(functions_by_folder.items())[:20]):
+        for i, (folder, files_dict) in enumerate(sorted(functions_by_folder.items())[:self.config.max_folders]):
             color_idx = i % self.theme_manager.get_theme()['color_count']
             color_scheme = self.theme_manager.get_color_scheme(color_idx)
             edge_color = color_scheme.edge_color()
@@ -272,7 +278,7 @@ class CodeFlowGenerator(BaseGenerator):
 
             from_id = node_ids[func_name]
             calls = function_calls.get(func_name, [])
-            for called_func in calls[:5]:
+            for called_func in calls[:self.config.max_calls_per_function]:
                 if called_func in node_ids:
                     to_id = node_ids[called_func]
                     edge_color = node_to_color.get(to_id, self.theme_manager.apply_to_edges())

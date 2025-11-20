@@ -1,10 +1,16 @@
 """Sequence diagram generator."""
 
 from .base_generator import BaseGenerator
+from ..config import get_config
 
 
 class SequenceGenerator(BaseGenerator):
     """Generate sequence diagrams showing typical execution flow."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize sequence generator with configuration."""
+        super().__init__(*args, **kwargs)
+        self.config = get_config().sequence
 
     def validate_inputs(self, **kwargs) -> None:
         """Validate sequence diagram specific inputs."""
@@ -31,13 +37,15 @@ class SequenceGenerator(BaseGenerator):
         if not entry_funcs:
             entry_funcs = sorted(function_calls.keys(),
                                key=lambda f: len(function_calls.get(f, [])),
-                               reverse=True)[:3]
+                               reverse=True)[:self.config.max_entry_functions_fallback]
 
         if entry_funcs:
             entry = entry_funcs[0]
             participants = set()
 
-            def trace_calls(func, depth=0, max_depth=5):
+            def trace_calls(func, depth=0, max_depth=None):
+                if max_depth is None:
+                    max_depth = self.config.max_trace_depth_declaration
                 if depth > max_depth:
                     return
 
@@ -48,7 +56,7 @@ class SequenceGenerator(BaseGenerator):
                 if scope:
                     participants.add(scope)
 
-                for called in function_calls.get(func, [])[:3]:
+                for called in function_calls.get(func, [])[:self.config.max_calls_per_function]:
                     called_symbol = all_symbols.get(called, {})
                     called_scope = called_symbol.get('scope', 'Module')
                     called_short = called.split('.')[-1]
@@ -63,14 +71,14 @@ class SequenceGenerator(BaseGenerator):
                     trace_calls(called, depth + 1, max_depth)
                     self._add_line(f"    {to_participant}-->>-{from_participant}: return")
 
-            for participant in sorted(participants)[:10]:
+            for participant in sorted(participants)[:self.config.max_participants]:
                 self.lines.insert(len(self.lines) - len([l for l in self.lines if '->>' in l]), f"    participant {participant}")
 
             entry_short = entry.split('.')[-1]
             entry_scope = all_symbols.get(entry, {}).get('scope', 'Main')
             if entry_scope:
                 self._add_line(f"    Note over {entry_scope}: {entry_short}() starts")
-            trace_calls(entry, depth=0, max_depth=4)
+            trace_calls(entry, depth=0, max_depth=self.config.max_trace_depth_actual)
 
     def _add_footer(self) -> None:
         """Override footer to add sequence-specific description."""
@@ -95,7 +103,7 @@ class SequenceGenerator(BaseGenerator):
         if not entry_funcs:
             entry_funcs = sorted(function_calls.keys(),
                                key=lambda f: len(function_calls.get(f, [])),
-                               reverse=True)[:3]
+                               reverse=True)[:self.config.max_entry_functions_fallback]
 
         self.lines.extend([
             "",

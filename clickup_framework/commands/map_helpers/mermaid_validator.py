@@ -4,6 +4,7 @@ Mermaid diagram validation helper.
 Validates Mermaid diagrams before they're written to ensure they're renderable.
 """
 from typing import List, Tuple, Optional
+from .mermaid.config import get_config
 
 
 class MermaidValidationError(Exception):
@@ -44,10 +45,12 @@ def validate_mermaid_diagram(lines: List[str]) -> Tuple[bool, Optional[str]]:
     node_count = sum(1 for line in lines if node_pattern.match(line))
     edge_count = sum(1 for line in lines if '-->' in line or '---' in line)
 
-    MAX_NODES = 200
-    MAX_EDGES = 1000
-    MAX_SUBGRAPHS = 50
-    MAX_TEXT_SIZE = 50000  # Maximum character count for Mermaid diagram
+    # Get validation thresholds from configuration
+    validation_config = get_config().validation
+    MAX_NODES = validation_config.max_nodes
+    MAX_EDGES = validation_config.max_edges
+    MAX_SUBGRAPHS = validation_config.max_subgraphs
+    MAX_TEXT_SIZE = validation_config.max_text_size
 
     if node_count > MAX_NODES:
         return False, f"Too many nodes ({node_count}). Limit is {MAX_NODES} for renderable diagrams."

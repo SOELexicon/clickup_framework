@@ -3,10 +3,16 @@
 from pathlib import Path
 from collections import defaultdict
 from .base_generator import BaseGenerator
+from ..config import get_config
 
 
 class FlowchartGenerator(BaseGenerator):
     """Generate flowchart diagrams showing directory structure with symbol details."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize flowchart generator with configuration."""
+        super().__init__(*args, **kwargs)
+        self.config = get_config().flowchart
 
     def validate_inputs(self, **kwargs) -> None:
         """Validate flowchart diagram specific inputs."""
@@ -30,7 +36,7 @@ class FlowchartGenerator(BaseGenerator):
                 dir_structure[dir_name].append((file_path, symbols))
 
         # Sort directories and limit
-        sorted_dirs = sorted(dir_structure.keys())[:10]
+        sorted_dirs = sorted(dir_structure.keys())[:self.config.max_directories]
 
         # Create directory nodes
         dir_nodes = {}
@@ -48,7 +54,7 @@ class FlowchartGenerator(BaseGenerator):
         # Add file nodes with more detail
         file_count = 0
         for dir_name in sorted_dirs:
-            files = sorted(dir_structure[dir_name], key=lambda x: len(x[1]), reverse=True)[:5]
+            files = sorted(dir_structure[dir_name], key=lambda x: len(x[1]), reverse=True)[:self.config.max_files_per_directory]
 
             for file_path, symbols in files:
                 file_id = f"F{file_count}"
@@ -69,7 +75,7 @@ class FlowchartGenerator(BaseGenerator):
                 if dir_name in dir_nodes:
                     self._add_line(f"    {dir_nodes[dir_name]} --> {file_id}")
 
-                if classes > 0 and classes <= 5:
+                if classes > 0 and classes <= self.config.class_detail_threshold:
                     class_symbols = [s for s in symbols if s.get('kind') == 'class']
                     for cls_idx, cls in enumerate(class_symbols):
                         cls_id = f"C{file_count}_{cls_idx}"
@@ -81,8 +87,8 @@ class FlowchartGenerator(BaseGenerator):
                         self._add_line(f"    {file_id} --> {cls_id}")
 
                 file_count += 1
-                if file_count >= 30:
+                if file_count >= self.config.max_total_files:
                     break
 
-            if file_count >= 30:
+            if file_count >= self.config.max_total_files:
                 break

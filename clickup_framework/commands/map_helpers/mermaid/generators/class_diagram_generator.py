@@ -2,10 +2,16 @@
 
 from pathlib import Path
 from .base_generator import BaseGenerator
+from ..config import get_config
 
 
 class ClassDiagramGenerator(BaseGenerator):
     """Generate class diagrams showing detailed code structure with inheritance."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize class diagram generator with configuration."""
+        super().__init__(*args, **kwargs)
+        self.config = get_config().class_diagram
 
     def validate_inputs(self, **kwargs) -> None:
         """Validate class diagram specific inputs."""
@@ -23,7 +29,7 @@ class ClassDiagramGenerator(BaseGenerator):
         class_count = 0
 
         for file_path, symbols in sorted(symbols_by_file.items()):
-            if class_count >= 20:
+            if class_count >= self.config.max_classes:
                 break
 
             classes = [s for s in symbols if s.get('kind') == 'class']
@@ -48,8 +54,8 @@ class ClassDiagramGenerator(BaseGenerator):
                           if s.get('scope') == class_name
                           and s.get('kind') in ['member', 'variable']]
 
-                all_classes[class_name]['methods'] = methods[:15]
-                all_classes[class_name]['members'] = members[:10]
+                all_classes[class_name]['methods'] = methods[:self.config.max_methods_per_class]
+                all_classes[class_name]['members'] = members[:self.config.max_members_per_class]
 
                 class_count += 1
 
