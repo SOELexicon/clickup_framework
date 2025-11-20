@@ -1199,8 +1199,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const nodeCenterX = nodeBBox.x + nodeBBox.width / 2;
             const nodeCenterY = nodeBBox.y + nodeBBox.height / 2;
 
-            // Set scale to 1.5 for better visibility
-            scale = 1.5;
+            // Retain current zoom level - only zoom in if currently zoomed out
+            if (scale < 1.0) {{
+                scale = 1.0;
+            }}
 
             // Center the node in the viewport
             // With transform "translate(tx,ty) scale(s)": screen = (svg + translate) * scale

@@ -1,0 +1,814 @@
+{
+  "nodes": {
+    "N0": {
+      "function": "run_map_command",
+      "class": "",
+      "file": "test_trace_map.py",
+      "line_start": 24,
+      "line_end": 42,
+      "line_range": "24-42",
+      "path": "./test_trace_map.py",
+      "is_entry_point": true
+    },
+    "N1": {
+      "function": "map_command",
+      "class": "",
+      "file": "map_command.py",
+      "line_start": 47,
+      "line_end": 316,
+      "line_range": "47-316",
+      "path": "./clickup_framework/commands/map_command.py",
+      "is_entry_point": false
+    },
+    "N2": {
+      "function": "parse_tags_file",
+      "class": "",
+      "file": "ctags_utils.py",
+      "line_start": 237,
+      "line_end": 367,
+      "line_range": "237-367",
+      "path": "./clickup_framework/commands/map_helpers/ctags_utils.py",
+      "is_entry_point": false
+    },
+    "N3": {
+      "function": "generate_ctags",
+      "class": "",
+      "file": "ctags_utils.py",
+      "line_start": 130,
+      "line_end": 234,
+      "line_range": "130-234",
+      "path": "./clickup_framework/commands/map_helpers/ctags_utils.py",
+      "is_entry_point": false
+    },
+    "N4": {
+      "function": "export_mermaid_to_html",
+      "class": "",
+      "file": "html_template.py",
+      "line_start": 9,
+      "line_end": 2034,
+      "line_range": "9-2034",
+      "path": "./clickup_framework/commands/map_helpers/templates/html_template.py",
+      "is_entry_point": false
+    },
+    "N5": {
+      "function": "get_all_shaders",
+      "class": "",
+      "file": "shader_loader.py",
+      "line_start": 28,
+      "line_end": 54,
+      "line_range": "28-54",
+      "path": "./clickup_framework/commands/map_helpers/templates/shader_loader.py",
+      "is_entry_point": false
+    },
+    "N6": {
+      "function": "load_shader",
+      "class": "",
+      "file": "shader_loader.py",
+      "line_start": 6,
+      "line_end": 25,
+      "line_range": "6-25",
+      "path": "./clickup_framework/commands/map_helpers/templates/shader_loader.py",
+      "is_entry_point": false
+    },
+    "N7": {
+      "function": "register_command",
+      "class": "",
+      "file": "update_command.py",
+      "line_start": 960,
+      "line_end": 1005,
+      "line_range": "960-1005",
+      "path": "./clickup_framework/commands/update_command.py",
+      "is_entry_point": false
+    },
+    "N8": {
+      "function": "calculate_depth",
+      "class": "",
+      "file": "assigned_command.py",
+      "line_start": 153,
+      "line_end": 187,
+      "line_range": "153-187",
+      "path": "./clickup_framework/commands/assigned_command.py",
+      "is_entry_point": false
+    },
+    "N9": {
+      "function": "find_existing_task",
+      "class": "",
+      "file": "command_sync.py",
+      "line_start": 318,
+      "line_end": 341,
+      "line_range": "318-341",
+      "path": "./clickup_framework/commands/command_sync.py",
+      "is_entry_point": false
+    },
+    "N10": {
+      "function": "command_sync_command",
+      "class": "",
+      "file": "command_sync.py",
+      "line_start": 620,
+      "line_end": 812,
+      "line_range": "620-812",
+      "path": "./clickup_framework/commands/command_sync.py",
+      "is_entry_point": false
+    },
+    "N11": {
+      "function": "get_task_name",
+      "class": "",
+      "file": "command_sync.py",
+      "line_start": 304,
+      "line_end": 315,
+      "line_range": "304-315",
+      "path": "./clickup_framework/commands/command_sync.py",
+      "is_entry_point": false
+    },
+    "N12": {
+      "function": "create_or_update_task",
+      "class": "",
+      "file": "command_sync.py",
+      "line_start": 344,
+      "line_end": 497,
+      "line_range": "344-497",
+      "path": "./clickup_framework/commands/command_sync.py",
+      "is_entry_point": false
+    },
+    "N13": {
+      "function": "discover_cli_commands",
+      "class": "",
+      "file": "command_sync.py",
+      "line_start": 500,
+      "line_end": 557,
+      "line_range": "500-557",
+      "path": "./clickup_framework/commands/command_sync.py",
+      "is_entry_point": false
+    },
+    "N14": {
+      "function": "create_task",
+      "class": "",
+      "file": "create_hierarchy_test_tasks.py",
+      "line_start": 91,
+      "line_end": 167,
+      "line_range": "91-167",
+      "path": "./scripts/create_hierarchy_test_tasks.py",
+      "is_entry_point": false
+    },
+    "N15": {
+      "function": "format_comment_node",
+      "class": "",
+      "file": "comment_commands.py",
+      "line_start": 394,
+      "line_end": 425,
+      "line_range": "394-425",
+      "path": "./clickup_framework/commands/comment_commands.py",
+      "is_entry_point": false
+    },
+    "N16": {
+      "function": "format_comment_node",
+      "class": "",
+      "file": "detail_view.py",
+      "line_start": 1466,
+      "line_end": 1496,
+      "line_range": "1466-1496",
+      "path": "./clickup_framework/components/detail_view.py",
+      "is_entry_point": false
+    },
+    "N17": {
+      "function": "format_page_node",
+      "class": "",
+      "file": "detail_view.py",
+      "line_start": 1383,
+      "line_end": 1387,
+      "line_range": "1383-1387",
+      "path": "./clickup_framework/components/detail_view.py",
+      "is_entry_point": false
+    },
+    "N18": {
+      "function": "status_color",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 227,
+      "line_end": 282,
+      "line_range": "227-282",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N19": {
+      "function": "status_to_code",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 148,
+      "line_end": 224,
+      "line_range": "148-224",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N20": {
+      "function": "_enable_vt100_mode",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 21,
+      "line_end": 53,
+      "line_range": "21-53",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N21": {
+      "function": "strip_ansi",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 134,
+      "line_end": 145,
+      "line_range": "134-145",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N22": {
+      "function": "get_task_emoji",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 613,
+      "line_end": 659,
+      "line_range": "613-659",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N23": {
+      "function": "extract_category_from_name",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 583,
+      "line_end": 610,
+      "line_range": "583-610",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N24": {
+      "function": "get_page_children",
+      "class": "",
+      "file": "detail_view.py",
+      "line_start": 1389,
+      "line_end": 1391,
+      "line_range": "1389-1391",
+      "path": "./clickup_framework/components/detail_view.py",
+      "is_entry_point": false
+    },
+    "N25": {
+      "function": "get_comment_children",
+      "class": "",
+      "file": "task_formatter.py",
+      "line_start": 457,
+      "line_end": 459,
+      "line_range": "457-459",
+      "path": "./clickup_framework/components/task_formatter.py",
+      "is_entry_point": false
+    },
+    "N26": {
+      "function": "colorize",
+      "class": "",
+      "file": "colors.py",
+      "line_start": 94,
+      "line_end": 131,
+      "line_range": "94-131",
+      "path": "./clickup_framework/utils/colors.py",
+      "is_entry_point": false
+    },
+    "N27": {
+      "function": "comment_delete_command",
+      "class": "",
+      "file": "comment_commands.py",
+      "line_start": 557,
+      "line_end": 588,
+      "line_range": "557-588",
+      "path": "./clickup_framework/commands/comment_commands.py",
+      "is_entry_point": false
+    },
+    "N28": {
+      "function": "format_comment_node",
+      "class": "",
+      "file": "task_formatter.py",
+      "line_start": 435,
+      "line_end": 455,
+      "line_range": "435-455",
+      "path": "./clickup_framework/components/task_formatter.py",
+      "is_entry_point": false
+    },
+    "N29": {
+      "function": "contains_markdown",
+      "class": "",
+      "file": "post_test_results_to_clickup.py",
+      "line_start": 22,
+      "line_end": 51,
+      "line_range": "22-51",
+      "path": "./scripts/post_test_results_to_clickup.py",
+      "is_entry_point": false
+    },
+    "N30": {
+      "function": "determine_status_emoji",
+      "class": "",
+      "file": "post_actions_to_clickup.py",
+      "line_start": 76,
+      "line_end": 85,
+      "line_range": "76-85",
+      "path": "./scripts/post_actions_to_clickup.py",
+      "is_entry_point": false
+    },
+    "N31": {
+      "function": "get_commit_url",
+      "class": "",
+      "file": "post_actions_to_clickup.py",
+      "line_start": 71,
+      "line_end": 73,
+      "line_range": "71-73",
+      "path": "./scripts/post_actions_to_clickup.py",
+      "is_entry_point": false
+    },
+    "N32": {
+      "function": "get_run_url",
+      "class": "",
+      "file": "post_actions_to_clickup.py",
+      "line_start": 66,
+      "line_end": 68,
+      "line_range": "66-68",
+      "path": "./scripts/post_actions_to_clickup.py",
+      "is_entry_point": false
+    },
+    "N33": {
+      "function": "upload_screenshot_attachments",
+      "class": "",
+      "file": "post_actions_to_clickup.py",
+      "line_start": 373,
+      "line_end": 425,
+      "line_range": "373-425",
+      "path": "./scripts/post_actions_to_clickup.py",
+      "is_entry_point": false
+    },
+    "N34": {
+      "function": "reauthor_command",
+      "class": "",
+      "file": "git_reauthor_command.py",
+      "line_start": 276,
+      "line_end": 279,
+      "line_range": "276-279",
+      "path": "./clickup_framework/commands/git_reauthor_command.py",
+      "is_entry_point": false
+    },
+    "N35": {
+      "function": "get_git_config",
+      "class": "",
+      "file": "git_reauthor_command.py",
+      "line_start": 9,
+      "line_end": 25,
+      "line_range": "9-25",
+      "path": "./clickup_framework/commands/git_reauthor_command.py",
+      "is_entry_point": false
+    },
+    "N36": {
+      "function": "get_current_branch",
+      "class": "",
+      "file": "git_operations.py",
+      "line_start": 186,
+      "line_end": 210,
+      "line_range": "186-210",
+      "path": "./clickup_framework/git/git_operations.py",
+      "is_entry_point": false
+    },
+    "N37": {
+      "function": "get_uncommitted_changes",
+      "class": "",
+      "file": "git_operations.py",
+      "line_start": 44,
+      "line_end": 80,
+      "line_range": "44-80",
+      "path": "./clickup_framework/git/git_operations.py",
+      "is_entry_point": false
+    },
+    "N38": {
+      "function": "push_to_remote",
+      "class": "",
+      "file": "git_operations.py",
+      "line_start": 150,
+      "line_end": 183,
+      "line_range": "150-183",
+      "path": "./clickup_framework/git/git_operations.py",
+      "is_entry_point": false
+    },
+    "N39": {
+      "function": "get_commit_author",
+      "class": "",
+      "file": "git_operations.py",
+      "line_start": 300,
+      "line_end": 340,
+      "line_range": "300-340",
+      "path": "./clickup_framework/git/git_operations.py",
+      "is_entry_point": false
+    },
+    "N40": {
+      "function": "stage_all_changes",
+      "class": "",
+      "file": "git_operations.py",
+      "line_start": 83,
+      "line_end": 106,
+      "line_range": "83-106",
+      "path": "./clickup_framework/git/git_operations.py",
+      "is_entry_point": false
+    },
+    "N41": {
+      "function": "create_commit",
+      "class": "",
+      "file": "git_operations.py",
+      "line_start": 109,
+      "line_end": 147,
+      "line_range": "109-147",
+      "path": "./clickup_framework/git/git_operations.py",
+      "is_entry_point": false
+    },
+    "N42": {
+      "function": "print_error",
+      "class": "",
+      "file": "import_cli_docs.sh",
+      "line_start": 34,
+      "line_end": 34,
+      "line_range": "34",
+      "path": "./scripts/import_cli_docs.sh",
+      "is_entry_point": false
+    },
+    "N43": {
+      "function": "print_warning",
+      "class": "",
+      "file": "import_cli_docs.sh",
+      "line_start": 38,
+      "line_end": 38,
+      "line_range": "38",
+      "path": "./scripts/import_cli_docs.sh",
+      "is_entry_point": false
+    },
+    "N44": {
+      "function": "show_usage",
+      "class": "",
+      "file": "import_cli_docs.sh",
+      "line_start": 43,
+      "line_end": 43,
+      "line_range": "43",
+      "path": "./scripts/import_cli_docs.sh",
+      "is_entry_point": false
+    },
+    "N45": {
+      "function": "print_success",
+      "class": "",
+      "file": "import_cli_docs.sh",
+      "line_start": 30,
+      "line_end": 30,
+      "line_range": "30",
+      "path": "./scripts/import_cli_docs.sh",
+      "is_entry_point": false
+    },
+    "N46": {
+      "function": "print_info",
+      "class": "",
+      "file": "import_cli_docs.sh",
+      "line_start": 26,
+      "line_end": 26,
+      "line_range": "26",
+      "path": "./scripts/import_cli_docs.sh",
+      "is_entry_point": false
+    },
+    "N47": {
+      "function": "check_uncommitted_changes",
+      "class": "",
+      "file": "git_reauthor_command.py",
+      "line_start": 52,
+      "line_end": 65,
+      "line_range": "52-65",
+      "path": "./clickup_framework/commands/git_reauthor_command.py",
+      "is_entry_point": false
+    },
+    "N48": {
+      "function": "folder_delete_command",
+      "class": "",
+      "file": "folder_commands.py",
+      "line_start": 144,
+      "line_end": 147,
+      "line_range": "144-147",
+      "path": "./clickup_framework/commands/folder_commands.py",
+      "is_entry_point": false
+    },
+    "N49": {
+      "function": "folder_update_command",
+      "class": "",
+      "file": "folder_commands.py",
+      "line_start": 138,
+      "line_end": 141,
+      "line_range": "138-141",
+      "path": "./clickup_framework/commands/folder_commands.py",
+      "is_entry_point": false
+    },
+    "N50": {
+      "function": "folder_get_command",
+      "class": "",
+      "file": "folder_commands.py",
+      "line_start": 150,
+      "line_end": 153,
+      "line_range": "150-153",
+      "path": "./clickup_framework/commands/folder_commands.py",
+      "is_entry_point": false
+    },
+    "N51": {
+      "function": "folder_create_command",
+      "class": "",
+      "file": "folder_commands.py",
+      "line_start": 132,
+      "line_end": 135,
+      "line_range": "132-135",
+      "path": "./clickup_framework/commands/folder_commands.py",
+      "is_entry_point": false
+    },
+    "N52": {
+      "function": "install_ctags_locally",
+      "class": "",
+      "file": "ctags_utils.py",
+      "line_start": 57,
+      "line_end": 127,
+      "line_range": "57-127",
+      "path": "./clickup_framework/commands/map_helpers/ctags_utils.py",
+      "is_entry_point": false
+    },
+    "N53": {
+      "function": "trace_execution",
+      "class": "",
+      "file": "execution_graph_generator.py",
+      "line_start": 403,
+      "line_end": 444,
+      "line_range": "403-444",
+      "path": "./execution_graph_generator.py",
+      "is_entry_point": false
+    },
+    "N54": {
+      "function": "example_main",
+      "class": "",
+      "file": "execution_graph_generator.py",
+      "line_start": 450,
+      "line_end": 467,
+      "line_range": "450-467",
+      "path": "./execution_graph_generator.py",
+      "is_entry_point": false
+    },
+    "N55": {
+      "function": "trace_calls",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 883,
+      "line_end": 908,
+      "line_range": "883-908",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N56": {
+      "function": "trace_calls",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 883,
+      "line_end": 908,
+      "line_range": "883-908",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N57": {
+      "function": "has_functions_in_tree",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 581,
+      "line_end": 596,
+      "line_range": "581-596",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N58": {
+      "function": "populate_tree_with_functions",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 529,
+      "line_end": 572,
+      "line_range": "529-572",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N59": {
+      "function": "generate_mermaid_flowchart",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 14,
+      "line_end": 133,
+      "line_range": "14-133",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N60": {
+      "function": "scan_directory_structure",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 339,
+      "line_end": 401,
+      "line_range": "339-401",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N61": {
+      "function": "generate_nested_subgraphs",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 598,
+      "line_end": 645,
+      "line_range": "598-645",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": false
+    },
+    "N62": {
+      "function": "generate_mermaid_class",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 136,
+      "line_end": 245,
+      "line_range": "136-245",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": true
+    },
+    "N63": {
+      "function": "generate_mermaid_code_flow",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 404,
+      "line_end": 834,
+      "line_range": "404-834",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": true
+    },
+    "N64": {
+      "function": "generate_mermaid_mindmap",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 286,
+      "line_end": 336,
+      "line_range": "286-336",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": true
+    },
+    "N65": {
+      "function": "generate_mermaid_pie",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 248,
+      "line_end": 283,
+      "line_range": "248-283",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": true
+    },
+    "N66": {
+      "function": "generate_mermaid_sequence",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 837,
+      "line_end": 936,
+      "line_range": "837-936",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": true
+    },
+    "N67": {
+      "function": "scan_dir",
+      "class": "",
+      "file": "mermaid_generators.py",
+      "line_start": 362,
+      "line_end": 398,
+      "line_range": "362-398",
+      "path": "./clickup_framework/commands/map_helpers/mermaid_generators.py",
+      "is_entry_point": true
+    },
+    "N68": {
+      "function": "generate_branch_url",
+      "class": "",
+      "file": "url_generator.py",
+      "line_start": 129,
+      "line_end": 159,
+      "line_range": "129-159",
+      "path": "./clickup_framework/git/url_generator.py",
+      "is_entry_point": true
+    },
+    "N69": {
+      "function": "generate_commit_url",
+      "class": "",
+      "file": "url_generator.py",
+      "line_start": 96,
+      "line_end": 126,
+      "line_range": "96-126",
+      "path": "./clickup_framework/git/url_generator.py",
+      "is_entry_point": false
+    },
+    "N70": {
+      "function": "parse_remote_url",
+      "class": "",
+      "file": "url_generator.py",
+      "line_start": 16,
+      "line_end": 93,
+      "line_range": "16-93",
+      "path": "./clickup_framework/git/url_generator.py",
+      "is_entry_point": false
+    },
+    "N71": {
+      "function": "generate_pr_url",
+      "class": "",
+      "file": "url_generator.py",
+      "line_start": 162,
+      "line_end": 194,
+      "line_range": "162-194",
+      "path": "./clickup_framework/git/url_generator.py",
+      "is_entry_point": false
+    },
+    "N72": {
+      "function": "doc_create_command",
+      "class": "",
+      "file": "doc_commands.py",
+      "line_start": 624,
+      "line_end": 627,
+      "line_range": "624-627",
+      "path": "./clickup_framework/commands/doc_commands.py",
+      "is_entry_point": true
+    },
+    "N73": {
+      "function": "unescape_content",
+      "class": "",
+      "file": "text.py",
+      "line_start": 206,
+      "line_end": 234,
+      "line_range": "206-234",
+      "path": "./clickup_framework/utils/text.py",
+      "is_entry_point": false
+    },
+    "N74": {
+      "function": "pluralize",
+      "class": "",
+      "file": "text.py",
+      "line_start": 62,
+      "line_end": 86,
+      "line_range": "62-86",
+      "path": "./clickup_framework/utils/text.py",
+      "is_entry_point": false
+    },
+    "N75": {
+      "function": "clean_html",
+      "class": "",
+      "file": "text.py",
+      "line_start": 89,
+      "line_end": 122,
+      "line_range": "89-122",
+      "path": "./clickup_framework/utils/text.py",
+      "is_entry_point": false
+    },
+    "N76": {
+      "function": "format_list",
+      "class": "",
+      "file": "text.py",
+      "line_start": 33,
+      "line_end": 59,
+      "line_range": "33-59",
+      "path": "./clickup_framework/utils/text.py",
+      "is_entry_point": false
+    },
+    "N77": {
+      "function": "format_timestamp",
+      "class": "",
+      "file": "datetime.py",
+      "line_start": 11,
+      "line_end": 44,
+      "line_range": "11-44",
+      "path": "./clickup_framework/utils/datetime.py",
+      "is_entry_point": false
+    },
+    "N78": {
+      "function": "parse_timestamp",
+      "class": "",
+      "file": "datetime.py",
+      "line_start": 134,
+      "line_end": 151,
+      "line_range": "134-151",
+      "path": "./clickup_framework/utils/datetime.py",
+      "is_entry_point": false
+    },
+    "N79": {
+      "function": "format_duration",
+      "class": "",
+      "file": "datetime.py",
+      "line_start": 47,
+      "line_end": 84,
+      "line_range": "47-84",
+      "path": "./clickup_framework/utils/datetime.py",
+      "is_entry_point": false
+    }
+  },
+  "edges": {},
+  "subgraphs": {},
+  "stats": {
+    "total_lines": 1053,
+    "node_count": 61,
+    "edge_count": 292,
+    "subgraph_count": 29,
+    "style_count": 317,
+    "text_size": 48280
+  }
+}

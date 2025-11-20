@@ -1,0 +1,15 @@
+{
+  "call_graph": {
+    "[\"module_a::func_a\", \"module_b::func_b\"]": 150,
+    "[\"module_b::func_b\", \"module_c::func_c\"]": 500
+  },
+  "called_functions": [
+    "module_a::func_a",
+    "module_b::func_b"
+  ],
+  "metadata": {
+    "timestamp": "20251119_142641",
+    "label": "test_demo",
+    "project_root": "E:\\Projects\\clickup_framework"
+  }
+}

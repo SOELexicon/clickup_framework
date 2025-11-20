@@ -153,3 +153,9 @@ Projects.lnk
 docs/DOC_LINKING_STATUS.md
 docs/RELATIONSHIP_COMMANDS_IMPLEMENTATION_PLAN.md
 docs/TEMPLATE_ENDPOINTS.md
+flow-*.html
+.tags.json
+ctags-p6.2.20251116.0-x64.zip
+test-*.html
+interactive*.html
+nul

@@ -118,7 +118,7 @@ class TestTaskDetailFormatter:
         assert "api" in result
 
     def test_format_shows_dates(self):
-        """Test that dates are shown"""
+        """Test that dates are shown and formatted"""
         formatter = TaskDetailFormatter()
 
         # Create task with dates
@@ -132,9 +132,13 @@ class TestTaskDetailFormatter:
 
         result = formatter.format_detail(task)
 
-        # Should show created date
+        # Should show created date labels
         assert "Created:" in result
-        assert task['date_created'] in result
+        assert "Due:" in result
+
+        # Should show formatted dates (yyyy-MM-dd hh:mm:ss format)
+        assert "2024-01-01 10:00:00" in result
+        assert "2024-01-31 23:59:59" in result
 
     def test_format_shows_container_info(self, sample_container_tasks):
         """Test that container hierarchy is shown"""

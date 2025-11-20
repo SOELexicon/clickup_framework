@@ -1,0 +1,247 @@
+# C# / .NET Language Configuration
+
+language:
+  name: "C#"
+  extensions: [".cs", ".csx", ".cshtml", ".razor", ".aspx"]
+  paradigm: "object-oriented"
+  framework: ".NET"
+
+# Relationship extraction patterns
+relationships:
+  # class MyClass : BaseClass
+  inheritance:
+    pattern: '^\s*(?:public|private|internal|protected)?\s*(?:sealed|abstract)?\s*class\s+(\w+)\s*:\s*(\w+)(?:\s*,|\s*\{)'
+    extract:
+      child: 1    # First capture group
+      parent: 2   # Second capture group
+    style:
+      edge: "solid"
+      arrow: "triangle"
+      color: "#00ff00"
+      width: 3
+    label: "inherits from"
+    mermaid: "--|>"
+
+  # class MyClass : IMyInterface
+  interface_implementation:
+    pattern: '^\s*(?:public|private|internal|protected)?\s*class\s+(\w+)\s*:\s*I(\w+)'
+    extract:
+      implementer: 1
+      interface: 2
+    style:
+      edge: "dashed"
+      arrow: "triangle"
+      color: "#00ffff"
+      width: 2
+    label: "implements"
+    mermaid: "..|>"
+
+  # private readonly MyService _service;
+  composition:
+    pattern: '^\s*(?:private|protected)\s+(?:readonly\s+)?(\w+)\s+(\w+)\s*;'
+    extract:
+      type: 1
+      field: 2
+    style:
+      edge: "solid"
+      arrow: "diamond"
+      color: "#ffff00"
+      width: 2
+    label: "has-a"
+    mermaid: "*--"
+
+  # MyClass.MyMethod()
+  dependency:
+    pattern: '(\w+)\.(\w+)\('
+    extract:
+      caller: "context"  # From surrounding scope
+      callee_class: 1
+      callee_method: 2
+    style:
+      edge: "dotted"
+      arrow: "open"
+      color: "#888888"
+      width: 1
+    label: "uses"
+    mermaid: "-->"
+
+# Visualization rules per diagram type
+visualization:
+  default_diagram: "class"
+
+  class_diagram:
+    layout: "hierarchical_vertical"  # Top = base classes, bottom = derived
+    direction: "TB"  # Top to Bottom
+    group_by: "class"  # Group members by their containing class
+
+    # Subgraph containment: Show members INSIDE their class
+    containment_mode: "subgraph"  # "subgraph" | "flat" | "nested"
+
+    group_style:
+      border: "rounded"
+      color: "#333333"
+      background: "#1a1a1a"
+
+    node_settings:
+      show_namespace: false  # Only in group title
+      show_access_modifiers: true
+      show_fields: true
+      show_methods: true
+      show_properties: true
+      collapse_generated: true  # Hide auto-properties
+
+      # Member visibility within class subgraph
+      member_style:
+        fields:
+          prefix: "+"  # Show as +field
+          color: "#ffff00"
+        properties:
+          prefix: "~"
+          color: "#00ffff"
+        methods:
+          prefix: "()"
+          color: "#00ff00"
+
+    inheritance_tree:
+      highlight_base: true
+      show_interface_separately: true
+      max_depth: 5
+
+    # External calls branch off from the subgraph
+    external_calls:
+      show_from_subgraph: true  # thisvalue --> external_function
+      style: "dashed"
+      color: "#888888"
+
+  flow_diagram:
+    layout: "force_directed"
+    show_method_calls: true
+    highlight_virtual: true
+    highlight_async: true
+    group_by: "class"
+
+  sequence_diagram:
+    show_lifelines: true
+    show_return_values: true
+    distinguish_async: true
+
+# ctags configuration
+parsing:
+  ctags_language: "C#"
+
+  ctags_options:
+    - "--fields=+iaSKzln"  # Add inheritance, signature, kind, access, line numbers
+    - "--extras=+q"        # Add qualified names
+    - "--c#-kinds=cimMnpgseE"  # All C# kinds
+
+  # Map ctags kinds to visualization elements
+  kind_mapping:
+    c: "class"
+    i: "interface"
+    m: "method"
+    M: "macro"
+    n: "namespace"
+    p: "property"
+    g: "enum"
+    s: "struct"
+    e: "event"
+    E: "enum_member"
+
+  # Fields to extract from ctags
+  fields:
+    inherits: "inherits"      # Base class
+    interfaces: "interfaces"   # Implemented interfaces
+    access: "access"          # public/private/protected
+    signature: "signature"    # Method signature
+    line: "line"              # Line number
+
+  # Additional regex patterns for complex cases
+  additional_patterns:
+    # Generic constraints: where T : BaseClass
+    generic_constraint: 'where\s+(\w+)\s*:\s*(\w+)'
+
+    # Base constructor call: : base(args)
+    base_constructor: '^\s*:\s*base\('
+
+    # Interface with namespace: IDisposable
+    qualified_interface: ':\s*(?:System\.)?(\w+)'
+
+    # Extension methods: public static void MyMethod(this MyClass obj)
+    extension_method: 'public\s+static\s+\w+\s+\w+\s*\(\s*this\s+(\w+)'
+
+# Execution trace configuration
+hot_paths:
+  method_call_pattern: '(\w+)\.(\w+)\('
+
+  distinguish_static: true
+  track_virtual_dispatch: true
+  track_interface_calls: true
+
+  # For WebGL visualization
+  heat_colors:
+    cold: "#0000ff"      # Blue for rare calls
+    warm: "#ff6600"      # Orange for frequent
+    hot: "#ff0000"       # Red for very frequent
+    virtual: "#ff00ff"   # Magenta for virtual dispatch
+
+  thresholds:
+    warm: 10    # > 10 calls = warm
+    hot: 100    # > 100 calls = hot
+
+# Mermaid generation rules
+mermaid:
+  class_diagram_template: |
+    classDiagram
+      {namespaces}
+      {classes}
+      {relationships}
+
+      {styles}
+
+  class_node_template: |
+    class {name} {{
+      {fields}
+      {properties}
+      {methods}
+    }}
+
+  inheritance_template: "{child} --|> {parent} : inherits"
+  interface_template: "{implementer} ..|> {interface} : implements"
+  composition_template: "{container} *-- {component} : has"
+  dependency_template: "{user} ..> {used} : uses"
+
+# Special handling for .NET patterns
+dotnet_patterns:
+  # Detect ClickUpClient pattern: class MyClient : ClickUpClient<T>
+  generic_base_class:
+    pattern: 'class\s+(\w+)\s*:\s*(\w+)<(.+)>'
+    extract:
+      derived: 1
+      base: 2
+      generic_param: 3
+    visualize_as: "inheritance_with_generic"
+
+  # Detect API controllers: class MyController : ControllerBase
+  controller_pattern:
+    pattern: 'class\s+(\w+)Controller\s*:\s*ControllerBase'
+    group: "API Controllers"
+    icon: "🌐"
+
+  # Detect dependency injection: constructor with services
+  di_pattern:
+    pattern: 'public\s+(\w+)\((.+Service.+)\)'
+    mark_as: "uses_di"
+    extract_dependencies: true
+
+# Example expected output for:
+# public class MyService : ClickUpClient, IDisposable
+# {
+#     private readonly HttpClient _client;
+#     public async Task<string> GetData() { ... }
+# }
+#
+# Should produce:
+# - MyService --|> ClickUpClient (inheritance, solid green)
+# - MyService ..|> IDisposable (interface, dashed cyan)
+# - MyService *-- HttpClient (composition, solid yellow)
+# - Show GetData() as async method (special marker)

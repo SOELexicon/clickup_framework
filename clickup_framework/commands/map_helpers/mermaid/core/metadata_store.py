@@ -214,6 +214,19 @@ class MetadataStore:
         self.subgraph_metadata.clear()
         self.stats.clear()
 
+    def has_data(self) -> bool:
+        """Check if metadata store contains any data.
+
+        Returns:
+            True if any metadata is stored, False otherwise
+        """
+        return bool(
+            self.node_metadata or
+            self.edge_metadata or
+            self.subgraph_metadata or
+            self.stats
+        )
+
     def get_node_tooltip(self, node_id: str) -> str:
         """
         Generate a tooltip string for a node.

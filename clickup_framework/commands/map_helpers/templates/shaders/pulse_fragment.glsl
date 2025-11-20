@@ -1,7 +1,6 @@
 precision mediump float;
 
 uniform float u_time;
-uniform vec2 u_resolution;
 
 varying float v_texCoord;  // Position along the line (0.0 at start, 1.0 at end)
 varying float v_perpCoord; // Position across the line (-1.0 to 1.0)

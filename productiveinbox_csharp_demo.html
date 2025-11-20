@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C# Subgraph Containment - ProductiveInbox.Framework Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .feature-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .mode-toggle {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 15px 30px;
+            margin: 0 10px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            border-color: #fff;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .file-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .file-name {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .relationship-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .diagram-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .diagram-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .diagram-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .flat-mode {
+            border-color: #ff6b6b;
+        }
+
+        .subgraph-mode {
+            border-color: #4ecdc4;
+        }
+
+        .flat-mode .diagram-title {
+            background: rgba(255, 107, 107, 0.3);
+        }
+
+        .subgraph-mode .diagram-title {
+            background: rgba(78, 205, 196, 0.3);
+        }
+
+        .mermaid {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            color: #333;
+        }
+
+        .relationships-list {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .relationships-list h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .relationship-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .inheritance { border-left-color: #4ecdc4; }
+        .interface { border-left-color: #45b7d1; }
+        .composition { border-left-color: #f9ca24; }
+
+        .comparison-section {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .comparison-section h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .benefit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .benefit-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .benefit-card h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            color: #4ecdc4;
+        }
+
+        .benefit-card p {
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        .highlight {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .mode-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: 2px solid;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .mode-indicator.flat {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .mode-indicator.subgraph {
+            border-color: #4ecdc4;
+            color: #4ecdc4;
+        }
+
+        @media (max-width: 1200px) {
+            .diagram-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mode-indicator" id="modeIndicator">
+        Viewing: <span id="currentMode">Both Modes</span>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>C# Subgraph Containment Demo</h1>
+            <p class="subtitle">ProductiveInbox.Framework - Real Production Code Analysis</p>
+            <div>
+                <span class="feature-badge">Context Tracking</span>
+                <span class="feature-badge">Inheritance Detection</span>
+                <span class="feature-badge">Interface Implementation</span>
+                <span class="feature-badge">Composition Analysis</span>
+            </div>
+        </header>
+
+        <div class="mode-toggle">
+            <button class="toggle-btn active" onclick="showMode('both')">View Both</button>
+            <button class="toggle-btn" onclick="showMode('flat')">Flat Only</button>
+            <button class="toggle-btn" onclick="showMode('subgraph')">Subgraph Only</button>
+        </div>
+
+        <!-- CachingService.cs -->
+        <div class="file-section">
+            <div class="file-header">
+                <div class="file-name">CachingService.cs</div>
+                <div class="relationship-count">4 relationships detected</div>
+            </div>
+
+            <div class="relationships-list">
+                <h3>Extracted Relationships:</h3>
+                <div class="relationship-item inheritance">
+                    [inheritance] CachingService → ICachingService
+                </div>
+                <div class="relationship-item interface">
+                    [interface_implementation] CachingService → ICachingService
+                </div>
+                <div class="relationship-item composition">
+                    [composition] CachingService._cache : IMemoryCache
+                </div>
+                <div class="relationship-item composition">
+                    [composition] CachingService._postEvictionDelegate : PostEvictionDelegate
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-box flat-mode flat-diagram">
+                    <div class="diagram-title">Flat Mode (Traditional)</div>
+                    <div class="mermaid">
+classDiagram
+    class CachingService
+    class ICachingService
+    class IMemoryCache
+    class PostEvictionDelegate
+    CachingService --|> ICachingService : inherits from
+    CachingService ..|> ICachingService : implements
+    CachingService *-- IMemoryCache : has-a
+    CachingService *-- PostEvictionDelegate : has-a
+                    </div>
+                </div>
+
+                <div class="diagram-box subgraph-mode subgraph-diagram">
+                    <div class="diagram-title">Subgraph Containment Mode</div>
+                    <div class="mermaid">
+classDiagram
+    class CachingService {
+        +_cache : IMemoryCache
+        +_postEvictionDelegate : PostEvictionDelegate
+    }
+    class ICachingService
+    class IMemoryCache
+    class PostEvictionDelegate
+    CachingService --|> ICachingService : inherits from
+    CachingService ..|> ICachingService : implements
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BaseClient.cs -->
+        <div class="file-section">
+            <div class="file-header">
+                <div class="file-name">BaseClient.cs</div>
+                <div class="relationship-count">3 relationships detected</div>
+            </div>
+
+            <div class="relationships-list">
+                <h3>Extracted Relationships:</h3>
+                <div class="relationship-item inheritance">
+                    [inheritance] BaseAuthClient → BaseClient
+                </div>
+                <div class="relationship-item inheritance">
+                    [inheritance] BaseClient → IBaseClient
+                </div>
+                <div class="relationship-item composition">
+                    [composition] BaseClient._client : HttpClient
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-box flat-mode flat-diagram">
+                    <div class="diagram-title">Flat Mode (Traditional)</div>
+                    <div class="mermaid">
+classDiagram
+    class BaseAuthClient
+    class BaseClient
+    class HttpClient
+    class IBaseClient
+    BaseAuthClient --|> BaseClient : inherits from
+    BaseClient --|> IBaseClient : inherits from
+    BaseClient *-- HttpClient : has-a
+                    </div>
+                </div>
+
+                <div class="diagram-box subgraph-mode subgraph-diagram">
+                    <div class="diagram-title">Subgraph Containment Mode</div>
+                    <div class="mermaid">
+classDiagram
+    class BaseAuthClient
+    class BaseClient {
+        +_client : HttpClient
+    }
+    class HttpClient
+    class IBaseClient
+    BaseAuthClient --|> BaseClient : inherits from
+    BaseClient --|> IBaseClient : inherits from
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BaseProductiveInboxDbContext.cs -->
+        <div class="file-section">
+            <div class="file-header">
+                <div class="file-name">BaseProductiveInboxDbContext.cs</div>
+                <div class="relationship-count">1 relationship detected</div>
+            </div>
+
+            <div class="relationships-list">
+                <h3>Extracted Relationships:</h3>
+                <div class="relationship-item inheritance">
+                    [inheritance] BaseProductiveInboxDbContext → DbContext
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="diagram-box flat-mode flat-diagram">
+                    <div class="diagram-title">Flat Mode (Traditional)</div>
+                    <div class="mermaid">
+classDiagram
+    class BaseProductiveInboxDbContext
+    class DbContext
+    BaseProductiveInboxDbContext --|> DbContext : inherits from
+                    </div>
+                </div>
+
+                <div class="diagram-box subgraph-mode subgraph-diagram">
+                    <div class="diagram-title">Subgraph Containment Mode</div>
+                    <div class="mermaid">
+classDiagram
+    class BaseProductiveInboxDbContext
+    class DbContext
+    BaseProductiveInboxDbContext --|> DbContext : inherits from
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Section -->
+        <div class="comparison-section">
+            <h2>Key Benefits Demonstrated</h2>
+            <div class="benefit-grid">
+                <div class="benefit-card">
+                    <h3>✨ Reduced Clutter</h3>
+                    <p>
+                        CachingService went from <span class="highlight">4 external arrows</span>
+                        (cluttered) to <span class="highlight">2 arrows</span> with fields contained inside.
+                        Much cleaner visualization!
+                    </p>
+                </div>
+
+                <div class="benefit-card">
+                    <h3>🎯 Clearer Hierarchy</h3>
+                    <p>
+                        Fields like <span class="highlight">_cache</span> and
+                        <span class="highlight">_postEvictionDelegate</span> are visually grouped
+                        with their containing class, matching the OOP mental model.
+                    </p>
+                </div>
+
+                <div class="benefit-card">
+                    <h3>🔍 Better Scalability</h3>
+                    <p>
+                        Large classes with many dependencies remain readable. Focus stays on
+                        <span class="highlight">structural relationships</span> (inheritance, interfaces)
+                        while composition is integrated into class definitions.
+                    </p>
+                </div>
+
+                <div class="benefit-card">
+                    <h3>✅ Real-World Validation</h3>
+                    <p>
+                        Successfully tested on production C# code from ProductiveInbox.Framework.
+                        Handles complex inheritance chains like
+                        <span class="highlight">BaseAuthClient → BaseClient → IBaseClient</span>.
+                    </p>
+                </div>
+            </div>
+
+            <div style="margin-top: 40px; padding: 30px; background: rgba(78, 205, 196, 0.2); border-radius: 15px; border: 2px solid rgba(78, 205, 196, 0.5);">
+                <h3 style="font-size: 1.5em; margin-bottom: 15px; text-align: center;">
+                    User Requirement Fulfilled ✓
+                </h3>
+                <p style="font-size: 1.2em; text-align: center; line-height: 1.8; opacity: 0.95;">
+                    "thisvalue.string should be contained in a subgraph for thisvalue and its functions branch off it"
+                </p>
+                <p style="text-align: center; margin-top: 15px; opacity: 0.9;">
+                    Fields like <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">_client</code>
+                    are now contained <strong>inside</strong> their class (BaseClient), with only structural relationships branching outward.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#4ecdc4',
+                primaryTextColor: '#333',
+                primaryBorderColor: '#333',
+                lineColor: '#666',
+                secondaryColor: '#45b7d1',
+                tertiaryColor: '#f9ca24'
+            }
+        });
+
+        function showMode(mode) {
+            // Update button states
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update mode indicator
+            const indicator = document.getElementById('modeIndicator');
+            const modeText = document.getElementById('currentMode');
+
+            const flatDiagrams = document.querySelectorAll('.flat-diagram');
+            const subgraphDiagrams = document.querySelectorAll('.subgraph-diagram');
+
+            if (mode === 'both') {
+                flatDiagrams.forEach(d => d.style.display = 'block');
+                subgraphDiagrams.forEach(d => d.style.display = 'block');
+                document.querySelectorAll('.diagram-container').forEach(c => {
+                    c.style.gridTemplateColumns = '1fr 1fr';
+                });
+                modeText.textContent = 'Both Modes';
+                indicator.className = 'mode-indicator';
+            } else if (mode === 'flat') {
+                flatDiagrams.forEach(d => d.style.display = 'block');
+                subgraphDiagrams.forEach(d => d.style.display = 'none');
+                document.querySelectorAll('.diagram-container').forEach(c => {
+                    c.style.gridTemplateColumns = '1fr';
+                });
+                modeText.textContent = 'Flat Mode';
+                indicator.className = 'mode-indicator flat';
+            } else if (mode === 'subgraph') {
+                flatDiagrams.forEach(d => d.style.display = 'none');
+                subgraphDiagrams.forEach(d => d.style.display = 'block');
+                document.querySelectorAll('.diagram-container').forEach(c => {
+                    c.style.gridTemplateColumns = '1fr';
+                });
+                modeText.textContent = 'Subgraph Containment Mode';
+                indicator.className = 'mode-indicator subgraph';
+            }
+        }
+
+        // Add smooth scroll behavior
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

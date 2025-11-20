@@ -1,0 +1,99 @@
+# Python Language Configuration
+
+language:
+  name: "Python"
+  extensions: [".py", ".pyw", ".pyi"]
+  paradigm: "multi-paradigm"  # OOP + Functional
+
+relationships:
+  # class MyClass(BaseClass):
+  inheritance:
+    pattern: '^\s*class\s+(\w+)\(([^)]+)\):'
+    extract:
+      child: 1
+      parents: 2  # Can be multiple, comma-separated
+    style:
+      edge: "solid"
+      arrow: "triangle"
+      color: "#00ff00"
+      width: 3
+    label: "inherits from"
+    mermaid: "--|>"
+    multiple_inheritance: true
+
+  # from module import Class
+  dependency:
+    pattern: '^\s*from\s+([\w.]+)\s+import\s+(.+)'
+    extract:
+      importer: "context"
+      module: 1
+      imported: 2
+    style:
+      edge: "dotted"
+      arrow: "open"
+      color: "#888888"
+      width: 1
+    label: "imports"
+    mermaid: "-->"
+
+  # def function(arg: MyClass):
+  type_hint_dependency:
+    pattern: 'def\s+\w+\([^)]*:\s*(\w+)'
+    extract:
+      type: 1
+    style:
+      edge: "dashed"
+      arrow: "open"
+      color: "#00aaff"
+      width: 1
+    label: "uses type"
+    mermaid: "..>"
+
+visualization:
+  default_diagram: "flow"  # Python is more procedural by default
+
+  class_diagram:
+    layout: "hierarchical_vertical"
+    direction: "TB"
+    group_by: "module"
+    show_methods: true
+    show_decorators: true
+    highlight_abstract: true
+
+  flow_diagram:
+    layout: "force_directed"
+    show_function_calls: true
+    highlight_async: true
+    group_by: "module"
+
+parsing:
+  ctags_language: "Python"
+  ctags_options:
+    - "--fields=+iaSKzln"
+    - "--extras=+q"
+    - "--python-kinds=cfmvi"
+
+  kind_mapping:
+    c: "class"
+    f: "function"
+    m: "method"
+    v: "variable"
+    i: "import"
+
+hot_paths:
+  method_call_pattern: '(\w+)\.(\w+)\('
+  function_call_pattern: '(\w+)\('
+  track_async: true
+  distinguish_methods: true
+
+  heat_colors:
+    cold: "#0000ff"
+    warm: "#ffaa00"
+    hot: "#ff0000"
+    async: "#ff00ff"
+
+mermaid:
+  class_diagram_template: |
+    classDiagram
+      {classes}
+      {relationships}

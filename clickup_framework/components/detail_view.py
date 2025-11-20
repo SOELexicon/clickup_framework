@@ -13,6 +13,7 @@ from clickup_framework.utils.colors import (
 from clickup_framework.utils.text import strip_markdown, unescape_content
 from clickup_framework.utils.markdown_renderer import render_markdown
 from clickup_framework.utils.checklist_mapping import get_mapping_manager
+from clickup_framework.utils.datetime import format_timestamp
 from clickup_framework.components.options import FormatOptions
 from clickup_framework.components.tree import TreeFormatter
 from clickup_framework.components.task_formatter import RichTaskFormatter
@@ -365,7 +366,7 @@ class TaskDetailFormatter:
         # Dates
         if task.get('date_created'):
             label = "Created:"
-            value = task['date_created']
+            value = self._format_date_with_seconds(task['date_created'])
             if options.colorize_output:
                 label = colorize(label, TextColor.BRIGHT_BLACK)
                 value = colorize(value, TextColor.GREEN)
@@ -373,7 +374,7 @@ class TaskDetailFormatter:
 
         if task.get('date_updated'):
             label = "Updated:"
-            value = task['date_updated']
+            value = self._format_date_with_seconds(task['date_updated'])
             if options.colorize_output:
                 label = colorize(label, TextColor.BRIGHT_BLACK)
                 value = colorize(value, TextColor.YELLOW)
@@ -381,7 +382,7 @@ class TaskDetailFormatter:
 
         if task.get('due_date'):
             label = "Due:"
-            value = task['due_date']
+            value = self._format_date_with_seconds(task['due_date'])
             if options.colorize_output:
                 label = colorize(label, TextColor.BRIGHT_BLACK)
                 value = colorize(value, TextColor.RED)
@@ -389,7 +390,7 @@ class TaskDetailFormatter:
 
         if task.get('date_closed'):
             label = "Closed:"
-            value = task['date_closed']
+            value = self._format_date_with_seconds(task['date_closed'])
             if options.colorize_output:
                 label = colorize(label, TextColor.BRIGHT_BLACK)
                 value = colorize(value, TextColor.GREEN)
@@ -1647,6 +1648,46 @@ class TaskDetailFormatter:
                 return f"{size_bytes:.1f} {unit}"
             size_bytes /= 1024.0
         return f"{size_bytes:.1f} TB"
+
+    def _format_date_with_seconds(self, timestamp: Optional[str]) -> str:
+        """
+        Format ClickUp timestamp with seconds for detail view.
+
+        Handles both Unix timestamps (milliseconds) and ISO format strings.
+
+        Args:
+            timestamp: Unix timestamp in milliseconds or ISO format string
+
+        Returns:
+            Formatted date string in yyyy-MM-dd hh:mm:ss format
+        """
+        if not timestamp:
+            return "No date"
+
+        try:
+            from datetime import datetime
+            # First try to parse as integer (Unix timestamp in milliseconds)
+            if isinstance(timestamp, str) and timestamp.isdigit():
+                ts = int(timestamp)
+                dt = datetime.fromtimestamp(ts / 1000)
+            elif isinstance(timestamp, int):
+                dt = datetime.fromtimestamp(timestamp / 1000)
+            else:
+                # Try to parse as ISO format string
+                from dateutil import parser
+                dt = parser.parse(timestamp)
+
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, OSError, ImportError):
+            # If dateutil is not available, try basic ISO parsing
+            try:
+                if isinstance(timestamp, str) and 'T' in timestamp:
+                    # Basic ISO format parsing (YYYY-MM-DDTHH:MM:SSZ)
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except (ValueError, OSError):
+                pass
+            return "Invalid date"
 
     def _format_duration(self, milliseconds: int) -> str:
         """Format duration in human-readable format."""
