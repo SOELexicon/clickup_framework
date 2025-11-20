@@ -29,6 +29,8 @@ import json
 
 from ..core.metadata_store import MetadataStore
 from ..styling import ThemeManager
+from ..profiling import PerformanceProfiler, register_profile
+from ..config import get_config
 from ...mermaid_validator import validate_and_raise
 
 
@@ -69,6 +71,8 @@ class BaseGenerator(ABC):
         self.theme_manager = ThemeManager(theme)
         self.metadata_store = metadata_store or MetadataStore()
         self.lines: List[str] = []
+        self._profiler: Optional[PerformanceProfiler] = None
+        self._profile_report = None  # Store final report
 
     def generate(self, **kwargs) -> str:
         """Generate diagram following standard workflow (Template Method).
@@ -93,13 +97,42 @@ class BaseGenerator(ABC):
         Raises:
             Exception: Any error during generation (logged with context)
         """
+        # Initialize profiler if enabled
+        config = get_config()
+        generator_name = self.__class__.__name__
+        self._profiler = PerformanceProfiler(
+            f"{generator_name}.generate",
+            enabled=config.profiling.enabled
+        )
+
         try:
-            self.validate_inputs(**kwargs)
-            self._add_header()
-            self.generate_body(**kwargs)
-            self._add_footer()
-            self._validate_diagram()
-            self._write_files()
+            with self._profiler as profiler:
+                profiler.add_metadata('generator', generator_name)
+                profiler.add_metadata('output_file', self.output_file)
+                profiler.add_metadata('total_symbols', self.stats.get('total_symbols', 0))
+
+                self.validate_inputs(**kwargs)
+                profiler.checkpoint('validation_complete')
+
+                self._add_header()
+                profiler.checkpoint('header_added')
+
+                self.generate_body(**kwargs)
+                profiler.checkpoint('body_generated')
+
+                self._add_footer()
+                profiler.checkpoint('footer_added')
+
+                self._validate_diagram()
+                profiler.checkpoint('diagram_validated')
+
+                self._write_files()
+                profiler.checkpoint('files_written')
+
+                # Store and optionally handle report
+                self._profile_report = profiler.get_report()
+                self._handle_profile_report()
+
             return self.output_file
         except Exception as e:
             self._handle_error(e)
@@ -257,3 +290,47 @@ class BaseGenerator(ABC):
         print(f"[ERROR] Diagram generation failed: {error}", file=sys.stderr)
         print(f"[INFO] Output file: {self.output_file}", file=sys.stderr)
         print(f"[INFO] Lines generated: {len(self.lines)}", file=sys.stderr)
+
+    def _handle_profile_report(self) -> None:
+        """Handle performance profile report based on configuration.
+
+        Actions:
+        - Register report in global registry
+        - Print report to stdout if configured
+        - Save report to file if configured
+        """
+        if not self._profile_report:
+            return
+
+        config = get_config()
+
+        # Always register for potential later access
+        register_profile(self._profile_report)
+
+        # Print report if configured
+        if config.profiling.print_reports:
+            print(self._profile_report.format_text())
+
+        # Save report to file if configured
+        if config.profiling.save_reports:
+            self._save_profile_report()
+
+    def _save_profile_report(self) -> None:
+        """Save performance profile report to file."""
+        if not self._profile_report:
+            return
+
+        config = get_config()
+        output_dir = Path(config.profiling.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename from output file
+        base_name = Path(self.output_file).stem
+        profile_file = output_dir / f"{base_name}_profile.json"
+
+        try:
+            with open(profile_file, 'w', encoding='utf-8') as f:
+                json.dump(self._profile_report.to_dict(), f, indent=2)
+            print(f"[INFO] Profile saved to: {profile_file}", file=sys.stderr)
+        except Exception as e:
+            print(f"[WARNING] Could not save profile report: {e}", file=sys.stderr)

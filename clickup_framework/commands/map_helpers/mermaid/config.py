@@ -154,6 +154,35 @@ class ValidationConfig:
         )
 
 
+def _get_env_bool(key: str, default: bool) -> bool:
+    """Get boolean value from environment variable with fallback to default."""
+    value = os.environ.get(key)
+    if value is not None:
+        return value.lower() in ('true', '1', 'yes', 'on')
+    return default
+
+
+@dataclass
+class ProfilingConfig:
+    """Configuration for performance profiling."""
+
+    # Profiling settings
+    enabled: bool = False  # Disabled by default for production
+    print_reports: bool = False  # Print reports to stdout
+    save_reports: bool = False  # Save reports to files
+    output_dir: str = 'profiling_reports'  # Directory for saved reports
+
+    @classmethod
+    def from_env(cls) -> 'ProfilingConfig':
+        """Create configuration from environment variables."""
+        return cls(
+            enabled=_get_env_bool('MERMAID_PROFILING_ENABLED', False),
+            print_reports=_get_env_bool('MERMAID_PROFILING_PRINT_REPORTS', False),
+            save_reports=_get_env_bool('MERMAID_PROFILING_SAVE_REPORTS', False),
+            output_dir=os.environ.get('MERMAID_PROFILING_OUTPUT_DIR', 'profiling_reports'),
+        )
+
+
 class MermaidConfig:
     """
     Central configuration manager for all Mermaid diagram generators.
@@ -180,6 +209,7 @@ class MermaidConfig:
         flowchart: Optional[FlowchartConfig] = None,
         mindmap: Optional[MindmapConfig] = None,
         validation: Optional[ValidationConfig] = None,
+        profiling: Optional[ProfilingConfig] = None,
     ):
         """Initialize configuration with provided or default configs."""
         self.code_flow = code_flow or CodeFlowConfig()
@@ -188,6 +218,7 @@ class MermaidConfig:
         self.flowchart = flowchart or FlowchartConfig()
         self.mindmap = mindmap or MindmapConfig()
         self.validation = validation or ValidationConfig()
+        self.profiling = profiling or ProfilingConfig()
 
     @classmethod
     def from_env(cls) -> 'MermaidConfig':
@@ -231,6 +262,12 @@ class MermaidConfig:
                 MERMAID_VALIDATION_MAX_EDGES (default: 1000)
                 MERMAID_VALIDATION_MAX_SUBGRAPHS (default: 50)
                 MERMAID_VALIDATION_MAX_TEXT_SIZE (default: 50000)
+
+            Profiling:
+                MERMAID_PROFILING_ENABLED (default: False)
+                MERMAID_PROFILING_PRINT_REPORTS (default: False)
+                MERMAID_PROFILING_SAVE_REPORTS (default: False)
+                MERMAID_PROFILING_OUTPUT_DIR (default: 'profiling_reports')
         """
         return cls(
             code_flow=CodeFlowConfig.from_env(),
@@ -239,6 +276,7 @@ class MermaidConfig:
             flowchart=FlowchartConfig.from_env(),
             mindmap=MindmapConfig.from_env(),
             validation=ValidationConfig.from_env(),
+            profiling=ProfilingConfig.from_env(),
         )
 
 
@@ -260,6 +298,16 @@ def get_config() -> MermaidConfig:
     if _default_config is None:
         _default_config = MermaidConfig.from_env()
     return _default_config
+
+
+def set_config(config: MermaidConfig) -> None:
+    """Set the default configuration instance.
+
+    Args:
+        config: The configuration to set as default
+    """
+    global _default_config
+    _default_config = config
 
 
 def reset_config() -> None:
