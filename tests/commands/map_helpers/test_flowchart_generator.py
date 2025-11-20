@@ -7,6 +7,7 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
+from clickup_framework.commands.map_helpers.mermaid.exceptions import DataValidationError, FileOperationError
 from clickup_framework.commands.map_helpers.mermaid.generators.flowchart_generator import FlowchartGenerator
 
 
@@ -68,7 +69,7 @@ class TestFlowchartValidation:
         }
         generator = FlowchartGenerator(stats_without_symbols, temp_output_file)
 
-        with pytest.raises(ValueError, match="No symbols_by_file data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field \'symbols_by_file\' not found in stats data"):
             generator.validate_inputs()
 
     def test_validate_inputs_fails_with_empty_symbols_by_file(self, temp_output_file):
@@ -80,7 +81,7 @@ class TestFlowchartValidation:
         }
         generator = FlowchartGenerator(stats_empty_symbols, temp_output_file)
 
-        with pytest.raises(ValueError, match="No symbols_by_file data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field \'symbols_by_file\' not found in stats data"):
             generator.validate_inputs()
 
 

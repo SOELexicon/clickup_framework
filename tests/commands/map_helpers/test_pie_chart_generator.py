@@ -8,6 +8,7 @@ import tempfile
 import os
 from pathlib import Path
 from unittest.mock import patch
+from clickup_framework.commands.map_helpers.mermaid.exceptions import DataValidationError, FileOperationError
 from clickup_framework.commands.map_helpers.mermaid.generators.pie_chart_generator import PieChartGenerator
 
 
@@ -56,7 +57,7 @@ class TestPieChartValidation:
         }
         generator = PieChartGenerator(stats_without_language, temp_output_file)
 
-        with pytest.raises(ValueError, match="No by_language data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field \'by_language\' not found in stats data"):
             generator.validate_inputs()
 
     def test_validate_inputs_fails_with_empty_by_language(self, temp_output_file):
@@ -68,7 +69,7 @@ class TestPieChartValidation:
         }
         generator = PieChartGenerator(stats_empty_language, temp_output_file)
 
-        with pytest.raises(ValueError, match="No by_language data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field \'by_language\' not found in stats data"):
             generator.validate_inputs()
 
 
