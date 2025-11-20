@@ -23,7 +23,8 @@ def validate_mermaid_diagram(lines: List[str]) -> Tuple[bool, Optional[str]]:
     """
     # Check if mermaid code block is present
     has_opening_fence = any(line.strip() == '```mermaid' for line in lines[:10])
-    has_closing_fence = any(line.strip() == '```' for line in lines[-20:])
+    # Search entire file for closing fence (not just last 20 lines, as statistics can be longer)
+    has_closing_fence = any(line.strip() == '```' for line in lines)
 
     if not has_opening_fence:
         return False, "Missing opening ```mermaid fence"
@@ -65,7 +66,7 @@ def validate_mermaid_diagram(lines: List[str]) -> Tuple[bool, Optional[str]]:
 
     # Check for valid Mermaid graph declaration
     has_graph_declaration = any(
-        line.strip().startswith(('graph ', 'flowchart ', 'sequenceDiagram', 'classDiagram'))
+        line.strip().startswith(('graph ', 'flowchart ', 'sequenceDiagram', 'classDiagram', 'pie ', 'mindmap'))
         for line in lines[:20]
     )
 
