@@ -1,21 +1,31 @@
 """Mermaid diagram generators for code maps."""
 
 import sys
+import json
 from pathlib import Path
 from collections import defaultdict
 from typing import Dict
+from .mermaid_validator import validate_and_raise, get_diagram_stats
+from .mermaid.core.metadata_store import MetadataStore
+from .mermaid.core.node_manager import NodeManager
+from .mermaid.formatters.label_formatter import LabelFormatter
+from .mermaid.styling import ThemeManager, NodeStyler
 
 
-def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
+def generate_mermaid_flowchart(stats: Dict, output_file: str, theme: str = 'dark') -> None:
     """
     Generate a mermaid flowchart diagram showing directory structure with symbol details.
 
     Args:
         stats: Statistics dictionary from parse_tags_file
         output_file: Output markdown file path
+        theme: Color theme to use ('dark' or 'light', default: 'dark')
     """
     symbols_by_file = stats.get('symbols_by_file', {})
     by_language = stats.get('by_language', {})
+
+    # Initialize styling system
+    theme_manager = ThemeManager(theme)
 
     # Build mermaid diagram
     lines = [
@@ -46,7 +56,9 @@ def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
         total_symbols = sum(len(syms) for _, syms in dir_structure[dir_name])
         safe_dir = dir_name.replace('\\', '/').replace('clickup_framework/', '')
         lines.append(f"    {dir_id}[\"{safe_dir}<br/>{total_symbols} symbols\"]")
-        lines.append(f"    style {dir_id} fill:#1e3a8a,stroke:#60a5fa,stroke-width:3px")
+        # Use color scheme from theme
+        color_scheme = theme_manager.get_color_scheme(idx)
+        lines.append(f"    style {dir_id} {color_scheme.to_mermaid_style()},stroke-width:3px")
 
     lines.append("")
 
@@ -87,7 +99,9 @@ def generate_mermaid_flowchart(stats: Dict, output_file: str) -> None:
                     # Count methods in this class
                     methods = [s for s in symbols if s.get('scope') == cls_name and s.get('kind') in ['function', 'method']]
                     lines.append(f"    {cls_id}[\"{cls_name}<br/>{len(methods)} methods\"]")
-                    lines.append(f"    style {cls_id} fill:#065f46,stroke:#34d399")
+                    # Use theme for class styling
+                    style = theme_manager.apply_to_subgraph('class_subgraph')
+                    lines.append(f"    style {cls_id} {style}")
                     lines.append(f"    {file_id} --> {cls_id}")
 
             file_count += 1
@@ -331,13 +345,79 @@ def generate_mermaid_mindmap(stats: Dict, output_file: str) -> None:
         print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
 
 
-def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
+def scan_directory_structure(base_path: str, max_depth: int = 5, exclude_dirs: set = None) -> dict:
+    """
+    Scan filesystem directory structure to build a directory tree.
+
+    Args:
+        base_path: Root directory to scan
+        max_depth: Maximum depth to scan
+        exclude_dirs: Set of directory names to exclude
+
+    Returns:
+        Nested dictionary representing directory tree structure
+    """
+    if exclude_dirs is None:
+        exclude_dirs = {
+            '.git', '__pycache__', 'node_modules', '.venv', 'venv',
+            'dist', 'build', '.pytest_cache', '.mypy_cache', 'htmlcov',
+            '.tox', 'eggs', '.eggs', 'lib', 'lib64', 'parts', 'sdist',
+            'var', 'wheels', '*.egg-info', '.installed.cfg', '*.egg'
+        }
+
+    tree = {}
+    base_path_obj = Path(base_path)
+
+    def scan_dir(current_path: Path, depth: int = 0):
+        """Recursively scan directory and build tree."""
+        if depth >= max_depth:
+            return None
+
+        # Get relative path from base
+        try:
+            rel_path = current_path.relative_to(base_path_obj)
+            parts = list(rel_path.parts) if str(rel_path) != '.' else []
+        except ValueError:
+            return None
+
+        result = {
+            '__files__': {},
+            '__subdirs__': {},
+            '__has_code__': False
+        }
+
+        try:
+            entries = list(current_path.iterdir())
+        except PermissionError:
+            return None
+
+        # Check for code files in this directory
+        code_extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cs', '.cpp', '.c', '.h', '.go', '.rb', '.php'}
+        has_code_files = any(entry.is_file() and entry.suffix in code_extensions for entry in entries)
+        result['__has_code__'] = has_code_files
+
+        # Scan subdirectories
+        for entry in entries:
+            if entry.is_dir() and entry.name not in exclude_dirs:
+                subdir_result = scan_dir(entry, depth + 1)
+                if subdir_result and (subdir_result['__has_code__'] or subdir_result['__subdirs__']):
+                    result['__subdirs__'][entry.name] = subdir_result
+                    result['__has_code__'] = True  # Mark parent as having code if child has code
+
+        return result
+
+    root_result = scan_dir(base_path_obj, 0)
+    return root_result if root_result else {'__files__': {}, '__subdirs__': {}, '__has_code__': False}
+
+
+def generate_mermaid_code_flow(stats: Dict, output_file: str, theme: str = 'dark') -> None:
     """
     Generate a mermaid flowchart showing actual code execution flow with subgraphs by class/module.
 
     Args:
         stats: Statistics dictionary from parse_tags_file
         output_file: Output markdown file path
+        theme: Color theme to use ('dark' or 'light', default: 'dark')
     """
     function_calls = stats.get('function_calls', {})
     all_symbols = stats.get('all_symbols', {})
@@ -350,109 +430,237 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
         "graph TD"
     ]
 
+    # Initialize styling system
+    theme_manager = ThemeManager(theme)
+    node_styler = NodeStyler()
+
+    # Initialize metadata store and node manager
+    metadata_store = MetadataStore()
+    label_formatter = LabelFormatter('minimal')  # Use minimal labels to reduce text size
+    node_manager = NodeManager(metadata_store, label_formatter)
+
     # Find entry points (functions not called by others)
     called_functions = set()
     for calls in function_calls.values():
         called_functions.update(calls)
 
     entry_points = [func for func in function_calls.keys()
-                   if func not in called_functions][:15]  # Even more entry points
+                   if func not in called_functions][:10]  # Reduced to 10 entry points
 
-    # Group functions by folder/directory
-    functions_by_folder = defaultdict(lambda: defaultdict(list))  # folder -> class -> [functions]
-    processed = set()
-    node_count = 0
-    node_ids = {}  # Map func_name to node_id
+    # Collect functions using NodeManager (reduced limits for text size)
+    collected_symbols = {}
+    for entry in entry_points:
+        if len(node_manager.processed) >= 80:  # Reduced from 150 to 80
+            break
+        collected = node_manager.collect_functions_recursive(
+            entry,
+            function_calls,
+            all_symbols,
+            max_depth=8,  # Reduced from 12 to 8
+            max_nodes=80  # Reduced from 150 to 80
+        )
+        # Store collected symbols for tree organization
+        for func_name in collected:
+            if func_name in all_symbols:
+                collected_symbols[func_name] = all_symbols[func_name]
 
-    def collect_functions(func_name, depth=0, max_depth=8):
-        nonlocal node_count
+    # Get references for backwards compatibility
+    node_ids = node_manager.node_ids
+    processed = node_manager.processed
 
-        if depth > max_depth or func_name in processed or node_count >= 50:
-            return
+    print(f"[INFO] Collected {len(collected_symbols)} functions to map")
 
-        processed.add(func_name)
-        symbol = all_symbols.get(func_name, {})
-        scope = symbol.get('scope', '')
+    # Scan directory structure first
+    # Determine base path - use current working directory as the project root
+    base_path = Path.cwd()
 
-        # Get folder path from file path
+    # Verify that the symbols we collected are under this base path
+    # If not, find the common ancestor
+    all_paths = []
+    for symbol in collected_symbols.values():
         file_path = symbol.get('path', '')
         if file_path:
-            folder = str(Path(file_path).parent)
-            # Normalize path separators and handle current directory
-            folder = folder.replace('\\', '/').replace('.', 'root')
+            abs_path = Path(file_path).resolve()
+            all_paths.append(abs_path)
+
+    if all_paths:
+        # Find common ancestor of all paths
+        common_parts = list(all_paths[0].parts)
+        for path in all_paths[1:]:
+            path_parts = list(path.parts)
+            # Find where they diverge
+            for i, (a, b) in enumerate(zip(common_parts, path_parts)):
+                if a != b:
+                    common_parts = common_parts[:i]
+                    break
+            else:
+                # One path is prefix of another
+                common_parts = common_parts[:len(path_parts)]
+
+        if common_parts:
+            base_path = Path(*common_parts)
         else:
-            folder = 'root'
+            base_path = Path.cwd()
+    else:
+        base_path = Path.cwd()
 
-        # Group by folder, then by class or module
-        if scope:
-            functions_by_folder[folder][scope].append(func_name)
+    base_path_str = str(base_path)
+
+    print(f"[INFO] Scanning directory structure from: {base_path_str}")
+    dir_tree = scan_directory_structure(base_path_str, max_depth=3)
+
+    # Now organize collected functions into the directory tree
+    # Group functions by folder -> file -> class
+    functions_by_folder = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
+    for func_name, symbol in collected_symbols.items():
+        file_path = symbol.get('path', '')
+        scope = symbol.get('scope', '')
+
+        if file_path:
+            path_obj = Path(file_path)
+            folder = str(path_obj.parent).replace('\\', '/')
+            if folder == '.':
+                folder = 'root'
+
+            # Get base file name (handle compound extensions)
+            base_name = path_obj.stem
+            if base_name.endswith('.razor'):
+                base_name = base_name[:-6]
+
+            # Determine class/module grouping
+            if scope:
+                class_name = scope
+            else:
+                class_name = f"module_{base_name}"
+
+            functions_by_folder[folder][base_name][class_name].append(func_name)
         else:
-            # Use file as grouping if no class
-            file_name = Path(symbol.get('path', 'global')).stem
-            functions_by_folder[folder][f"module_{file_name}"].append(func_name)
+            functions_by_folder['root']['unknown']['global'].append(func_name)
 
-        node_count += 1
+    # Populate the scanned directory tree with collected functions
+    # We need to match functions to directories in the tree
+    def populate_tree_with_functions(dir_tree, functions_by_folder, base_path_str):
+        """
+        Populate the scanned directory tree with collected functions.
 
-        # Recursively collect called functions
-        calls = function_calls.get(func_name, [])
-        for called_func in calls[:3]:  # Limit calls per function for clarity
-            if called_func not in processed:
-                collect_functions(called_func, depth + 1, max_depth)
+        Args:
+            dir_tree: Scanned directory structure
+            functions_by_folder: Collected functions grouped by folder->file->class
+            base_path_str: Base path string for normalization
+        """
+        base_path_obj = Path(base_path_str) if base_path_str != '.' else Path.cwd()
 
-    # Collect all functions starting from entry points
-    for entry in entry_points:
-        if node_count >= 50:
-            break
-        collect_functions(entry, depth=0, max_depth=8)
+        # For each folder with functions, find its location in the tree
+        for folder_path, files_dict in functions_by_folder.items():
+            # Normalize folder path
+            if folder_path == 'root':
+                # Functions in root go at tree root
+                if '__files__' not in dir_tree:
+                    dir_tree['__files__'] = {}
+                dir_tree['__files__'].update(files_dict)
+                continue
 
-    # Transform folder->class into folder->file_component->class for grouping related files
-    def group_by_file_components(functions_by_folder, all_symbols):
-        """Group related files (e.g., Component.razor + Component.razor.cs) together."""
-        file_components = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-        # Result: file_components[folder][base_file_name][class_name] = [functions]
+            # Split folder path into parts
+            parts = folder_path.replace('\\', '/').split('/')
 
-        for folder, classes_dict in functions_by_folder.items():
-            for class_name, funcs in classes_dict.items():
-                for func_name in funcs:
-                    symbol = all_symbols.get(func_name, {})
-                    file_path = symbol.get('path', '')
+            # Navigate to the correct location in tree
+            current = dir_tree
+            for part in parts:
+                if part == '.' or part == '':
+                    continue
 
-                    if file_path:
-                        path_obj = Path(file_path)
-                        base_name = path_obj.stem
+                # Look in subdirs
+                subdirs = current.get('__subdirs__', {})
+                if part in subdirs:
+                    current = subdirs[part]
+                else:
+                    # Directory not in scanned tree, skip these functions
+                    break
+            else:
+                # Successfully navigated to directory, add files
+                if '__files__' not in current:
+                    current['__files__'] = {}
+                current['__files__'].update(files_dict)
 
-                        # Handle compound extensions: Component.razor.cs -> Component
-                        if base_name.endswith('.razor'):
-                            base_name = base_name[:-6]
+        return dir_tree
 
-                        # Group by base file name
-                        file_components[folder][base_name][class_name].append(func_name)
-                    else:
-                        # Fallback for functions without file path
-                        file_components[folder]['unknown'][class_name].append(func_name)
+    populate_tree_with_functions(dir_tree, functions_by_folder, base_path_str)
+    print(f"[INFO] Populated directory tree with collected functions")
 
-        return file_components
-
-    file_components = group_by_file_components(functions_by_folder, all_symbols)
-
-    # Generate subgraphs for each folder with nested file components
+    # Generate nested subgraphs recursively
     subgraph_count = 0
     file_sg_count = 0
 
-    for folder, files_dict in sorted(file_components.items())[:20]:  # Limit folders
-        if not files_dict:
-            continue
+    def has_functions_in_tree(tree_node):
+        """Check if a tree node or its children have any functions."""
+        files_dict = tree_node.get('__files__', {})
+        if files_dict:
+            # Check if any file has any class with functions
+            for file_classes in files_dict.values():
+                if any(file_classes.values()):
+                    return True
 
-        folder_sg_id = f"SG{subgraph_count}"
-        subgraph_count += 1
+        # Check subdirectories
+        subdirs = tree_node.get('__subdirs__', {})
+        for subdir_node in subdirs.values():
+            if has_functions_in_tree(subdir_node):
+                return True
 
-        # Clean folder name for display
-        display_folder = folder.replace('root', '📁 .').replace('/', ' / ')
-        if not display_folder.startswith('📁'):
-            display_folder = f"📁 {display_folder}"
+        return False
 
-        # Start folder subgraph
-        lines.append(f"    subgraph {folder_sg_id}[\"{display_folder}\"]")
+    def generate_nested_subgraphs(tree, depth=0, path_parts=[], skip_root=True):
+        """Recursively generate nested subgraphs for directory hierarchy."""
+        nonlocal subgraph_count, file_sg_count, lines
+
+        # Handle root level specially
+        if skip_root and depth == 0:
+            # Process root's files and subdirs directly without creating root subgraph
+            files_dict = tree.get('__files__', {})
+            if files_dict:
+                # Generate file subgraphs at root level
+                generate_file_subgraphs(files_dict, depth)
+
+            subdirs = tree.get('__subdirs__', {})
+            generate_nested_subgraphs(subdirs, depth, path_parts, skip_root=False)
+            return
+
+        # Normal processing for non-root levels
+        for dir_name in sorted(tree.keys()):
+            node = tree[dir_name]
+
+            # Skip if no functions in this branch
+            if not has_functions_in_tree(node):
+                continue
+
+            files_dict = node.get('__files__', {})
+            subdirs = node.get('__subdirs__', {})
+
+            # Create subgraph for this directory
+            folder_sg_id = f"SG{subgraph_count}"
+            subgraph_count += 1
+
+            indent = "    " * (depth + 1)
+            display_name = f"DIR: {dir_name}"
+
+            lines.append(f"{indent}subgraph {folder_sg_id}[\"{display_name}\"]")
+
+            # Generate file subgraphs in this directory
+            if files_dict:
+                generate_file_subgraphs(files_dict, depth + 1)
+
+            # Recursively process subdirectories
+            if subdirs:
+                generate_nested_subgraphs(subdirs, depth + 1, path_parts + [dir_name], skip_root=False)
+
+            # Close directory subgraph
+            indent = "    " * (depth + 1)
+            lines.append(f"{indent}end")
+            lines.append("")
+
+    def generate_file_subgraphs(files_dict, depth):
+        """Generate file and class subgraphs with function nodes."""
+        nonlocal file_sg_count, node_ids
 
         # Iterate through file components in this folder
         for base_file_name, classes_dict in sorted(files_dict.items()):
@@ -463,47 +671,64 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
             file_sg_id = f"FSG{file_sg_count}"
             file_sg_count += 1
 
-            lines.append(f"        subgraph {file_sg_id}[\"📄 {base_file_name}\"]")
+            file_indent = "    " * (depth + 1)
+            lines.append(f"{file_indent}subgraph {file_sg_id}[\"FILE: {base_file_name}\"]")
+
+            # Check if there are multiple classes - if so, create class subgraphs
+            has_multiple_classes = len([c for c in classes_dict.keys() if not c.startswith('module_')]) > 1
+            class_sg_count = 0
 
             # Add all functions from all classes in this file component
             for class_name, funcs in sorted(classes_dict.items()):
                 if not funcs:
                     continue
 
-                for func_name in funcs[:15]:  # Limit functions
-                    symbol = all_symbols.get(func_name, {})
-                    node_id = f"N{len(node_ids)}"
-                    node_ids[func_name] = node_id
-
-                    display_func = func_name.split('.')[-1]
-                    file_name = Path(symbol.get('path', '')).name
-                    line_start = symbol.get('line', 0)
-                    line_end = symbol.get('end', line_start)
-
-                    # Show class/module in node if available
+                # If multiple classes exist and this is a real class (not module_), create class subgraph
+                if has_multiple_classes and not class_name.startswith('module_'):
+                    class_sg_id = f"CSG{file_sg_count}_{class_sg_count}"
+                    class_sg_count += 1
                     class_display = class_name.replace('module_', '')
+                    class_indent = "    " * (depth + 2)
+                    lines.append(f"{class_indent}subgraph {class_sg_id}[\"CLASS: {class_display}\"]")
+                    node_indent = "    " * (depth + 3)
+                else:
+                    node_indent = "    " * (depth + 2)
 
-                    # Create node with class, file, and line numbers (file also shown in subgraph title for context)
-                    lines.append(f"            {node_id}[\"{display_func}()<br/>🔧 {class_display}<br/>📄 {file_name}<br/>📍 L{line_start}-{line_end}\"]")
+                for func_name in funcs[:50]:  # Include more functions per file
+                    # Get node ID from NodeManager (already created during collection)
+                    node_id = node_manager.get_node_id(func_name)
+                    if not node_id:
+                        continue  # Skip if node wasn't created
 
-            lines.append("        end")  # Close file component subgraph
+                    # Get label from formatter
+                    symbol = collected_symbols.get(func_name, {})
+                    label = label_formatter.format_function_label(func_name, symbol)
 
-        lines.append("    end")  # Close folder subgraph
-        lines.append("")
+                    # Add node to diagram with minimal label
+                    lines.append(f"{node_indent}{node_id}[\"{label}\"]")
 
-    # Define colors for subgraphs and edges (using very dark shades for subtle backgrounds)
-    colors = [
-        ("fill:#0d1f1a,stroke:#10b981,color:#10b981,stroke-width:2px", "#10b981", "emerald"),  # Very dark emerald
-        ("fill:#1a1625,stroke:#8b5cf6,color:#8b5cf6,stroke-width:2px", "#8b5cf6", "purple"),   # Very dark purple
-        ("fill:#0c1c20,stroke:#06b6d4,color:#06b6d4,stroke-width:2px", "#06b6d4", "cyan"),     # Very dark cyan
-        ("fill:#211a0d,stroke:#f59e0b,color:#f59e0b,stroke-width:2px", "#f59e0b", "amber"),    # Very dark amber
-        ("fill:#1f0d18,stroke:#ec4899,color:#ec4899,stroke-width:2px", "#ec4899", "pink"),     # Very dark pink
-    ]
+                    # Metadata is already stored in metadata_store via NodeManager
+
+                # Close class subgraph if we created one
+                if has_multiple_classes and not class_name.startswith('module_'):
+                    class_indent = "    " * (depth + 2)
+                    lines.append(f"{class_indent}end")
+
+            file_indent = "    " * (depth + 1)
+            lines.append(f"{file_indent}end")  # Close file component subgraph
+
+    # Start recursive generation from the tree root
+    generate_nested_subgraphs(dir_tree)
 
     # Build node-to-color mapping based on which folder they belong to
+    # Using theme manager to get color rotation
     node_to_color = {}
-    for i, (folder, files_dict) in enumerate(sorted(file_components.items())[:20]):
-        _, edge_color, _ = colors[i % len(colors)]
+    color_rotation = {}  # Maps node_id to color index
+    for i, (folder, files_dict) in enumerate(sorted(functions_by_folder.items())[:20]):
+        color_idx = i % theme_manager.get_theme()['color_count']
+        color_scheme = theme_manager.get_color_scheme(color_idx)
+        edge_color = color_scheme.edge_color()
+
         for base_file_name, classes_dict in files_dict.items():
             for class_name, funcs in classes_dict.items():
                 for func in funcs:
@@ -512,21 +737,23 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
                     for potential_name in [full_name, func]:
                         if potential_name in node_ids:
                             node_to_color[node_ids[potential_name]] = edge_color
+                            color_rotation[node_ids[potential_name]] = color_idx
 
     # Add connections with color-coded edges matching destination
     lines.append("    %% Connections")
     link_count = 0
     link_styles = []
 
-    for func_name, calls in function_calls.items():
+    for func_name in processed:  # Only iterate collected functions
         if func_name not in node_ids:
             continue
 
         from_id = node_ids[func_name]
-        for called_func in calls[:3]:  # Limit to 3 calls per function for clarity
+        calls = function_calls.get(func_name, [])
+        for called_func in calls[:5]:  # Match NodeManager limit of 5 callees
             if called_func in node_ids:
                 to_id = node_ids[called_func]
-                edge_color = node_to_color.get(to_id, '#10b981')  # Default to green
+                edge_color = node_to_color.get(to_id, theme_manager.apply_to_edges())  # Default from theme
 
                 lines.append(f"    {from_id} --> {to_id}")
                 link_styles.append(f"    linkStyle {link_count} stroke:{edge_color},stroke-width:3px")
@@ -540,45 +767,80 @@ def generate_mermaid_code_flow(stats: Dict, output_file: str) -> None:
 
     lines.append("")
 
-    # Apply green/black/purple theme styling
-    lines.append("    %% Styling - Green/Black/Purple Theme")
+    # Apply theme styling
+    lines.append(f"    %% Styling - {theme_manager.current_theme.capitalize()} Theme")
 
-    # Style subgraphs with different faded colors
+    # Style subgraphs with different colors from theme
     for i in range(subgraph_count):
-        color_style, _, _ = colors[i % len(colors)]
-        lines.append(f"    style SG{i} {color_style}")
+        color_scheme = theme_manager.get_color_scheme(i)
+        lines.append(f"    style SG{i} {color_scheme.to_mermaid_style()}")
 
-    # Style nodes with subtle backgrounds
+    # Style file subgraphs using theme manager
+    for i in range(file_sg_count):
+        style = theme_manager.apply_to_subgraph('file_subgraph')
+        lines.append(f"    style FSG{i} {style}")
+
+    # Style class subgraphs using theme manager
+    for i in range(file_sg_count):
+        for j in range(10):  # Assume max 10 classes per file
+            style = theme_manager.apply_to_subgraph('class_subgraph')
+            lines.append(f"    style CSG{i}_{j} {style}")
+
+    # Style nodes using theme manager
     for func_name, node_id in node_ids.items():
         if func_name in entry_points:
-            # Entry points - subtle purple with glow border
-            lines.append(f"    style {node_id} fill:#1a1625,stroke:#8b5cf6,stroke-width:3px,color:#a855f7")
+            # Entry points
+            style = theme_manager.apply_to_nodes('entry_point')
+            lines.append(f"    style {node_id} {style}")
         else:
-            # Regular nodes - very dark with green border
-            lines.append(f"    style {node_id} fill:#0a0a0a,stroke:#10b981,stroke-width:2px,color:#10b981")
+            # Regular nodes
+            style = theme_manager.apply_to_nodes('default')
+            lines.append(f"    style {node_id} {style}")
 
     lines.append("```")
     lines.append("")
     lines.extend([
         "## Legend",
-        "- 🟣 **Purple nodes**: Entry points (functions not called by others)",
-        "- 🟢 **Green-bordered nodes**: Called functions",
-        "- **Folder Subgraphs**: Group by directory",
-        "- **File Subgraphs**: Group related files (e.g., Component.razor + Component.razor.cs)",
+        "- **Purple nodes**: Entry points (functions not called by others)",
+        "- **Green-bordered nodes**: Called functions",
+        "- **DIR subgraphs**: Group by directory (scanned from filesystem)",
+        "- **FILE subgraphs**: Group related files (e.g., Component.razor + Component.razor.cs)",
+        "- **CLASS subgraphs**: Group by class when multiple classes in same file",
         "- **Line numbers**: Show start-end lines in source file",
         "",
         f"## Statistics",
         f"- **Total Functions Mapped**: {len(processed)}",
-        f"- **Folders**: {len(file_components)}",
-        f"- **File Components**: {sum(len(files) for files in file_components.values())}",
-        f"- **Classes/Modules**: {sum(sum(len(classes) for classes in files.values()) for files in file_components.values())}",
+        f"- **Folders**: {len(functions_by_folder)}",
+        f"- **File Components**: {sum(len(files) for files in functions_by_folder.values())}",
+        f"- **Classes/Modules**: {sum(sum(len(classes) for classes in files.values()) for files in functions_by_folder.values())}",
         f"- **Total Call Relationships**: {sum(len(calls) for calls in function_calls.values())}",
         f"- **Entry Points Found**: {len(entry_points)}",
+        f"- **Directory Tree Depth**: 3 (configurable)",
     ])
 
+    # Validate diagram before writing
     try:
+        validate_and_raise(lines)
+        stats = get_diagram_stats(lines)
+        print(f"[INFO] Diagram stats: {stats['node_count']} nodes, {stats['edge_count']} edges, {stats['subgraph_count']} subgraphs, {stats['text_size']} chars")
+    except Exception as e:
+        print(f"[ERROR] Mermaid validation failed: {e}", file=sys.stderr)
+        raise
+
+    # Store diagram stats in metadata
+    metadata_store.set_stats(**stats)
+
+    try:
+        # Write diagram file
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
+
+        # Write metadata JSON file alongside the diagram
+        metadata_file = output_file.replace('.md', '_metadata.json')
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            f.write(metadata_store.export_json(indent=2))
+
+        print(f"[INFO] Metadata exported to: {metadata_file}")
     except Exception as e:
         print(f"Error writing mermaid diagram: {e}", file=sys.stderr)
 

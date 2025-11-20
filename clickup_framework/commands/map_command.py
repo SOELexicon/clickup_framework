@@ -67,6 +67,39 @@ def map_command(args):
         success = install_ctags_locally(use_color)
         sys.exit(0 if success else 1)
 
+    # Handle list themes request
+    if args.list_themes:
+        from .map_helpers.mermaid.styling.color_schemes import list_themes
+
+        if use_color:
+            print()
+            print(colorize("=" * 80, TextColor.BRIGHT_CYAN))
+            print(colorize("Available Themes", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+            print(colorize("=" * 80, TextColor.BRIGHT_CYAN))
+            print()
+        else:
+            print()
+            print("=" * 80)
+            print("Available Themes")
+            print("=" * 80)
+            print()
+
+        themes = list_themes()
+        for theme_name, theme_info in themes.items():
+            if use_color:
+                print(colorize(f"{theme_name}:", TextColor.BRIGHT_GREEN, TextStyle.BOLD))
+                print(f"  {theme_info['description']}")
+                print(f"  Colors: {theme_info['colors']}")
+                print(f"  Best for: {theme_info['best_for']}")
+            else:
+                print(f"{theme_name}:")
+                print(f"  {theme_info['description']}")
+                print(f"  Colors: {theme_info['colors']}")
+                print(f"  Best for: {theme_info['best_for']}")
+            print()
+
+        sys.exit(0)
+
     # Check if ctags is available
     ctags_exe = get_ctags_executable()
     if not ctags_exe:
@@ -215,6 +248,18 @@ def map_command(args):
     output_path = None
     export_success = False
     if args.mer:
+        # Validate theme before generating diagrams
+        from .map_helpers.mermaid.styling import ThemeManager
+        theme_manager = ThemeManager(args.theme)
+        # Check if the requested theme was actually set (not fallen back to default)
+        if theme_manager.current_theme != args.theme:
+            error_msg = f"ERROR: Invalid theme '{args.theme}'. Use --list-themes to see available themes."
+            if use_color:
+                print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+            else:
+                print(error_msg, file=sys.stderr)
+            sys.exit(1)
+
         # Map diagram types to generator functions
         diagram_generators = {
             'flowchart': generate_mermaid_flowchart,
@@ -242,11 +287,15 @@ def map_command(args):
         mermaid_file.parent.mkdir(parents=True, exist_ok=True)
 
         if use_color:
-            print(colorize(f"[PROGRESS] Generating {args.mer} mermaid diagram...", TextColor.BRIGHT_BLUE))
+            print(colorize(f"[PROGRESS] Generating {args.mer} mermaid diagram with {args.theme} theme...", TextColor.BRIGHT_BLUE))
         else:
-            print(f"[PROGRESS] Generating {args.mer} mermaid diagram...")
+            print(f"[PROGRESS] Generating {args.mer} mermaid diagram with {args.theme} theme...")
 
-        generator(stats, str(mermaid_file))
+        # Pass theme parameter to generators that support it
+        if args.mer in ['flowchart', 'swim', 'flow']:
+            generator(stats, str(mermaid_file), theme=args.theme)
+        else:
+            generator(stats, str(mermaid_file))
 
         if use_color:
             print(colorize(f"[SUCCESS] Mermaid diagram: {mermaid_file}", TextColor.GREEN))
@@ -383,6 +432,28 @@ def register_command(subparsers):
         '--html',
         action='store_true',
         help='Generate interactive HTML with zoom, pan, animations, and click handlers'
+    )
+
+    # Execution trace option
+    parser.add_argument(
+        '--trace',
+        action='store_true',
+        help='Enable dynamic execution tracing with hot path visualization (highlights frequently called functions)'
+    )
+
+    # Theme selection
+    parser.add_argument(
+        '--theme',
+        type=str,
+        default='dark',
+        help='Color theme for diagram styling (default: dark). Use --list-themes to see available options'
+    )
+
+    # List available themes
+    parser.add_argument(
+        '--list-themes',
+        action='store_true',
+        help='List all available color themes and exit'
     )
 
     parser.set_defaults(func=map_command)
