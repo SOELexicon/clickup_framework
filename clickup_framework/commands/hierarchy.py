@@ -111,6 +111,13 @@ def hierarchy_command(args):
     # Check if --all flag is set
     show_all = getattr(args, 'show_all', False)
 
+    # Check if --space flag is set
+    space_id = getattr(args, 'space_id', None)
+
+    # If --space is provided, use it as the list_id (space IDs work as container IDs)
+    if space_id:
+        args.list_id = space_id
+
     # Get the include_completed and show_closed_only flags
     include_completed = getattr(args, 'include_completed', False)
     show_closed_only = getattr(args, 'show_closed_only', False)
@@ -121,11 +128,11 @@ def hierarchy_command(args):
 
     # Validate that either list_id or --all is provided
     if not show_all and not args.list_id:
-        print("Error: Either provide a container ID or use --all to show all workspace tasks", file=sys.stderr)
+        print("Error: Either provide a container ID, use --space, or use --all to show all workspace tasks", file=sys.stderr)
         sys.exit(1)
 
     if show_all and args.list_id:
-        print("Error: Cannot use both container ID and --all flag together", file=sys.stderr)
+        print("Error: Cannot use both container ID/--space and --all flag together", file=sys.stderr)
         sys.exit(1)
 
     if show_all:
@@ -921,10 +928,12 @@ def register_command(subparsers):
   • Show full descriptions: cum h <list_id> -d
   • Aliases: hierarchy, h, list, ls, l (all work the same)'''
     )
-    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
+    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
     hierarchy_parser.add_argument('--header', help='Custom header text')
     hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
                                  help='Show all tasks from the entire workspace')
+    hierarchy_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
+                                 help='Show all folders/lists/tasks in a specific space')
     hierarchy_parser.add_argument('--depth', type=int, metavar='N',
                                  help='Limit hierarchy display to N levels deep')
     add_common_args(hierarchy_parser)
@@ -932,10 +941,12 @@ def register_command(subparsers):
 
     # Short alias: h
     h_parser = subparsers.add_parser('h', help='Display tasks in hierarchical view (alias for hierarchy)')
-    h_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
+    h_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
     h_parser.add_argument('--header', help='Custom header text')
     h_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
+    h_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
+                         help='Show all folders/lists/tasks in a specific space')
     h_parser.add_argument('--depth', type=int, metavar='N',
                          help='Limit hierarchy display to N levels deep')
     add_common_args(h_parser)
@@ -943,10 +954,12 @@ def register_command(subparsers):
 
     # List command (alias for hierarchy)
     list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
-    list_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
+    list_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
     list_parser.add_argument('--header', help='Custom header text')
     list_parser.add_argument('--all', dest='show_all', action='store_true',
                             help='Show all tasks from the entire workspace')
+    list_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
+                            help='Show all folders/lists/tasks in a specific space')
     list_parser.add_argument('--depth', type=int, metavar='N',
                             help='Limit hierarchy display to N levels deep')
     add_common_args(list_parser)
@@ -954,10 +967,12 @@ def register_command(subparsers):
 
     # Short alias: ls
     ls_parser = subparsers.add_parser('ls', help='Display tasks in hierarchical view (alias for hierarchy)')
-    ls_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
+    ls_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
     ls_parser.add_argument('--header', help='Custom header text')
     ls_parser.add_argument('--all', dest='show_all', action='store_true',
                           help='Show all tasks from the entire workspace')
+    ls_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
+                          help='Show all folders/lists/tasks in a specific space')
     ls_parser.add_argument('--depth', type=int, metavar='N',
                           help='Limit hierarchy display to N levels deep')
     add_common_args(ls_parser)
@@ -965,10 +980,12 @@ def register_command(subparsers):
 
     # Short alias: l
     l_parser = subparsers.add_parser('l', help='Display tasks in hierarchical view (alias for hierarchy)')
-    l_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all is used)')
+    l_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
     l_parser.add_argument('--header', help='Custom header text')
     l_parser.add_argument('--all', dest='show_all', action='store_true',
                          help='Show all tasks from the entire workspace')
+    l_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
+                         help='Show all folders/lists/tasks in a specific space')
     l_parser.add_argument('--depth', type=int, metavar='N',
                          help='Limit hierarchy display to N levels deep')
     add_common_args(l_parser)
