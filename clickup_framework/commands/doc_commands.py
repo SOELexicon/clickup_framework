@@ -215,8 +215,10 @@ class DocUpdateCommand(BaseCommand):
 
             success_msg = ANSIAnimations.success_message("Page updated")
             self.print(success_msg)
-            self.print(f"\nPage: {colorize(updated_page['name'], TextColor.BRIGHT_CYAN) if use_color else updated_page['name']}")
-            self.print(f"ID: {colorize(updated_page['id'], TextColor.BRIGHT_BLACK) if use_color else updated_page['id']}")
+            page_name = updated_page.get('name', self.args.name or self.args.page_id)
+            page_id_display = updated_page.get('id', self.args.page_id)
+            self.print(f"\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}")
+            self.print(f"ID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}")
 
         except Exception as e:
             self.error(f"Error updating page: {e}")
@@ -601,8 +603,10 @@ class PageUpdateCommand(BaseCommand):
 
             success_msg = ANSIAnimations.success_message("Page updated")
             self.print(success_msg)
-            self.print(f"\nPage: {colorize(updated_page['name'], TextColor.BRIGHT_CYAN) if use_color else updated_page['name']}")
-            self.print(f"ID: {colorize(updated_page['id'], TextColor.BRIGHT_BLACK) if use_color else updated_page['id']}")
+            page_name = updated_page.get('name', self.args.name or page_id)
+            page_id_display = updated_page.get('id', page_id)
+            self.print(f"\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}")
+            self.print(f"ID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}")
 
         except Exception as e:
             self.error(f"Error updating page: {e}")
