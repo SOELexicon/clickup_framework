@@ -114,6 +114,12 @@ def create_format_options(args) -> FormatOptions:
         if hasattr(args, "show_emoji") and args.show_emoji is not None:
             options.show_type_emoji = args.show_emoji
 
+        # Override description settings if --full-descriptions is specified
+        full_descriptions = getattr(args, "full_descriptions", False)
+        if full_descriptions:
+            options.show_descriptions = True
+            options.description_length = 10000
+
         return options
 
     # Otherwise build from individual flags
