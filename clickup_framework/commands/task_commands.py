@@ -1226,6 +1226,129 @@ def task_remove_link_command(args):
         sys.exit(1)
 
 
+def task_move_command(args):
+    """Move one or more tasks to a different list or parent."""
+    context = get_context_manager()
+    client = ClickUpClient()
+
+    # Validate that at least one destination is provided
+    if not args.list_id and not args.parent:
+        print("Error: Must provide either --list or --parent", file=sys.stderr)
+        sys.exit(1)
+
+    # Resolve all task IDs
+    task_ids = []
+    for tid in args.task_ids:
+        try:
+            resolved_id = context.resolve_id('task', tid)
+            task_ids.append(resolved_id)
+        except ValueError as e:
+            print(f"Error resolving '{tid}': {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Resolve destination
+    dest_list_id = None
+    dest_parent_id = None
+    dest_description = ""
+
+    if args.list_id:
+        try:
+            dest_list_id = context.resolve_id('list', args.list_id)
+            # Get list name for display
+            list_data = client.get_list(dest_list_id)
+            dest_description = f"list '{list_data.get('name', dest_list_id)}'"
+        except ValueError as e:
+            print(f"Error resolving list: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            dest_description = f"list {dest_list_id}"
+
+    if args.parent:
+        try:
+            dest_parent_id = context.resolve_id('task', args.parent)
+            # Get parent task name for display
+            parent_task = client.get_task(dest_parent_id)
+            dest_description = f"parent '{parent_task.get('name', dest_parent_id)}'"
+            # If no list specified, use parent's list
+            if not dest_list_id:
+                dest_list_id = parent_task['list']['id']
+        except ValueError as e:
+            print(f"Error resolving parent task: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            dest_description = f"parent {dest_parent_id}"
+
+    # Get task info for confirmation
+    tasks_to_move = []
+    for task_id in task_ids:
+        try:
+            task = client.get_task(task_id)
+            current_list = task.get('list', {}).get('name', 'Unknown')
+            current_parent = task.get('parent')
+            tasks_to_move.append({
+                'id': task_id,
+                'name': task['name'],
+                'current_list': current_list,
+                'current_parent': current_parent
+            })
+        except Exception as e:
+            print(f"Error fetching task {task_id}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Confirmation prompt unless force flag is set
+    if not args.force:
+        if len(tasks_to_move) == 1:
+            t = tasks_to_move[0]
+            print(f"\nMove task '{t['name']}' [{t['id']}]")
+            print(f"  From: {t['current_list']}")
+            print(f"  To: {dest_description}")
+            response = input("\nProceed? (y/N): ")
+        else:
+            print(f"\nTasks to move ({len(tasks_to_move)}):")
+            for t in tasks_to_move:
+                print(f"  • {t['name']} [{t['id']}] (from {t['current_list']})")
+            print(f"\nDestination: {dest_description}")
+            response = input(f"\nMove all {len(tasks_to_move)} tasks? (y/N): ")
+
+        if response.lower() not in ['y', 'yes']:
+            print("Cancelled.")
+            return
+
+    # Move the tasks
+    success_count = 0
+    failed_count = 0
+
+    for task_info in tasks_to_move:
+        task_id = task_info['id']
+        task_name = task_info['name']
+
+        try:
+            # Build update payload
+            updates = {}
+            if dest_list_id:
+                updates['list'] = dest_list_id
+            if dest_parent_id:
+                updates['parent'] = dest_parent_id
+
+            client.update_task(task_id, **updates)
+
+            success_msg = ANSIAnimations.success_message(f"Moved: {task_name}")
+            print(success_msg)
+            success_count += 1
+
+        except Exception as e:
+            print(f"Error moving '{task_name}' [{task_id}]: {e}", file=sys.stderr)
+            failed_count += 1
+
+    # Summary for multiple tasks
+    if len(tasks_to_move) > 1:
+        print(f"\n{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+        print(f"  Moved: {success_count}/{len(tasks_to_move)} tasks")
+        if failed_count > 0:
+            print(f"  Failed: {failed_count}/{len(tasks_to_move)} tasks")
+            sys.exit(1)
+
+
 def register_command(subparsers):
     """Register task management commands."""
     # Task create
@@ -1490,3 +1613,23 @@ def register_command(subparsers):
     task_unlink_parser.add_argument('task_id', help='Task ID to unlink from (or "current")')
     task_unlink_parser.add_argument('linked_task_id', help='Task ID to unlink')
     task_unlink_parser.set_defaults(func=task_remove_link_command)
+
+    # Task move
+    task_move_parser = subparsers.add_parser(
+        'task_move',
+        aliases=['tmv'],
+        help='Move tasks to different list or parent',
+        description='Move one or more tasks to a different list or change their parent task.',
+        epilog='''Tips:
+  • Move to list: cum tmv 86abc123 --list 901517404274
+  • Move to parent: cum tmv 86abc123 --parent 86def456
+  • Move multiple: cum tmv 86abc123 86def456 --list 901517404274
+  • Force without confirm: cum tmv 86abc123 --list 901517404274 --force
+  • Use "current" for current context: cum tmv current --list 901517404274'''
+    )
+    task_move_parser.add_argument('task_ids', nargs='+', help='Task ID(s) to move (or "current")')
+    task_move_parser.add_argument('--list', dest='list_id', help='Destination list ID (or "current")')
+    task_move_parser.add_argument('--parent', help='New parent task ID (or "current")')
+    task_move_parser.add_argument('--force', '-f', action='store_true',
+                                   help='Skip confirmation prompt')
+    task_move_parser.set_defaults(func=task_move_command)
