@@ -18,7 +18,7 @@ class DocListCommand(BaseCommand):
         docs_api = DocsAPI(self.client)
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get docs
         try:
@@ -71,7 +71,7 @@ class DocGetCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get doc
         try:
@@ -143,7 +143,7 @@ class DocCreateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Create doc
         try:
@@ -201,7 +201,7 @@ class DocUpdateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Update page
         try:
@@ -215,8 +215,10 @@ class DocUpdateCommand(BaseCommand):
 
             success_msg = ANSIAnimations.success_message("Page updated")
             self.print(success_msg)
-            self.print(f"\nPage: {colorize(updated_page['name'], TextColor.BRIGHT_CYAN) if use_color else updated_page['name']}")
-            self.print(f"ID: {colorize(updated_page['id'], TextColor.BRIGHT_BLACK) if use_color else updated_page['id']}")
+            page_name = updated_page.get('name', self.args.name or self.args.page_id)
+            page_id_display = updated_page.get('id', self.args.page_id)
+            self.print(f"\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}")
+            self.print(f"ID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}")
 
         except Exception as e:
             self.error(f"Error updating page: {e}")
@@ -233,7 +235,7 @@ class DocExportCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get output directory
         output_dir = Path(self.args.output_dir if hasattr(self.args, 'output_dir') and self.args.output_dir else '.')
@@ -347,7 +349,7 @@ class DocImportCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get input directory
         input_dir = Path(self.args.input_dir)
@@ -497,7 +499,7 @@ class PageListCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace and doc IDs
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
         doc_id = self.args.doc_id
 
         # Get pages
@@ -552,7 +554,7 @@ class PageCreateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace and doc IDs
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
         doc_id = self.args.doc_id
 
         # Create page
@@ -585,7 +587,7 @@ class PageUpdateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
         doc_id = self.args.doc_id
         page_id = self.args.page_id
 
@@ -601,8 +603,10 @@ class PageUpdateCommand(BaseCommand):
 
             success_msg = ANSIAnimations.success_message("Page updated")
             self.print(success_msg)
-            self.print(f"\nPage: {colorize(updated_page['name'], TextColor.BRIGHT_CYAN) if use_color else updated_page['name']}")
-            self.print(f"ID: {colorize(updated_page['id'], TextColor.BRIGHT_BLACK) if use_color else updated_page['id']}")
+            page_name = updated_page.get('name', self.args.name or page_id)
+            page_id_display = updated_page.get('id', page_id)
+            self.print(f"\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}")
+            self.print(f"ID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}")
 
         except Exception as e:
             self.error(f"Error updating page: {e}")

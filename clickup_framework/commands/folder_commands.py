@@ -15,7 +15,7 @@ class FolderCreateCommand(BaseCommand):
         workspaces_api = WorkspacesAPI(self.client)
 
         # Resolve space ID
-        space_id = self.resolve_id(self.args.space_id)
+        space_id = self.resolve_id('space', self.args.space_id)
 
         # Create the folder
         try:
@@ -40,7 +40,7 @@ class FolderUpdateCommand(BaseCommand):
         workspaces_api = WorkspacesAPI(self.client)
 
         # Resolve folder ID
-        folder_id = self.resolve_id(self.args.folder_id)
+        folder_id = self.resolve_id('folder', self.args.folder_id)
 
         # Build updates
         updates = {}
@@ -72,7 +72,7 @@ class FolderDeleteCommand(BaseCommand):
     def execute(self):
         """Execute the folder delete command."""
         # Resolve folder ID
-        folder_id = self.resolve_id(self.args.folder_id)
+        folder_id = self.resolve_id('folder', self.args.folder_id)
 
         # Show warning
         self.print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the folder and all its lists and tasks.")
@@ -99,7 +99,7 @@ class FolderGetCommand(BaseCommand):
     def execute(self):
         """Execute the folder get command."""
         # Resolve folder ID
-        folder_id = self.resolve_id(self.args.folder_id)
+        folder_id = self.resolve_id('folder', self.args.folder_id)
 
         # Get the folder
         try:
