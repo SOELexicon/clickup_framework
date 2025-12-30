@@ -7,6 +7,7 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
+from clickup_framework.commands.map_helpers.mermaid.exceptions import DataValidationError, FileOperationError
 from clickup_framework.commands.map_helpers.mermaid.generators.mindmap_generator import MindmapGenerator
 
 
@@ -75,7 +76,7 @@ class TestMindmapValidation:
         }
         generator = MindmapGenerator(stats_without_symbols, temp_output_file)
 
-        with pytest.raises(ValueError, match="No symbols_by_file or by_language data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field .* not found in stats data"):
             generator.validate_inputs()
 
     def test_validate_inputs_fails_without_by_language(self, temp_output_file):
@@ -86,7 +87,7 @@ class TestMindmapValidation:
         }
         generator = MindmapGenerator(stats_without_language, temp_output_file)
 
-        with pytest.raises(ValueError, match="No symbols_by_file or by_language data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field .* not found in stats data"):
             generator.validate_inputs()
 
     def test_validate_inputs_fails_with_empty_data(self, temp_output_file):
@@ -98,7 +99,7 @@ class TestMindmapValidation:
         }
         generator = MindmapGenerator(stats_empty, temp_output_file)
 
-        with pytest.raises(ValueError, match="No symbols_by_file or by_language data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field .* not found in stats data"):
             generator.validate_inputs()
 
 

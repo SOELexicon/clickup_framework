@@ -6,7 +6,12 @@ from .base_generator import BaseGenerator
 from ..core.metadata_store import MetadataStore
 from ..core.node_manager import NodeManager
 from ..formatters.label_formatter import LabelFormatter
-from ..builders.tree_builder import TreeBuilder
+from .codeflow_helpers import (
+    has_functions_in_tree,
+    populate_tree_with_functions,
+    SubgraphGenerator,
+    DirectoryTreeBuilder
+)
 from ..config import get_config
 from ..exceptions import DataValidationError
 
@@ -143,9 +148,9 @@ class CodeFlowGenerator(BaseGenerator):
         base_path_str = str(base_path)
         print(f"[INFO] Scanning directory structure from: {base_path_str}")
 
-        # Use TreeBuilder to scan directory structure
-        tree_builder = TreeBuilder(base_path_str, max_depth=self.config.tree_depth)
-        dir_tree = tree_builder.scan_directory_structure()
+        # Use DirectoryTreeBuilder to scan directory structure
+        tree_builder = DirectoryTreeBuilder(base_path_str, max_depth=self.config.tree_depth)
+        dir_tree = tree_builder.scan()
 
         # Group functions by folder
         functions_by_folder = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
@@ -170,98 +175,20 @@ class CodeFlowGenerator(BaseGenerator):
 
         self._functions_by_folder = functions_by_folder
 
-        # Populate tree with functions using TreeBuilder
-        dir_tree = tree_builder.populate_tree_with_functions(dir_tree, functions_by_folder)
+        # Populate tree with functions using DirectoryTreeBuilder
+        dir_tree = tree_builder.populate_with_functions(dir_tree, functions_by_folder)
         print(f"[INFO] Populated directory tree with collected functions")
 
-        # Subgraph generation state
-        subgraph_count = 0
-        file_sg_count = 0
-
-        def generate_nested_subgraphs(tree, depth=0, path_parts=[], skip_root=True):
-            nonlocal subgraph_count, file_sg_count
-
-            if skip_root and depth == 0:
-                files_dict = tree.get('__files__', {})
-                if files_dict:
-                    generate_file_subgraphs(files_dict, depth)
-                subdirs = tree.get('__subdirs__', {})
-                generate_nested_subgraphs(subdirs, depth, path_parts, skip_root=False)
-                return
-
-            for dir_name in sorted(tree.keys()):
-                node = tree[dir_name]
-                if not tree_builder.has_functions_in_tree(node):
-                    continue
-
-                files_dict = node.get('__files__', {})
-                subdirs = node.get('__subdirs__', {})
-
-                folder_sg_id = f"SG{subgraph_count}"
-                subgraph_count += 1
-
-                indent = "    " * (depth + 1)
-                display_name = f"DIR: {dir_name}"
-                self._add_line(f"{indent}subgraph {folder_sg_id}[\"{display_name}\"]")
-
-                if files_dict:
-                    generate_file_subgraphs(files_dict, depth + 1)
-
-                if subdirs:
-                    generate_nested_subgraphs(subdirs, depth + 1, path_parts + [dir_name], skip_root=False)
-
-                indent = "    " * (depth + 1)
-                self._add_line(f"{indent}end")
-                self._add_line("")
-
-        def generate_file_subgraphs(files_dict, depth):
-            nonlocal file_sg_count
-
-            for base_file_name, classes_dict in sorted(files_dict.items()):
-                if not classes_dict:
-                    continue
-
-                file_sg_id = f"FSG{file_sg_count}"
-                file_sg_count += 1
-
-                file_indent = "    " * (depth + 1)
-                self._add_line(f"{file_indent}subgraph {file_sg_id}[\"FILE: {base_file_name}\"]")
-
-                has_multiple_classes = len([c for c in classes_dict.keys() if not c.startswith('module_')]) > 1
-                class_sg_count = 0
-
-                for class_name, funcs in sorted(classes_dict.items()):
-                    if not funcs:
-                        continue
-
-                    if has_multiple_classes and not class_name.startswith('module_'):
-                        class_sg_id = f"CSG{file_sg_count}_{class_sg_count}"
-                        class_sg_count += 1
-                        class_display = class_name.replace('module_', '')
-                        class_indent = "    " * (depth + 2)
-                        self._add_line(f"{class_indent}subgraph {class_sg_id}[\"CLASS: {class_display}\"]")
-                        node_indent = "    " * (depth + 3)
-                    else:
-                        node_indent = "    " * (depth + 2)
-
-                    for func_name in funcs[:self.config.max_functions_per_class]:
-                        node_id = node_manager.get_node_id(func_name)
-                        if not node_id:
-                            continue
-
-                        symbol = collected_symbols.get(func_name, {})
-                        label = label_formatter.format_function_label(func_name, symbol)
-                        self._add_line(f"{node_indent}{node_id}[\"{label}\"]")
-
-                    if has_multiple_classes and not class_name.startswith('module_'):
-                        class_indent = "    " * (depth + 2)
-                        self._add_line(f"{class_indent}end")
-
-                file_indent = "    " * (depth + 1)
-                self._add_line(f"{file_indent}end")
-
-        # Generate subgraphs
-        generate_nested_subgraphs(dir_tree)
+        # Generate subgraphs using SubgraphGenerator
+        subgraph_gen = SubgraphGenerator(
+            node_manager=node_manager,
+            label_formatter=label_formatter,
+            collected_symbols=collected_symbols,
+            max_functions_per_class=self.config.max_functions_per_class
+        )
+        subgraph_gen.generate_nested_subgraphs(dir_tree)
+        self._add_lines(subgraph_gen.get_lines())
+        subgraph_count, file_sg_count = subgraph_gen.get_counts()
 
         # Color mapping
         node_to_color = {}

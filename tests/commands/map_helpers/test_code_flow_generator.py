@@ -8,6 +8,7 @@ import tempfile
 import os
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
+from clickup_framework.commands.map_helpers.mermaid.exceptions import DataValidationError, FileOperationError
 from clickup_framework.commands.map_helpers.mermaid.generators.code_flow_generator import CodeFlowGenerator
 
 
@@ -72,7 +73,7 @@ class TestCodeFlowValidation:
         }
         generator = CodeFlowGenerator(stats_without_calls, temp_output_file)
 
-        with pytest.raises(ValueError, match="No function_calls or all_symbols data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field .* not found in stats data"):
             generator.validate_inputs()
 
     def test_validate_inputs_fails_without_all_symbols(self, temp_output_file):
@@ -83,7 +84,7 @@ class TestCodeFlowValidation:
         }
         generator = CodeFlowGenerator(stats_without_symbols, temp_output_file)
 
-        with pytest.raises(ValueError, match="No function_calls or all_symbols data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field .* not found in stats data"):
             generator.validate_inputs()
 
     def test_validate_inputs_fails_with_empty_data(self, temp_output_file):
@@ -95,7 +96,7 @@ class TestCodeFlowValidation:
         }
         generator = CodeFlowGenerator(stats_empty, temp_output_file)
 
-        with pytest.raises(ValueError, match="No function_calls or all_symbols data found in stats"):
+        with pytest.raises(DataValidationError, match="Required field .* not found in stats data"):
             generator.validate_inputs()
 
 

@@ -9,6 +9,7 @@ import tempfile
 import os
 from pathlib import Path
 from unittest.mock import Mock, patch, mock_open, MagicMock
+from clickup_framework.commands.map_helpers.mermaid.exceptions import DataValidationError, FileOperationError
 from clickup_framework.commands.map_helpers.mermaid.generators.base_generator import BaseGenerator
 from clickup_framework.commands.map_helpers.mermaid.core.metadata_store import MetadataStore
 from clickup_framework.commands.map_helpers.mermaid_validator import MermaidValidationError
@@ -18,9 +19,9 @@ class ConcreteGenerator(BaseGenerator):
     """Concrete implementation of BaseGenerator for testing."""
 
     def validate_inputs(self, **kwargs):
-        """Test validation - raises ValueError if 'invalid' kwarg is True."""
+        """Test validation - raises DataValidationError if 'invalid' kwarg is True."""
         if kwargs.get('invalid'):
-            raise ValueError("Invalid test input")
+            raise DataValidationError("Invalid test input")
 
     def generate_body(self, **kwargs):
         """Test body generation - adds simple diagram declaration."""
@@ -145,7 +146,7 @@ class TestErrorHandling:
         """Test that validation errors are handled and re-raised."""
         generator = ConcreteGenerator(sample_stats, temp_output_file)
 
-        with pytest.raises(ValueError, match="Invalid test input"):
+        with pytest.raises(DataValidationError, match="Invalid test input"):
             generator.generate(invalid=True)
 
     def test_error_handler_logs_context(self, sample_stats, temp_output_file, capsys):
@@ -354,16 +355,13 @@ class TestFileWriting:
         metadata_file = str(Path(temp_output_file).with_suffix('')) + '_metadata.json'
         assert not os.path.exists(metadata_file)
 
-    def test_write_files_handles_file_write_error(self, sample_stats, temp_output_file, capsys):
-        """Test _write_files handles file write errors gracefully."""
+    def test_write_files_handles_file_write_error(self, sample_stats, temp_output_file):
+        """Test _write_files raises FileOperationError for invalid paths."""
         generator = ConcreteGenerator(sample_stats, "/invalid/path/file.md")
         generator.lines = ["test content"]
 
-        with pytest.raises(Exception):
+        with pytest.raises(FileOperationError):
             generator._write_files()
-
-        captured = capsys.readouterr()
-        assert "Error writing diagram file" in captured.err
 
 
 class TestEndToEndGeneration:

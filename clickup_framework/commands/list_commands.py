@@ -15,7 +15,7 @@ class ListCreateCommand(BaseCommand):
         lists_api = ListsAPI(self.client)
 
         # Resolve folder ID
-        folder_id = self.resolve_id(self.args.folder_id)
+        folder_id = self.resolve_id('folder', self.args.folder_id)
 
         # Build list data
         list_data = {}
@@ -60,7 +60,7 @@ class ListUpdateCommand(BaseCommand):
         lists_api = ListsAPI(self.client)
 
         # Resolve list ID
-        list_id = self.resolve_id(self.args.list_id)
+        list_id = self.resolve_id('list', self.args.list_id)
 
         # Build updates
         updates = {}
@@ -103,7 +103,7 @@ class ListDeleteCommand(BaseCommand):
     def execute(self):
         """Execute the list delete command."""
         # Resolve list ID
-        list_id = self.resolve_id(self.args.list_id)
+        list_id = self.resolve_id('list', self.args.list_id)
 
         # Show warning
         self.print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the list and all its tasks.")
@@ -132,7 +132,7 @@ class ListGetCommand(BaseCommand):
         lists_api = ListsAPI(self.client)
 
         # Resolve list ID
-        list_id = self.resolve_id(self.args.list_id)
+        list_id = self.resolve_id('list', self.args.list_id)
 
         # Get the list
         try:
