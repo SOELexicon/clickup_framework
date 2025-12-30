@@ -17,7 +17,7 @@ class AttachmentCreateCommand(BaseCommand):
         attachments_api = AttachmentsAPI(self.client)
 
         # Resolve "current" to actual task ID
-        task_id = self.resolve_id(self.args.task_id)
+        task_id = self.resolve_id('task', self.args.task_id)
 
         file_path = self.args.file_path
 

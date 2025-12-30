@@ -15,7 +15,7 @@ class SpaceCreateCommand(BaseCommand):
         workspaces_api = WorkspacesAPI(self.client)
 
         # Resolve team/workspace ID
-        team_id = self.resolve_id(self.args.team_id)
+        team_id = self.resolve_id('workspace', self.args.team_id)
 
         # Build space data
         space_data = {}
@@ -67,7 +67,7 @@ class SpaceUpdateCommand(BaseCommand):
         workspaces_api = WorkspacesAPI(self.client)
 
         # Resolve space ID
-        space_id = self.resolve_id(self.args.space_id)
+        space_id = self.resolve_id('space', self.args.space_id)
 
         # Build updates
         updates = {}
@@ -107,7 +107,7 @@ class SpaceDeleteCommand(BaseCommand):
     def execute(self):
         """Execute the space delete command."""
         # Resolve space ID
-        space_id = self.resolve_id(self.args.space_id)
+        space_id = self.resolve_id('space', self.args.space_id)
 
         # Show warning
         self.print(f"\n{colorize('Warning:', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)} This will permanently delete the space and all its folders, lists, and tasks.")
@@ -134,7 +134,7 @@ class SpaceGetCommand(BaseCommand):
     def execute(self):
         """Execute the space get command."""
         # Resolve space ID
-        space_id = self.resolve_id(self.args.space_id)
+        space_id = self.resolve_id('space', self.args.space_id)
 
         # Get the space
         try:
@@ -182,7 +182,7 @@ class SpaceListCommand(BaseCommand):
     def execute(self):
         """Execute the space list command."""
         # Resolve team/workspace ID
-        team_id = self.resolve_id(self.args.team_id)
+        team_id = self.resolve_id('workspace', self.args.team_id)
 
         # Get spaces
         try:

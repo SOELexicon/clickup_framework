@@ -18,7 +18,7 @@ class DocListCommand(BaseCommand):
         docs_api = DocsAPI(self.client)
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get docs
         try:
@@ -71,7 +71,7 @@ class DocGetCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get doc
         try:
@@ -143,7 +143,7 @@ class DocCreateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Create doc
         try:
@@ -201,7 +201,7 @@ class DocUpdateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Update page
         try:
@@ -233,7 +233,7 @@ class DocExportCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get output directory
         output_dir = Path(self.args.output_dir if hasattr(self.args, 'output_dir') and self.args.output_dir else '.')
@@ -347,7 +347,7 @@ class DocImportCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
 
         # Get input directory
         input_dir = Path(self.args.input_dir)
@@ -497,7 +497,7 @@ class PageListCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace and doc IDs
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
         doc_id = self.args.doc_id
 
         # Get pages
@@ -552,7 +552,7 @@ class PageCreateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace and doc IDs
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
         doc_id = self.args.doc_id
 
         # Create page
@@ -585,7 +585,7 @@ class PageUpdateCommand(BaseCommand):
         use_color = self.context.get_ansi_output()
 
         # Resolve workspace ID
-        workspace_id = self.resolve_id(self.args.workspace_id)
+        workspace_id = self.resolve_id('workspace', self.args.workspace_id)
         doc_id = self.args.doc_id
         page_id = self.args.page_id
 
