@@ -592,38 +592,66 @@ def task_update_command(args):
 
 
 def task_delete_command(args):
-    """Delete a task."""
+    """Delete one or more tasks."""
     context = get_context_manager()
     client = ClickUpClient()
 
-    # Resolve "current" to actual task ID
-    try:
-        task_id = context.resolve_id('task', args.task_id)
-    except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+    # Resolve all task IDs
+    task_ids = []
+    for tid in args.task_ids:
+        try:
+            resolved_id = context.resolve_id('task', tid)
+            task_ids.append(resolved_id)
+        except ValueError as e:
+            print(f"Error resolving '{tid}': {e}", file=sys.stderr)
+            sys.exit(1)
 
-    # Get task name for confirmation
-    try:
-        task = client.get_task(task_id)
-        task_name = task['name']
-    except Exception as e:
-        handle_cli_error(e, {'command': 'task_delete', 'task_id': task_id})
+    # Get task names for confirmation
+    tasks_to_delete = []
+    for task_id in task_ids:
+        try:
+            task = client.get_task(task_id)
+            tasks_to_delete.append({'id': task_id, 'name': task['name']})
+        except Exception as e:
+            handle_cli_error(e, {'command': 'task_delete', 'task_id': task_id})
 
     # Confirmation prompt unless force flag is set
     if not args.force:
-        response = input(f"Delete task '{task_name}' [{task_id}]? (y/N): ")
+        if len(tasks_to_delete) == 1:
+            response = input(f"Delete task '{tasks_to_delete[0]['name']}' [{tasks_to_delete[0]['id']}]? (y/N): ")
+        else:
+            print(f"\nTasks to delete ({len(tasks_to_delete)}):")
+            for t in tasks_to_delete:
+                print(f"  • {t['name']} [{t['id']}]")
+            response = input(f"\nDelete all {len(tasks_to_delete)} tasks? (y/N): ")
+
         if response.lower() not in ['y', 'yes']:
             print("Cancelled.")
             return
 
-    # Delete the task
-    try:
-        client.delete_task(task_id)
-        success_msg = ANSIAnimations.success_message(f"Task deleted: {task_name}")
-        print(success_msg)
+    # Delete the tasks
+    success_count = 0
+    failed_count = 0
 
-    except Exception as e:
-        handle_cli_error(e, {'command': 'task_delete', 'task_id': task_id, 'task_name': task_name})
+    for task_info in tasks_to_delete:
+        task_id = task_info['id']
+        task_name = task_info['name']
+        try:
+            client.delete_task(task_id)
+            success_msg = ANSIAnimations.success_message(f"Task deleted: {task_name}")
+            print(success_msg)
+            success_count += 1
+        except Exception as e:
+            print(f"Error deleting '{task_name}' [{task_id}]: {e}", file=sys.stderr)
+            failed_count += 1
+
+    # Summary for multiple tasks
+    if len(tasks_to_delete) > 1:
+        print(f"\n{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+        print(f"  Deleted: {success_count}/{len(tasks_to_delete)} tasks")
+        if failed_count > 0:
+            print(f"  Failed: {failed_count}/{len(tasks_to_delete)} tasks")
+            sys.exit(1)
 
 
 def task_assign_command(args):
@@ -1273,16 +1301,17 @@ def register_command(subparsers):
     task_delete_parser = subparsers.add_parser(
         'task_delete',
         aliases=['td'],
-        help='Delete a task',
-        description='Permanently delete a task from ClickUp with optional confirmation prompt.',
+        help='Delete one or more tasks',
+        description='Permanently delete one or more tasks from ClickUp with optional confirmation prompt.',
         epilog='''Tips:
-  • Delete with confirmation: cum td 86abc123 (prompts for confirmation)
+  • Delete single task: cum td 86abc123
+  • Delete multiple tasks: cum td 86abc123 86def456 86ghi789
   • Force delete without prompt: cum td 86abc123 --force
   • Delete current task: cum td current
   • Be careful - deletion is permanent!
   • Consider archiving instead of deleting when possible'''
     )
-    task_delete_parser.add_argument('task_id', help='Task ID to delete (or "current")')
+    task_delete_parser.add_argument('task_ids', nargs='+', help='Task ID(s) to delete (or "current")')
     task_delete_parser.add_argument('--force', '-f', action='store_true',
                                     help='Skip confirmation prompt')
     task_delete_parser.set_defaults(func=task_delete_command)
