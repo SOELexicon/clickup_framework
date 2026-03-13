@@ -386,7 +386,7 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             show_package_progress("clickup-framework", 1.2, use_color)
 
             # Build pip command
-            pip_cmd = [python_path, '-m', 'pip', 'install', '-e', editable_location, '--no-deps', '--quiet']
+            pip_cmd = [python_path, '-m', 'pip', 'install', '-e', editable_location, '--quiet']
             if fresh_load:
                 pip_cmd.append('--force-reinstall')
             else:
