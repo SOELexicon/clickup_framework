@@ -154,12 +154,13 @@ class BaseCommand:
         else:
             print(text)
     
-    def print_error(self, message: str):
+    def print_error(self, message: str, **kwargs):
         """Print error message."""
+        kwargs.setdefault('file', sys.stderr)
         if self.use_color:
-            print(ANSIAnimations.error_message(message), file=sys.stderr)
+            print(ANSIAnimations.error_message(message), **kwargs)
         else:
-            print(f"Error: {message}", file=sys.stderr)
+            print(f"Error: {message}", **kwargs)
     
     def print_success(self, message: str):
         """Print success message."""
