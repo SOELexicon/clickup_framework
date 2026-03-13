@@ -28,11 +28,12 @@ from pathlib import Path
 import json
 
 from ..core.metadata_store import MetadataStore
-from ..styling import ThemeManager
+from ..styling import ThemeManager, NodeStyle, EdgeStyle
 from ..profiling import PerformanceProfiler, register_profile
 from ..config import get_config
 from ..exceptions import MermaidGenerationError, FileOperationError
 from ...mermaid_validator import validate_and_raise
+from ...mermaid_export import export_mermaid_to_interactive_html
 
 
 class BaseGenerator(ABC):
@@ -169,6 +170,127 @@ class BaseGenerator(ABC):
         - Write files (parent handles this)
         """
         pass
+
+    # Styling methods (overridable by subclasses)
+
+    def style_node(
+        self,
+        node_id: str,
+        node_type: str = 'default',
+        properties: Optional[Dict[str, Any]] = None
+    ) -> NodeStyle:
+        """Get styling for a specific node.
+
+        Subclasses can override this method to provide custom node styling
+        based on node properties, type, or any other criteria. The default
+        implementation uses the theme manager's global styles.
+
+        Args:
+            node_id: Unique identifier for the node
+            node_type: Node type classification (e.g., 'class', 'function', 'entry_point')
+            properties: Additional node properties for conditional styling
+                       (e.g., {'is_abstract': True, 'complexity': 42})
+
+        Returns:
+            NodeStyle object with fill, stroke, text_color, and stroke_width
+
+        Example:
+            Override in subclass for custom styling:
+
+            >>> def style_node(self, node_id, node_type='default', properties=None):
+            ...     properties = properties or {}
+            ...     # Custom logic: style complex methods differently
+            ...     if properties.get('complexity', 0) > 20:
+            ...         return NodeStyle(
+            ...             name='complex',
+            ...             fill='#2d1b1b',
+            ...             stroke='#ef4444',
+            ...             stroke_width='3px',
+            ...             text_color='#ef4444'
+            ...         )
+            ...     # Fallback to theme
+            ...     return super().style_node(node_id, node_type, properties)
+        """
+        properties = properties or {}
+
+        # Use theme manager for default styling
+        from ..styling.color_schemes import (
+            DEFAULT_NODE_STYLE,
+            ENTRY_POINT_STYLE,
+            FILE_SUBGRAPH_STYLE,
+            CLASS_SUBGRAPH_STYLE
+        )
+
+        # Map node types to predefined styles
+        style_map = {
+            'entry_point': ENTRY_POINT_STYLE,
+            'file_subgraph': FILE_SUBGRAPH_STYLE,
+            'class_subgraph': CLASS_SUBGRAPH_STYLE,
+            'default': DEFAULT_NODE_STYLE
+        }
+
+        return style_map.get(node_type, DEFAULT_NODE_STYLE)
+
+    def style_edge(
+        self,
+        edge_id: str,
+        edge_type: str = 'default',
+        properties: Optional[Dict[str, Any]] = None
+    ) -> EdgeStyle:
+        """Get styling for a specific edge/connection.
+
+        Subclasses can override this method to provide custom edge styling
+        based on relationship type, properties, or other criteria. The default
+        implementation uses the theme manager's edge colors.
+
+        Args:
+            edge_id: Unique identifier for the edge (e.g., 'node1->node2')
+            edge_type: Edge type classification (e.g., 'inheritance', 'composition', 'call')
+            properties: Additional edge properties for conditional styling
+                       (e.g., {'weight': 10, 'is_cyclic': True})
+
+        Returns:
+            EdgeStyle object with stroke, stroke_width, stroke_dash, and arrow_style
+
+        Example:
+            Override in subclass for custom edge styling:
+
+            >>> def style_edge(self, edge_id, edge_type='default', properties=None):
+            ...     properties = properties or {}
+            ...     # Style inheritance relationships differently
+            ...     if edge_type == 'inheritance':
+            ...         return EdgeStyle(
+            ...             name='inheritance',
+            ...             stroke='#10b981',
+            ...             stroke_width='2px',
+            ...             stroke_dash='',
+            ...             arrow_style='normal'
+            ...         )
+            ...     # Style dependencies with dashed lines
+            ...     elif edge_type == 'dependency':
+            ...         return EdgeStyle(
+            ...             name='dependency',
+            ...             stroke='#8b5cf6',
+            ...             stroke_width='1px',
+            ...             stroke_dash='5 5',
+            ...             arrow_style='normal'
+            ...         )
+            ...     # Fallback to theme
+            ...     return super().style_edge(edge_id, edge_type, properties)
+        """
+        properties = properties or {}
+
+        # Get edge color from theme manager
+        edge_color = self.theme_manager.apply_to_edges()
+
+        # Create default edge style using theme color
+        return EdgeStyle(
+            name=edge_type,
+            stroke=edge_color,
+            stroke_width='2px',
+            stroke_dash='',
+            arrow_style='normal'
+        )
 
     # Protected helper methods for subclasses
 
@@ -352,3 +474,86 @@ class BaseGenerator(ABC):
             print(f"[INFO] Profile saved to: {profile_file}", file=sys.stderr)
         except Exception as e:
             print(f"[WARNING] Could not save profile report: {e}", file=sys.stderr)
+
+    def export_html(self, html_file: Optional[str] = None, use_color: bool = False) -> bool:
+        """Export diagram to interactive HTML with pan, zoom, and search.
+
+        This method extracts the Mermaid diagram content from the generated markdown
+        and creates a self-contained HTML file with interactive features.
+
+        Features:
+        - Pan and zoom (mouse drag, wheel, buttons)
+        - Search with highlighting
+        - Theme toggle (dark/light)
+        - Keyboard shortcuts (Ctrl+/-, Ctrl+0, Ctrl+F, Esc)
+        - Fit to screen
+        - Status messages
+
+        Args:
+            html_file: Output HTML file path. If None, uses same base name as markdown
+                      file with .html extension (default: None)
+            use_color: Whether to use colored console output (default: False)
+
+        Returns:
+            True if export successful, False otherwise
+
+        Example:
+            >>> generator = FlowchartGenerator(stats, 'diagram.md')
+            >>> generator.generate()
+            >>> generator.export_html()  # Creates diagram.html
+            True
+
+            >>> generator.export_html('interactive.html')  # Custom filename
+            True
+        """
+        if not self.lines:
+            print("[ERROR] No diagram content to export. Call generate() first.", file=sys.stderr)
+            return False
+
+        # Determine output HTML file path
+        if html_file is None:
+            html_file = str(Path(self.output_file).with_suffix('.html'))
+
+        # Extract mermaid content (between ```mermaid and ``` markers)
+        mermaid_content = self._extract_mermaid_content()
+        if not mermaid_content:
+            print("[ERROR] Could not extract mermaid content from generated diagram.", file=sys.stderr)
+            return False
+
+        # Get diagram title
+        title = self._get_diagram_title()
+
+        # Get theme from theme manager
+        theme = self.theme_manager.current_theme
+
+        # Export to HTML
+        return export_mermaid_to_interactive_html(
+            mermaid_content=mermaid_content,
+            output_file=html_file,
+            title=title,
+            theme=theme,
+            use_color=use_color
+        )
+
+    def _extract_mermaid_content(self) -> str:
+        """Extract pure Mermaid diagram content from generated lines.
+
+        Returns:
+            Mermaid diagram content (without markdown fences) or empty string if not found
+        """
+        in_mermaid_block = False
+        mermaid_lines = []
+
+        for line in self.lines:
+            if line.strip() == '```mermaid':
+                in_mermaid_block = True
+                continue
+            elif line.strip() == '```':
+                if in_mermaid_block:
+                    break
+                continue
+
+            if in_mermaid_block:
+                mermaid_lines.append(line)
+
+        return '\n'.join(mermaid_lines)

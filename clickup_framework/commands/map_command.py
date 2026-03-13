@@ -30,7 +30,7 @@ from .map_helpers import (
     check_mmdc_available,
     export_mermaid_to_image
 )
-from .map_helpers.templates import export_mermaid_to_html
+from .map_helpers.templates.html_template import export_mermaid_to_html
 
 # Metadata for automatic help generation
 COMMAND_METADATA = {
@@ -306,7 +306,27 @@ def map_command(args):
         # Export to image or HTML if --output is specified
         if args.output:
             output_path = Path(args.output)
+        elif args.html or args.format:
+            # No output path specified - create default output structure
+            # Format: output/{format}/diagram_{type}_{timestamp}.{ext}
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
+            if args.html:
+                format_dir = 'html'
+                extension = 'html'
+            else:
+                format_dir = args.format.lower() if args.format else 'png'
+                extension = format_dir
+
+            output_dir = Path('output') / format_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"diagram_{args.mer}_{timestamp}.{extension}"
+        else:
+            output_path = None
+
+        # Export to image or HTML if output path was determined
+        if output_path:
             # Check if HTML output is requested
             if args.html or output_path.suffix.lower() == '.html':
                 # Read mermaid content from markdown file

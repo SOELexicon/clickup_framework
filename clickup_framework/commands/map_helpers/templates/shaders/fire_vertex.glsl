@@ -3,11 +3,13 @@ attribute vec2 a_position;
 attribute float a_texCoord;     // Position along line (0 to 1)
 attribute float a_perpCoord;    // Position across line (-1 to 1)
 attribute vec2 a_normal;        // Perpendicular normal vector
+attribute float a_lineLength;   // Total line length in pixels
 uniform vec2 u_resolution;
 uniform mat3 u_transform;
 uniform float u_lineWidth;      // Line width in pixels
 varying float v_texCoord;
 varying float v_perpCoord;
+varying float v_lineLength;     // Pass line length to fragment shader
 
 void main() {
     // Transform center position
@@ -23,4 +25,5 @@ void main() {
 
     v_texCoord = a_texCoord;
     v_perpCoord = a_perpCoord;
+    v_lineLength = a_lineLength;
 }

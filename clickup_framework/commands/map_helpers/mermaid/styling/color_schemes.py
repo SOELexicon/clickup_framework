@@ -153,6 +153,62 @@ class NodeStyle:
         return f"fill:{self.fill},stroke:{self.stroke},stroke-width:{self.stroke_width},color:{self.text_color}"
 
 
+@dataclass
+class EdgeStyle:
+    """
+    Represents styling for an edge/connection type.
+
+    Edges in Mermaid diagrams can be styled with different colors, widths,
+    and patterns (solid, dashed, dotted) to indicate different relationship types.
+
+    Attributes:
+        name: Edge type name (e.g., 'inheritance', 'composition', 'dependency')
+        stroke: Line color (hex)
+        stroke_width: Line width (CSS unit, default: "2px")
+        stroke_dash: Dash pattern for dashed lines (e.g., "5 5" for dashed, "" for solid)
+        arrow_style: Arrow head style ('normal', 'thick', 'dotted')
+
+    Example:
+        >>> inheritance = EdgeStyle(
+        ...     name="inheritance",
+        ...     stroke="#10b981",
+        ...     stroke_width="2px",
+        ...     stroke_dash="",
+        ...     arrow_style="normal"
+        ... )
+        >>> inheritance.to_mermaid_style()
+        'stroke:#10b981,stroke-width:2px'
+    """
+    name: str
+    stroke: str
+    stroke_width: str = "2px"
+    stroke_dash: str = ""  # Empty for solid, "5 5" for dashed, "2 2" for dotted
+    arrow_style: str = "normal"  # normal, thick, or dotted
+
+    def to_mermaid_style(self) -> str:
+        """
+        Convert edge style to Mermaid linkStyle string.
+
+        Returns:
+            Mermaid-compatible link style string
+
+        Example:
+            >>> style = EdgeStyle("dependency", "#06b6d4", "1px", "5 5")
+            >>> style.to_mermaid_style()
+            'stroke:#06b6d4,stroke-width:1px,stroke-dasharray:5 5'
+        """
+        style_parts = [
+            f"stroke:{self.stroke}",
+            f"stroke-width:{self.stroke_width}"
+        ]
+
+        # Add dash pattern if specified (non-empty)
+        if self.stroke_dash:
+            style_parts.append(f"stroke-dasharray:{self.stroke_dash}")
+
+        return ",".join(style_parts)
+
+
 # Default style for regular nodes (line 787)
 DEFAULT_NODE_STYLE = NodeStyle(
     name="default",

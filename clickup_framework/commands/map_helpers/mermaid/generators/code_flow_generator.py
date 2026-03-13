@@ -189,6 +189,7 @@ class CodeFlowGenerator(BaseGenerator):
         subgraph_gen.generate_nested_subgraphs(dir_tree)
         self._add_lines(subgraph_gen.get_lines())
         subgraph_count, file_sg_count = subgraph_gen.get_counts()
+        rendered_nodes = subgraph_gen.get_rendered_nodes()
 
         # Color mapping
         node_to_color = {}
@@ -205,7 +206,7 @@ class CodeFlowGenerator(BaseGenerator):
                             if potential_name in node_ids:
                                 node_to_color[node_ids[potential_name]] = edge_color
 
-        # Add connections
+        # Add connections (only between nodes that were actually rendered)
         self._add_line("    %% Connections")
         link_count = 0
         link_styles = []
@@ -215,10 +216,17 @@ class CodeFlowGenerator(BaseGenerator):
                 continue
 
             from_id = node_ids[func_name]
+            # Skip connections from nodes that weren't rendered
+            if from_id not in rendered_nodes:
+                continue
+
             calls = function_calls.get(func_name, [])
             for called_func in calls[:self.config.max_calls_per_function]:
                 if called_func in node_ids:
                     to_id = node_ids[called_func]
+                    # Skip connections to nodes that weren't rendered
+                    if to_id not in rendered_nodes:
+                        continue
                     edge_color = node_to_color.get(to_id, self.theme_manager.apply_to_edges())
                     self._add_line(f"    {from_id} --> {to_id}")
                     link_styles.append(f"    linkStyle {link_count} stroke:{edge_color},stroke-width:3px")
@@ -243,12 +251,10 @@ class CodeFlowGenerator(BaseGenerator):
             style = self.theme_manager.apply_to_subgraph('file_subgraph')
             self._add_line(f"    style FSG{i} {style}")
 
-        for i in range(file_sg_count):
-            for j in range(10):
-                style = self.theme_manager.apply_to_subgraph('class_subgraph')
-                self._add_line(f"    style CSG{i}_{j} {style}")
-
         for func_name, node_id in node_ids.items():
+            # Only apply styles to nodes that were actually rendered
+            if node_id not in rendered_nodes:
+                continue
             if func_name in entry_points:
                 style = self.theme_manager.apply_to_nodes('entry_point')
                 self._add_line(f"    style {node_id} {style}")

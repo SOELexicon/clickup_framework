@@ -288,6 +288,11 @@ def resolve_container_id(client: ClickUpClient, id_or_current: str, context=None
     # Try as space ID
     try:
         space_data = client.get_space(id_or_current)
+        # Enrich space_data with folders and lists (not returned by get_space API)
+        folders_response = client.get_space_folders(id_or_current)
+        space_data['folders'] = folders_response.get('folders', [])
+        lists_response = client.get_space_lists(id_or_current)
+        space_data['lists'] = lists_response.get('lists', [])
         return {"type": "space", "id": id_or_current, "data": space_data}
     except ClickUpAuthError as e:
         last_error = e

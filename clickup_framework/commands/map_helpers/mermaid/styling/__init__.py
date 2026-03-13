@@ -7,6 +7,8 @@ theme management, and node styling for Mermaid diagrams.
 
 from .color_schemes import (
     ColorScheme,
+    NodeStyle,
+    EdgeStyle,
     DARK_THEME_COLORS,
     LIGHT_THEME_COLORS,
     DEFAULT_NODE_STYLE,
@@ -19,6 +21,8 @@ from .node_styles import NodeStyler
 
 __all__ = [
     'ColorScheme',
+    'NodeStyle',
+    'EdgeStyle',
     'DARK_THEME_COLORS',
     'LIGHT_THEME_COLORS',
     'DEFAULT_NODE_STYLE',

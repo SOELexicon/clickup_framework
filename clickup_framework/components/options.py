@@ -139,7 +139,7 @@ class FormatOptions:
             colorize_output=True,
             show_ids=True,
             show_score=True,
-            show_tags=True,
+            show_tags=True, 
             show_type_emoji=True,
             show_progress_state=True,
             show_descriptions=True,

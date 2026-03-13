@@ -764,19 +764,15 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
     <script type="module">
         // Re-import mermaid for this script module (ES modules cache imports efficiently)
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
-        let scale = 1;
-        let translateX = 0;
-        let translateY = 0;
-        let isDragging = false;
-        let startX = 0;
-        let startY = 0;
-
         const container = document.getElementById('diagram-container');
         const zoomLevelEl = document.getElementById('zoom-level');
+        let panZoomInstance = null;
 
         // Hide loading when mermaid is ready
         window.addEventListener('load', () => {{
@@ -795,37 +791,80 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}, 500);
         }});
 
-        function updateTransform() {{
-            // Use translate3d for better performance and to avoid conflicts
-            container.style.transform = `translate3d(${{translateX}}px, ${{translateY}}px, 0) scale(${{scale}})`;
-            zoomLevelEl.textContent = Math.round(scale * 100) + '%';
-            container.classList.toggle('zoomed', scale !== 1);
+        function syncCanvasTransform() {{
+            // Sync WebGL canvas transform with SVG pan/zoom
+            if (!panZoomInstance) return;
+
+            const canvas = document.querySelector('#mermaid-diagram canvas');
+            if (!canvas) return;
+
+            const pan = panZoomInstance.getPan();
+            const zoom = panZoomInstance.getZoom();
+
+            // Apply same transform as SVG
+            canvas.style.transform = `matrix(${{zoom}}, 0, 0, ${{zoom}}, ${{pan.x}}, ${{pan.y}})`;
+            canvas.style.transformOrigin = '0 0';
+        }}
+
+        function initializePanZoom() {{
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg || panZoomInstance) return;
+
+            panZoomInstance = svgPanZoom(svg, {{
+                zoomEnabled: true,
+                controlIconsEnabled: false,
+                fit: false,
+                center: false,
+                minZoom: 0.1,
+                maxZoom: 10,
+                zoomScaleSensitivity: 0.3,
+                dblClickZoomEnabled: false,
+                mouseWheelZoomEnabled: true,
+                preventMouseEventsDefault: true,
+                onZoom: function(zoom) {{
+                    zoomLevelEl.textContent = Math.round(zoom * 100) + '%';
+                    syncCanvasTransform();
+                }},
+                onPan: function(pan) {{
+                    syncCanvasTransform();
+                }},
+                onUpdatedCTM: function(newCTM) {{
+                    syncCanvasTransform();
+                }}
+            }});
+
+            // Initial sync
+            setTimeout(syncCanvasTransform, 100);
+
+            console.log('svg-pan-zoom initialized with canvas sync');
         }}
 
         function zoomIn() {{
-            scale = Math.min(scale * 1.2, 5);
-            updateTransform();
+            if (panZoomInstance) {{
+                panZoomInstance.zoomIn();
+            }}
         }}
 
         function zoomOut() {{
-            scale = Math.max(scale / 1.2, 0.1);
-            updateTransform();
+            if (panZoomInstance) {{
+                panZoomInstance.zoomOut();
+            }}
         }}
 
         function resetZoom() {{
-            scale = 1;
-            translateX = 0;
-            translateY = 0;
-            updateTransform();
+            if (panZoomInstance) {{
+                panZoomInstance.resetZoom();
+                panZoomInstance.resetPan();
+            }}
         }}
 
 
         // Settings Panel State
         let settings = {{
-            shader: 'fire',
-            lineWidth: 4,
-            speed: 1,
-            density: 0.5,
+            shader: 'pulse',
+            lineWidth: 2.5,
+            speed: 0.7,
+            density: 0.014,
             shaderEnabled: true
         }};
 
@@ -972,10 +1011,10 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     diagramDiv.textContent = mermaidCode;
 
                     // Reset zoom/pan for new diagram
-                    scale = 1;
-                    translateX = 0;
-                    translateY = 0;
-                    updateTransform();
+                    if (panZoomInstance) {{
+                        panZoomInstance.destroy();
+                        panZoomInstance = null;
+                    }}
 
                     // Re-render on next tick to ensure DOM is ready
                     setTimeout(async () => {{
@@ -983,8 +1022,11 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                             await mermaid.run({{
                                 querySelector: '.mermaid'
                             }});
-                            // Reinitialize WebGL animations after render completes
-                            setTimeout(createWebGLGlows, 500);
+                            // Reinitialize pan-zoom and WebGL after render
+                            setTimeout(() => {{
+                                initializePanZoom();
+                                createWebGLGlows();
+                            }}, 500);
                         }} catch (err) {{
                             console.error('Failed to re-render diagram:', err);
                         }}
@@ -995,56 +1037,6 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
         }}
 
-        // Mouse wheel zoom - zoom towards cursor
-        container.addEventListener('wheel', (e) => {{
-            e.preventDefault();
-
-            // Get mouse position relative to container
-            const rect = container.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            // With transform "translate(tx,ty) scale(s)", screen coords = (diagram + translate) * scale
-            // So: diagram = screen / scale - translate
-            // Calculate the point in diagram space that's currently under cursor
-            const pointX = mouseX / scale - translateX;
-            const pointY = mouseY / scale - translateY;
-
-            // Calculate new scale
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            const newScale = Math.max(0.1, Math.min(5, scale * delta));
-
-            // Calculate new translation to keep same diagram point under cursor
-            // We want: mouseX = (pointX + new_translateX) * newScale
-            // So: new_translateX = mouseX / newScale - pointX
-            translateX = mouseX / newScale - pointX;
-            translateY = mouseY / newScale - pointY;
-            scale = newScale;
-
-            updateTransform();
-        }});
-
-        // Drag to pan - avoid dragging when clicking nodes
-        container.addEventListener('mousedown', (e) => {{
-            // Don't start dragging if clicking on a node
-            if (e.target.closest('.node')) {{
-                return;
-            }}
-            isDragging = true;
-            startX = e.clientX - translateX;
-            startY = e.clientY - translateY;
-        }});
-
-        document.addEventListener('mousemove', (e) => {{
-            if (!isDragging) return;
-            translateX = e.clientX - startX;
-            translateY = e.clientY - startY;
-            updateTransform();
-        }});
-
-        document.addEventListener('mouseup', () => {{
-            isDragging = false;
-        }});
 
         // Fullscreen
         function toggleFullscreen() {{
@@ -1102,34 +1094,65 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 const nodes = new Map(); // nodeId -> {{ name, file, line }}
                 const fileStructure = {{}};
 
-                // Extract nodes from mermaid content
-                // Format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
-                // Use more flexible regex that doesn't rely on emoji matching
-                const nodePattern = /N(\\d+)\\["([^(]+)\\(\\)<br\\/>[^<]*<br\\/>.*?\\s+([^<]+)<br\\/>[^<]*L(\\d+)-(\\d+)"\\]/g;
+                // Extract nodes from mermaid content - support multiple label formats
+                // Minimal format: N0["function()"]
+                // Simple format: N0["function()\\nL10-20"]
+                // Medium format: N0["function()\\nfile.py"]
+                // Detailed format: N0["function()\\nClassName\\nfile.py"]
+                // Verbose format: N0["function()\\nClassName\\nfile.py\\nL10-20"]
+
+                // First try minimal format (most common for code flow)
+                const minimalPattern = /N(\\d+)\\["([^"\\n]+)\\(\\)"\\]/g;
                 let match;
                 let matchCount = 0;
 
-                while ((match = nodePattern.exec(mermaidContent)) !== null) {{
+                while ((match = minimalPattern.exec(mermaidContent)) !== null) {{
                     matchCount++;
                     if (matchCount <= 3) {{
-                        console.log(`Match ${{matchCount}}:`, match[0]);
+                        console.log(`Match ${{matchCount}} (minimal):`, match[0]);
                     }}
-                    const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
-                const node = {{
-                    id: 'N' + nodeId,
-                    name: funcName.trim(),
-                    file: fileName.trim(),
-                    lineStart: parseInt(lineStart),
-                    lineEnd: parseInt(lineEnd)
-                }};
-                nodes.set(node.id, node);
+                    const [, nodeId, funcName] = match;
+                    const node = {{
+                        id: 'N' + nodeId,
+                        name: funcName.trim(),
+                        file: 'unknown',  // No file info in minimal format
+                        lineStart: 0,
+                        lineEnd: 0
+                    }};
+                    nodes.set(node.id, node);
 
-                // Build file structure
-                if (!fileStructure[node.file]) {{
-                    fileStructure[node.file] = [];
+                    // Group by pseudo-file for tree structure
+                    if (!fileStructure['Functions']) {{
+                        fileStructure['Functions'] = [];
+                    }}
+                    fileStructure['Functions'].push(node);
                 }}
-                fileStructure[node.file].push(node);
-            }}
+
+                // If no matches, try verbose format with file/line info
+                if (matchCount === 0) {{
+                    const verbosePattern = /N(\\d+)\\["([^(]+)\\(\\)\\\\n[^\\\\]*\\\\n([^\\\\]+)\\\\nL(\\d+)-(\\d+)"\\]/g;
+                    while ((match = verbosePattern.exec(mermaidContent)) !== null) {{
+                        matchCount++;
+                        if (matchCount <= 3) {{
+                            console.log(`Match ${{matchCount}} (verbose):`, match[0]);
+                        }}
+                        const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
+                        const node = {{
+                            id: 'N' + nodeId,
+                            name: funcName.trim(),
+                            file: fileName.trim(),
+                            lineStart: parseInt(lineStart),
+                            lineEnd: parseInt(lineEnd)
+                        }};
+                        nodes.set(node.id, node);
+
+                        // Build file structure
+                        if (!fileStructure[node.file]) {{
+                            fileStructure[node.file] = [];
+                        }}
+                        fileStructure[node.file].push(node);
+                    }}
+                }}
 
             console.log('buildFileTree: Found', matchCount, 'nodes');
             console.log('buildFileTree: Files found:', Object.keys(fileStructure).length);
@@ -1191,30 +1214,33 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 return;
             }}
 
+            if (!panZoomInstance) return;
+
             // Get the bounding box of the node in SVG coordinate space
             const nodeBBox = nodeElement.getBBox();
-            const containerRect = container.getBoundingClientRect();
 
             // Calculate the center of the node in SVG coordinates
             const nodeCenterX = nodeBBox.x + nodeBBox.width / 2;
             const nodeCenterY = nodeBBox.y + nodeBBox.height / 2;
 
-            // Retain current zoom level - only zoom in if currently zoomed out
-            if (scale < 1.0) {{
-                scale = 1.0;
+            // Zoom to minimum 1.0 if zoomed out
+            const currentZoom = panZoomInstance.getZoom();
+            if (currentZoom < 1.0) {{
+                panZoomInstance.zoom(1.0);
             }}
 
-            // Center the node in the viewport
-            // With transform "translate(tx,ty) scale(s)": screen = (svg + translate) * scale
-            // We want: viewportCenter = (nodeCenter + translate) * scale
-            // So: translate = viewportCenter / scale - nodeCenter
-            const viewportCenterX = containerRect.width / 2;
-            const viewportCenterY = containerRect.height / 2;
+            // Center the node using svg-pan-zoom
+            // Get the viewport dimensions
+            const sizes = panZoomInstance.getSizes();
+            const viewportCenterX = sizes.width / 2;
+            const viewportCenterY = sizes.height / 2;
 
-            translateX = viewportCenterX / scale - nodeCenterX;
-            translateY = viewportCenterY / scale - nodeCenterY;
+            // Calculate pan to center the node
+            const zoom = panZoomInstance.getZoom();
+            const panX = viewportCenterX - nodeCenterX * zoom;
+            const panY = viewportCenterY - nodeCenterY * zoom;
 
-            updateTransform();
+            panZoomInstance.pan({{ x: panX, y: panY }});
 
             // Highlight the node temporarily
             nodeElement.classList.add('highlighted');
@@ -1440,46 +1466,15 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 }}
             }};
 
-            // Compile shaders
-            function compileShader(source, type) {{
-                const shader = gl.createShader(type);
-                gl.shaderSource(shader, source);
-                gl.compileShader(shader);
-                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {{
-                    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
-                    return null;
-                }}
-                return shader;
-            }}
-
-            // Create a shader program from vertex and fragment shaders
-            function createProgram(vertexSource, fragmentSource) {{
-                const vertexShader = compileShader(vertexSource, gl.VERTEX_SHADER);
-                const fragmentShader = compileShader(fragmentSource, gl.FRAGMENT_SHADER);
-
-                if (!vertexShader || !fragmentShader) {{
-                    console.error('Failed to compile shaders');
-                    return null;
-                }}
-
-                const program = gl.createProgram();
-                gl.attachShader(program, vertexShader);
-                gl.attachShader(program, fragmentShader);
-                gl.linkProgram(program);
-
-                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {{
-                    console.error('Program link error:', gl.getProgramInfoLog(program));
-                    return null;
-                }}
-
-                return program;
-            }}
-
-            // Compile all shader programs
+            // Compile all shader programs using webgl-utils for better error handling
             const programs = {{}};
             for (const [name, sources] of Object.entries(shaderSources)) {{
-                programs[name] = createProgram(sources.vertex, sources.fragment);
-                console.log(`WebGL: Compiled ${{name}} shader program`);
+                programs[name] = webglUtils.createProgramFromSources(gl, [sources.vertex, sources.fragment]);
+                if (!programs[name]) {{
+                    console.error(`WebGL: Failed to create ${{name}} shader program`);
+                }} else {{
+                    console.log(`WebGL: Compiled ${{name}} shader program`);
+                }}
             }}
 
             // Start with fire shader
@@ -1493,10 +1488,12 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     texCoordLoc: gl.getAttribLocation(program, 'a_texCoord'),
                     perpCoordLoc: gl.getAttribLocation(program, 'a_perpCoord'),
                     normalLoc: gl.getAttribLocation(program, 'a_normal'),
+                    lineLengthLoc: gl.getAttribLocation(program, 'a_lineLength'),
                     resolutionLoc: gl.getUniformLocation(program, 'u_resolution'),
                     transformLoc: gl.getUniformLocation(program, 'u_transform'),
                     timeLoc: gl.getUniformLocation(program, 'u_time'),
-                    lineWidthLoc: gl.getUniformLocation(program, 'u_lineWidth')
+                    lineWidthLoc: gl.getUniformLocation(program, 'u_lineWidth'),
+                    densityLoc: gl.getUniformLocation(program, 'u_density')
                 }};
             }}
 
@@ -1557,23 +1554,34 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 width: maxX - minX,
                 height: maxY - minY
             }});
-            console.log('WebGL: SVG viewBox:', {{
+            // Check if SVG has a viewBox (might be null for some Mermaid diagrams)
+            const hasViewBox = svg.viewBox && svg.viewBox.baseVal;
+            console.log('WebGL: SVG viewBox:', hasViewBox ? {{
                 x: svg.viewBox.baseVal.x,
                 y: svg.viewBox.baseVal.y,
                 width: svg.viewBox.baseVal.width,
                 height: svg.viewBox.baseVal.height
-            }});
+            }} : 'null (using width/height instead)');
 
             // Build vertex data for thick lines using triangle strips
             const lineVertices = [];
             const lineTexCoords = [];
             const linePerpCoords = [];
             const lineNormals = [];
+            const lineLengths = [];  // NEW: Store line length for each vertex
             const lineSegments = []; // Track where each path starts/ends
 
             pathData.forEach(path => {{
                 const points = path.points;
                 const startIdx = lineVertices.length / 2;
+
+                // Calculate total line length in pixels
+                let totalLength = 0;
+                for (let i = 0; i < points.length - 1; i++) {{
+                    const dx = points[i + 1][0] - points[i][0];
+                    const dy = points[i + 1][1] - points[i][1];
+                    totalLength += Math.sqrt(dx * dx + dy * dy);
+                }}
 
                 // For each segment in the path
                 for (let i = 0; i < points.length; i++) {{
@@ -1610,12 +1618,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                     lineTexCoords.push(texCoord);
                     linePerpCoords.push(-1.0);
                     lineNormals.push(normal[0], normal[1]);
+                    lineLengths.push(totalLength);
 
                     // Vertex 2: perpCoord = +1 (other side)
                     lineVertices.push(curr[0], curr[1]);
                     lineTexCoords.push(texCoord);
                     linePerpCoords.push(1.0);
                     lineNormals.push(normal[0], normal[1]);
+                    lineLengths.push(totalLength);
                 }}
 
                 const endIdx = lineVertices.length / 2;
@@ -1626,12 +1636,14 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             const texCoords = new Float32Array(lineTexCoords);
             const perpCoords = new Float32Array(linePerpCoords);
             const normals = new Float32Array(lineNormals);
+            const lengths = new Float32Array(lineLengths);
 
             // Create buffers
             const positionBuffer = gl.createBuffer();
             const texCoordBuffer = gl.createBuffer();
             const perpCoordBuffer = gl.createBuffer();
             const normalBuffer = gl.createBuffer();
+            const lengthBuffer = gl.createBuffer();
 
             // Upload static geometry to GPU
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -1646,15 +1658,18 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
 
+            gl.bindBuffer(gl.ARRAY_BUFFER, lengthBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, lengths, gl.STATIC_DRAW);
+
             // Resize canvas to match SVG dimensions (not CSS-transformed container)
             function resizeCanvas() {{
                 // CRITICAL: Use SVG viewBox dimensions, NOT getBoundingClientRect()
                 // getBoundingClientRect() includes CSS transforms (zoom/pan) which causes
                 // the canvas to resize during user interactions, breaking alignment.
                 // The CSS transform on the canvas element handles visual zoom/pan.
-                const viewBox = svg.viewBox.baseVal;
-                const svgWidth = viewBox.width || svg.width.baseVal.value;
-                const svgHeight = viewBox.height || svg.height.baseVal.value;
+                const viewBox = svg.viewBox && svg.viewBox.baseVal;
+                const svgWidth = (viewBox && viewBox.width) || svg.width.baseVal.value || 800;
+                const svgHeight = (viewBox && viewBox.height) || svg.height.baseVal.value || 600;
 
                 // Use a high-resolution fixed width for quality
                 // Calculate height to maintain viewBox aspect ratio
@@ -1717,17 +1732,24 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
                 gl.enableVertexAttribArray(locations.normalLoc);
                 gl.vertexAttribPointer(locations.normalLoc, 2, gl.FLOAT, false, 0, 0);
 
+                gl.bindBuffer(gl.ARRAY_BUFFER, lengthBuffer);
+                gl.enableVertexAttribArray(locations.lineLengthLoc);
+                gl.vertexAttribPointer(locations.lineLengthLoc, 1, gl.FLOAT, false, 0, 0);
+
                 // Set uniforms
                 gl.uniform2f(locations.resolutionLoc, canvas.width, canvas.height);
                 gl.uniform1f(locations.timeLoc, performance.now() * 0.001 * settings.speed); // Time with speed multiplier
                 gl.uniform1f(locations.lineWidthLoc, settings.lineWidth); // Line width from settings
+                if (locations.densityLoc !== null) {{
+                    gl.uniform1f(locations.densityLoc, settings.density); // Pulse density (only for pulse shader)
+                }}
 
                 // Get SVG viewBox for proper coordinate transformation
-                const viewBox = svg.viewBox.baseVal;
-                const svgWidth = viewBox.width || svg.width.baseVal.value;
-                const svgHeight = viewBox.height || svg.height.baseVal.value;
-                const svgX = viewBox.x || 0;  // ViewBox X offset
-                const svgY = viewBox.y || 0;  // ViewBox Y offset
+                const viewBox = svg.viewBox && svg.viewBox.baseVal;
+                const svgWidth = (viewBox && viewBox.width) || svg.width.baseVal.value || 800;
+                const svgHeight = (viewBox && viewBox.height) || svg.height.baseVal.value || 600;
+                const svgX = (viewBox && viewBox.x) || 0;  // ViewBox X offset
+                const svgY = (viewBox && viewBox.y) || 0;  // ViewBox Y offset
 
                 // Calculate transform from SVG coordinates to canvas pixels
                 // Only convert coordinate systems - CSS transform handles pan/zoom
@@ -1772,6 +1794,11 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
             }}
 
             animate();
+
+            // Sync canvas transform with current svg-pan-zoom state
+            if (typeof syncCanvasTransform === 'function') {{
+                setTimeout(syncCanvasTransform, 100);
+            }}
         }}
 
         // Auto-fit diagram to viewport on load
@@ -1852,15 +1879,15 @@ def export_mermaid_to_html(mermaid_content: str, output_file: str, title: str = 
 
                     // Build tree and effects after diagram is rendered
                     setTimeout(() => {{
+                        initializePanZoom(); // Initialize svg-pan-zoom
                         buildFileTree();
                         createWebGLGlows(); // GPU-accelerated particle effects
-                        // Don't auto-fit - it causes off-screen positioning
-                        // User can press Reset (0 key) to fit if needed
                     }}, 500);
                 }} catch (error) {{
                     console.error('Failed to render mermaid diagram:', error);
                     // Try fallback rendering
                     setTimeout(() => {{
+                        initializePanZoom();
                         buildFileTree();
                         createWebGLGlows(); // GPU-accelerated fallback
                     }}, 1000);

@@ -245,6 +245,7 @@ class SubgraphGenerator:
         self.lines: List[str] = []
         self.subgraph_count: int = 0
         self.file_sg_count: int = 0
+        self.rendered_nodes: set = set()  # Track which nodes were actually rendered
 
     def generate_nested_subgraphs(
         self,
@@ -419,6 +420,7 @@ class SubgraphGenerator:
                     symbol = self.collected_symbols.get(func_name, {})
                     label = self.label_formatter.format_function_label(func_name, symbol)
                     self.lines.append(f"{node_indent}{node_id}[\"{label}\"]")
+                    self.rendered_nodes.add(node_id)  # Track that this node was rendered
 
                 # Close class subgraph if we opened one
                 if has_multiple_classes and not class_name.startswith('module_'):
@@ -441,6 +443,19 @@ class SubgraphGenerator:
             ...     print(line)
         """
         return self.lines
+
+    def get_rendered_nodes(self) -> set:
+        """Get the set of node IDs that were actually rendered in subgraphs.
+
+        Returns:
+            Set of node IDs (e.g., {'N0', 'N1', 'N2'}) that were rendered
+
+        Example:
+            >>> rendered = generator.get_rendered_nodes()
+            >>> 'N0' in rendered
+            True
+        """
+        return self.rendered_nodes
 
     def get_counts(self) -> Tuple[int, int]:
         """Get the final subgraph counters.
