@@ -6,14 +6,14 @@ and doesn't miss any commands. It runs on every commit via pre-commit hooks and
 GitHub Actions to catch missing commands early.
 """
 
+import argparse
 import unittest
 import sys
 import io
 from unittest.mock import patch
-from pathlib import Path
 
 from clickup_framework.cli import show_command_tree, main
-from clickup_framework.commands import discover_commands
+from clickup_framework.commands import register_all_commands
 
 
 class TestHelpCommandCompleteness(unittest.TestCase):
@@ -21,8 +21,17 @@ class TestHelpCommandCompleteness(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # Discover all available commands dynamically
-        self.command_modules = discover_commands()
+        parser = argparse.ArgumentParser(prog='cum', add_help=False)
+        subparsers = parser.add_subparsers(dest='command')
+        register_all_commands(subparsers)
+
+        self.command_names = []
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for choice in action._choices_actions:
+                    # Alias-only entries are folded into grouped help labels.
+                    if choice.dest not in {'h', 'ls', 'l'}:
+                        self.command_names.append(choice.dest)
 
     def _get_help_output(self):
         """Capture and return the help output."""
@@ -41,87 +50,16 @@ class TestHelpCommandCompleteness(unittest.TestCase):
 
     def test_all_commands_in_help_output(self):
         """
-        Test that all discovered commands appear in help output.
+        Test that all registered commands appear in help output.
 
-        This is a critical test that ensures the help command doesn't miss any
-        commands. It dynamically discovers all command modules and verifies that
-        each command name appears in the help output.
+        This uses the actual argparse registrations as the source of truth so the
+        test tracks the real CLI surface rather than guessing from module names.
         """
         output = self._get_help_output()
 
-        # Get all command names from modules
-        command_names = set()
-        for module in self.command_modules:
-            module_name = module.__name__.split('.')[-1]
-            # Convert module name to command name(s)
-            # e.g., 'task_commands' -> 'task_create', 'task_update', etc.
-            # e.g., 'hierarchy' -> 'hierarchy'
-            # e.g., 'assigned_command' -> 'assigned'
-
-            # Special handling for different command patterns
-            if module_name.endswith('_commands'):
-                # Multi-command modules like task_commands, space_commands
-                base = module_name.replace('_commands', '')
-                # These have subcommands like task_create, task_update, etc.
-                # We'll check for the base command in the help
-                if base == 'task':
-                    command_names.update(['task_create', 'task_update', 'task_delete',
-                                        'task_assign', 'task_unassign', 'task_set_status',
-                                        'task_set_priority', 'task_set_tags',
-                                        'task_add_dependency', 'task_remove_dependency',
-                                        'task_add_link', 'task_remove_link'])
-                elif base == 'space':
-                    command_names.add('space')
-                elif base == 'folder':
-                    command_names.add('folder')
-                elif base == 'list':
-                    command_names.add('list-mgmt')
-                elif base == 'comment':
-                    command_names.update(['comment_add', 'comment_list',
-                                        'comment_update', 'comment_delete'])
-                elif base == 'checklist':
-                    command_names.add('checklist')
-                elif base == 'doc':
-                    command_names.update(['dlist', 'doc_get', 'doc_create',
-                                        'doc_update', 'doc_export', 'doc_import',
-                                        'page_list', 'page_create', 'page_update'])
-                elif base == 'custom_field':
-                    command_names.add('custom-field')
-                elif base == 'automation':
-                    command_names.add('parent_auto_update')
-                elif base == 'attachment':
-                    # Attachment commands might be in help
-                    pass
-            elif module_name.endswith('_command'):
-                # Single command modules like assigned_command
-                # Special handling for git commands
-                if module_name == 'git_overflow_command':
-                    command_names.add('overflow')
-                elif module_name == 'git_reauthor_command':
-                    command_names.add('reauthor')
-                elif module_name == 'gitpull_command':
-                    command_names.add('pull')
-                elif module_name == 'gitsuck_command':
-                    command_names.add('suck')
-                elif module_name == 'horde_command':
-                    command_names.add('horde')
-                elif module_name == 'stash_command':
-                    command_names.add('stash')
-                else:
-                    command_names.add(module_name.replace('_command', ''))
-            else:
-                # Direct command modules like hierarchy, container, flat, etc.
-                command_names.add(module_name)
-
-        # Remove utility/special modules
-        command_names.discard('utils')
-        command_names.discard('__init__')
-
         # Check each command appears in help output
         missing_commands = []
-        for cmd in command_names:
-            # Check if command name appears in output (case-insensitive)
-            # Account for variations like 'hierarchy [h]' or 'list [ls, l]'
+        for cmd in self.command_names:
             if cmd.lower() not in output.lower():
                 missing_commands.append(cmd)
 

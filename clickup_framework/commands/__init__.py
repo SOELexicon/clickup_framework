@@ -32,7 +32,10 @@ Example command module structure:
 import os
 import importlib
 import pkgutil
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def discover_commands():
@@ -59,7 +62,7 @@ def discover_commands():
             if hasattr(module, 'register_command'):
                 commands.append(module)
         except Exception as e:
-            print(f"Warning: Failed to load command module '{module_name}': {e}")
+            logger.debug("Failed to load command module '%s': %s", module_name, e)
 
     return commands
 
@@ -136,7 +139,7 @@ def register_all_commands(subparsers):
             module.register_command(subparsers)
         except Exception as e:
             module_name = module.__name__.split('.')[-1]
-            print(f"Warning: Failed to register command from '{module_name}': {e}")
+            logger.debug("Failed to register command from '%s': %s", module_name, e)
 
 
 def discover_and_register_commands(subparsers, add_common_args=None):

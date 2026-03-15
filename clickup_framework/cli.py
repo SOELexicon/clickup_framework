@@ -22,7 +22,8 @@ import sys
 import os
 import re
 import logging
-from typing import List, NoReturn
+from collections import OrderedDict
+from typing import Dict, List, NoReturn, Optional, Tuple
 from clickup_framework import get_context_manager, __version__
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -415,11 +416,320 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def show_command_tree():
-    """Display available commands in a tree view using auto-discovered metadata."""
-    import time
+HELP_CATEGORY_ORDER = [
+    "📊 View Commands",
+    "🎯 Context Management",
+    "✅ Task Management",
+    "💬 Comment Management",
+    "☑️  Checklist Management",
+    "🏷️  Custom Fields",
+    "🤖 Parent Task Automation",
+    "📄 Docs Management",
+    "📦 Export/Dump",
+    "🏗️  Workspace Hierarchy",
+    "🔄 Git Workflow",
+    "📊 Diagram Management",
+    "🛠️  Utility Commands",
+    "🎨 Configuration",
+]
+
+HELP_CATEGORY_FALLBACK = "🛠️  Utility Commands"
+
+ROOT_COMMAND_CATEGORIES = {
+    "hierarchy": "📊 View Commands",
+    "list": "📊 View Commands",
+    "clist": "📊 View Commands",
+    "assigned": "📊 View Commands",
+    "flat": "📊 View Commands",
+    "filter": "📊 View Commands",
+    "detail": "📊 View Commands",
+    "stats": "📊 View Commands",
+    "search": "📊 View Commands",
+    "set_current": "🎯 Context Management",
+    "show_current": "🎯 Context Management",
+    "clear_current": "🎯 Context Management",
+    "task_create": "✅ Task Management",
+    "task_update": "✅ Task Management",
+    "task_delete": "✅ Task Management",
+    "task_assign": "✅ Task Management",
+    "task_unassign": "✅ Task Management",
+    "task_set_status": "✅ Task Management",
+    "task_set_priority": "✅ Task Management",
+    "task_set_tags": "✅ Task Management",
+    "task_add_dependency": "✅ Task Management",
+    "task_remove_dependency": "✅ Task Management",
+    "task_add_link": "✅ Task Management",
+    "task_remove_link": "✅ Task Management",
+    "task_move": "✅ Task Management",
+    "fuse": "✅ Task Management",
+    "comment_add": "💬 Comment Management",
+    "comment_reply": "💬 Comment Management",
+    "comment_list": "💬 Comment Management",
+    "comment_update": "💬 Comment Management",
+    "comment_delete": "💬 Comment Management",
+    "checklist": "☑️  Checklist Management",
+    "custom-field": "🏷️  Custom Fields",
+    "parent_auto_update": "🤖 Parent Task Automation",
+    "dlist": "📄 Docs Management",
+    "doc_get": "📄 Docs Management",
+    "doc_create": "📄 Docs Management",
+    "doc_update": "📄 Docs Management",
+    "doc_export": "📄 Docs Management",
+    "doc_import": "📄 Docs Management",
+    "page_list": "📄 Docs Management",
+    "page_create": "📄 Docs Management",
+    "page_update": "📄 Docs Management",
+    "dump": "📦 Export/Dump",
+    "space": "🏗️  Workspace Hierarchy",
+    "folder": "🏗️  Workspace Hierarchy",
+    "list-mgmt": "🏗️  Workspace Hierarchy",
+    "overflow": "🔄 Git Workflow",
+    "pull": "🔄 Git Workflow",
+    "suck": "🔄 Git Workflow",
+    "reauthor": "🔄 Git Workflow",
+    "stash": "🔄 Git Workflow",
+    "horde": "🔄 Git Workflow",
+    "jizz": "🔄 Git Workflow",
+    "map": "📊 Diagram Management",
+    "mermaid": "📊 Diagram Management",
+    "diff": "🛠️  Utility Commands",
+    "demo": "🛠️  Utility Commands",
+    "attach": "🛠️  Utility Commands",
+    "attachment": "🛠️  Utility Commands",
+    "ansi": "🎨 Configuration",
+    "update": "🎨 Configuration",
+    "command-sync": "🎨 Configuration",
+}
+
+DISPLAY_ALIAS_OVERRIDES = {
+    "assigned": ["a"],
+    "checklist": ["chk"],
+    "clear_current": ["clear"],
+    "clist": ["c"],
+    "custom-field": ["cf"],
+    "detail": ["d"],
+    "dlist": ["dl"],
+    "filter": ["fil"],
+    "flat": ["f"],
+    "folder": ["fld", "fd"],
+    "hierarchy": ["h"],
+    "list": ["ls", "l"],
+    "list-mgmt": ["lm"],
+    "page_create": ["pc"],
+    "page_list": ["pl"],
+    "page_update": ["pu"],
+    "parent_auto_update": ["pau"],
+    "search": ["s"],
+    "set_current": ["set"],
+    "show_current": ["show"],
+    "space": ["sp", "spc"],
+    "stats": ["st"],
+    "task_add_dependency": ["tad"],
+    "task_add_link": ["tal"],
+    "task_assign": ["ta"],
+    "task_create": ["tc"],
+    "task_delete": ["td"],
+    "task_move": ["tmv"],
+    "task_remove_dependency": ["trd"],
+    "task_remove_link": ["trl"],
+    "task_set_priority": ["tsp"],
+    "task_set_status": ["tss"],
+    "task_set_tags": ["tst"],
+    "task_unassign": ["tua"],
+    "task_update": ["tu"],
+    "comment_add": ["ca"],
+    "comment_reply": ["cr"],
+    "comment_list": ["cl"],
+    "comment_update": ["cu"],
+    "comment_delete": ["cd"],
+    "doc_get": ["dg"],
+    "doc_create": ["dc"],
+    "doc_update": ["du"],
+    "doc_export": ["de"],
+    "doc_import": ["di"],
+}
+
+HIDDEN_HELP_COMMANDS = {"h", "ls", "l"}
+
+
+def _should_use_help_colors() -> bool:
+    """Enable help colors only when ANSI is enabled and stdout is interactive."""
     context = get_context_manager()
-    use_color = context.get_ansi_output()
+    if not context.get_ansi_output():
+        return False
+
+    isatty = getattr(sys.stdout, "isatty", None)
+    if callable(isatty):
+        try:
+            return bool(isatty())
+        except OSError:
+            return False
+
+    return False
+
+
+def _find_subparsers_action(parser: argparse.ArgumentParser) -> Optional[argparse._SubParsersAction]:
+    """Return the first subparsers action from an argparse parser, if present."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return action
+    return None
+
+
+def _first_non_empty_line(text: Optional[str]) -> str:
+    """Return the first non-empty line from a block of help text."""
+    if not text:
+        return ""
+
+    for line in text.splitlines():
+        cleaned = " ".join(line.strip().split())
+        if cleaned:
+            return cleaned.rstrip(".")
+    return ""
+
+
+def _format_positional_argument(action: argparse.Action) -> str:
+    """Render a positional argparse action as a compact placeholder."""
+    metavar = action.metavar if isinstance(action.metavar, str) else action.dest
+    placeholder = f"<{metavar}>"
+
+    if action.nargs in (None, 1):
+        return placeholder
+    if action.nargs == "?":
+        return f"[{placeholder}]"
+    if action.nargs == "+":
+        return f"{placeholder} ..."
+    if action.nargs == "*":
+        return f"[{placeholder} ...]"
+    return placeholder
+
+
+def _format_leaf_args(parser: argparse.ArgumentParser) -> str:
+    """Build a short signature for a leaf command parser."""
+    parts = []
+    has_options = False
+
+    for action in parser._actions:
+        if isinstance(action, argparse._HelpAction):
+            continue
+        if isinstance(action, argparse._SubParsersAction):
+            continue
+
+        if action.option_strings:
+            has_options = True
+            continue
+
+        parts.append(_format_positional_argument(action))
+
+    if has_options:
+        parts.append("[options]")
+
+    return " ".join(parts)
+
+
+def _get_display_aliases(
+    subparsers_action: argparse._SubParsersAction, command_name: str
+) -> List[str]:
+    """Return the aliases that should be shown for a help entry."""
+    if command_name in DISPLAY_ALIAS_OVERRIDES:
+        return DISPLAY_ALIAS_OVERRIDES[command_name]
+
+    parser = subparsers_action._name_parser_map[command_name]
+    aliases = [
+        name for name, candidate in subparsers_action._name_parser_map.items()
+        if name != command_name and candidate is parser
+    ]
+
+    # Favor short aliases in the global help tree to keep it readable.
+    aliases = sorted(
+        {alias for alias in aliases if len(alias) <= max(4, len(command_name) - 1)},
+        key=lambda alias: (len(alias), alias),
+    )
+    return aliases
+
+
+def _format_command_label(
+    subparsers_action: argparse._SubParsersAction, command_name: str
+) -> str:
+    """Render a command label with aliases for the help tree."""
+    aliases = _get_display_aliases(subparsers_action, command_name)
+    if aliases:
+        return f"{command_name} [{', '.join(aliases)}]"
+    return command_name
+
+
+def _get_command_category(root_command: str) -> str:
+    """Map a root command name to a help category."""
+    return ROOT_COMMAND_CATEGORIES.get(root_command, HELP_CATEGORY_FALLBACK)
+
+
+def _walk_leaf_commands(
+    command_label: str,
+    parser: argparse.ArgumentParser,
+    summary_fallback: str = "",
+) -> List[Tuple[str, str, str]]:
+    """Flatten nested argparse subcommands into help tree rows."""
+    sub_action = _find_subparsers_action(parser)
+    if sub_action is None:
+        summary = _first_non_empty_line(parser.description) or _first_non_empty_line(summary_fallback)
+        args = _format_leaf_args(parser)
+        return [(command_label, args, summary)]
+
+    rows = []
+    for choice_action in sub_action._choices_actions:
+        subcommand = choice_action.dest
+        subparser = sub_action._name_parser_map[subcommand]
+        sub_label = f"{command_label} {subcommand}"
+        rows.extend(_walk_leaf_commands(sub_label, subparser, choice_action.help or ""))
+
+    return rows
+
+
+def _build_help_command_tree() -> "OrderedDict[str, List[Tuple[str, str, str]]]":
+    """Build the rich help tree from the registered argparse commands."""
+    parser = argparse.ArgumentParser(prog="cum", add_help=False)
+    subparsers = parser.add_subparsers(dest="command")
+
+    from clickup_framework.commands import register_all_commands
+
+    register_all_commands(subparsers)
+    top_level = _find_subparsers_action(parser)
+    commands_by_category: Dict[str, List[Tuple[str, str, str]]] = {
+        category: [] for category in HELP_CATEGORY_ORDER
+    }
+
+    if top_level is None:
+        return OrderedDict()
+
+    for choice_action in top_level._choices_actions:
+        command_name = choice_action.dest
+        if command_name in HIDDEN_HELP_COMMANDS:
+            continue
+
+        command_parser = top_level._name_parser_map[command_name]
+        command_label = _format_command_label(top_level, command_name)
+        category = _get_command_category(command_name)
+
+        for row in _walk_leaf_commands(command_label, command_parser, choice_action.help or ""):
+            commands_by_category.setdefault(category, []).append(row)
+
+    ordered = OrderedDict()
+    for category in HELP_CATEGORY_ORDER:
+        rows = commands_by_category.get(category, [])
+        if rows:
+            ordered[category] = rows
+
+    for category, rows in commands_by_category.items():
+        if category not in ordered and rows:
+            ordered[category] = rows
+
+    return ordered
+
+
+def show_command_tree():
+    """Display available commands in a tree view generated from registered parsers."""
+    import time
+    use_color = _should_use_help_colors()
 
     # Print header with animation
     if use_color:
@@ -438,11 +748,10 @@ def show_command_tree():
         print("─" * 60)
         print()
 
-    # Collect metadata from command modules (auto-discovery)
-    from clickup_framework.commands import collect_command_metadata
-    commands = collect_command_metadata()
+    print("Available Commands")
+    print()
 
-    # Fallback to hardcoded commands if no metadata found
+    commands = _build_help_command_tree()
     if not commands:
         commands = _get_fallback_commands()
 
@@ -714,6 +1023,11 @@ Examples:
     # Enable tab completion if argcomplete is available
     if ARGCOMPLETE_AVAILABLE:
         argcomplete.autocomplete(parser)
+
+    # Route root help flags to the richer categorized command tree.
+    if len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help'):
+        show_command_tree()
+        sys.exit(0)
 
     # Parse arguments
     args = parser.parse_args()
