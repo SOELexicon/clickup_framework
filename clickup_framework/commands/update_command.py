@@ -5,6 +5,7 @@ import os
 import platform
 import subprocess
 import re
+import shutil
 from pathlib import Path
 from typing import Optional, Tuple
 from clickup_framework.commands.base_command import BaseCommand
@@ -75,75 +76,46 @@ def find_all_cum_instances():
 
 def get_python_from_script(script_path):
     """Extract the Python interpreter path from a script's shebang."""
+    if not script_path:
+        return None
+
+    script_path = os.path.abspath(script_path)
     script_dir = os.path.dirname(script_path)
+    current_script = get_current_cum_script_path()
+
+    if current_script and paths_match(script_path, current_script) and os.path.isfile(sys.executable):
+        return sys.executable
 
     # On Windows, try to find python.exe in the expected locations first
     if platform.system() == "Windows":
-        # Check multiple parent directory levels for python.exe
-        # This handles cases like C:\Python\Scr\bin\cum.exe -> C:\Python\python.exe
-        current_dir = script_dir
-        for _ in range(4):  # Check up to 4 levels up
-            parent_dir = os.path.dirname(current_dir)
-            if not parent_dir or parent_dir == current_dir:
-                break
+        if not os.path.isfile(script_path):
+            return None
 
-            # Check for python.exe and python3.exe in parent directory
-            for python_name in ['python.exe', 'python3.exe']:
-                python_exe = os.path.join(parent_dir, python_name)
+        # Pip-generated launchers usually have a sibling "-script.py" file with a shebang.
+        stem, _ = os.path.splitext(script_path)
+        for suffix in ('-script.py', '-script.pyw'):
+            companion = f"{stem}{suffix}"
+            python_path = get_python_from_shebang(companion)
+            if python_path:
+                return python_path
+
+        # Check the script directory first for virtualenv-style layouts,
+        # then the parent directory for system installs like C:\Python\Scripts\cum.exe.
+        candidate_dirs = [script_dir]
+        parent_dir = os.path.dirname(script_dir)
+        if parent_dir and parent_dir != script_dir:
+            candidate_dirs.append(parent_dir)
+
+        for candidate_dir in candidate_dirs:
+            for python_name in ('python.exe', 'python3.exe'):
+                python_exe = os.path.join(candidate_dir, python_name)
                 if os.path.isfile(python_exe):
                     return python_exe
-
-            current_dir = parent_dir
-
-        # Also check in same directory as cum.exe
-        for python_name in ['python.exe', 'python3.exe']:
-            python_exe = os.path.join(script_dir, python_name)
-            if os.path.isfile(python_exe):
-                return python_exe
-
-        # As a last resort on Windows, try to find python in PATH using where.exe
-        # Try multiple Python command names
-        for python_cmd in ['py', 'python', 'python3']:
-            try:
-                # First verify the command works
-                result = subprocess.run(
-                    [python_cmd, '--version'],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    check=False
-                )
-                if result.returncode == 0:
-                    # Now get the actual path using where.exe
-                    where_result = subprocess.run(
-                        ['where.exe', python_cmd],
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8',
-                        check=False
-                    )
-                    if where_result.returncode == 0:
-                        # Get the first path from the output
-                        python_path = where_result.stdout.strip().split('\n')[0].strip()
-                        if os.path.isfile(python_path):
-                            return python_path
-            except Exception:
-                continue
     else:
         # On Unix, try to read the shebang
-        try:
-            with open(script_path, 'r') as f:
-                first_line = f.readline().strip()
-                if first_line.startswith('#!'):
-                    python_path = first_line[2:].strip()
-                    # Handle shebangs like "#!/usr/bin/env python"
-                    if 'env' in python_path:
-                        parts = python_path.split()
-                        if len(parts) > 1:
-                            python_path = parts[-1]
-                    return python_path
-        except Exception:
-            pass
+        python_path = get_python_from_shebang(script_path)
+        if python_path:
+            return python_path
 
         # Fallback: try to find python in bin parent dir
         if script_dir.endswith('/bin'):
@@ -153,6 +125,59 @@ def get_python_from_script(script_path):
                 return python_path
 
     return None
+
+
+def get_python_from_shebang(script_path):
+    """Read a script shebang and return the referenced Python interpreter, if available."""
+    try:
+        with open(script_path, 'r', encoding='utf-8') as f:
+            first_line = f.readline().strip()
+    except Exception:
+        return None
+
+    if not first_line.startswith('#!'):
+        return None
+
+    python_path = first_line[2:].strip().strip('"')
+
+    # Handle shebangs like "#!/usr/bin/env python"
+    if 'env' in python_path:
+        parts = python_path.split()
+        if len(parts) > 1:
+            python_cmd = parts[-1]
+            resolved = shutil.which(python_cmd)
+            return resolved or python_cmd
+
+    return python_path
+
+
+def get_current_cum_script_path():
+    """Resolve the current cum launcher path when available."""
+    argv0 = sys.argv[0] if sys.argv else None
+    if not argv0:
+        return None
+
+    if os.path.isfile(argv0):
+        return os.path.abspath(argv0)
+
+    resolved = shutil.which(argv0)
+    if resolved and os.path.isfile(resolved):
+        return os.path.abspath(resolved)
+
+    return None
+
+
+def paths_match(path_a, path_b):
+    """Return True when two paths refer to the same location."""
+    if not path_a or not path_b:
+        return False
+
+    try:
+        return os.path.samefile(path_a, path_b)
+    except Exception:
+        norm_a = os.path.normcase(os.path.abspath(path_a))
+        norm_b = os.path.normcase(os.path.abspath(path_b))
+        return norm_a == norm_b
 
 
 def get_package_info(python_path):
