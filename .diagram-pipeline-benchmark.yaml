@@ -1,0 +1,68 @@
+# Performance Benchmark Configuration
+# Tests batch generation of 10 diagrams
+version: 1
+output_dir: benchmark_output
+
+options:
+  theme: dark
+
+generators:
+  # 1. Project overview
+  - name: bench-overview
+    type: flowchart
+    source: clickup_framework/commands/
+    output: bench-01-overview.md
+
+  # 2. API classes
+  - name: bench-api-classes
+    type: class
+    source: clickup_framework/apis/
+    output: bench-02-api-classes.md
+
+  # 3. Command classes
+  - name: bench-cmd-classes
+    type: class
+    source: clickup_framework/commands/
+    output: bench-03-cmd-classes.md
+
+  # 4. Language distribution
+  - name: bench-languages
+    type: pie
+    source: clickup_framework/
+    output: bench-04-languages.md
+
+  # 5. Components mindmap
+  - name: bench-components
+    type: mindmap
+    source: clickup_framework/components/
+    output: bench-05-components.md
+
+  # 6. Utils classes
+  - name: bench-utils
+    type: class
+    source: clickup_framework/utils/
+    output: bench-06-utils.md
+
+  # 7. Resources overview
+  - name: bench-resources
+    type: flowchart
+    source: clickup_framework/resources/
+    output: bench-07-resources.md
+
+  # 8. Mermaid generators
+  - name: bench-mermaid
+    type: class
+    source: clickup_framework/commands/map_helpers/mermaid/
+    output: bench-08-mermaid.md
+
+  # 9. API sequence
+  - name: bench-sequence
+    type: sequence
+    source: clickup_framework/apis/
+    output: bench-09-sequence.md
+
+  # 10. Commands distribution
+  - name: bench-cmd-pie
+    type: pie
+    source: clickup_framework/commands/
+    output: bench-10-cmd-pie.md

@@ -1,0 +1,10 @@
+# Test Pipeline Configuration for verification
+version: 1
+output_dir: test_batch_output
+
+generators:
+  # Single pie chart for quick testing
+  - name: test-pie
+    type: pie
+    source: clickup_framework/commands/
+    output: test-pie.md

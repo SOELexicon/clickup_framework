@@ -1,0 +1,62 @@
+# Diagram Pipeline Configuration
+# Version 1 format
+
+version: 1
+
+# Output directory for all generated diagrams
+output_dir: docs/diagrams
+
+# Global options (applied to all generators unless overridden)
+options:
+  theme: dark
+  # ignore_gitignore: false
+
+# List of diagram generators to run
+generators:
+  # Project overview flowchart
+  - name: project-overview
+    type: flowchart
+    source: clickup_framework/
+    output: overview.md
+    options:
+      max_depth: 2
+      exclude:
+        - tests/
+        - __pycache__/
+        - "*.pyc"
+
+  # API architecture class diagram
+  - name: api-classes
+    type: class
+    source: clickup_framework/api/
+    output: api-classes.md
+    options:
+      show_methods: true
+      show_properties: true
+
+  # Language distribution pie chart
+  - name: language-stats
+    type: pie
+    source: ./
+    output: languages.md
+
+  # Code execution flow
+  - name: execution-flow
+    type: flow
+    source: clickup_framework/
+    output: execution.md
+    options:
+      theme: light
+      max_depth: 3
+
+  # Sequence diagram
+  - name: api-sequence
+    type: sequence
+    source: clickup_framework/api/
+    output: api-sequence.md
+
+  # Project mindmap
+  - name: project-mindmap
+    type: mindmap
+    source: ./
+    output: mindmap.md

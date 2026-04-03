@@ -1,0 +1,2224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Map - Flow</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: false,  // We'll manually load content from base64 to avoid HTML parsing
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: 'rgba(16, 185, 129, 0.15)',
+                primaryTextColor: '#10b981',
+                primaryBorderColor: '#10b981',
+                lineColor: '#34d399',
+                secondaryColor: 'rgba(139, 92, 246, 0.15)',
+                tertiaryColor: 'rgba(168, 85, 247, 0.15)',
+                background: '#000000',
+                mainBkg: 'rgba(10, 10, 10, 0.3)',
+                secondBkg: 'rgba(26, 26, 26, 0.3)',
+                tertiaryBkg: 'rgba(42, 42, 42, 0.3)',
+                border1: '#10b981',
+                border2: '#8b5cf6',
+                arrowheadColor: '#10b981',
+                fontFamily: 'ui-monospace, monospace',
+                clusterBkg: 'rgba(26, 26, 26, 0.2)',
+                clusterBorder: '#10b981',
+                edgeLabelBackground: 'rgba(10, 10, 10, 0.8)',
+                nodeTextColor: '#10b981'
+            },
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'linear',
+                nodeSpacing: 100,
+                rankSpacing: 100,
+                defaultRenderer: 'elk'
+            },
+            elk: {
+                mergeEdges: true,
+                nodePlacementStrategy: 'SIMPLE'
+            },
+            sequence: {
+                useMaxWidth: false,
+                wrap: true,
+                height: 600
+            },
+            class: {
+                useMaxWidth: false
+            },
+            er: {
+                useMaxWidth: false
+            },
+            securityLevel: 'loose',
+            logLevel: 'error',
+            arrowMarkerAbsolute: true
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #1a1a1a 100%);
+            color: #10b981;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 300px;
+            background: rgba(10, 10, 10, 0.95);
+            border-right: 2px solid #10b981;
+            overflow-y: auto;
+            padding: 1rem;
+            box-shadow: 4px 0 6px -1px rgba(16, 185, 129, 0.3);
+            transition: transform 0.3s ease;
+        }
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        .sidebar h2 {
+            color: #10b981;
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .sidebar-search {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #10b981;
+            padding: 0.5rem;
+            color: #10b981;
+            border-radius: 0.25rem;
+            margin-bottom: 1rem;
+            font-family: ui-monospace, monospace;
+        }
+        .sidebar-search:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+        .file-tree {
+            list-style: none;
+            padding: 0;
+        }
+        .tree-item {
+            padding: 0.375rem 0.5rem;
+            margin: 0.25rem 0;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-family: ui-monospace, monospace;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .tree-item:hover {
+            background: rgba(16, 185, 129, 0.2);
+            padding-left: 0.75rem;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+        .tree-item.active {
+            background: rgba(139, 92, 246, 0.3);
+            border-left: 3px solid #8b5cf6;
+            padding-left: 0.75rem;
+        }
+        .tree-item .icon {
+            flex-shrink: 0;
+        }
+        .tree-folder {
+            font-weight: 600;
+            color: #8b5cf6;
+        }
+        .tree-file {
+            color: #10b981;
+        }
+        .tree-function {
+            color: #06b6d4;
+            padding-left: 1.5rem;
+            font-size: 0.8125rem;
+        }
+        .tree-children {
+            padding-left: 1rem;
+            border-left: 1px solid rgba(16, 185, 129, 0.2);
+            margin-left: 0.5rem;
+        }
+        .toggle-sidebar {
+            position: absolute;
+            left: 300px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(16, 185, 129, 0.9);
+            border: none;
+            color: #000;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0 0.25rem 0.25rem 0;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+        .toggle-sidebar:hover {
+            background: #8b5cf6;
+            color: #fff;
+        }
+        .sidebar.collapsed ~ .toggle-sidebar {
+            left: 0;
+        }
+        /* Right sidebar for node details */
+        .node-details {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 350px;
+            background: rgba(10, 10, 10, 0.98);
+            border-left: 2px solid #8b5cf6;
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            box-shadow: -4px 0 6px -1px rgba(139, 92, 246, 0.3);
+            z-index: 1001;
+        }
+        .node-details.visible {
+            transform: translateX(0);
+        }
+        .node-details h2 {
+            color: #8b5cf6;
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid rgba(139, 92, 246, 0.4);
+            text-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .node-details .close-btn {
+            background: transparent;
+            border: none;
+            color: #8b5cf6;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+        .node-details .close-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+        }
+        .node-details .detail-section {
+            margin-bottom: 1.5rem;
+        }
+        .node-details .detail-label {
+            color: #10b981;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .node-details .detail-value {
+            color: #e2e8f0;
+            font-size: 0.9375rem;
+            font-family: ui-monospace, monospace;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            word-break: break-word;
+        }
+        .node-details .detail-value.multiline {
+            white-space: pre-wrap;
+        }
+        .node-details .tag {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.8125rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+        .node-details .node-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #10b981;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+            z-index: 100;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #10b981;
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+        }
+        .controls {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #000;
+            border: 1px solid #10b981;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #fff;
+            border-color: #8b5cf6;
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .zoom-info {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .spacing-control {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+        .spacing-slider {
+            width: 150px;
+            height: 4px;
+            border-radius: 2px;
+            background: #1e293b;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .spacing-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+        .spacing-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+        .spacing-slider::-webkit-slider-thumb:hover {
+            background: #34d399;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+        }
+        .spacing-slider::-moz-range-thumb:hover {
+            background: #34d399;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+        }
+        .diagram-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
+        }
+        .diagram-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            transform-origin: center center;
+            cursor: grab;
+            will-change: transform;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .diagram-container:active {
+            cursor: grabbing;
+        }
+        .diagram-container.zoomed {
+            cursor: move;
+        }
+        #mermaid-diagram {
+            display: inline-block;
+            background: rgba(10, 10, 10, 0.95);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5),
+                        0 0 50px rgba(16, 185, 129, 0.3),
+                        inset 0 0 50px rgba(139, 92, 246, 0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(16, 185, 129, 0.4);
+        }
+        /* Ensure SVG elements are visible */
+        #mermaid-diagram svg {
+            filter: drop-shadow(0 0 1px rgba(52, 211, 153, 0.3));
+        }
+        /* Node highlight animation */
+        .node.highlighted rect,
+        .node.highlighted polygon {
+            stroke: #8b5cf6 !important;
+            stroke-width: 4px !important;
+            filter: drop-shadow(0 0 20px rgba(139, 92, 246, 1));
+            animation: pulse-highlight 1s ease-in-out;
+        }
+        @keyframes pulse-highlight {
+            0%, 100% {
+                stroke-width: 4px;
+            }
+            50% {
+                stroke-width: 6px;
+            }
+        }
+        /* Mermaid node animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .node, .cluster, .edgePath {
+            animation: fadeInUp 0.5s ease-out backwards;
+        }
+        .node:nth-child(1) { animation-delay: 0.05s; }
+        .node:nth-child(2) { animation-delay: 0.1s; }
+        .node:nth-child(3) { animation-delay: 0.15s; }
+        .node:nth-child(4) { animation-delay: 0.2s; }
+        .node:nth-child(5) { animation-delay: 0.25s; }
+        /* Hover effects - avoid transform conflicts */
+        .node {
+            transition: filter 0.2s ease, opacity 0.2s ease;
+            cursor: pointer;
+        }
+        .node:hover {
+            filter: brightness(1.5) drop-shadow(0 0 20px rgba(139, 92, 246, 1)) drop-shadow(0 0 40px rgba(16, 185, 129, 0.6));
+        }
+        .node rect, .node circle, .node polygon, .node path {
+            transition: all 0.2s ease;
+        }
+        .node:hover rect,
+        .node:hover circle,
+        .node:hover polygon,
+        .node:hover path {
+            stroke-width: 3px !important;
+        }
+        /* Enhanced edge/arrow visibility - Circuit board style */
+        .edgePath path {
+            stroke: #000000 !important;
+            stroke-width: 4px !important;
+            stroke-linecap: square !important;
+            filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.8));
+            transition: all 0.2s ease;
+        }
+        /* Subtle pulse effect */
+        .edgePath {
+            animation: edge-pulse 4s ease-in-out infinite;
+        }
+        @keyframes edge-pulse {
+            0%, 100% {
+                opacity: 0.9;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        .edgePath:hover path {
+            stroke-width: 5px !important;
+            filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.9));
+        }
+        .edgePath marker path {
+            fill: #10b981 !important;
+            filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.8));
+        }
+        .edgePath:hover marker path {
+            fill: #8b5cf6 !important;
+            filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.9));
+        }
+        /* Loading animation */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #334155;
+            border-top: 4px solid #60a5fa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+        }
+        .fullscreen .diagram-container {
+            padding: 1rem;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 280px;
+            max-width: 320px;
+            z-index: 10000;
+            font-family: ui-monospace, monospace;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #10b981;
+        }
+        .settings-title {
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        .settings-toggle {
+            background: none;
+            border: none;
+            color: #10b981;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 1.2rem;
+        }
+        .settings-toggle:hover {
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .settings-panel.collapsed .settings-content {
+            display: none;
+        }
+        .settings-group {
+            margin-bottom: 1rem;
+        }
+        .settings-label {
+            color: #6ee7b7;
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .settings-select, .settings-input {
+            width: 100%;
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid #10b981;
+            color: #10b981;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: ui-monospace, monospace;
+            font-size: 0.85rem;
+        }
+        .settings-select:focus, .settings-input:focus {
+            outline: none;
+            border-color: #34d399;
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2);
+        }
+        .settings-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(16, 185, 129, 0.3);
+            outline: none;
+        }
+        .settings-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+        }
+        .settings-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            border: none;
+        }
+        .settings-value {
+            color: #34d399;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            text-align: right;
+        }
+        .settings-button {
+            width: 100%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            color: #000;
+            padding: 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            transition: transform 0.2s;
+        }
+        .settings-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        .settings-button:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <span class="settings-title">⚙️ Settings</span>
+            <button class="settings-toggle" id="settingsToggle">−</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-group">
+                <label class="settings-label">Shader Effect</label>
+                <select class="settings-select" id="shaderSelect">
+                    <option value="fire" selected>🔥 Fire Flow</option>
+                    <option value="glow">✨ Glow</option>
+                    <option value="pulse">💫 Pulse</option>
+                    <option value="ghost">👻 Ghost Flow</option>
+                    <option value="none">⚪ None</option>
+                </select>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label">Line Width</label>
+                <input type="range" class="settings-slider" id="lineWidthSlider"
+                       min="1" max="20" value="4" step="0.5">
+                <div class="settings-value" id="lineWidthValue">4.0px</div>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label">Animation Speed</label>
+                <input type="range" class="settings-slider" id="speedSlider"
+                       min="0.1" max="3" value="1" step="0.1">
+                <div class="settings-value" id="speedValue">1.0x</div>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label">Path Density</label>
+                <input type="range" class="settings-slider" id="densitySlider"
+                       min="0.1" max="2" value="0.5" step="0.1">
+                <div class="settings-value" id="densityValue">0.5px</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="container">
+        <div class="header">
+            <h1>🗺️ Code Map - Flow</h1>
+            <div class="controls">
+                <button class="btn" onclick="zoomIn()">🔍 Zoom In</button>
+                <button class="btn" onclick="zoomOut()">🔍 Zoom Out</button>
+                <button class="btn" onclick="resetZoom()">↺ Reset</button>
+                <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                <button class="btn" onclick="toggleSidebar()">📁 Files</button>
+                <button class="btn" onclick="downloadSVG()">💾 Download SVG</button>
+                <span class="zoom-info">
+                    <span>Zoom:</span>
+                    <strong id="zoom-level">100%</strong>
+                    <span style="margin-left: 1rem">💡 Scroll to zoom, drag to pan</span>
+                </span>
+                <span class="spacing-control">
+                    <span>Spacing:</span>
+                    <input type="range" class="spacing-slider" id="spacing-slider"
+                           min="50" max="300" value="100" step="10"
+                           oninput="updateSpacing(this.value)">
+                    <strong id="spacing-value">100px</strong>
+                </span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="sidebar" id="sidebar">
+                <h2>📁 File Explorer</h2>
+                <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search files..." />
+                <div id="file-tree"></div>
+            </div>
+            <div class="diagram-wrapper">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Rendering diagram...</p>
+            </div>
+            <div class="diagram-container" id="diagram-container">
+                <div class="mermaid" id="mermaid-diagram" data-mermaid-code-b64="JSV7aW5pdDogeydmbG93Y2hhcnQnOiB7J2N1cnZlJzogJ2xpbmVhcicsICdkZWZhdWx0UmVuZGVyZXInOiAnZWxrJywgJ25vZGVTcGFjaW5nJzogMTAwLCAncmFua1NwYWNpbmcnOiAxMDB9LCAndGhlbWUnOiAnZGFyayd9fSUlCmdyYXBoIFRECiAgICBzdWJncmFwaCBTRzBbIkRJUjogY2xpY2t1cF9mcmFtZXdvcmsiXQogICAgICAgIHN1YmdyYXBoIFNHMVsiRElSOiBjb21tYW5kcyJdCiAgICAgICAgICAgIHN1YmdyYXBoIEZTRzBbIkZJTEU6IGNoZWNrbGlzdF9jb21tYW5kcyJdCiAgICAgICAgICAgICAgICBOMjNbImNoZWNrbGlzdF90ZW1wbGF0ZV9hcHBseV9jb21tYW5kKCkiXQogICAgICAgICAgICAgICAgTjIyWyJfcmVzb2x2ZV9pdGVtX2lkKCkiXQogICAgICAgICAgICAgICAgTjI3WyJjaGVja2xpc3RfaXRlbV9kZWxldGVfY29tbWFuZCgpIl0KICAgICAgICAgICAgICAgIE4yNFsiY2hlY2tsaXN0X3RlbXBsYXRlX3Nob3dfY29tbWFuZCgpIl0KICAgICAgICAgICAgICAgIE4yNlsiY2hlY2tsaXN0X2Nsb25lX2NvbW1hbmQoKSJdCiAgICAgICAgICAgIGVuZAogICAgICAgICAgICBzdWJncmFwaCBGU0cxWyJGSUxFOiBjb21tYW5kX3N5bmMiXQogICAgICAgICAgICAgICAgTjE5WyJjb21tYW5kX3N5bmNfY29tbWFuZCgpIl0KICAgICAgICAgICAgICAgIE4yMFsiZ2V0X3Rhc2tfbmFtZSgpIl0KICAgICAgICAgICAgICAgIE4yMVsiY3JlYXRlX29yX3VwZGF0ZV90YXNrKCkiXQogICAgICAgICAgICBlbmQKICAgICAgICAgICAgc3ViZ3JhcGggRlNHMlsiRklMRTogY29tbWVudF9jb21tYW5kcyJdCiAgICAgICAgICAgICAgICBOMzFbImdldF9jb21tZW50X2NoaWxkcmVuKCkiXQogICAgICAgICAgICAgICAgTjMyWyJjb21tZW50X2FkZF9jb21tYW5kKCkiXQogICAgICAgICAgICAgICAgTjMzWyJjb21tZW50X2RlbGV0ZV9jb21tYW5kKCkiXQogICAgICAgICAgICBlbmQKICAgICAgICAgICAgc3ViZ3JhcGggRlNHM1siRklMRTogZHVtcCJdCiAgICAgICAgICAgICAgICBOMFsiZHVtcF9jb21tYW5kKCkiXQogICAgICAgICAgICAgICAgTjFbInNhbml0aXplX2ZpbGVuYW1lKCkiXQogICAgICAgICAgICAgICAgTjJbImR1bXBfZG9jX3RvX21hcmtkb3duKCkiXQogICAgICAgICAgICAgICAgTjNbImR1bXBfbGlzdF90b19qc29uKCkiXQogICAgICAgICAgICAgICAgTjRbImR1bXBfbGlzdF90b19tYXJrZG93bigpIl0KICAgICAgICAgICAgICAgIE41WyJkdW1wX3Rhc2tfdG9fanNvbigpIl0KICAgICAgICAgICAgICAgIE42WyJkdW1wX3Rhc2tfdG9fbWFya2Rvd24oKSJdCiAgICAgICAgICAgICAgICBON1siZm9ybWF0X3Rhc2tfbWFya2Rvd24oKSJdCiAgICAgICAgICAgIGVuZAogICAgICAgICAgICBzdWJncmFwaCBGU0c0WyJGSUxFOiBnaXRfcmVhdXRob3JfY29tbWFuZCJdCiAgICAgICAgICAgICAgICBOMzZbImNvbmZpcm1fYWN0aW9uKCkiXQogICAgICAgICAgICAgICAgTjM5WyJyZWF1dGhvcl9jb21tYW5kKCkiXQogICAgICAgICAgICAgICAgTjM3WyJnZXRfZ2l0X2NvbmZpZygpIl0KICAgICAgICAgICAgICAgIE4zOFsiY2hlY2tfdW5jb21taXR0ZWRfY2hhbmdlcygpIl0KICAgICAgICAgICAgZW5kCiAgICAgICAgICAgIHN1YmdyYXBoIEZTRzVbIkZJTEU6IGppenpfY29tbWFuZCJdCiAgICAgICAgICAgICAgICBONDJbImluY3JlbWVudF92ZXJzaW9uX2J5X3BvaW50X29uZSgpIl0KICAgICAgICAgICAgZW5kCiAgICAgICAgICAgIHN1YmdyYXBoIEZTRzZbIkZJTEU6IHVwZGF0ZV9jb21tYW5kIl0KICAgICAgICAgICAgICAgIE40NVsidXBkYXRlX2N1bV9jb21tYW5kKCkiXQogICAgICAgICAgICAgICAgTjhbImdldF9wYWNrYWdlX2luZm8oKSJdCiAgICAgICAgICAgICAgICBOMTdbInJlZ2lzdGVyX2NvbW1hbmQoKSJdCiAgICAgICAgICAgICAgICBOMTZbImdldF9weXRob25fZnJvbV9zY3JpcHQoKSJdCiAgICAgICAgICAgICAgICBONDhbInNob3dfaHVtb3JvdXNfcHJvZ3Jlc3MoKSJdCiAgICAgICAgICAgICAgICBONDlbInNob3dfcGFja2FnZV9wcm9ncmVzcygpIl0KICAgICAgICAgICAgZW5kCiAgICAgICAgZW5kCgogICAgICAgIHN1YmdyYXBoIFNHMlsiRElSOiBjb21wb25lbnRzIl0KICAgICAgICAgICAgc3ViZ3JhcGggRlNHN1siRklMRTogZGV0YWlsX3ZpZXciXQogICAgICAgICAgICAgICAgc3ViZ3JhcGggQ1NHOF8wWyJDTEFTUzogVGFza0RldGFpbEZvcm1hdHRlci5fZm9ybWF0X2NvbW1lbnRzIl0KICAgICAgICAgICAgICAgICAgICBOMjhbImdldF9jb21tZW50X2NoaWxkcmVuKCkiXQogICAgICAgICAgICAgICAgZW5kCiAgICAgICAgICAgICAgICBzdWJncmFwaCBDU0c4XzFbIkNMQVNTOiBUYXNrRGV0YWlsRm9ybWF0dGVyLl9mb3JtYXRfZG9jdW1lbnRzIl0KICAgICAgICAgICAgICAgICAgICBOMjlbImdldF9wYWdlX2NoaWxkcmVuKCkiXQogICAgICAgICAgICAgICAgICAgIE4zMFsiZm9ybWF0X3BhZ2Vfbm9kZSgpIl0KICAgICAgICAgICAgICAgIGVuZAogICAgICAgICAgICBlbmQKICAgICAgICBlbmQKCiAgICAgICAgc3ViZ3JhcGggU0czWyJESVI6IGZvcm1hdHRlcnMiXQogICAgICAgICAgICBzdWJncmFwaCBGU0c4WyJGSUxFOiBjb21tZW50Il0KICAgICAgICAgICAgICAgIE4zNFsiZm9ybWF0X2NvbW1lbnQoKSJdCiAgICAgICAgICAgIGVuZAogICAgICAgIGVuZAoKICAgICAgICBzdWJncmFwaCBTRzRbIkRJUjogdXRpbHMiXQogICAgICAgICAgICBzdWJncmFwaCBGU0c5WyJGSUxFOiBjaGVja2xpc3RfbWFwcGluZyJdCiAgICAgICAgICAgICAgICBOMjVbImdldF9tYXBwaW5nX21hbmFnZXIoKSJdCiAgICAgICAgICAgIGVuZAogICAgICAgICAgICBzdWJncmFwaCBGU0cxMFsiRklMRTogY29sb3JzIl0KICAgICAgICAgICAgICAgIE45WyJjb2xvcml6ZSgpIl0KICAgICAgICAgICAgICAgIE4xMFsiX2VuYWJsZV92dDEwMF9tb2RlKCkiXQogICAgICAgICAgICAgICAgTjEyWyJzdGF0dXNfdG9fY29kZSgpIl0KICAgICAgICAgICAgICAgIE4xMVsiY29tcGxldGlvbl9jb2xvcigpIl0KICAgICAgICAgICAgICAgIE4xNFsiZ2V0X3Rhc2tfZW1vamkoKSJdCiAgICAgICAgICAgICAgICBOMTNbImNvbnRhaW5lcl9jb2xvcigpIl0KICAgICAgICAgICAgICAgIE4xNVsiZ2V0X3Byb2dyZXNzX3N0YXRlKCkiXQogICAgICAgICAgICBlbmQKICAgICAgICAgICAgc3ViZ3JhcGggRlNHMTFbIkZJTEU6IG1hcmtkb3duX3JlbmRlcmVyIl0KICAgICAgICAgICAgICAgIE4zNVsicmVuZGVyX21hcmtkb3duKCkiXQogICAgICAgICAgICBlbmQKICAgICAgICBlbmQKCiAgICBlbmQKCiAgICBzdWJncmFwaCBTRzVbIkRJUjogc2NyaXB0cyJdCiAgICAgICAgc3ViZ3JhcGggRlNHMTJbIkZJTEU6IGJ1bXBfdmVyc2lvbiJdCiAgICAgICAgICAgIE40MVsiZ2V0X2xhdGVzdF90YWcoKSJdCiAgICAgICAgICAgIE40N1siaW5jcmVtZW50X3ZlcnNpb24oKSJdCiAgICAgICAgICAgIE40M1sicnVuX2NvbW1hbmQoKSJdCiAgICAgICAgICAgIE40NlsicGFyc2VfdmVyc2lvbigpIl0KICAgICAgICAgICAgTjQ0WyJmb3JtYXRfdmVyc2lvbigpIl0KICAgICAgICBlbmQKICAgICAgICBzdWJncmFwaCBGU0cxM1siRklMRTogaW1wb3J0X2NsaV9kb2NzIl0KICAgICAgICAgICAgTjQwWyJwcmludF9lcnJvcigpIl0KICAgICAgICBlbmQKICAgICAgICBzdWJncmFwaCBGU0cxNFsiRklMRTogdXBkYXRlX2N1bV9jb21tYW5kX3Rhc2tzIl0KICAgICAgICAgICAgTjE4WyJnZXRfY29tbWFuZF9oZWxwKCkiXQogICAgICAgIGVuZAogICAgZW5kCgogICAgJSUgQ29ubmVjdGlvbnMKICAgIE4xOCAtLT4gTjE5CiAgICBOMTggLS0+IE45CiAgICBOMTggLS0+IE4yMAogICAgTjE4IC0tPiBOMTcKICAgIE4xOCAtLT4gTjIxCiAgICBOMjMgLS0+IE4yNAogICAgTjIzIC0tPiBOMjUKICAgIE4yMyAtLT4gTjkKICAgIE4yMyAtLT4gTjI2CiAgICBOMjMgLS0+IE4yMgogICAgTjUgLS0+IE4xCiAgICBOOSAtLT4gTjEwCiAgICBOOSAtLT4gTjExCiAgICBOOSAtLT4gTjEyCiAgICBOOSAtLT4gTjEzCiAgICBOOSAtLT4gTjE1CiAgICBOMTAgLS0+IE45CiAgICBOMTAgLS0+IE4xMQogICAgTjEwIC0tPiBOMTIKICAgIE4xMCAtLT4gTjEzCiAgICBOMTAgLS0+IE4xNQogICAgTjIyIC0tPiBOMjMKICAgIE4yMiAtLT4gTjI0CiAgICBOMjIgLS0+IE45CiAgICBOMjIgLS0+IE4yNgogICAgTjIyIC0tPiBOMjUKICAgIE4yNyAtLT4gTjIzCiAgICBOMjcgLS0+IE4yNAogICAgTjI3IC0tPiBOOQogICAgTjI3IC0tPiBOMjYKICAgIE4yNyAtLT4gTjIyCiAgICBOMjggLS0+IE45CiAgICBOMjggLS0+IE4yOQogICAgTjI4IC0tPiBOMzAKICAgIE4yOCAtLT4gTjMxCiAgICBOMjggLS0+IE4zNQogICAgTjI5IC0tPiBOOQogICAgTjI5IC0tPiBOMjgKICAgIE4yOSAtLT4gTjMwCiAgICBOMjkgLS0+IE4zMQogICAgTjI5IC0tPiBOMzUKICAgIE4zNiAtLT4gTjE3CiAgICBOMzYgLS0+IE4zNwogICAgTjM2IC0tPiBOMzgKICAgIE4zNiAtLT4gTjM5CiAgICBOMzYgLS0+IE40MAogICAgTjQxIC0tPiBOOQogICAgTjQxIC0tPiBONDIKICAgIE40MSAtLT4gTjQ1CiAgICBONDEgLS0+IE40NwogICAgTjQxIC0tPiBONDAKICAgIE40MiAtLT4gTjkKICAgIE40MiAtLT4gTjE3CiAgICBONDIgLS0+IE40MQogICAgTjQyIC0tPiBONDMKICAgIE40MiAtLT4gTjQ2CiAgICBONDUgLS0+IE45CiAgICBONDUgLS0+IE4xNgogICAgTjQ1IC0tPiBOMTcKICAgIE40NSAtLT4gTjQxCiAgICBONDUgLS0+IE40NAogICAgTjQ3IC0tPiBOOQogICAgTjQ3IC0tPiBOMTYKICAgIE40NyAtLT4gTjE3CiAgICBONDcgLS0+IE40MQogICAgTjQ3IC0tPiBONDUKICAgIE44IC0tPiBOOQogICAgTjggLS0+IE4xNgogICAgTjggLS0+IE4xNwogICAgTjggLS0+IE40MQogICAgTjggLS0+IE40NQogICAgTjMgLS0+IE4xCiAgICBOMCAtLT4gTjEKICAgIE4zMSAtLT4gTjkKICAgIE4zMSAtLT4gTjI4CiAgICBOMzEgLS0+IE4zMgogICAgTjMxIC0tPiBOMzMKICAgIE4zMSAtLT4gTjM0CiAgICBOMzUgLS0+IE45CiAgICBOMzIgLS0+IE45CiAgICBOMzIgLS0+IE4yOAogICAgTjMyIC0tPiBOMzEKICAgIE4zMiAtLT4gTjMzCiAgICBOMzIgLS0+IE4zNAogICAgTjE5IC0tPiBOMTgKICAgIE4xOSAtLT4gTjkKICAgIE4xOSAtLT4gTjIwCiAgICBOMTkgLS0+IE4xNwogICAgTjE5IC0tPiBOMjEKICAgIE4zMyAtLT4gTjkKICAgIE4zMyAtLT4gTjI4CiAgICBOMzMgLS0+IE4zMQogICAgTjMzIC0tPiBOMzIKICAgIE4zMyAtLT4gTjM0CiAgICBOMjAgLS0+IE4xOQogICAgTjIwIC0tPiBOMTgKICAgIE4yMCAtLT4gTjkKICAgIE4yMCAtLT4gTjE3CiAgICBOMjAgLS0+IE4yMQogICAgTjEyIC0tPiBOOQogICAgTjEyIC0tPiBOMTAKICAgIE4xMiAtLT4gTjExCiAgICBOMTIgLS0+IE4xMwogICAgTjEyIC0tPiBOMTUKICAgIE4yMSAtLT4gTjE5CiAgICBOMjEgLS0+IE4xOAogICAgTjIxIC0tPiBOOQogICAgTjIxIC0tPiBOMjAKICAgIE4yMSAtLT4gTjE3CiAgICBONDMgLS0+IE45CiAgICBONDMgLS0+IE40MgogICAgTjQzIC0tPiBOMTcKICAgIE40MyAtLT4gTjQxCiAgICBONDMgLS0+IE40NAogICAgTjM5IC0tPiBOMzYKICAgIE4zOSAtLT4gTjE3CiAgICBOMzkgLS0+IE4zNwogICAgTjM5IC0tPiBOMzgKICAgIE4zOSAtLT4gTjQwCiAgICBONDYgLS0+IE45CiAgICBONDYgLS0+IE40MgogICAgTjQ2IC0tPiBONDEKICAgIE40NiAtLT4gTjQ1CiAgICBONDYgLS0+IE40NwogICAgTjQgLS0+IE4xCiAgICBOMiAtLT4gTjEKICAgIE43IC0tPiBOMQogICAgTjExIC0tPiBOOQogICAgTjExIC0tPiBOMTAKICAgIE4xMSAtLT4gTjEyCiAgICBOMTEgLS0+IE4xMwogICAgTjExIC0tPiBOMTUKICAgIE4xNyAtLT4gTjE4CiAgICBOMTcgLS0+IE4yMgogICAgTjE3IC0tPiBOMjcKICAgIE4xNyAtLT4gTjI4CiAgICBOMTcgLS0+IE4zNgogICAgTjM3IC0tPiBOMzYKICAgIE4zNyAtLT4gTjE3CiAgICBOMzcgLS0+IE4zOAogICAgTjM3IC0tPiBOMzkKICAgIE4zNyAtLT4gTjQwCiAgICBOMTQgLS0+IE45CiAgICBOMTQgLS0+IE4xMAogICAgTjE0IC0tPiBOMTEKICAgIE4xNCAtLT4gTjEyCiAgICBOMTQgLS0+IE4xMwogICAgTjM4IC0tPiBOMzYKICAgIE4zOCAtLT4gTjE3CiAgICBOMzggLS0+IE4zNwogICAgTjM4IC0tPiBOMzkKICAgIE4zOCAtLT4gTjQwCiAgICBONDkgLS0+IE45CiAgICBONDkgLS0+IE4xNgogICAgTjQ5IC0tPiBOMTcKICAgIE40OSAtLT4gTjQxCiAgICBONDkgLS0+IE40NQogICAgTjYgLS0+IE4xCiAgICBOMjQgLS0+IE4yMwogICAgTjI0IC0tPiBOMjUKICAgIE4yNCAtLT4gTjkKICAgIE4yNCAtLT4gTjI2CiAgICBOMjQgLS0+IE4yMgogICAgTjE2IC0tPiBOOQogICAgTjE2IC0tPiBOMTcKICAgIE4xNiAtLT4gTjQxCiAgICBOMTYgLS0+IE40NQogICAgTjE2IC0tPiBONDQKICAgIE4yNiAtLT4gTjIzCiAgICBOMjYgLS0+IE4yNAogICAgTjI2IC0tPiBOOQogICAgTjI2IC0tPiBOMjUKICAgIE4yNiAtLT4gTjIyCiAgICBOMTMgLS0+IE45CiAgICBOMTMgLS0+IE4xMAogICAgTjEzIC0tPiBOMTEKICAgIE4xMyAtLT4gTjEyCiAgICBOMTMgLS0+IE4xNAogICAgTjE1IC0tPiBOOQogICAgTjE1IC0tPiBOMTAKICAgIE4xNSAtLT4gTjExCiAgICBOMTUgLS0+IE4xMgogICAgTjE1IC0tPiBOMTMKICAgIE40NCAtLT4gTjkKICAgIE40NCAtLT4gTjE2CiAgICBONDQgLS0+IE4xNwogICAgTjQ0IC0tPiBONDEKICAgIE40NCAtLT4gTjQ1CiAgICBONDggLS0+IE45CiAgICBONDggLS0+IE4xNgogICAgTjQ4IC0tPiBOMTcKICAgIE40OCAtLT4gTjQxCiAgICBONDggLS0+IE40NQoKICAgIGxpbmtTdHlsZSAwIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAyIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAzIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA0IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA1IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA2IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA3IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA4IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA5IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTEgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEyIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMyBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTQgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE1IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNiBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTcgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE4IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxOSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMjAgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDIxIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAyMiBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMjMgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDI0IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAyNSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMjYgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDI3IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAyOCBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMjkgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDMwIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAzMSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMzIgc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDMzIHN0cm9rZTojOGI1Y2Y2LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAzNCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMzUgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDM2IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAzNyBzdHJva2U6IzhiNWNmNixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMzggc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDM5IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA0MCBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNDEgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDQyIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA0MyBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNDQgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDQ1IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA0NiBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNDcgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDQ4IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA0OSBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNTAgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDUxIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA1MiBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNTMgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDU0IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA1NSBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNTYgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDU3IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA1OCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNTkgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDYwIHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA2MSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNjIgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDYzIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA2NCBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNjUgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDY2IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA2NyBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNjggc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDY5IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA3MCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNzEgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDcyIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA3MyBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNzQgc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDc1IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA3NiBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgNzcgc3Ryb2tlOiMwNmI2ZDQsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDc4IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA3OSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgODAgc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDgxIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA4MiBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgODMgc3Ryb2tlOiMwNmI2ZDQsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDg0IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA4NSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgODYgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDg3IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA4OCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgODkgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDkwIHN0cm9rZTojOGI1Y2Y2LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA5MSBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgOTIgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDkzIHN0cm9rZTojMDZiNmQ0LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA5NCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgOTUgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDk2IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSA5NyBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgOTggc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDk5IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMDAgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEwMSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTAyIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMDMgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEwNCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTA1IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMDYgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEwNyBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTA4IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMDkgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDExMCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTExIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMTIgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDExMyBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTE0IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMTUgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDExNiBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTE3IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMTggc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDExOSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTIwIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMjEgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEyMiBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTIzIHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMjQgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEyNSBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTI2IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMjcgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEyOCBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTI5IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMzAgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEzMSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTMyIHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMzMgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEzNCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTM1IHN0cm9rZTojOGI1Y2Y2LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMzYgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDEzNyBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTM4IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxMzkgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE0MCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTQxIHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNDIgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE0MyBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTQ0IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNDUgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE0NiBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTQ3IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNDggc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE0OSBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTUwIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNTEgc3Ryb2tlOiNlYzQ4OTksc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE1MiBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTUzIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNTQgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE1NSBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTU2IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNTcgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE1OCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTU5IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNjAgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE2MSBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTYyIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNjMgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE2NCBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTY1IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNjYgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE2NyBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTY4IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNjkgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE3MCBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTcxIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNzIgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE3MyBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTc0IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNzUgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE3NiBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTc3IHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxNzggc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE3OSBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTgwIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxODEgc3Ryb2tlOiNmNTllMGIsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE4MiBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTgzIHN0cm9rZTojZjU5ZTBiLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxODQgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE4NSBzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTg2IHN0cm9rZTojZWM0ODk5LHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxODcgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE4OCBzdHJva2U6I2Y1OWUwYixzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTg5IHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKICAgIGxpbmtTdHlsZSAxOTAgc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjNweAogICAgbGlua1N0eWxlIDE5MSBzdHJva2U6I2VjNDg5OSxzdHJva2Utd2lkdGg6M3B4CiAgICBsaW5rU3R5bGUgMTkyIHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDozcHgKCiAgICAlJSBTdHlsaW5nIC0gRGFyayBUaGVtZQogICAgc3R5bGUgU0cwIGZpbGw6IzBkMWYxYSxzdHJva2U6IzEwYjk4MSxjb2xvcjojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgKICAgIHN0eWxlIFNHMSBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsY29sb3I6IzhiNWNmNixzdHJva2Utd2lkdGg6MnB4CiAgICBzdHlsZSBTRzIgZmlsbDojMGMxYzIwLHN0cm9rZTojMDZiNmQ0LGNvbG9yOiMwNmI2ZDQsc3Ryb2tlLXdpZHRoOjJweAogICAgc3R5bGUgU0czIGZpbGw6IzIxMWEwZCxzdHJva2U6I2Y1OWUwYixjb2xvcjojZjU5ZTBiLHN0cm9rZS13aWR0aDoycHgKICAgIHN0eWxlIFNHNCBmaWxsOiMxZjBkMTgsc3Ryb2tlOiNlYzQ4OTksY29sb3I6I2VjNDg5OSxzdHJva2Utd2lkdGg6MnB4CiAgICBzdHlsZSBTRzUgZmlsbDojMGQxZjFhLHN0cm9rZTojMTBiOTgxLGNvbG9yOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweAogICAgc3R5bGUgRlNHMCBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0cxIGZpbGw6IzFhMWExYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MXB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIEZTRzIgZmlsbDojMWExYTFhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoxcHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgRlNHMyBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0c0IGZpbGw6IzFhMWExYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MXB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIEZTRzUgZmlsbDojMWExYTFhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoxcHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgRlNHNiBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0c3IGZpbGw6IzFhMWExYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MXB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIEZTRzggZmlsbDojMWExYTFhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoxcHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgRlNHOSBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0cxMCBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0cxMSBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0cxMiBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0cxMyBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBGU0cxNCBmaWxsOiMxYTFhMWEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjFweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMCBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBOMSBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMiBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBOMyBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBONCBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBONSBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBONiBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBONyBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBOOCBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBOOSBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMTAgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjExIGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4xMiBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMTMgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjE0IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4xNSBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMTYgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjE3IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4xOCBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMTkgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjIwIGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4yMSBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMjIgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjIzIGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4yNCBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMjUgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjI2IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4yNyBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMjggZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjI5IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4zMCBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMzEgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjMyIGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4zMyBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMzQgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjM1IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4zNiBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBOMzcgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjM4IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE4zOSBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBONDAgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjQxIGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE40MiBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBONDMgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjQ0IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE40NSBmaWxsOiMwYTBhMGEsc3Ryb2tlOiMxMGI5ODEsc3Ryb2tlLXdpZHRoOjJweCxjb2xvcjojMTBiOTgxCiAgICBzdHlsZSBONDYgZmlsbDojMGEwYTBhLHN0cm9rZTojMTBiOTgxLHN0cm9rZS13aWR0aDoycHgsY29sb3I6IzEwYjk4MQogICAgc3R5bGUgTjQ3IGZpbGw6IzBhMGEwYSxzdHJva2U6IzEwYjk4MSxzdHJva2Utd2lkdGg6MnB4LGNvbG9yOiMxMGI5ODEKICAgIHN0eWxlIE40OCBmaWxsOiMxYTE2MjUsc3Ryb2tlOiM4YjVjZjYsc3Ryb2tlLXdpZHRoOjNweCxjb2xvcjojYTg1NWY3CiAgICBzdHlsZSBONDkgZmlsbDojMWExNjI1LHN0cm9rZTojOGI1Y2Y2LHN0cm9rZS13aWR0aDozcHgsY29sb3I6I2E4NTVmNw==">
+                    <!-- Mermaid code will be loaded from base64 attribute by JavaScript to avoid HTML parsing issues -->
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Node details sidebar -->
+    <div class="node-details" id="node-details">
+        <h2>
+            <span id="node-details-title">Node Details</span>
+            <button class="close-btn" onclick="closeNodeDetails()">&times;</button>
+        </h2>
+        <div class="node-icon" id="node-icon"></div>
+        <div id="node-details-content">
+            <p style="color: #64748b; text-align: center; margin-top: 2rem;">Click a node to view details</p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Re-import mermaid for this script module (ES modules cache imports efficiently)
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        const container = document.getElementById('diagram-container');
+        const zoomLevelEl = document.getElementById('zoom-level');
+
+        // Hide loading when mermaid is ready
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+
+                // Add click handlers to nodes
+                document.querySelectorAll('.node').forEach(node => {
+                    node.addEventListener('click', (e) => {
+                        const label = node.querySelector('text')?.textContent;
+                        if (label) {
+                            alert('Node: ' + label);
+                        }
+                    });
+                });
+            }, 500);
+        });
+
+        function updateTransform() {
+            // Use translate3d for better performance and to avoid conflicts
+            container.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + '%';
+            container.classList.toggle('zoomed', scale !== 1);
+        }
+
+        function zoomIn() {
+            scale = Math.min(scale * 1.2, 5);
+            updateTransform();
+        }
+
+        function zoomOut() {
+            scale = Math.max(scale / 1.2, 0.1);
+            updateTransform();
+        }
+
+        function resetZoom() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+
+
+        // Settings Panel State
+        let settings = {
+            shader: 'fire',
+            lineWidth: 4,
+            speed: 1,
+            density: 0.5,
+            shaderEnabled: true
+        };
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            const button = panel.querySelector('.settings-toggle');
+            panel.classList.toggle('collapsed');
+            button.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+        }
+
+        function updateShader() {
+            const select = document.getElementById('shaderSelect');
+            settings.shader = select.value;
+            settings.shaderEnabled = settings.shader !== 'none';
+            console.log('Shader updated to:', settings.shader);
+            // WebGL will use this in the render loop
+        }
+
+        function updateLineWidth(value) {
+            settings.lineWidth = parseFloat(value);
+            document.getElementById('lineWidthValue').textContent = value + 'px';
+            console.log('Line width updated to:', settings.lineWidth);
+        }
+
+        function updateSpeed(value) {
+            settings.speed = parseFloat(value);
+            document.getElementById('speedValue').textContent = value + 'x';
+            console.log('Animation speed updated to:', settings.speed);
+        }
+
+        function updateDensity(value) {
+            settings.density = parseFloat(value);
+            document.getElementById('densityValue').textContent = value + 'px';
+            console.log('Path density will be', settings.density, 'px (requires regeneration)');
+            // This would require rebuilding the geometry, so just log for now
+        }
+
+        // Initialize settings panel event listeners
+        function initializeSettingsPanel() {
+            // Toggle button
+            const toggleBtn = document.getElementById('settingsToggle');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', toggleSettings);
+            }
+
+            // Shader select
+            const shaderSelect = document.getElementById('shaderSelect');
+            if (shaderSelect) {
+                shaderSelect.addEventListener('change', updateShader);
+            }
+
+            // Line width slider
+            const lineWidthSlider = document.getElementById('lineWidthSlider');
+            if (lineWidthSlider) {
+                lineWidthSlider.addEventListener('input', function() {
+                    updateLineWidth(this.value);
+                });
+            }
+
+            // Speed slider
+            const speedSlider = document.getElementById('speedSlider');
+            if (speedSlider) {
+                speedSlider.addEventListener('input', function() {
+                    updateSpeed(this.value);
+                });
+            }
+
+            // Density slider
+            const densitySlider = document.getElementById('densitySlider');
+            if (densitySlider) {
+                densitySlider.addEventListener('input', function() {
+                    updateDensity(this.value);
+                });
+            }
+        }
+
+        function updateSpacing(value) {
+            const spacingValue = parseInt(value);
+            document.getElementById('spacing-value').textContent = spacingValue + 'px';
+
+            // Update mermaid configuration with new spacing
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                themeVariables: {
+                    primaryColor: '#10b981',
+                    primaryTextColor: '#10b981',
+                    primaryBorderColor: '#10b981',
+                    lineColor: '#10b981',
+                    secondaryColor: '#8b5cf6',
+                    tertiaryColor: '#ec4899',
+                    background: '#0a0a0a',
+                    mainBkg: '#0d1f1a',
+                    secondBkg: '#1a1625',
+                    tertiaryBkg: '#1f0a1a',
+                    clusterBkg: 'rgba(16, 185, 129, 0.05)',
+                    clusterBorder: '#10b981',
+                    edgeLabelBackground: 'rgba(10, 10, 10, 0.8)',
+                    nodeTextColor: '#10b981'
+                },
+                flowchart: {
+                    useMaxWidth: false,
+                    htmlLabels: true,
+                    curve: 'linear',
+                    nodeSpacing: spacingValue,
+                    rankSpacing: spacingValue,
+                    defaultRenderer: 'elk'
+                },
+                elk: {
+                    mergeEdges: true,
+                    nodePlacementStrategy: 'SIMPLE'
+                },
+                sequence: {
+                    useMaxWidth: false,
+                    wrap: true,
+                    height: 600
+                },
+                class: {
+                    useMaxWidth: false
+                },
+                er: {
+                    useMaxWidth: false
+                },
+                securityLevel: 'loose',
+                logLevel: 'error',
+                arrowMarkerAbsolute: true
+            });
+
+            // Re-render the diagram with proper cleanup
+            const diagramDiv = document.getElementById('mermaid-diagram');
+            const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
+
+            if (mermaidCodeB64) {
+                try {
+                    // Decode base64 mermaid code
+                    const mermaidCode = atob(mermaidCodeB64);
+
+                    // Clear old diagram completely (remove SVG and all children)
+                    diagramDiv.innerHTML = '';
+
+                    // Reset to mermaid class and insert raw mermaid code
+                    diagramDiv.className = 'mermaid';
+                    diagramDiv.removeAttribute('data-processed');
+                    diagramDiv.textContent = mermaidCode;
+
+                    // Reset zoom/pan for new diagram
+                    scale = 1;
+                    translateX = 0;
+                    translateY = 0;
+                    updateTransform();
+
+                    // Re-render on next tick to ensure DOM is ready
+                    setTimeout(async () => {
+                        try {
+                            await mermaid.run({
+                                querySelector: '.mermaid'
+                            });
+                            // Reinitialize WebGL animations after render completes
+                            setTimeout(createWebGLGlows, 500);
+                        } catch (err) {
+                            console.error('Failed to re-render diagram:', err);
+                        }
+                    }, 0);
+                } catch (error) {
+                    console.error('Failed to update spacing:', error);
+                }
+            }
+        }
+
+        // Mouse wheel zoom - zoom towards cursor
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            // Get mouse position relative to container
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // With transform "translate(tx,ty) scale(s)", screen coords = (diagram + translate) * scale
+            // So: diagram = screen / scale - translate
+            // Calculate the point in diagram space that's currently under cursor
+            const pointX = mouseX / scale - translateX;
+            const pointY = mouseY / scale - translateY;
+
+            // Calculate new scale
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = Math.max(0.1, Math.min(5, scale * delta));
+
+            // Calculate new translation to keep same diagram point under cursor
+            // We want: mouseX = (pointX + new_translateX) * newScale
+            // So: new_translateX = mouseX / newScale - pointX
+            translateX = mouseX / newScale - pointX;
+            translateY = mouseY / newScale - pointY;
+            scale = newScale;
+
+            updateTransform();
+        });
+
+        // Drag to pan - avoid dragging when clicking nodes
+        container.addEventListener('mousedown', (e) => {
+            // Don't start dragging if clicking on a node
+            if (e.target.closest('.node')) {
+                return;
+            }
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Fullscreen
+        function toggleFullscreen() {
+            const elem = document.getElementById('container');
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => {
+                    console.log('Fullscreen error:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Download SVG
+        function downloadSVG() {
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (svg) {
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'diagram.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        // Sidebar functionality
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        // Parse mermaid content and build file tree
+        function buildFileTree() {
+            try {
+                // Get mermaid content from base64 attribute to avoid template string issues
+                const diagramDiv = document.getElementById('mermaid-diagram');
+                const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
+
+                console.log('Base64 attribute found:', !!mermaidCodeB64);
+                console.log('Base64 length:', mermaidCodeB64 ? mermaidCodeB64.length : 0);
+
+                if (!mermaidCodeB64) {
+                    console.error('No base64 data found on mermaid-diagram element');
+                    document.getElementById('file-tree').innerHTML = '<div style="color:#f59e0b;">Error: No diagram data found</div>';
+                    return;
+                }
+
+                const mermaidContent = atob(mermaidCodeB64);
+                console.log('Decoded mermaid content length:', mermaidContent.length);
+                console.log('Sample content:', mermaidContent.substring(0, 500));
+
+                const nodes = new Map(); // nodeId -> { name, file, line }
+                const fileStructure = {};
+
+                // Extract nodes from mermaid content
+                // Format: N0["function()<br/>🔧 class<br/>📄 file.py<br/>📍 L10-20"]
+                // Use more flexible regex that doesn't rely on emoji matching
+                const nodePattern = /N(\d+)\["([^(]+)\(\)<br\/>[^<]*<br\/>.*?\s+([^<]+)<br\/>[^<]*L(\d+)-(\d+)"\]/g;
+                let match;
+                let matchCount = 0;
+
+                while ((match = nodePattern.exec(mermaidContent)) !== null) {
+                    matchCount++;
+                    if (matchCount <= 3) {
+                        console.log(`Match ${matchCount}:`, match[0]);
+                    }
+                    const [, nodeId, funcName, fileName, lineStart, lineEnd] = match;
+                const node = {
+                    id: 'N' + nodeId,
+                    name: funcName.trim(),
+                    file: fileName.trim(),
+                    lineStart: parseInt(lineStart),
+                    lineEnd: parseInt(lineEnd)
+                };
+                nodes.set(node.id, node);
+
+                // Build file structure
+                if (!fileStructure[node.file]) {
+                    fileStructure[node.file] = [];
+                }
+                fileStructure[node.file].push(node);
+            }
+
+            console.log('buildFileTree: Found', matchCount, 'nodes');
+            console.log('buildFileTree: Files found:', Object.keys(fileStructure).length);
+
+            // Build HTML tree
+            const treeHTML = [];
+            const sortedFiles = Object.keys(fileStructure).sort();
+
+            if (sortedFiles.length === 0) {
+                treeHTML.push('<div class="tree-item" style="color: #f59e0b;">No files found. Check console for regex match issues.</div>');
+                console.warn('No files matched. Sample mermaid content:', mermaidContent.substring(0, 500));
+            } else {
+                for (const fileName of sortedFiles) {
+                    const funcs = fileStructure[fileName];
+                    treeHTML.push(`
+                        <div class="tree-item tree-file" onclick="highlightFile('${fileName}')">
+                            <span class="icon">📄</span>
+                            <span>${fileName}</span>
+                        </div>
+                        <div class="tree-children">
+                    `);
+
+                    for (const func of funcs) {
+                        treeHTML.push(`
+                            <div class="tree-item tree-function" data-node-id="${func.id}" onclick="navigateToNode('${func.id}')">
+                                <span class="icon">⚡</span>
+                                <span>${func.name}() :${func.lineStart}</span>
+                            </div>
+                        `);
+                    }
+
+                    treeHTML.push('</div>');
+                }
+            }
+
+            document.getElementById('file-tree').innerHTML = treeHTML.join('');
+            } catch (error) {
+                console.error('Error in buildFileTree:', error);
+                document.getElementById('file-tree').innerHTML = '<div style="color:#ef4444;">Error building file tree. Check console for details.</div>';
+            }
+        }
+
+        // Navigate to a specific node in the diagram
+        function navigateToNode(nodeId) {
+            // Find the node in the SVG
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) return;
+
+            // Mermaid v10 with ELK renderer uses IDs like "flowchart-N0-123" instead of just "N0"
+            // Try exact match first, then partial match
+            let nodeElement = svg.querySelector(`#${nodeId}`);
+            if (!nodeElement) {
+                // Try finding node by partial ID match (contains our nodeId)
+                nodeElement = svg.querySelector(`g.node[id*="${nodeId}"]`);
+            }
+            if (!nodeElement) {
+                console.warn('Node not found:', nodeId);
+                console.log('Available node IDs:', Array.from(svg.querySelectorAll('g.node')).map(n => n.id));
+                return;
+            }
+
+            // Get the bounding box of the node in SVG coordinate space
+            const nodeBBox = nodeElement.getBBox();
+            const containerRect = container.getBoundingClientRect();
+
+            // Calculate the center of the node in SVG coordinates
+            const nodeCenterX = nodeBBox.x + nodeBBox.width / 2;
+            const nodeCenterY = nodeBBox.y + nodeBBox.height / 2;
+
+            // Retain current zoom level - only zoom in if currently zoomed out
+            if (scale < 1.0) {
+                scale = 1.0;
+            }
+
+            // Center the node in the viewport
+            // With transform "translate(tx,ty) scale(s)": screen = (svg + translate) * scale
+            // We want: viewportCenter = (nodeCenter + translate) * scale
+            // So: translate = viewportCenter / scale - nodeCenter
+            const viewportCenterX = containerRect.width / 2;
+            const viewportCenterY = containerRect.height / 2;
+
+            translateX = viewportCenterX / scale - nodeCenterX;
+            translateY = viewportCenterY / scale - nodeCenterY;
+
+            updateTransform();
+
+            // Highlight the node temporarily
+            nodeElement.classList.add('highlighted');
+            setTimeout(() => nodeElement.classList.remove('highlighted'), 2000);
+
+            // Update active state in sidebar
+            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+            const sidebarItem = document.querySelector(`[data-node-id="${nodeId}"]`);
+            if (sidebarItem) sidebarItem.classList.add('active');
+        }
+
+        function highlightFile(fileName) {
+            // Highlight all nodes from this file
+            const items = document.querySelectorAll(`[data-node-id]`);
+            const svg = document.querySelector('#mermaid-diagram svg');
+
+            items.forEach(item => {
+                const nodeId = item.getAttribute('data-node-id');
+                // Try exact match first, then partial match
+                let nodeElement = svg.querySelector(`#${nodeId}`);
+                if (!nodeElement) {
+                    nodeElement = svg.querySelector(`g.node[id*="${nodeId}"]`);
+                }
+                if (nodeElement && item.textContent.includes(fileName)) {
+                    nodeElement.classList.add('highlighted');
+                    setTimeout(() => nodeElement.classList.remove('highlighted'), 2000);
+                }
+            });
+        }
+
+        // Search functionality
+        document.getElementById('sidebar-search').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const treeItems = document.querySelectorAll('.tree-item');
+
+            treeItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Enhanced pulse effects with fading trails
+        function createPulseEffects() {
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) return;
+
+            // Create a defs section for gradients
+            let defs = svg.querySelector('defs');
+            if (!defs) {
+                defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                svg.insertBefore(defs, svg.firstChild);
+            }
+
+            // Add larger radial gradient for pulse
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+            gradient.setAttribute('id', 'pulse-gradient');
+            gradient.innerHTML = `
+                <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                <stop offset="50%" style="stop-color:#10b981;stop-opacity:0.6" />
+                <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
+            `;
+            defs.appendChild(gradient);
+
+            // Only animate selected edges for performance
+            const edgePaths = svg.querySelectorAll('.edgePath path');
+            const maxPulses = Math.min(10, Math.floor(edgePaths.length / 5));
+
+            for (let i = 0; i < maxPulses; i++) {
+                const index = i * Math.floor(edgePaths.length / maxPulses);
+                const path = edgePaths[index];
+                if (!path) continue;
+
+                const pathLength = path.getTotalLength();
+                const trailLength = 8; // Number of trail segments
+                const trail = [];
+
+                // Create trail segments
+                for (let j = 0; j < trailLength; j++) {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    const opacity = 1 - (j / trailLength); // Fade out progressively
+                    const radius = 6 - (j * 0.5); // Get smaller progressively
+
+                    circle.setAttribute('r', radius);
+                    circle.setAttribute('fill', 'url(#pulse-gradient)');
+                    circle.setAttribute('opacity', opacity);
+                    circle.style.filter = 'blur(1px)';
+
+                    path.parentNode.appendChild(circle);
+                    trail.push(circle);
+                }
+
+                let distance = (i * 150) % pathLength;
+                let lastTime = performance.now();
+
+                function animatePulse(currentTime) {
+                    const deltaTime = currentTime - lastTime;
+
+                    // 60fps cap
+                    if (deltaTime < 16) {
+                        requestAnimationFrame(animatePulse);
+                        return;
+                    }
+
+                    lastTime = currentTime;
+                    distance += 3; // Moderate speed
+
+                    if (distance > pathLength) {
+                        distance = 0;
+                    }
+
+                    // Update each trail segment
+                    for (let j = 0; j < trailLength; j++) {
+                        const segmentDistance = distance - (j * 15); // Space segments out
+                        let actualDistance = segmentDistance;
+
+                        if (actualDistance < 0) {
+                            actualDistance = pathLength + actualDistance;
+                        }
+
+                        const point = path.getPointAtLength(actualDistance % pathLength);
+                        trail[j].setAttribute('cx', point.x);
+                        trail[j].setAttribute('cy', point.y);
+                    }
+
+                    requestAnimationFrame(animatePulse);
+                }
+
+                requestAnimationFrame(animatePulse);
+            }
+        }
+
+        // WebGL-accelerated glow particles for high-performance rendering
+        function createWebGLGlows() {
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) {
+                console.warn('SVG not found, retrying WebGL initialization...');
+                setTimeout(createWebGLGlows, 200);
+                return;
+            }
+
+            // Wait for paths to be fully rendered - check multiple times
+            const edgePathCount = svg.querySelectorAll('.edgePath path').length;
+
+            // Store last count to detect when rendering stabilizes
+            if (!createWebGLGlows.lastPathCount) {
+                createWebGLGlows.lastPathCount = 0;
+                createWebGLGlows.retryCount = 0;
+            }
+
+            createWebGLGlows.retryCount++;
+
+            // Wait longer if paths are still being added
+            // Need to see same count at least 3 times before considering it stable
+            if (!createWebGLGlows.stableCount) createWebGLGlows.stableCount = 0;
+
+            if (edgePathCount !== createWebGLGlows.lastPathCount) {
+                console.log('WebGL: Found', edgePathCount, 'paths (was', createWebGLGlows.lastPathCount, '), waiting for rendering to stabilize...');
+                createWebGLGlows.lastPathCount = edgePathCount;
+                createWebGLGlows.stableCount = 0; // Reset stability counter
+                setTimeout(createWebGLGlows, 500);
+                return;
+            } else {
+                createWebGLGlows.stableCount++;
+                if (createWebGLGlows.stableCount < 3 && createWebGLGlows.retryCount < 30) {
+                    console.log('WebGL: Path count stable at', edgePathCount, '(check', createWebGLGlows.stableCount, 'of 3)');
+                    setTimeout(createWebGLGlows, 500);
+                    return;
+                }
+            }
+
+            console.log('WebGL: Initializing with', edgePathCount, 'edge paths after', createWebGLGlows.retryCount, 'checks');
+
+            // Create canvas overlay - position it to match SVG position
+            const canvas = document.createElement('canvas');
+            const mermaidDiagram = document.getElementById('mermaid-diagram');
+
+            // Get computed padding to offset canvas correctly
+            const computedStyle = window.getComputedStyle(mermaidDiagram);
+            const paddingTop = parseFloat(computedStyle.paddingTop);
+            const paddingLeft = parseFloat(computedStyle.paddingLeft);
+
+            canvas.style.position = 'absolute';
+            canvas.style.top = paddingTop + 'px';  // Account for container padding
+            canvas.style.left = paddingLeft + 'px';  // Account for container padding
+            canvas.style.width = `calc(100% - ${paddingLeft + parseFloat(computedStyle.paddingRight)}px)`;
+            canvas.style.height = `calc(100% - ${paddingTop + parseFloat(computedStyle.paddingBottom)}px)`;
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '100';  // Higher z-index to ensure visibility
+
+            // Append canvas as sibling to SVG inside mermaid-diagram div
+            // This way canvas and SVG are both transformed together
+            mermaidDiagram.appendChild(canvas);
+            console.log('WebGL canvas created');
+
+            // Setup WebGL context
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                console.warn('WebGL not supported, falling back to SVG animations');
+                return;
+            }
+
+            // Load all shader sources
+            const shaderSources = {
+                fire: {
+                    vertex: `attribute vec2 a_position;
+attribute float a_texCoord;     // Position along line (0 to 1)
+attribute float a_perpCoord;    // Position across line (-1 to 1)
+attribute vec2 a_normal;        // Perpendicular normal vector
+uniform vec2 u_resolution;
+uniform mat3 u_transform;
+uniform float u_lineWidth;      // Line width in pixels
+varying float v_texCoord;
+varying float v_perpCoord;
+
+void main() {
+    vec3 transformed = u_transform * vec3(a_position, 1.0);
+
+    vec2 offset = a_normal * a_perpCoord * u_lineWidth;
+    vec2 finalPos = transformed.xy + offset;
+
+    vec2 clipSpace = (finalPos / u_resolution) * 2.0 - 1.0;
+    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+    v_texCoord = a_texCoord;
+    v_perpCoord = a_perpCoord;
+}
+`,
+                    fragment: `precision mediump float;
+varying float v_texCoord;  // 0 to 1 along the line
+varying float v_perpCoord;  // -1 to 1 across the line
+uniform float u_time;
+
+float rand(vec2 n) {
+    return fract(sin(dot(n, vec2(12.9898, 12.1414))) * 83758.5453);
+}
+
+float noise(vec2 n) {
+    const vec2 d = vec2(0.0, 1.0);
+    vec2 b = floor(n);
+    vec2 f = smoothstep(vec2(0.0), vec2(1.0), fract(n));
+    return mix(mix(rand(b), rand(b + d.yx), f.x),
+              mix(rand(b + d.xy), rand(b + d.yy), f.x), f.y);
+}
+
+float fire(vec2 n) {
+    return noise(n) + noise(n * 2.1) * 0.6 + noise(n * 5.4) * 0.42;
+}
+
+float shade(vec2 uv, float t) {
+    uv.x += uv.y < 0.5 ? 23.0 + t * 0.035 : -11.0 + t * 0.03;
+    uv.y = abs(uv.y - 0.5);
+    uv.x *= 35.0;
+
+    float q = fire(uv - t * 0.013) / 2.0;
+    vec2 r = vec2(fire(uv + q / 2.0 + t - uv.x - uv.y), fire(uv + q - t));
+
+    return pow((r.y + r.y) * max(0.0, uv.y) + 0.1, 4.0);
+}
+
+vec3 ramp(float t) {
+    if (t <= 0.5) {
+        return vec3(1.0 - t * 1.4, 1.0, 1.05) / t;
+    } else {
+        return vec3(0.3 * (1.0 - t) * 2.0, 1.0, 1.05) / t;
+    }
+}
+
+vec3 color(float grad) {
+    grad = sqrt(grad);
+    vec3 col = ramp(grad);
+    col /= (1.15 + max(vec3(0.0), col));
+    return col;
+}
+
+void main() {
+    vec2 uv = vec2(v_texCoord, (v_perpCoord + 1.0) * 0.5);  // Map perp to 0-1
+    float t = u_time;
+    uv.x -= t * 0.05;  // Flow along line
+
+    float grad = shade(uv, t);
+    vec3 fireColor = color(grad);
+
+    float edgeFade = 1.0 - abs(v_perpCoord);  // Fade at ±1
+    edgeFade = smoothstep(0.85, 0.7, abs(v_perpCoord));
+    float intensity = smoothstep(0.0, 0.2, grad) * smoothstep(1.0, 0.7, grad) * edgeFade;
+
+    gl_FragColor = vec4(fireColor * intensity, intensity * 0.8);
+}
+`
+                },
+                glow: {
+                    vertex: `attribute vec2 a_position;
+attribute float a_texCoord;     // Position along line (0 to 1)
+attribute float a_perpCoord;    // Position across line (-1 to 1)
+attribute vec2 a_normal;        // Perpendicular normal vector
+uniform vec2 u_resolution;
+uniform mat3 u_transform;
+uniform float u_lineWidth;      // Line width in pixels
+varying float v_texCoord;
+varying float v_perpCoord;
+
+void main() {
+    vec3 transformed = u_transform * vec3(a_position, 1.0);
+
+    vec2 offset = a_normal * a_perpCoord * u_lineWidth;
+    vec2 finalPos = transformed.xy + offset;
+
+    vec2 clipSpace = (finalPos / u_resolution) * 2.0 - 1.0;
+    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+    v_texCoord = a_texCoord;
+    v_perpCoord = a_perpCoord;
+}
+`,
+                    fragment: `precision mediump float;
+
+varying float v_texCoord;  // Position along the line (0.0 at start, 1.0 at end)
+varying float v_perpCoord; // Position across the line (-1.0 to 1.0)
+
+void main() {
+    float glow = 1.0 - abs(v_perpCoord);
+    glow = pow(glow, 2.0); // Use pow to create a sharper falloff
+
+    vec3 glowColor = vec3(0.063, 0.725, 0.506); // Emerald color from the fire shader
+
+    gl_FragColor = vec4(glowColor, glow * 0.7); // Use 0.7 alpha for a gentle blend
+}
+`
+                },
+                pulse: {
+                    vertex: `attribute vec2 a_position;
+attribute float a_texCoord;     // Position along line (0 to 1)
+attribute float a_perpCoord;    // Position across line (-1 to 1)
+attribute vec2 a_normal;        // Perpendicular normal vector
+uniform vec2 u_resolution;
+uniform mat3 u_transform;
+uniform float u_lineWidth;      // Line width in pixels
+varying float v_texCoord;
+varying float v_perpCoord;
+
+void main() {
+    vec3 transformed = u_transform * vec3(a_position, 1.0);
+
+    vec2 offset = a_normal * a_perpCoord * u_lineWidth;
+    vec2 finalPos = transformed.xy + offset;
+
+    vec2 clipSpace = (finalPos / u_resolution) * 2.0 - 1.0;
+    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+    v_texCoord = a_texCoord;
+    v_perpCoord = a_perpCoord;
+}
+`,
+                    fragment: `precision mediump float;
+
+uniform float u_time;
+
+varying float v_texCoord;  // Position along the line (0.0 at start, 1.0 at end)
+varying float v_perpCoord; // Position across the line (-1.0 to 1.0)
+
+void main() {
+    float edgeFalloff = 1.0 - abs(v_perpCoord);
+    edgeFalloff = smoothstep(0.0, 1.0, edgeFalloff);
+
+    float speed = -3.0; // Negative to flow in the direction of the line
+    float waveFrequency = 40.0; // How many pulses are on the line at once
+    
+    float wave = sin(v_texCoord * waveFrequency + u_time * speed);
+
+    float pulse = smoothstep(0.8, 1.0, wave);
+
+    vec3 flowColor = vec3(0.1, 1.0, 0.7);
+
+    float alpha = pulse * edgeFalloff;
+
+    gl_FragColor = vec4(flowColor, alpha);
+}
+`
+                },
+                ghost: {
+                    vertex: `attribute vec2 a_position;
+attribute float a_texCoord;     // Position along line (0 to 1)
+attribute float a_perpCoord;    // Position across line (-1 to 1)
+attribute vec2 a_normal;        // Perpendicular normal vector
+uniform vec2 u_resolution;
+uniform mat3 u_transform;
+uniform float u_lineWidth;      // Line width in pixels
+varying float v_texCoord;
+varying float v_perpCoord;
+
+void main() {
+    vec3 transformed = u_transform * vec3(a_position, 1.0);
+
+    vec2 offset = a_normal * a_perpCoord * u_lineWidth;
+    vec2 finalPos = transformed.xy + offset;
+
+    vec2 clipSpace = (finalPos / u_resolution) * 2.0 - 1.0;
+    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+    v_texCoord = a_texCoord;
+    v_perpCoord = a_perpCoord;
+}
+`,
+                    fragment: `precision mediump float;
+varying float v_texCoord;  // 0 to 1 along the line
+varying float v_perpCoord;  // -1 to 1 across the line
+uniform float u_time;
+
+float rand(vec2 n) {
+    return fract(sin(dot(n, vec2(12.9898, 12.1414))) * 83758.5453);
+}
+
+float noise(vec2 n) {
+    const vec2 d = vec2(0.0, 1.0);
+    vec2 b = floor(n);
+    vec2 f = smoothstep(vec2(0.0), vec2(1.0), fract(n));
+    return mix(mix(rand(b), rand(b + d.yx), f.x),
+              mix(rand(b + d.xy), rand(b + d.yy), f.x), f.y);
+}
+
+float wisp(vec2 n) {
+    return noise(n) + noise(n * 2.1) * 0.6 + noise(n * 5.4) * 0.42;
+}
+
+float shade(vec2 uv, float t) {
+    uv.x += uv.y < 0.5 ? 23.0 + t * 0.025 : -11.0 + t * 0.02;  // Slower, more ethereal
+    uv.y = abs(uv.y - 0.5);
+    uv.x *= 30.0;  // Less dense
+
+    float q = wisp(uv - t * 0.01) / 2.0;
+    vec2 r = vec2(wisp(uv + q / 2.0 + t - uv.x - uv.y), wisp(uv + q - t));
+
+    return pow((r.y + r.y) * max(0.0, uv.y) + 0.1, 3.5);  // Softer
+}
+
+vec3 ramp(float t) {
+    if (t <= 0.5) {
+        return vec3(1.0, 1.0 - t * 0.3, 1.0) / (t + 0.2);
+    } else {
+        return vec3(0.8 + (1.0 - t) * 0.4, 0.9, 1.0) / (t + 0.1);
+    }
+}
+
+vec3 color(float grad) {
+    grad = sqrt(grad);
+    vec3 col = ramp(grad);
+    col /= (1.1 + max(vec3(0.0), col));
+    return col;
+}
+
+void main() {
+    vec2 uv = vec2(v_texCoord, (v_perpCoord + 1.0) * 0.5);  // Map perp to 0-1
+    float t = u_time;
+    uv.x -= t * 0.04;  // Slower flow for ghostly drift
+
+    float grad = shade(uv, t);
+    vec3 ghostColor = color(grad);
+
+    float edgeFade = 1.0 - abs(v_perpCoord);  // Fade at ±1
+    float intensity = smoothstep(0.0, 0.3, grad) * smoothstep(1.0, 0.6, grad) * edgeFade;
+
+    gl_FragColor = vec4(ghostColor * intensity, intensity * 0.6);
+}
+`
+                }
+            };
+
+            // Compile shaders
+            function compileShader(source, type) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                    return null;
+                }
+                return shader;
+            }
+
+            // Create a shader program from vertex and fragment shaders
+            function createProgram(vertexSource, fragmentSource) {
+                const vertexShader = compileShader(vertexSource, gl.VERTEX_SHADER);
+                const fragmentShader = compileShader(fragmentSource, gl.FRAGMENT_SHADER);
+
+                if (!vertexShader || !fragmentShader) {
+                    console.error('Failed to compile shaders');
+                    return null;
+                }
+
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error('Program link error:', gl.getProgramInfoLog(program));
+                    return null;
+                }
+
+                return program;
+            }
+
+            // Compile all shader programs
+            const programs = {};
+            for (const [name, sources] of Object.entries(shaderSources)) {
+                programs[name] = createProgram(sources.vertex, sources.fragment);
+                console.log(`WebGL: Compiled ${name} shader program`);
+            }
+
+            // Start with fire shader
+            let currentProgram = programs.fire;
+            gl.useProgram(currentProgram);
+
+            // Get attribute/uniform locations for current program
+            function getLocations(program) {
+                return {
+                    positionLoc: gl.getAttribLocation(program, 'a_position'),
+                    texCoordLoc: gl.getAttribLocation(program, 'a_texCoord'),
+                    perpCoordLoc: gl.getAttribLocation(program, 'a_perpCoord'),
+                    normalLoc: gl.getAttribLocation(program, 'a_normal'),
+                    resolutionLoc: gl.getUniformLocation(program, 'u_resolution'),
+                    transformLoc: gl.getUniformLocation(program, 'u_transform'),
+                    timeLoc: gl.getUniformLocation(program, 'u_time'),
+                    lineWidthLoc: gl.getUniformLocation(program, 'u_lineWidth')
+                };
+            }
+
+            let locations = getLocations(currentProgram);
+
+            // Extract path data from SVG
+            const edgePaths = svg.querySelectorAll('.edgePath path');
+            const pathData = [];
+
+            console.log('WebGL: Found', edgePaths.length, 'edge paths');
+
+            edgePaths.forEach((path, idx) => {
+                // With WebGL we can animate ALL paths without performance issues
+                const length = path.getTotalLength();
+                const points = [];
+                // Use 0.5 pixel steps for smooth curves - this prevents corner cutting
+                const step = 0.5;
+
+                for (let i = 0; i <= length; i += step) {
+                    const pt = path.getPointAtLength(i);
+                    // Use raw points - they're already in SVG coordinate space
+                    points.push([pt.x, pt.y]);
+                }
+
+                // Always add the final point to ensure complete path coverage
+                if (points.length === 0 || length > 0) {
+                    const finalPt = path.getPointAtLength(length);
+                    points.push([finalPt.x, finalPt.y]);
+                }
+
+                // Debug first path
+                if (idx === 0) {
+                    console.log('WebGL: First path points (first 3):', points.slice(0, 3));
+                }
+
+                pathData.push({
+                    points,
+                    length,
+                    progress: Math.random() // Start at random position
+                });
+            });
+
+            console.log('WebGL: Created', pathData.length, 'animated paths');
+
+            // Debug: Calculate bounding box of ALL path points
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            pathData.forEach(path => {
+                path.points.forEach(([x, y]) => {
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                });
+            });
+            console.log('WebGL: Path points bounding box:', {
+                min: [minX, minY],
+                max: [maxX, maxY],
+                width: maxX - minX,
+                height: maxY - minY
+            });
+            console.log('WebGL: SVG viewBox:', {
+                x: svg.viewBox.baseVal.x,
+                y: svg.viewBox.baseVal.y,
+                width: svg.viewBox.baseVal.width,
+                height: svg.viewBox.baseVal.height
+            });
+
+            // Build vertex data for thick lines using triangle strips
+            const lineVertices = [];
+            const lineTexCoords = [];
+            const linePerpCoords = [];
+            const lineNormals = [];
+            const lineSegments = []; // Track where each path starts/ends
+
+            pathData.forEach(path => {
+                const points = path.points;
+                const startIdx = lineVertices.length / 2;
+
+                // For each segment in the path
+                for (let i = 0; i < points.length; i++) {
+                    const curr = points[i];
+                    const texCoord = i / (points.length - 1);
+
+                    // Calculate normal direction (perpendicular to line direction)
+                    let normal = [0, 0];
+                    if (i < points.length - 1) {
+                        // Forward direction
+                        const next = points[i + 1];
+                        const dx = next[0] - curr[0];
+                        const dy = next[1] - curr[1];
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        if (len > 0) {
+                            // Perpendicular: rotate by 90° (swap and negate one component)
+                            normal = [-dy / len, dx / len];
+                        }
+                    } else if (i > 0) {
+                        // Use previous segment's direction for last point
+                        const prev = points[i - 1];
+                        const dx = curr[0] - prev[0];
+                        const dy = curr[1] - prev[1];
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        if (len > 0) {
+                            normal = [-dy / len, dx / len];
+                        }
+                    }
+
+                    // Create two vertices for this point (top and bottom of line)
+                    // Triangle strip order: alternate between -1 and +1 perp coords
+                    // Vertex 1: perpCoord = -1 (one side)
+                    lineVertices.push(curr[0], curr[1]);
+                    lineTexCoords.push(texCoord);
+                    linePerpCoords.push(-1.0);
+                    lineNormals.push(normal[0], normal[1]);
+
+                    // Vertex 2: perpCoord = +1 (other side)
+                    lineVertices.push(curr[0], curr[1]);
+                    lineTexCoords.push(texCoord);
+                    linePerpCoords.push(1.0);
+                    lineNormals.push(normal[0], normal[1]);
+                }
+
+                const endIdx = lineVertices.length / 2;
+                lineSegments.push({ start: startIdx, count: endIdx - startIdx });
+            });
+
+            const positions = new Float32Array(lineVertices);
+            const texCoords = new Float32Array(lineTexCoords);
+            const perpCoords = new Float32Array(linePerpCoords);
+            const normals = new Float32Array(lineNormals);
+
+            // Create buffers
+            const positionBuffer = gl.createBuffer();
+            const texCoordBuffer = gl.createBuffer();
+            const perpCoordBuffer = gl.createBuffer();
+            const normalBuffer = gl.createBuffer();
+
+            // Upload static geometry to GPU
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, perpCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, perpCoords, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+
+            // Resize canvas to match SVG dimensions (not CSS-transformed container)
+            function resizeCanvas() {
+                // CRITICAL: Use SVG viewBox dimensions, NOT getBoundingClientRect()
+                // getBoundingClientRect() includes CSS transforms (zoom/pan) which causes
+                // the canvas to resize during user interactions, breaking alignment.
+                // The CSS transform on the canvas element handles visual zoom/pan.
+                const viewBox = svg.viewBox.baseVal;
+                const svgWidth = viewBox.width || svg.width.baseVal.value;
+                const svgHeight = viewBox.height || svg.height.baseVal.value;
+
+                // Use a high-resolution fixed width for quality
+                // Calculate height to maintain viewBox aspect ratio
+                const targetWidth = 2000;
+                const aspectRatio = svgHeight / svgWidth;
+                canvas.width = targetWidth;
+                canvas.height = Math.round(targetWidth * aspectRatio);
+
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            console.log('WebGL: Starting fire channel animation with', lineSegments.length, 'paths');
+            console.log('WebGL: Total vertices:', positions.length / 2);
+            console.log('WebGL: Triangle strip vertices (2 per point)');
+
+            let frameCount = 0;
+            // Animation loop
+            function animate() {
+                resizeCanvas();
+                frameCount++;
+
+                // Check if shader effect should be rendered
+                if (!settings.shaderEnabled || settings.shader === 'none') {
+                    // Skip rendering but keep animation loop running
+                    requestAnimationFrame(animate);
+                    return;
+                }
+
+                // Switch shader program if changed
+                const selectedProgram = programs[settings.shader] || programs.fire;
+                if (selectedProgram !== currentProgram) {
+                    currentProgram = selectedProgram;
+                    gl.useProgram(currentProgram);
+                    locations = getLocations(currentProgram);
+                    console.log(`WebGL: Switched to ${settings.shader} shader`);
+                }
+
+                // Clear with transparent background
+                gl.clearColor(0, 0, 0, 0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE);  // Additive blending for fire glow
+
+                // Bind all vertex attributes
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.enableVertexAttribArray(locations.positionLoc);
+                gl.vertexAttribPointer(locations.positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                gl.enableVertexAttribArray(locations.texCoordLoc);
+                gl.vertexAttribPointer(locations.texCoordLoc, 1, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, perpCoordBuffer);
+                gl.enableVertexAttribArray(locations.perpCoordLoc);
+                gl.vertexAttribPointer(locations.perpCoordLoc, 1, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+                gl.enableVertexAttribArray(locations.normalLoc);
+                gl.vertexAttribPointer(locations.normalLoc, 2, gl.FLOAT, false, 0, 0);
+
+                // Set uniforms
+                gl.uniform2f(locations.resolutionLoc, canvas.width, canvas.height);
+                gl.uniform1f(locations.timeLoc, performance.now() * 0.001 * settings.speed); // Time with speed multiplier
+                gl.uniform1f(locations.lineWidthLoc, settings.lineWidth); // Line width from settings
+
+                // Get SVG viewBox for proper coordinate transformation
+                const viewBox = svg.viewBox.baseVal;
+                const svgWidth = viewBox.width || svg.width.baseVal.value;
+                const svgHeight = viewBox.height || svg.height.baseVal.value;
+                const svgX = viewBox.x || 0;  // ViewBox X offset
+                const svgY = viewBox.y || 0;  // ViewBox Y offset
+
+                // Calculate transform from SVG coordinates to canvas pixels
+                // Only convert coordinate systems - CSS transform handles pan/zoom
+                const scaleX = canvas.width / svgWidth;
+                const scaleY = canvas.height / svgHeight;
+
+                // Transform matrix: translate by viewBox offset, then scale
+                // (CSS transform on canvas element handles pan/zoom to avoid double transformation)
+                const transform = [
+                    scaleX, 0, 0,
+                    0, scaleY, 0,
+                    -svgX * scaleX, -svgY * scaleY, 1
+                ];
+                gl.uniformMatrix3fv(locations.transformLoc, false, transform);
+
+                // Debug logging on first frame
+                if (frameCount === 1) {
+                    console.log('WebGL: First frame rendering fire channels');
+                    console.log('WebGL: Canvas size:', canvas.width, 'x', canvas.height);
+                    console.log('WebGL: SVG viewBox:', svgX, svgY, svgWidth, 'x', svgHeight);
+                    console.log('WebGL: Transform scale:', scaleX, 'x', scaleY);
+                    console.log('WebGL: Transform matrix:', transform);
+                    console.log('WebGL: Rendering', lineSegments.length, 'fire channels');
+                }
+
+                // Draw each path as a TRIANGLE_STRIP with flowing fire texture
+                lineSegments.forEach(segment => {
+                    gl.drawArrays(gl.TRIANGLE_STRIP, segment.start, segment.count);
+                });
+
+                // Check for WebGL errors on first frame
+                if (frameCount === 1) {
+                    const err = gl.getError();
+                    if (err !== gl.NO_ERROR) {
+                        console.error('WebGL error after first draw:', err);
+                    } else {
+                        console.log('WebGL: First draw completed without errors');
+                    }
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+
+        // Auto-fit diagram to viewport on load
+        function autoFitDiagram() {
+            const svg = document.querySelector('#mermaid-diagram svg');
+            if (!svg) {
+                setTimeout(autoFitDiagram, 100);
+                return;
+            }
+
+            const svgBBox = svg.getBBox();
+            const containerRect = container.getBoundingClientRect();
+
+            // Add padding to container size
+            const paddingPercent = 0.05; // 5% padding
+            const availableWidth = containerRect.width * (1 - paddingPercent * 2);
+            const availableHeight = containerRect.height * (1 - paddingPercent * 2);
+
+            // Calculate scale to fit entire diagram
+            const scaleX = availableWidth / svgBBox.width;
+            const scaleY = availableHeight / svgBBox.height;
+            scale = Math.min(scaleX, scaleY, 1);
+
+            // Center the diagram accounting for bounding box offset
+            const scaledWidth = svgBBox.width * scale;
+            const scaledHeight = svgBBox.height * scale;
+
+            // Calculate centering: center of viewport - center of scaled content
+            translateX = (containerRect.width - scaledWidth) / 2 / scale - svgBBox.x;
+            translateY = (containerRect.height - scaledHeight) / 2 / scale - svgBBox.y;
+
+            updateTransform();
+        }
+
+        // Load mermaid content from base64 to avoid HTML parsing issues
+        function loadMermaidContent() {
+            const diagramDiv = document.getElementById('mermaid-diagram');
+            const mermaidCodeB64 = diagramDiv.getAttribute('data-mermaid-code-b64');
+
+            if (!mermaidCodeB64) {
+                console.error('No base64 mermaid content found');
+                return false;
+            }
+
+            try {
+                // Decode base64 to bytes, then UTF-8 decode for proper emoji support
+                const base64Bytes = atob(mermaidCodeB64);
+                // Convert binary string to UTF-8 using TextDecoder
+                const bytes = new Uint8Array(base64Bytes.length);
+                for (let i = 0; i < base64Bytes.length; i++) {
+                    bytes[i] = base64Bytes.charCodeAt(i);
+                }
+                const mermaidCode = new TextDecoder('utf-8').decode(bytes);
+                diagramDiv.textContent = mermaidCode;
+                console.log('Loaded mermaid content:', mermaidCode.length, 'characters');
+                return true;
+            } catch (error) {
+                console.error('Failed to decode mermaid content:', error);
+                return false;
+            }
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM ready, initializing diagram...');
+
+            // Initialize settings panel event listeners
+            initializeSettingsPanel();
+
+            // Load content and render diagram
+            if (loadMermaidContent()) {
+                try {
+                    // Use mermaid.run() for v10 API - it finds and renders all .mermaid elements
+                    await mermaid.run({
+                        querySelector: '.mermaid'
+                    });
+                    console.log('Mermaid diagram rendered successfully');
+
+                    // Build tree and effects after diagram is rendered
+                    setTimeout(() => {
+                        buildFileTree();
+                        createWebGLGlows(); // GPU-accelerated particle effects
+                        // Don't auto-fit - it causes off-screen positioning
+                        // User can press Reset (0 key) to fit if needed
+                    }, 500);
+                } catch (error) {
+                    console.error('Failed to render mermaid diagram:', error);
+                    // Try fallback rendering
+                    setTimeout(() => {
+                        buildFileTree();
+                        createWebGLGlows(); // GPU-accelerated fallback
+                    }, 1000);
+                }
+            } else {
+                console.error('Failed to load mermaid content');
+            }
+        });
+
+        // Global function to refresh WebGL particles (callable from console or keyboard)
+        window.refreshWebGLParticles = function() {
+            console.log('Refreshing WebGL particles...');
+            // Remove existing canvas
+            const existingCanvas = document.querySelector('#mermaid-diagram canvas');
+            if (existingCanvas) {
+                existingCanvas.remove();
+            }
+            // Reset retry counters
+            createWebGLGlows.lastPathCount = 0;
+            createWebGLGlows.retryCount = 0;
+            createWebGLGlows.stableCount = 0;
+            // Reinitialize
+            createWebGLGlows();
+        };
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '+' || e.key === '=') zoomIn();
+            if (e.key === '-' || e.key === '_') zoomOut();
+            if (e.key === '0') resetZoom();
+            if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+            if (e.key === 'r' || e.key === 'R') window.refreshWebGLParticles(); // R to refresh particles
+            if (e.key === 'b' || e.key === 'B') toggleSidebar();
+        });
+
+        // Node details sidebar functions
+        function showNodeDetails(nodeElement) {
+            const detailsPanel = document.getElementById('node-details');
+            const contentDiv = document.getElementById('node-details-content');
+            const iconDiv = document.getElementById('node-icon');
+            const titleSpan = document.getElementById('node-details-title');
+
+            // Extract node information from the Mermaid node
+            const nodeText = nodeElement.querySelector('.nodeLabel')?.textContent || '';
+            const nodeId = nodeElement.id || '';
+
+            // Parse node text (format: "FunctionName()<br/>📦 module<br/>📄 file.py<br/>📍 L123-456")
+            const lines = nodeText.split('\n').map(l => l.trim()).filter(l => l);
+
+            let nodeName = lines[0] || 'Unknown';
+            let module = '';
+            let file = '';
+            let lineRange = '';
+            let icon = '📦';
+
+            // Parse each line
+            lines.forEach(line => {
+                if (line.includes('📦')) module = line.replace('📦', '').trim();
+                if (line.includes('📄')) file = line.replace('📄', '').trim();
+                if (line.includes('📍')) lineRange = line.replace('📍', '').trim();
+                if (line.includes('()')) icon = '🔧'; // Function
+                if (line.includes('class ')) icon = '🏛️'; // Class
+            });
+
+            // Update sidebar content
+            titleSpan.textContent = 'Node Details';
+            iconDiv.textContent = icon;
+
+            contentDiv.innerHTML = `
+                <div class="detail-section">
+                    <div class="detail-label">Name</div>
+                    <div class="detail-value">${nodeName}</div>
+                </div>
+                ${module ? `
+                <div class="detail-section">
+                    <div class="detail-label">Module</div>
+                    <div class="detail-value">${module}</div>
+                </div>
+                ` : ''}
+                ${file ? `
+                <div class="detail-section">
+                    <div class="detail-label">File</div>
+                    <div class="detail-value">${file}</div>
+                </div>
+                ` : ''}
+                ${lineRange ? `
+                <div class="detail-section">
+                    <div class="detail-label">Lines</div>
+                    <div class="detail-value">${lineRange}</div>
+                </div>
+                ` : ''}
+                <div class="detail-section">
+                    <div class="detail-label">Node ID</div>
+                    <div class="detail-value">${nodeId}</div>
+                </div>
+            `;
+
+            // Show the panel
+            detailsPanel.classList.add('visible');
+        }
+
+        function closeNodeDetails() {
+            const detailsPanel = document.getElementById('node-details');
+            detailsPanel.classList.remove('visible');
+        }
+
+        function setupNodeClickHandlers() {
+            // Wait for diagram to be fully rendered
+            setTimeout(() => {
+                const nodes = document.querySelectorAll('.node');
+                nodes.forEach(node => {
+                    node.style.cursor = 'pointer';
+                    node.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showNodeDetails(node);
+                    });
+                });
+                console.log('Node click handlers set up for', nodes.length, 'nodes');
+            }, 1000);
+        }
+
+        // Call setup after diagram is rendered
+        setupNodeClickHandlers();
+
+        // Make functions globally accessible for inline onclick handlers
+        window.navigateToNode = navigateToNode;
+        window.highlightFile = highlightFile;
+        window.toggleSidebar = toggleSidebar;
+        window.toggleFullscreen = toggleFullscreen;
+        window.zoomIn = zoomIn;
+        window.zoomOut = zoomOut;
+        window.resetZoom = resetZoom;
+        window.updateSpacing = updateSpacing;
+        window.closeNodeDetails = closeNodeDetails;
+        window.downloadSVG = downloadSVG;
+    </script>
+</body>
+</html>

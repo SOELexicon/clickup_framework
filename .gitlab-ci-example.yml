@@ -1,0 +1,87 @@
+# GitLab CI/CD Configuration for Diagram Generation
+# Copy this to .gitlab-ci.yml to enable automated diagram generation
+
+stages:
+  - generate
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+generate-diagrams:
+  stage: generate
+  image: python:3.11-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y universal-ctags git
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -e .
+  script:
+    - cum batch-diagram --config .diagram-pipeline.yaml
+  artifacts:
+    paths:
+      - docs/diagrams/
+    expire_in: 7 days
+  only:
+    changes:
+      - clickup_framework/**/*.py
+      - .diagram-pipeline.yaml
+    refs:
+      - main
+      - master
+      - merge_requests
+
+# Optional: Auto-commit diagram updates
+commit-diagrams:
+  stage: deploy
+  image: python:3.11-slim
+  dependencies:
+    - generate-diagrams
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git config user.name "Diagram Bot"
+    - git config user.email "bot@example.com"
+  script:
+    - |
+      if git diff --quiet docs/diagrams/; then
+        echo "No diagram changes detected"
+      else
+        git add docs/diagrams/
+        git commit -m "Update diagrams from latest code changes [skip ci]"
+        git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
+      fi
+  only:
+    refs:
+      - main
+      - master
+  except:
+    - merge_requests
+
+# Performance monitoring job
+benchmark-generation:
+  stage: generate
+  image: python:3.11-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y universal-ctags git time
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -e .
+  script:
+    - /usr/bin/time -v cum batch-diagram --config .diagram-pipeline.yaml 2>&1 | tee benchmark.log
+    - echo "Generation completed. Check benchmark.log for performance metrics."
+  artifacts:
+    paths:
+      - benchmark.log
+      - docs/diagrams/
+    expire_in: 7 days
+  only:
+    - schedules
