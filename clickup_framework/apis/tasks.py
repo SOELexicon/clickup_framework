@@ -29,6 +29,14 @@ class TasksAPI(BaseAPI):
         """Update a task."""
         return self._request("PUT", f"task/{task_id}", json=updates)
 
+    def move_task_to_home_list(self, workspace_id: str, task_id: str, list_id: str) -> Dict[str, Any]:
+        """Move a task to a new home list using the v3 endpoint."""
+        return self._request(
+            "PUT",
+            f"/v3/workspaces/{workspace_id}/tasks/{task_id}/home_list/{list_id}",
+            json={},
+        )
+
     def delete_task(self, task_id: str) -> Dict[str, Any]:
         """Delete a task."""
         return self._request("DELETE", f"task/{task_id}")

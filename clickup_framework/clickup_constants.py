@@ -1,0 +1,156 @@
+"""Shared ClickUp IDs for the ClickUp Framework project."""
+
+CLICKUP_FRAMEWORK_LIST_IDS = {
+    "development": "901517404274",
+    "feature-requests": "901517404275",
+    "bug-fixes": "901517404276",
+    "documentation": "901517404277",
+    "testing": "901517404278",
+    "releases": "901517404279",
+    "cli-commands": "901517567020",
+}
+
+# Canonical command categories used by command-sync and related task-linking
+# workflows. Keep this aligned with the actual CLI command surface.
+CLI_COMMAND_CATEGORIES = {
+    # GIT Commands
+    "suck": "GIT",
+    "pull": "GIT",
+    "reauthor": "GIT",
+    "stash": "GIT",
+    "horde": "GIT",
+    "overflow": "GIT",
+    # Task Management Commands
+    "task_create": "ClickUp Task",
+    "task_update": "ClickUp Task",
+    "task_delete": "ClickUp Task",
+    "task_move": "ClickUp Task",
+    "task_assign": "ClickUp Task",
+    "task_unassign": "ClickUp Task",
+    "task_set_status": "ClickUp Task",
+    "task_set_priority": "ClickUp Task",
+    "task_set_tags": "ClickUp Task",
+    "task_add_dependency": "ClickUp Task",
+    "task_remove_dependency": "ClickUp Task",
+    "task_add_link": "ClickUp Task",
+    "task_remove_link": "ClickUp Task",
+    # Comment Commands
+    "comment_add": "ClickUp Comment",
+    "comment_list": "ClickUp Comment",
+    "comment_update": "ClickUp Comment",
+    "comment_delete": "ClickUp Comment",
+    # Display Commands
+    "hierarchy": "ClickUp Display",
+    "flat": "ClickUp Display",
+    "filter": "ClickUp Display",
+    "detail": "ClickUp Display",
+    "search": "ClickUp Display",
+    "stats": "ClickUp Display",
+    "assigned": "ClickUp Display",
+    "clist": "ClickUp Display",
+    # Doc Commands
+    "doc_list": "ClickUp Doc",
+    "dlist": "ClickUp Doc",
+    "doc_get": "ClickUp Doc",
+    "doc_create": "ClickUp Doc",
+    "doc_update": "ClickUp Doc",
+    "doc_export": "ClickUp Doc",
+    "doc_import": "ClickUp Doc",
+    "page_list": "ClickUp Doc",
+    "page_create": "ClickUp Doc",
+    "page_update": "ClickUp Doc",
+    # Workspace Hierarchy Commands
+    "space": "ClickUp Space",
+    "folder": "ClickUp Folder",
+    "list_mgmt": "ClickUp List",
+    # Attachment Commands
+    "attach": "ClickUp Attachment",
+    "attachment": "ClickUp Attachment",
+    # Checklist Commands
+    "checklist": "ClickUp Checklist",
+    # Custom Field Commands
+    "custom-field": "ClickUp Custom Field",
+    # Context Management Commands
+    "set_current": "ClickUp Context",
+    "show_current": "ClickUp Context",
+    "clear_current": "ClickUp Context",
+    # Utility Commands
+    "ansi": "Utility",
+    "demo": "Utility",
+    "dump": "Utility",
+    "update": "Utility",
+    # Automation Commands
+    "parent_auto_update": "ClickUp Automation",
+    # Comparison Commands
+    "diff": "Utility",
+    # Workflow Commands
+    "jizz": "GIT",
+    # Management Commands
+    "command-sync": "Utility",
+}
+
+# Command-sync managed task IDs from the ClickUp Framework / CLI Commands list.
+# Keep this mapping aligned with command-sync output so command-related work can
+# link directly to the canonical CLI command task instead of relying on title search.
+CLI_COMMAND_TASK_IDS = {
+    "assigned": "86c6hvqaz",
+    "attach": "86c6hvqbr",
+    "attachment": "86c6hvqbu",
+    "ansi": "86c6hvqc0",
+    "checklist": "86c6hvqbv",
+    "clear_current": "86c6hvqbz",
+    "clist": "86c6hvqb1",
+    "command-sync": "86c6j3byn",
+    "comment_add": "86c6hvqag",
+    "comment_delete": "86c6hvqak",
+    "comment_list": "86c6hvqah",
+    "comment_update": "86c6hvqaj",
+    "custom-field": "86c6hvqbw",
+    "demo": "86c6hvqc1",
+    "detail": "86c6hvqat",
+    "diff": "86c6j3c1n",
+    "dlist": "86c6hvwqa",
+    "doc_create": "86c6hvqba",
+    "doc_export": "86c6hvqbc",
+    "doc_get": "86c6hvqb8",
+    "doc_import": "86c6hvqbe",
+    "doc_list": "86c6hvqb3",
+    "doc_update": "86c6hvqbb",
+    "dump": "86c6hvqc2",
+    "filter": "86c6hvqar",
+    "flat": "86c6hvqaq",
+    "folder": "86c6hvqbp",
+    "hierarchy": "86c6hvqan",
+    "horde": "86c6hvq9x",
+    "jizz": "86c6j3c49",
+    "list-mgmt": "86c6hvqbq",
+    "list_mgmt": "86c6hvwqt",
+    "overflow": "86c6hvq9y",
+    "page_create": "86c6hvqbg",
+    "page_list": "86c6hvqbf",
+    "page_update": "86c6hvqbh",
+    "parent_auto_update": "86c6hvqc4",
+    "pull": "86c6hvq9u",
+    "reauthor": "86c6hvq9v",
+    "search": "86c96b8g3",
+    "set_current": "86c6hvqbx",
+    "show_current": "86c6hvqby",
+    "space": "86c6hvqbm",
+    "stash": "86c6hvq9w",
+    "stats": "86c6hvqax",
+    "suck": "86c6hvq9t",
+    "task_add_dependency": "86c6hvqa9",
+    "task_add_link": "86c6hvqad",
+    "task_assign": "86c6hvqa3",
+    "task_create": "86c6hvqa0",
+    "task_delete": "86c6hvqa2",
+    "task_move": "86c96ga6y",
+    "task_remove_dependency": "86c6hvqab",
+    "task_remove_link": "86c6hvqaf",
+    "task_set_priority": "86c6hvqa6",
+    "task_set_status": "86c6hvqa5",
+    "task_set_tags": "86c6hvqa7",
+    "task_unassign": "86c6hvqa4",
+    "task_update": "86c6hvqa1",
+    "update": "86c6hvqc3",
+}

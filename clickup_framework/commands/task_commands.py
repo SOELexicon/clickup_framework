@@ -1,5 +1,6 @@
 """Task management commands for ClickUp Framework CLI."""
 
+import argparse
 import os
 import sys
 from collections import defaultdict
@@ -1284,12 +1285,16 @@ def task_move_command(args):
         try:
             task = client.get_task(task_id)
             current_list = task.get('list', {}).get('name', 'Unknown')
+            current_list_id = task.get('list', {}).get('id')
             current_parent = task.get('parent')
+            workspace_id = task.get('team_id')
             tasks_to_move.append({
                 'id': task_id,
                 'name': task['name'],
                 'current_list': current_list,
-                'current_parent': current_parent
+                'current_list_id': current_list_id,
+                'current_parent': current_parent,
+                'workspace_id': workspace_id,
             })
         except Exception as e:
             print(f"Error fetching task {task_id}: {e}", file=sys.stderr)
@@ -1321,18 +1326,32 @@ def task_move_command(args):
     for task_info in tasks_to_move:
         task_id = task_info['id']
         task_name = task_info['name']
+        current_list_id = task_info.get('current_list_id')
+        workspace_id = task_info.get('workspace_id')
 
         try:
-            # Build update payload
-            updates = {}
             if dest_list_id:
-                updates['list'] = dest_list_id
+                if not workspace_id:
+                    try:
+                        workspace_id = context.resolve_id('workspace', 'current')
+                    except (ValueError, KeyError):
+                        print(f"Error: workspace_id not available for task {task_id} and no current workspace set", file=sys.stderr)
+                        sys.exit(1)
+                client.move_task_to_home_list(workspace_id, task_id, dest_list_id)
+
+                moved_task = client.get_task(task_id)
+                actual_list_id = moved_task.get('list', {}).get('id')
+                if actual_list_id != dest_list_id:
+                    raise RuntimeError(
+                        f"Home list did not change (expected {dest_list_id}, got {actual_list_id or current_list_id})"
+                    )
+
+            # Only use generic update_task for parent changes.
             if dest_parent_id:
-                updates['parent'] = dest_parent_id
+                client.update_task(task_id, parent=dest_parent_id)
 
-            client.update_task(task_id, **updates)
-
-            success_msg = ANSIAnimations.success_message(f"Moved: {task_name}")
+            success_target = dest_description
+            success_msg = ANSIAnimations.success_message(f"Moved: {task_name} -> {success_target}")
             print(success_msg)
             success_count += 1
 
@@ -1619,17 +1638,19 @@ def register_command(subparsers):
         'task_move',
         aliases=['tmv'],
         help='Move tasks to different list or parent',
-        description='Move one or more tasks to a different list or change their parent task.',
+        description='Move one or more tasks to a different home list or change their parent task.',
+        formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=32, width=100),
         epilog='''Tips:
   • Move to list: cum tmv 86abc123 --list 901517404274
   • Move to parent: cum tmv 86abc123 --parent 86def456
   • Move multiple: cum tmv 86abc123 86def456 --list 901517404274
   • Force without confirm: cum tmv 86abc123 --list 901517404274 --force
-  • Use "current" for current context: cum tmv current --list 901517404274'''
+  • Use "current" for current context: cum tmv current --list 901517404274
+  • List moves update the task home list and verify the destination before printing success'''
     )
     task_move_parser.add_argument('task_ids', nargs='+', help='Task ID(s) to move (or "current")')
-    task_move_parser.add_argument('--list', dest='list_id', help='Destination list ID (or "current")')
-    task_move_parser.add_argument('--parent', help='New parent task ID (or "current")')
+    task_move_parser.add_argument('--list', dest='list_id', help='Destination home list ID (or "current")')
+    task_move_parser.add_argument('--parent', help='New parent task ID (or "current"). If --list is omitted, the parent list becomes the destination home list.')
     task_move_parser.add_argument('--force', '-f', action='store_true',
                                    help='Skip confirmation prompt')
     task_move_parser.set_defaults(func=task_move_command)

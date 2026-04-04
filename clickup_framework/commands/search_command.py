@@ -2,8 +2,9 @@
 Search command - find tasks and lists by keyword search.
 
 This module provides the `search` command which allows users to search for
-tasks and lists across the workspace using keyword matching. It wraps the
-hierarchy command with grep-style pattern matching.
+tasks and lists across the workspace using keyword matching. It renders the
+hierarchy view internally and filters the output in Python, avoiding external
+shell tool dependencies.
 
 Features:
     - Workspace-wide search with intuitive syntax
@@ -28,8 +29,13 @@ Aliases:
 Author: ClickUp Framework Team
 """
 
-import subprocess
+from argparse import Namespace
+from contextlib import redirect_stdout
+import io
+import re
+
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.hierarchy import hierarchy_command
 
 
 # Command metadata for help generation
@@ -39,7 +45,7 @@ COMMAND_METADATA = {
         {
             "name": "search [s]",
             "args": "<pattern> [--container ID] [--case-sensitive]",
-            "description": "Search for tasks and lists by keyword (wraps hierarchy + grep)"
+            "description": "Search for tasks and lists by keyword with internal hierarchy filtering"
         }
     ]
 }
@@ -50,61 +56,60 @@ class SearchCommand(BaseCommand):
     Search Command using BaseCommand.
     """
 
+    def _build_hierarchy_args(self) -> Namespace:
+        """Build the internal hierarchy invocation args used for search."""
+        return Namespace(
+            list_id=self.args.container_id,
+            show_all=not bool(self.args.container_id),
+            header=None,
+            colorize=getattr(self.args, "colorize", None),
+            show_ids=True,
+            show_tags=True,
+            show_descriptions=False,
+            full_descriptions=False,
+            show_dates=False,
+            show_comments=0,
+            include_completed=False,
+            show_closed_only=False,
+            show_emoji=True,
+            show_custom_fields=False,
+            show_tips=False,
+            preset="full",
+            depth=None,
+            space_id=None,
+        )
+
+    def _compile_pattern(self):
+        """Compile the search pattern according to the selected flags."""
+        pattern = self.args.pattern if self.args.regex else re.escape(self.args.pattern)
+        flags = 0 if self.args.case_sensitive else re.IGNORECASE
+        return re.compile(pattern, flags)
+
+    def _render_hierarchy_output(self) -> str:
+        """Render hierarchy output to a string for in-process filtering."""
+        hierarchy_args = self._build_hierarchy_args()
+        capture = io.StringIO()
+        with redirect_stdout(capture):
+            hierarchy_command(hierarchy_args)
+        return capture.getvalue()
+
+    def _filter_matches(self, hierarchy_output: str):
+        """Filter hierarchy output down to matching lines."""
+        matcher = self._compile_pattern()
+        return [line for line in hierarchy_output.splitlines() if matcher.search(line)]
+
     def execute(self):
         """
         Search for tasks and lists matching a pattern.
 
         This command provides an intuitive search interface by executing
-        `cum hierarchy` and filtering output with grep.
+        the hierarchy command internally and filtering the rendered output.
         """
-        # Build the hierarchy command
-        hierarchy_cmd = ["cum", "h"]
-
-        if self.args.container_id:
-            hierarchy_cmd.append(self.args.container_id)
-        else:
-            hierarchy_cmd.append("--all")
-
-        # Add some useful display options
-        hierarchy_cmd.extend(["--show-ids", "--show-tags"])
-
-        # Build grep command
-        grep_flags = ["-i"] if not self.args.case_sensitive else []
-        grep_cmd = ["grep"] + grep_flags + [self.args.pattern]
-
-        # Execute command pipeline
         try:
-            # Run hierarchy | grep
-            hierarchy_proc = subprocess.Popen(
-                hierarchy_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
+            output = self._render_hierarchy_output()
+            matches = self._filter_matches(output)
 
-            grep_proc = subprocess.Popen(
-                grep_cmd,
-                stdin=hierarchy_proc.stdout,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-
-            # Allow hierarchy_proc to receive SIGPIPE if grep_proc exits
-            hierarchy_proc.stdout.close()
-
-            # Get output
-            output, grep_err = grep_proc.communicate()
-            hierarchy_err = hierarchy_proc.stderr.read() if hierarchy_proc.stderr else ""
-
-            # Check for errors
-            if hierarchy_proc.returncode not in [0, None] and hierarchy_err:
-                self.print_error(hierarchy_err)
-                exit(hierarchy_proc.returncode)
-
-            # Check if grep found anything
-            if grep_proc.returncode == 1:
-                # grep returns 1 when no matches found
+            if not matches:
                 use_color = self.context.get_ansi_output()
 
                 if use_color:
@@ -114,31 +119,21 @@ class SearchCommand(BaseCommand):
                 else:
                     self.print(f'\n🔍 No tasks found matching "{self.args.pattern}"\n')
                 return
-            elif grep_proc.returncode not in [0, None]:
-                # grep error (not just no matches)
-                if grep_err:
-                    self.print_error(grep_err)
-                exit(grep_proc.returncode)
 
             # Print results with header
             use_color = self.context.get_ansi_output()
+            result_count = len(matches)
 
             if use_color:
                 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
                 pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
-                result_count = len([line for line in output.split('\n') if line.strip() and not line.startswith('Available')])
                 count_colored = colorize(str(result_count), TextColor.BRIGHT_GREEN, TextStyle.BOLD)
                 self.print(f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n")
             else:
-                result_count = len([line for line in output.split('\n') if line.strip() and not line.startswith('Available')])
                 self.print(f'\n🔍 Found {result_count} result(s) matching "{self.args.pattern}"\n')
 
             # Print the filtered output
-            self.print(output)
-
-        except FileNotFoundError as e:
-            self.error(f"Required command not found: {e.filename}\n" +
-                      "Make sure 'cum' and 'grep' are in your PATH")
+            self.print("\n".join(matches))
         except Exception as e:
             self.error(f"Error executing search: {e}")
 
@@ -194,6 +189,7 @@ Tips:
   - Pattern matching uses regex (escape special chars if needed)
   - Use quotes around patterns with spaces
   - Results show full task hierarchy for context
+  - Normal usage does not require external `cum` or `grep` binaries on PATH
         """,
         formatter_class=lambda prog: __import__('argparse').RawDescriptionHelpFormatter(
             prog, max_help_position=40, width=80

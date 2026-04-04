@@ -352,6 +352,15 @@ class ClickUpClient:
         """Update a task."""
         return self.tasks.update_task(task_id, **updates)
 
+    def move_task_to_home_list(
+        self,
+        workspace_id: str,
+        task_id: str,
+        list_id: str,
+    ) -> Dict[str, Any]:
+        """Move a task to a new home list via the ClickUp v3 endpoint."""
+        return self.tasks.move_task_to_home_list(workspace_id, task_id, list_id)
+
     def delete_task(self, task_id: str) -> Dict[str, Any]:
         """Delete a task."""
         return self.tasks.delete_task(task_id)

@@ -10,11 +10,16 @@ This base class provides common functionality that all commands need:
 - Command metadata storage
 """
 
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.clickup_constants import (
+    CLICKUP_FRAMEWORK_LIST_IDS,
+    CLI_COMMAND_TASK_IDS,
+)
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.cli_error_handler import handle_cli_error
@@ -226,35 +231,36 @@ class BaseCommand:
 
     # ==================== Issue Reporting Helpers ====================
 
-    CLI_COMMANDS_LIST_ID = "901517567020"
+    CLI_COMMANDS_LIST_ID = CLICKUP_FRAMEWORK_LIST_IDS["cli-commands"]
+    CLI_COMMAND_TASK_IDS = CLI_COMMAND_TASK_IDS
     FRAMEWORK_REPORT_LISTS = {
         "development": {
-            "id": "901517404274",
+            "id": CLICKUP_FRAMEWORK_LIST_IDS["development"],
             "label": "development",
             "aliases": ("development", "dev", "development-tasks"),
         },
         "feature-requests": {
-            "id": "901517404275",
+            "id": CLICKUP_FRAMEWORK_LIST_IDS["feature-requests"],
             "label": "feature-requests",
             "aliases": ("feature-requests", "features", "feature", "enhancements"),
         },
         "bug-fixes": {
-            "id": "901517404276",
+            "id": CLICKUP_FRAMEWORK_LIST_IDS["bug-fixes"],
             "label": "bug-fixes",
             "aliases": ("bug-fixes", "bugfixes", "bugs", "bug", "fixes"),
         },
         "documentation": {
-            "id": "901517404277",
+            "id": CLICKUP_FRAMEWORK_LIST_IDS["documentation"],
             "label": "documentation",
             "aliases": ("documentation", "docs", "doc"),
         },
         "testing": {
-            "id": "901517404278",
+            "id": CLICKUP_FRAMEWORK_LIST_IDS["testing"],
             "label": "testing",
             "aliases": ("testing", "tests", "test", "qa"),
         },
         "releases": {
-            "id": "901517404279",
+            "id": CLICKUP_FRAMEWORK_LIST_IDS["releases"],
             "label": "releases",
             "aliases": ("releases", "release"),
         },
@@ -338,6 +344,11 @@ class BaseCommand:
         return get_task_name(root_command, category)
 
     @classmethod
+    def get_catalog_task_id(cls, root_command: str) -> Optional[str]:
+        """Return the explicit CLI Commands task ID for a root command, if known."""
+        return cls.CLI_COMMAND_TASK_IDS.get(root_command)
+
+    @classmethod
     def find_catalog_task(
         cls,
         client: ClickUpClient,
@@ -346,6 +357,16 @@ class BaseCommand:
     ) -> Optional[Dict[str, Any]]:
         """Find the related CLI Commands catalog task for a root command."""
         cli_commands_list_id = cli_commands_list_id or cls.CLI_COMMANDS_LIST_ID
+        task_id = cls.get_catalog_task_id(root_command)
+        if task_id:
+            try:
+                task = client.get_task(task_id)
+                task_list_id = task.get("list", {}).get("id")
+                if not task_list_id or task_list_id == cli_commands_list_id:
+                    return task
+            except Exception as exc:
+                logging.debug("Direct catalog task lookup failed for %r, falling back to list scan: %s", root_command, exc)
+
         task_name = cls.get_catalog_task_name(root_command)
         result = client.get_list_tasks(cli_commands_list_id, include_closed=True)
         fallback_suffix = f") CUM {root_command}"

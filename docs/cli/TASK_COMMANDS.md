@@ -13,6 +13,7 @@ Commands for creating, updating, deleting, and managing tasks.
 | [`task_create`](#task_create) | `tc` | Create new task |
 | [`task_update`](#task_update) | `tu` | Update task properties |
 | [`task_delete`](#task_delete) | `td` | Delete task |
+| [`task_move`](#task_move) | `tmv` | Move tasks to a different home list or parent |
 | [`task_assign`](#task_assign) | `ta` | Assign users to task |
 | [`task_unassign`](#task_unassign) | `tua` | Remove assignees from task |
 | [`task_set_status`](#task_set_status) | `tss` | Set task status (validates subtasks) |
@@ -206,6 +207,55 @@ cum td current
 **Warning:** Deletion is permanent and cannot be undone!
 
 [→ Full task_delete command details](commands/task_delete.md)
+
+---
+
+## task_move
+
+**Shortcode:** `tmv`
+
+Move one or more tasks to a different home list or re-parent them.
+
+### Usage
+
+```bash
+cum task_move <task_id> [<task_id> ...] (--list <list_id>|current | --parent <task_id>|current) [options]
+cum tmv <task_id> [<task_id> ...] (--list <list_id>|current | --parent <task_id>|current) [options]
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `task_id` | Yes | One or more task IDs, or `current` |
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--list LIST_ID\|current` | Destination home list |
+| `--parent TASK_ID\|current` | New parent task. If `--list` is omitted, the parent task's list becomes the destination home list |
+| `--force` | Skip confirmation prompt |
+
+**Note:** Cross-list moves use the dedicated ClickUp home-list API and verify the final list before printing success.
+
+### Examples
+
+```bash
+# Move one task to another list
+cum tmv 86c6xyz --list 901517404274
+
+# Re-parent a task under another parent
+cum task_move 86c6xyz --parent 86c6abc
+
+# Move several tasks into the same destination list
+cum tmv 86c6xyz 86c6def --list current --force
+
+# Re-parent and let the parent's list become the destination home list
+cum tmv 86c6xyz --parent 86c6abc --force
+```
+
+Task move help is available via `cum tmv --help`.
 
 ---
 

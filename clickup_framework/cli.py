@@ -559,6 +559,8 @@ ISSUE_REPORT_FLAGS = {
     "--report-details",
     "--report-details-file",
 }
+
+_RELAXED_PARSER_STATE: Dict[int, Dict[str, list]] = {}
 ISSUE_REPORT_HELP_DESCRIPTION = (
     "Create a linked ClickUp task inside the ClickUp Framework project instead "
     "of running the command. Include the exact problem, expected behaviour, "
@@ -793,6 +795,73 @@ def _strip_issue_report_tokens(argv_tokens: Sequence[str]) -> List[str]:
         cleaned.append(token)
 
     return cleaned
+
+
+def _relax_parser_for_issue_reporting(parser: argparse.ArgumentParser) -> None:
+    """Relax required args/groups so report mode can parse without command operands."""
+    parser_id = id(parser)
+    if parser_id in _RELAXED_PARSER_STATE:
+        return
+
+    state = {
+        "groups": [],
+        "actions": [],
+    }
+    _RELAXED_PARSER_STATE[parser_id] = state
+
+    for group in parser._mutually_exclusive_groups:
+        state["groups"].append((group, group.required))
+        group.required = False
+
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for _, subparser in _iter_unique_subparsers(action):
+                _relax_parser_for_issue_reporting(subparser)
+            continue
+
+        if isinstance(action, argparse._HelpAction):
+            continue
+
+        action_state = {}
+        if getattr(action, "required", False):
+            action_state["required"] = action.required
+            action.required = False
+
+        if action.option_strings:
+            if action_state:
+                state["actions"].append((action, action_state))
+            continue
+
+        if action.nargs in (None, 1):
+            action_state["nargs"] = action.nargs
+            action.nargs = "?"
+        elif action.nargs == "+":
+            action_state["nargs"] = action.nargs
+            action.nargs = "*"
+
+        if action_state:
+            state["actions"].append((action, action_state))
+
+
+def _restore_parser_after_issue_reporting(parser: argparse.ArgumentParser) -> None:
+    """Restore parser state after a temporary report-mode relaxation."""
+    subparsers_action = _find_subparsers_action(parser)
+    if subparsers_action is not None:
+        for _, subparser in _iter_unique_subparsers(subparsers_action):
+            _restore_parser_after_issue_reporting(subparser)
+
+    state = _RELAXED_PARSER_STATE.pop(id(parser), None)
+    if state is None:
+        return
+
+    for group, required in state["groups"]:
+        group.required = required
+
+    for action, action_state in state["actions"]:
+        if "required" in action_state:
+            action.required = action_state["required"]
+        if "nargs" in action_state:
+            action.nargs = action_state["nargs"]
 
 
 def _validate_issue_report_args(args) -> None:
@@ -1247,7 +1316,15 @@ def main():
         sys.exit(0)
 
     # Parse arguments
-    args = parser.parse_args()
+    report_mode = "--report-issue" in sys.argv[1:]
+    if report_mode:
+        _relax_parser_for_issue_reporting(parser)
+
+    try:
+        args = parser.parse_args()
+    finally:
+        if report_mode:
+            _restore_parser_after_issue_reporting(parser)
 
     # Show help if no command specified
     if not args.command:

@@ -11,13 +11,14 @@ import sys
 import subprocess
 from typing import Dict, List, Tuple, Optional
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.clickup_constants import CLICKUP_FRAMEWORK_LIST_IDS, CLI_COMMAND_CATEGORIES
 from clickup_framework.exceptions import ClickUpAPIError
 from clickup_framework.commands import discover_commands
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
 # Default values
-DEFAULT_CLI_COMMANDS_LIST_ID = "901517567020"
+DEFAULT_CLI_COMMANDS_LIST_ID = CLICKUP_FRAMEWORK_LIST_IDS["cli-commands"]
 DEFAULT_TEST_TASK_ID = "86c6hvba1"
 
 # Custom field IDs
@@ -29,81 +30,7 @@ CUSTOM_FIELDS = {
     "command_output": "e32fdcce-a5f8-4a1e-9d5d-199fca1ee6df"
 }
 
-# Command categories mapping
-COMMAND_CATEGORIES = {
-    # GIT Commands
-    "suck": "GIT",
-    "pull": "GIT",
-    "reauthor": "GIT",
-    "stash": "GIT",
-    "horde": "GIT",
-    "overflow": "GIT",
-    # Task Management Commands
-    "task_create": "ClickUp Task",
-    "task_update": "ClickUp Task",
-    "task_delete": "ClickUp Task",
-    "task_assign": "ClickUp Task",
-    "task_unassign": "ClickUp Task",
-    "task_set_status": "ClickUp Task",
-    "task_set_priority": "ClickUp Task",
-    "task_set_tags": "ClickUp Task",
-    "task_add_dependency": "ClickUp Task",
-    "task_remove_dependency": "ClickUp Task",
-    "task_add_link": "ClickUp Task",
-    "task_remove_link": "ClickUp Task",
-    # Comment Commands
-    "comment_add": "ClickUp Comment",
-    "comment_list": "ClickUp Comment",
-    "comment_update": "ClickUp Comment",
-    "comment_delete": "ClickUp Comment",
-    # Display Commands
-    "hierarchy": "ClickUp Display",
-    "flat": "ClickUp Display",
-    "filter": "ClickUp Display",
-    "detail": "ClickUp Display",
-    "stats": "ClickUp Display",
-    "assigned": "ClickUp Display",
-    "clist": "ClickUp Display",
-    # Doc Commands
-    "doc_list": "ClickUp Doc",
-    "dlist": "ClickUp Doc",
-    "doc_get": "ClickUp Doc",
-    "doc_create": "ClickUp Doc",
-    "doc_update": "ClickUp Doc",
-    "doc_export": "ClickUp Doc",
-    "doc_import": "ClickUp Doc",
-    "page_list": "ClickUp Doc",
-    "page_create": "ClickUp Doc",
-    "page_update": "ClickUp Doc",
-    # Workspace Hierarchy Commands
-    "space": "ClickUp Space",
-    "folder": "ClickUp Folder",
-    "list_mgmt": "ClickUp List",
-    # Attachment Commands
-    "attach": "ClickUp Attachment",
-    "attachment": "ClickUp Attachment",
-    # Checklist Commands
-    "checklist": "ClickUp Checklist",
-    # Custom Field Commands
-    "custom-field": "ClickUp Custom Field",
-    # Context Management Commands
-    "set_current": "ClickUp Context",
-    "show_current": "ClickUp Context",
-    "clear_current": "ClickUp Context",
-    # Utility Commands
-    "ansi": "Utility",
-    "demo": "Utility",
-    "dump": "Utility",
-    "update": "Utility",
-    # Automation Commands
-    "parent_auto_update": "ClickUp Automation",
-    # Comparison Commands
-    "diff": "Utility",
-    # Workflow Commands
-    "jizz": "GIT",
-    # Management Commands
-    "command-sync": "Utility",
-}
+COMMAND_CATEGORIES = CLI_COMMAND_CATEGORIES
 
 
 def get_command_help(command: str) -> Tuple[str, str]:
