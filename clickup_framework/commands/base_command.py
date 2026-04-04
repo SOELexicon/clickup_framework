@@ -368,17 +368,32 @@ class BaseCommand:
                 logging.debug("Direct catalog task lookup failed for %r, falling back to list scan: %s", root_command, exc)
 
         task_name = cls.get_catalog_task_name(root_command)
-        result = client.get_list_tasks(cli_commands_list_id, include_closed=True)
         fallback_suffix = f") CUM {root_command}"
+        page = 0
 
-        for task in result.get("tasks", []):
-            if task.get("name") == task_name:
-                return task
+        # The list tasks endpoint returns up to 100 items per page. Direct task ID
+        # lookup handles known commands first, but we still page through the fallback
+        # scan so new or unmapped CLI command tasks remain discoverable past page 1.
+        while True:
+            result = client.get_list_tasks(
+                cli_commands_list_id,
+                include_closed=True,
+                page=page,
+            )
+            tasks = result.get("tasks", [])
 
-        for task in result.get("tasks", []):
-            task_name_value = task.get("name", "")
-            if task_name_value.endswith(fallback_suffix):
-                return task
+            for task in tasks:
+                if task.get("name") == task_name:
+                    return task
+
+            for task in tasks:
+                task_name_value = task.get("name", "")
+                if task_name_value.endswith(fallback_suffix):
+                    return task
+
+            if result.get("last_page", True) or not tasks:
+                break
+            page += 1
 
         return None
 

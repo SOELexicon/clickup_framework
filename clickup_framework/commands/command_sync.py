@@ -6,14 +6,18 @@ This command discovers all cum commands, creates/updates ClickUp tasks for each 
 in the CLI Commands list, and populates custom fields with command information.
 """
 
+import argparse
 import re
 import sys
 import subprocess
 from typing import Dict, List, Tuple, Optional
 from clickup_framework import ClickUpClient, get_context_manager
-from clickup_framework.clickup_constants import CLICKUP_FRAMEWORK_LIST_IDS, CLI_COMMAND_CATEGORIES
+from clickup_framework.clickup_constants import (
+    CLICKUP_FRAMEWORK_LIST_IDS,
+    CLI_COMMAND_CATEGORIES,
+    CLI_COMMAND_TASK_IDS,
+)
 from clickup_framework.exceptions import ClickUpAPIError
-from clickup_framework.commands import discover_commands
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 
@@ -31,9 +35,84 @@ CUSTOM_FIELDS = {
 }
 
 COMMAND_CATEGORIES = CLI_COMMAND_CATEGORIES
+COMMAND_TASK_IDS = CLI_COMMAND_TASK_IDS
 
 
-def get_command_help(command: str) -> Tuple[str, str]:
+def _build_registered_command_parser() -> argparse.ArgumentParser:
+    """Build the current CLI parser so help output matches the real entrypoint."""
+    from clickup_framework.cli import build_parser
+
+    return build_parser()
+
+
+def _get_registered_command_parsers() -> Dict[str, argparse.ArgumentParser]:
+    """Return the top-level command parsers keyed by their registered names."""
+    parser = _build_registered_command_parser()
+
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return {
+                choice.dest: action._name_parser_map[choice.dest]
+                for choice in action._choices_actions
+            }
+
+    return {}
+
+
+def _resolve_registered_command_name(
+    command: str,
+    command_parsers: Dict[str, argparse.ArgumentParser],
+) -> Optional[str]:
+    """Match a command key against the registered parser names."""
+    candidates = (
+        command,
+        command.replace("_", "-"),
+        command.replace("-", "_"),
+    )
+
+    for candidate in candidates:
+        if candidate in command_parsers:
+            return candidate
+
+    return None
+
+
+def _resolve_registry_key(command: str, registry: Dict[str, str]) -> Optional[str]:
+    """Resolve a command against a dict keyed by command name."""
+    for candidate in (
+        command,
+        command.replace("_", "-"),
+        command.replace("-", "_"),
+    ):
+        if candidate in registry:
+            return candidate
+    return None
+
+
+def _cli_module_invocation(*command_parts: str) -> List[str]:
+    """Run CLI subprocesses through the current Python interpreter."""
+    return [sys.executable, "-m", "clickup_framework", *command_parts]
+
+
+def _get_all_list_tasks(client: ClickUpClient, list_id: str) -> List[Dict]:
+    """Fetch every task from a list, following ClickUp pagination."""
+    tasks = []
+    page = 0
+
+    while True:
+        result = client.get_list_tasks(list_id, include_closed=True, page=page)
+        tasks.extend(result.get("tasks", []))
+        if result.get("last_page", True):
+            break
+        page += 1
+
+    return tasks
+
+
+def get_command_help(
+    command: str,
+    command_parsers: Optional[Dict[str, argparse.ArgumentParser]] = None,
+) -> Tuple[str, str]:
     """
     Get help output for a command.
 
@@ -43,30 +122,16 @@ def get_command_help(command: str) -> Tuple[str, str]:
     Returns:
         Tuple of (help_output, error_output)
     """
+    command_parsers = command_parsers or _get_registered_command_parsers()
+    registered_name = _resolve_registered_command_name(command, command_parsers)
+
+    if not registered_name:
+        return "", f"Command '{command}' is not currently registered with the CLI parser"
+
     try:
-        result = subprocess.run(
-            ["cum", command, "--help"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            timeout=10
-        )
-        help_output = result.stdout
-        error_output = result.stderr
-
-        # If no stdout but stderr, use stderr
-        if not help_output and error_output:
-            help_output = error_output
-            error_output = ""
-
-        return help_output, error_output
-    except subprocess.TimeoutExpired:
-        return "", "Command timed out after 10 seconds"
-    except FileNotFoundError:
-        return "", "Command 'cum' not found in PATH"
+        return command_parsers[registered_name].format_help(), ""
     except Exception as e:
-        return "", f"Error running command: {str(e)}"
+        return "", f"Error building help output: {str(e)}"
 
 
 def execute_command_on_test_task(command: str, test_task_id: str) -> Tuple[str, str]:
@@ -107,7 +172,7 @@ def execute_command_on_test_task(command: str, test_task_id: str) -> Tuple[str, 
             return "N/A - Command cannot be safely executed in test mode", ""
         elif command in no_param_commands:
             result = subprocess.run(
-                ["cum", command],
+                _cli_module_invocation(command),
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
@@ -118,7 +183,7 @@ def execute_command_on_test_task(command: str, test_task_id: str) -> Tuple[str, 
         elif command in task_commands:
             # For commands that work with task IDs
             if command == "detail":
-                cmd = ["cum", command, test_task_id]
+                cmd = _cli_module_invocation(command, test_task_id)
             else:
                 # Most other task commands would modify the task, so skip execution
                 return "N/A - Command would modify task (execution skipped)", ""
@@ -424,131 +489,173 @@ def create_or_update_task(
         return None, 'failed'
 
 
-def discover_cli_commands() -> List[str]:
+def discover_cli_commands(
+    command_parsers: Optional[Dict[str, argparse.ArgumentParser]] = None,
+) -> List[str]:
     """
-    Discover all actual CLI commands by parsing cum --help output.
+    Discover syncable CLI commands from the registered parser tree.
 
     Returns:
         List of command names (canonical names, not aliases)
     """
-    try:
-        result = subprocess.run(
-            ["cum", "--help"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            timeout=10
+    command_parsers = command_parsers or _get_registered_command_parsers()
+    known_commands = sorted(COMMAND_CATEGORIES.keys())
+    available_commands = []
+    missing_from_parser = []
+
+    for command in known_commands:
+        if _resolve_registered_command_name(command, command_parsers):
+            available_commands.append(command)
+        else:
+            missing_from_parser.append(command)
+
+    if missing_from_parser:
+        print(
+            f"  [WARNING] {len(missing_from_parser)} commands in COMMAND_CATEGORIES "
+            "are not currently registered in the CLI parser:",
+            file=sys.stderr,
         )
-        help_output = result.stdout
+        for command in missing_from_parser:
+            print(f"    - {command}", file=sys.stderr)
 
-        # Find the line with command choices in curly braces
-        # Example: {ansi,assigned,a,attach,attachment,...}
-        discovered_commands = set()
-
-        for line in help_output.split('\n'):
-            # Look for the choices line with curly braces
-            if line.strip().startswith('{') and '}' in line:
-                # Extract everything between { and }
-                choices_text = line[line.find('{')+1:line.find('}')]
-                # Split by comma and clean up
-                all_choices = [c.strip() for c in choices_text.split(',')]
-                discovered_commands.update(all_choices)
-                break
-
-        # If we found commands via parsing, validate and return canonical commands
-        if discovered_commands:
-            # We only process commands that are in COMMAND_CATEGORIES (canonical names)
-            known_commands = set(COMMAND_CATEGORIES.keys())
-
-            # Check if any COMMAND_CATEGORIES entries are missing from help
-            missing_from_help = known_commands - discovered_commands
-            if missing_from_help:
-                print(f"  [WARNING] {len(missing_from_help)} commands in COMMAND_CATEGORIES not found in --help:", file=sys.stderr)
-                for cmd in sorted(missing_from_help):
-                    print(f"    - {cmd}", file=sys.stderr)
-
-            # Return intersection: commands in COMMAND_CATEGORIES that also exist in help
-            available_commands = known_commands & discovered_commands
-
-            return sorted(list(available_commands))
-
-        # Fallback: use the known mapping
-        print("  [WARNING] Could not parse commands from cum --help, using fallback", file=sys.stderr)
-        return sorted(list(COMMAND_CATEGORIES.keys()))
-
-    except Exception as e:
-        print(f"  [WARNING] Error discovering commands: {e}", file=sys.stderr)
-        print("  [WARNING] Using fallback command list", file=sys.stderr)
-        # Fallback to known mapping
-        return sorted(list(COMMAND_CATEGORIES.keys()))
+    return available_commands
 
 
-def list_missing_commands():
-    """List commands that are discovered but missing from COMMAND_CATEGORIES."""
-    try:
-        result = subprocess.run(
-            ["cum", "--help"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            timeout=10
+def list_missing_commands(list_id: str = DEFAULT_CLI_COMMANDS_LIST_ID):
+    """Report parser, mapping, and catalog gaps for command-sync maintenance."""
+    command_parsers = _get_registered_command_parsers()
+    registered_commands = set(command_parsers.keys())
+    known_commands = set(COMMAND_CATEGORIES.keys())
+    syncable_commands = discover_cli_commands(command_parsers)
+
+    missing_from_categories = sorted(
+        command
+        for command in registered_commands
+        if _resolve_registry_key(command, COMMAND_CATEGORIES) is None
+    )
+    missing_from_parser = sorted(
+        command
+        for command in known_commands
+        if _resolve_registered_command_name(command, command_parsers) is None
+    )
+    missing_task_mappings = sorted(
+        command
+        for command in syncable_commands
+        if _resolve_registry_key(command, COMMAND_TASK_IDS) is None
+    )
+
+    print("=" * 80)
+    print("Command Discovery Status")
+    print("=" * 80)
+    print(f"Total registered root commands: {len(registered_commands)}")
+    print(f"Total in COMMAND_CATEGORIES: {len(known_commands)}")
+    print(f"Total in CLI_COMMAND_TASK_IDS: {len(COMMAND_TASK_IDS)}")
+    print(f"Total syncable commands: {len(syncable_commands)}")
+    print("=" * 80)
+    print()
+
+    if missing_from_categories:
+        print(
+            "Registered commands missing from COMMAND_CATEGORIES "
+            f"({len(missing_from_categories)}):"
         )
-        help_output = result.stdout
-
-        # Find the line with command choices
-        discovered_commands = set()
-
-        for line in help_output.split('\n'):
-            if line.strip().startswith('{') and '}' in line:
-                choices_text = line[line.find('{')+1:line.find('}')]
-                all_choices = [c.strip() for c in choices_text.split(',')]
-                discovered_commands.update(all_choices)
-                break
-
-        known_commands = set(COMMAND_CATEGORIES.keys())
-        missing_from_categories = discovered_commands - known_commands
-        missing_from_help = known_commands - discovered_commands
-
-        print("=" * 80)
-        print("Command Discovery Status")
-        print("=" * 80)
-        print(f"Total discovered in cum --help: {len(discovered_commands)}")
-        print(f"Total in COMMAND_CATEGORIES: {len(known_commands)}")
-        print("=" * 80)
+        for command in missing_from_categories:
+            print(f"  - {command}")
+        print()
+    else:
+        print("✓ All registered commands have COMMAND_CATEGORIES coverage")
         print()
 
-        if missing_from_categories:
-            print(f"Commands found in --help but MISSING from COMMAND_CATEGORIES ({len(missing_from_categories)}):")
-            for cmd in sorted(missing_from_categories):
-                print(f"  - {cmd}")
+    if missing_from_parser:
+        print(
+            "Commands in COMMAND_CATEGORIES but not currently registered "
+            f"({len(missing_from_parser)}):"
+        )
+        for command in missing_from_parser:
+            print(f"  - {command}")
+        print()
+    else:
+        print("✓ All COMMAND_CATEGORIES entries are currently registered")
+        print()
+
+    if missing_task_mappings:
+        print(
+            "Syncable commands missing from CLI_COMMAND_TASK_IDS "
+            f"({len(missing_task_mappings)}):"
+        )
+        for command in missing_task_mappings:
+            print(f"  - {command}")
+        print()
+    else:
+        print("✓ All syncable commands have CLI_COMMAND_TASK_IDS coverage")
+        print()
+
+    try:
+        client = ClickUpClient()
+        list_tasks = _get_all_list_tasks(client, list_id)
+        task_ids_in_list = {task.get("id") for task in list_tasks}
+        task_names_in_list = {task.get("name") for task in list_tasks}
+
+        mapped_ids_missing_in_list = []
+        expected_tasks_missing_in_list = []
+
+        for command in syncable_commands:
+            category = get_command_category(command)
+            expected_task_name = get_task_name(command, category)
+            if expected_task_name not in task_names_in_list:
+                expected_tasks_missing_in_list.append((command, expected_task_name))
+
+            mapping_key = _resolve_registry_key(command, COMMAND_TASK_IDS)
+            if not mapping_key:
+                continue
+
+            mapped_task_id = COMMAND_TASK_IDS[mapping_key]
+            if mapped_task_id not in task_ids_in_list:
+                mapped_ids_missing_in_list.append((command, mapped_task_id))
+
+        print(
+            f"CLI Commands list audit: {len(list_tasks)} task(s) fetched from {list_id}"
+        )
+        print()
+
+        if expected_tasks_missing_in_list:
+            print(
+                "Syncable commands with no matching CLI Commands task by name "
+                f"({len(expected_tasks_missing_in_list)}):"
+            )
+            for command, task_name in expected_tasks_missing_in_list:
+                print(f"  - {command} -> {task_name}")
             print()
         else:
-            print("✓ All commands from --help are in COMMAND_CATEGORIES")
+            print("✓ Every syncable command has a matching CLI Commands task by name")
             print()
 
-        if missing_from_help:
-            print(f"Commands in COMMAND_CATEGORIES but NOT in --help ({len(missing_from_help)}):")
-            for cmd in sorted(missing_from_help):
-                print(f"  - {cmd}")
+        if mapped_ids_missing_in_list:
+            print(
+                "CLI_COMMAND_TASK_IDS entries not found in the CLI Commands list "
+                f"({len(mapped_ids_missing_in_list)}):"
+            )
+            for command, task_id in mapped_ids_missing_in_list:
+                print(f"  - {command} -> {task_id}")
             print()
         else:
-            print("✓ All COMMAND_CATEGORIES entries are in --help")
+            print("✓ Every mapped CLI command task ID exists in the CLI Commands list")
             print()
-
-        print("=" * 80)
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(
+            f"[WARNING] Could not audit the CLI Commands list itself: {e}",
+            file=sys.stderr,
+        )
+
+    print("=" * 80)
 
 
 def command_sync_command(args):
     """Execute command-sync command."""
     # Handle --list-missing option
     if args.list_missing:
-        list_missing_commands()
+        list_missing_commands(args.list_id)
         return
 
     list_id = args.list_id
@@ -615,7 +722,8 @@ def command_sync_command(args):
     else:
         print("[1/4] Discovering commands...")
 
-    all_commands = discover_cli_commands()
+    command_parsers = _get_registered_command_parsers()
+    all_commands = discover_cli_commands(command_parsers)
 
     if use_color:
         found_msg = colorize(f"🎯 Found {len(all_commands)} commands ready to sync!", TextColor.BRIGHT_GREEN, TextStyle.BOLD)
@@ -655,7 +763,7 @@ def command_sync_command(args):
             print(f"  Category: {category}")
 
         # Get help output
-        help_output, error_output = get_command_help(command)
+        help_output, error_output = get_command_help(command, command_parsers)
         if not help_output:
             print(f"  [WARNING] No help output for command '{command}'")
             if error_output:
@@ -779,7 +887,7 @@ help output, syntax, purpose, and execution results.
     parser.add_argument(
         '--list-missing',
         action='store_true',
-        help='List commands discovered in --help vs COMMAND_CATEGORIES (for validation)'
+        help='Audit registered commands against category/task mappings and the CLI Commands list'
     )
 
     parser.set_defaults(func=command_sync_command)

@@ -1,6 +1,5 @@
 """Task management commands for ClickUp Framework CLI."""
 
-import argparse
 import os
 import sys
 from collections import defaultdict
@@ -22,6 +21,7 @@ from clickup_framework.automation.parent_updater import ParentTaskAutomationEngi
 from clickup_framework.automation.models import ParentUpdateResult
 from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
 from clickup_framework.parsers import ContentProcessor, ParserContext
+from clickup_framework.utils.argparse_helpers import raw_text_formatter
 
 
 def display_automation_result(result: ParentUpdateResult):
@@ -1337,10 +1337,11 @@ def task_move_command(args):
                     except (ValueError, KeyError):
                         print(f"Error: workspace_id not available for task {task_id} and no current workspace set", file=sys.stderr)
                         sys.exit(1)
-                client.move_task_to_home_list(workspace_id, task_id, dest_list_id)
-
-                moved_task = client.get_task(task_id)
-                actual_list_id = moved_task.get('list', {}).get('id')
+                move_response = client.move_task_to_home_list(workspace_id, task_id, dest_list_id)
+                actual_list_id = move_response.get('data', {}).get('new_list_id')
+                if not actual_list_id:
+                    moved_task = client.get_task(task_id)
+                    actual_list_id = moved_task.get('list', {}).get('id')
                 if actual_list_id != dest_list_id:
                     raise RuntimeError(
                         f"Home list did not change (expected {dest_list_id}, got {actual_list_id or current_list_id})"
@@ -1639,7 +1640,7 @@ def register_command(subparsers):
         aliases=['tmv'],
         help='Move tasks to different list or parent',
         description='Move one or more tasks to a different home list or change their parent task.',
-        formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=32, width=100),
+        formatter_class=raw_text_formatter(),
         epilog='''Tips:
   • Move to list: cum tmv 86abc123 --list 901517404274
   • Move to parent: cum tmv 86abc123 --parent 86def456

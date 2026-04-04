@@ -14,7 +14,12 @@ class TasksAPI(BaseAPI):
         return self._request("GET", f"task/{task_id}", params=params)
 
     def get_list_tasks(self, list_id: str, **params) -> Dict[str, Any]:
-        """Get all tasks in a list."""
+        """
+        Get tasks in a list.
+
+        Supports ClickUp list pagination via ``page`` and returns the API payload,
+        including ``last_page`` when provided by the endpoint.
+        """
         return self._request("GET", f"list/{list_id}/task", params=params)
 
     def get_team_tasks(self, team_id: str, **params) -> Dict[str, Any]:
@@ -30,7 +35,13 @@ class TasksAPI(BaseAPI):
         return self._request("PUT", f"task/{task_id}", json=updates)
 
     def move_task_to_home_list(self, workspace_id: str, task_id: str, list_id: str) -> Dict[str, Any]:
-        """Move a task to a new home list using the v3 endpoint."""
+        """
+        Move a task to a new home list using the v3 endpoint.
+
+        The current v3 response includes ``data.new_list_id`` and ``data.task_id``
+        on success, which lets callers verify the destination without an extra
+        follow-up GET in the common case.
+        """
         return self._request(
             "PUT",
             f"/v3/workspaces/{workspace_id}/tasks/{task_id}/home_list/{list_id}",

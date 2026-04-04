@@ -301,7 +301,48 @@ class TestBaseCommandIssueReporting(unittest.TestCase):
         task = BaseCommand.find_catalog_task(mock_client, "imaginary")
 
         self.assertEqual(task["id"], "86fallback1")
-        mock_client.get_list_tasks.assert_called_once_with("901517567020", include_closed=True)
+        mock_client.get_list_tasks.assert_called_once_with(
+            "901517567020",
+            include_closed=True,
+            page=0,
+        )
+
+    def test_find_catalog_task_pages_fallback_lookup_until_match(self):
+        mock_client = Mock()
+        mock_client.get_task.side_effect = Exception("missing mapped task")
+        mock_client.get_list_tasks.side_effect = [
+            {
+                "tasks": [
+                    {
+                        "id": "86page1",
+                        "name": "(Utility) CUM other",
+                        "list": {"id": "901517567020"},
+                    }
+                ],
+                "last_page": False,
+            },
+            {
+                "tasks": [
+                    {
+                        "id": "86page2",
+                        "name": "(Utility) CUM imaginary",
+                        "list": {"id": "901517567020"},
+                    }
+                ],
+                "last_page": True,
+            },
+        ]
+
+        task = BaseCommand.find_catalog_task(mock_client, "imaginary")
+
+        self.assertEqual(task["id"], "86page2")
+        self.assertEqual(
+            mock_client.get_list_tasks.call_args_list,
+            [
+                unittest.mock.call("901517567020", include_closed=True, page=0),
+                unittest.mock.call("901517567020", include_closed=True, page=1),
+            ],
+        )
 
 
 if __name__ == "__main__":

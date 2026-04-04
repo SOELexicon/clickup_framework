@@ -1,12 +1,12 @@
 """Detail view command."""
 
-import argparse
 import sys
 import logging
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.utils import create_format_options, add_common_args
+from clickup_framework.utils.argparse_helpers import raw_text_formatter
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +110,7 @@ def register_command(subparsers):
         'detail',
         aliases=['d', 'task'],
         help='Show comprehensive task details with hierarchical view',
-        formatter_class=lambda prog: argparse.RawTextHelpFormatter(
-            prog, max_help_position=32, width=100
-        ),
+        formatter_class=raw_text_formatter(),
         description='''Display comprehensive details of a single task with enhanced hierarchical view.
 
 Shows the main task with full description and a detailed tree view of all subtasks with

@@ -36,6 +36,7 @@ import re
 
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.hierarchy import hierarchy_command
+from clickup_framework.utils.argparse_helpers import raw_description_formatter
 
 
 # Command metadata for help generation
@@ -191,9 +192,7 @@ Tips:
   - Results show full task hierarchy for context
   - Normal usage does not require external `cum` or `grep` binaries on PATH
         """,
-        formatter_class=lambda prog: __import__('argparse').RawDescriptionHelpFormatter(
-            prog, max_help_position=40, width=80
-        )
+        formatter_class=raw_description_formatter(),
     )
 
     parser.add_argument(

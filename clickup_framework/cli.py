@@ -26,6 +26,10 @@ import subprocess
 from collections import OrderedDict
 from typing import Dict, List, NoReturn, Optional, Sequence, Tuple
 from clickup_framework import get_context_manager, __version__
+from clickup_framework.utils.command_suggestions import (
+    SuggestionChoice,
+    suggest_command_choices,
+)
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.cli_error_handler import handle_cli_error
@@ -218,6 +222,40 @@ def _print_task_create_help_footer(use_color: bool) -> None:
         print("  cum tc --help", file=sys.stderr)
 
 
+def _parser_command_path_tokens(parser: argparse.ArgumentParser) -> List[str]:
+    """Return the already-resolved command path tokens for a parser."""
+    prog_tokens = parser.prog.split()
+    return prog_tokens[1:] if len(prog_tokens) > 1 else []
+
+
+def _parser_suggestion_choices(parser: argparse.ArgumentParser) -> List[SuggestionChoice]:
+    """Build suggestion choices from a parser's immediate subcommands."""
+    subparsers_action = _find_subparsers_action(parser)
+    if subparsers_action is None:
+        return []
+
+    choices = []
+    for canonical, subparser in _iter_unique_subparsers(subparsers_action):
+        aliases = tuple(
+            name for name, candidate in subparsers_action._name_parser_map.items()
+            if candidate is subparser and name != canonical
+        )
+        choices.append(SuggestionChoice(canonical=canonical, aliases=aliases))
+    return choices
+
+
+def _invalid_choice_suggestions(
+    parser: argparse.ArgumentParser,
+    message: str,
+) -> List[SuggestionChoice]:
+    """Return likely command suggestions for an argparse invalid choice error."""
+    match = re.search(r"invalid choice: '([^']+)'", message)
+    if not match:
+        return []
+
+    return suggest_command_choices(match.group(1), _parser_suggestion_choices(parser))
+
+
 class ImprovedArgumentParser(argparse.ArgumentParser):
     """
     Custom ArgumentParser with enhanced error messages for common CLI mistakes.
@@ -371,6 +409,9 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
             print(f"\nError: {message}", file=sys.stderr)
             print("─" * 60, file=sys.stderr)
 
+        suggestion_choices = _invalid_choice_suggestions(self, message)
+        suggestion_help_tokens = None
+
         # Show what the user typed
         if use_color:
             you_ran = colorize("You ran:", TextColor.BRIGHT_WHITE)
@@ -380,9 +421,45 @@ class ImprovedArgumentParser(argparse.ArgumentParser):
             cmd_display = ' '.join(sys.argv)
         print(f"\n{you_ran} {cmd_display}", file=sys.stderr)
 
+        if suggestion_choices:
+            base_tokens = _parser_command_path_tokens(self)
+            if use_color:
+                suggestion_header = colorize("\nDid you mean:", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+                print(suggestion_header, file=sys.stderr)
+            else:
+                print("\nDid you mean:", file=sys.stderr)
+
+            for choice in suggestion_choices:
+                command_tokens = ["cum", *base_tokens, choice.invocation_token]
+                command_display = " ".join(command_tokens)
+                if use_color:
+                    bullet = colorize("  •", TextColor.BRIGHT_CYAN)
+                    command_text = colorize(command_display, TextColor.BRIGHT_GREEN)
+                    if choice.annotation:
+                        annotation = colorize(f"  # {choice.annotation}", TextColor.BRIGHT_BLACK)
+                        print(f"{bullet} {command_text}{annotation}", file=sys.stderr)
+                    else:
+                        print(f"{bullet} {command_text}", file=sys.stderr)
+                else:
+                    if choice.annotation:
+                        print(f"  • {command_display}  # {choice.annotation}", file=sys.stderr)
+                    else:
+                        print(f"  • {command_display}", file=sys.stderr)
+
+            suggestion_help_tokens = [*base_tokens, suggestion_choices[0].invocation_token]
+
         # Print helpful tips
         tips = []
-        if command:
+        if suggestion_help_tokens:
+            if use_color:
+                help_cmd = colorize(
+                    f"cum {' '.join(suggestion_help_tokens)} --help",
+                    TextColor.BRIGHT_GREEN,
+                )
+                tips.append(f"See suggested command help: {help_cmd}")
+            else:
+                tips.append(f"See suggested command help: cum {' '.join(suggestion_help_tokens)} --help")
+        elif command:
             if use_color:
                 help_cmd = colorize(f'cum {command} --help', TextColor.BRIGHT_GREEN)
                 tips.append(f"See command help: {help_cmd}")
