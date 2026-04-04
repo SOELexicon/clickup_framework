@@ -227,6 +227,38 @@ class BaseCommand:
     # ==================== Issue Reporting Helpers ====================
 
     CLI_COMMANDS_LIST_ID = "901517567020"
+    FRAMEWORK_REPORT_LISTS = {
+        "development": {
+            "id": "901517404274",
+            "label": "development",
+            "aliases": ("development", "dev", "development-tasks"),
+        },
+        "feature-requests": {
+            "id": "901517404275",
+            "label": "feature-requests",
+            "aliases": ("feature-requests", "features", "feature", "enhancements"),
+        },
+        "bug-fixes": {
+            "id": "901517404276",
+            "label": "bug-fixes",
+            "aliases": ("bug-fixes", "bugfixes", "bugs", "bug", "fixes"),
+        },
+        "documentation": {
+            "id": "901517404277",
+            "label": "documentation",
+            "aliases": ("documentation", "docs", "doc"),
+        },
+        "testing": {
+            "id": "901517404278",
+            "label": "testing",
+            "aliases": ("testing", "tests", "test", "qa"),
+        },
+        "releases": {
+            "id": "901517404279",
+            "label": "releases",
+            "aliases": ("releases", "release"),
+        },
+    }
 
     @staticmethod
     def _read_report_details(
@@ -263,6 +295,36 @@ class BaseCommand:
             raise ValueError(f"Report details file is empty: {details_file}")
 
         return content
+
+    @classmethod
+    def framework_report_destinations(cls) -> str:
+        """Return a compact list of supported framework report destinations."""
+        return ", ".join(
+            config["label"] for config in cls.FRAMEWORK_REPORT_LISTS.values()
+        )
+
+    @classmethod
+    def resolve_framework_report_list(cls, report_list: Optional[str]) -> str:
+        """Resolve a framework report destination alias to its internal list ID."""
+        if not report_list or not report_list.strip():
+            return cls.FRAMEWORK_REPORT_LISTS["bug-fixes"]["id"]
+
+        candidate = report_list.strip()
+        allowed_ids = {
+            config["id"] for config in cls.FRAMEWORK_REPORT_LISTS.values()
+        }
+        if candidate in allowed_ids:
+            return candidate
+
+        normalized = candidate.lower()
+        for config in cls.FRAMEWORK_REPORT_LISTS.values():
+            if normalized in config["aliases"]:
+                return config["id"]
+
+        raise ValueError(
+            "Report destination must be one of the ClickUp Framework lists: "
+            f"{cls.framework_report_destinations()}."
+        )
 
     @classmethod
     def get_catalog_task_name(cls, root_command: str) -> str:
@@ -364,8 +426,6 @@ class BaseCommand:
         """
         if not report_title or not report_title.strip():
             raise ValueError("Issue title cannot be empty.")
-        if not report_list_id or not report_list_id.strip():
-            raise ValueError("--report-list is required when using --report-issue.")
         if not root_command:
             raise ValueError("Could not determine the command to link this report to.")
 
@@ -374,7 +434,8 @@ class BaseCommand:
         cli_commands_list_id = cli_commands_list_id or cls.CLI_COMMANDS_LIST_ID
 
         details = cls._read_report_details(report_details, report_details_file)
-        resolved_list_id = context.resolve_id("list", report_list_id)
+        framework_list_id = cls.resolve_framework_report_list(report_list_id)
+        resolved_list_id = context.resolve_id("list", framework_list_id)
 
         # Validate the destination list early so the user gets a direct error.
         client.get_list(resolved_list_id)

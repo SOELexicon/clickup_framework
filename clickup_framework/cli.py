@@ -560,10 +560,10 @@ ISSUE_REPORT_FLAGS = {
     "--report-details-file",
 }
 ISSUE_REPORT_HELP_DESCRIPTION = (
-    "Create a linked ClickUp task instead of running the command. "
-    "Include the exact problem, expected behaviour, actual behaviour, "
-    "clear repro steps, and evidence such as task IDs, logs, screenshots, "
-    "or failing output."
+    "Create a linked ClickUp task inside the ClickUp Framework project instead "
+    "of running the command. Include the exact problem, expected behaviour, "
+    "actual behaviour, clear repro steps, and evidence such as task IDs, logs, "
+    "screenshots, or failing output."
 )
 
 
@@ -716,8 +716,13 @@ def _add_issue_reporting_arguments(
     )
     issue_group.add_argument(
         "--report-list",
-        metavar="LIST_ID",
-        help="Destination ClickUp list ID (for example Bug Fixes or Features). Required with --report-issue.",
+        metavar="DESTINATION",
+        help=(
+            "Framework destination list. Use one of: "
+            f"{BaseCommand.framework_report_destinations()}. "
+            "Defaults to bug-fixes. Raw list IDs are only accepted for those "
+            "same internal framework lists."
+        ),
     )
     details_group = issue_group.add_mutually_exclusive_group()
     details_group.add_argument(
@@ -807,8 +812,6 @@ def _validate_issue_report_args(args) -> None:
         )
 
     if issue_title:
-        if not report_list:
-            parser.error("--report-list is required when using --report-issue.")
         if not report_details and not report_details_file:
             parser.error(
                 "Provide --report-details or --report-details-file when using --report-issue."
@@ -892,7 +895,7 @@ Examples:
   cum list <list_id> --preset detailed
 
   # Report a command issue to ClickUp
-  cum detail current --report-issue "Detail view truncates linked tasks" --report-list 901517404276 --report-details-file repro.md
+  cum detail current --report-issue "Detail view truncates linked tasks" --report-details-file repro.md
 
   # Demo mode (no API required)
   cum demo --mode hierarchy

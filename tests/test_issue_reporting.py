@@ -27,6 +27,8 @@ class TestIssueReportingParser(unittest.TestCase):
         self.assertIn("--report-details", help_text)
         self.assertIn("--report-details-file", help_text)
         self.assertIn("expected behaviour", help_text)
+        self.assertIn("bug-fixes", help_text)
+        self.assertIn("Defaults to bug-fixes", help_text)
 
     def test_nested_leaf_command_help_includes_issue_reporting(self):
         parser = build_parser()
@@ -106,8 +108,6 @@ class TestIssueReportingFlow(unittest.TestCase):
                     "current",
                     "--report-issue",
                     "Detail command bug",
-                    "--report-list",
-                    "901517404276",
                     "--report-details",
                     "Expected a full detail view. Actual: linked tasks were omitted.",
                 ],
@@ -121,9 +121,27 @@ class TestIssueReportingFlow(unittest.TestCase):
         call_kwargs = mock_create_issue_report.call_args.kwargs
         self.assertEqual(call_kwargs["root_command"], "detail")
         self.assertEqual(call_kwargs["command_path"], "detail")
-        self.assertEqual(call_kwargs["report_list_id"], "901517404276")
+        self.assertIsNone(call_kwargs["report_list_id"])
         self.assertEqual(call_kwargs["command_line"], "cum detail current")
         self.assertIn("Issue task created", stdout.getvalue())
+
+    def test_framework_report_list_alias_resolves_to_internal_id(self):
+        self.assertEqual(
+            BaseCommand.resolve_framework_report_list("bug-fixes"),
+            "901517404276",
+        )
+        self.assertEqual(
+            BaseCommand.resolve_framework_report_list("feature"),
+            "901517404275",
+        )
+        self.assertEqual(
+            BaseCommand.resolve_framework_report_list(None),
+            "901517404276",
+        )
+
+    def test_external_report_list_is_rejected(self):
+        with self.assertRaises(ValueError):
+            BaseCommand.resolve_framework_report_list("90157903115")
 
 
 class TestBaseCommandIssueReporting(unittest.TestCase):
@@ -152,7 +170,7 @@ class TestBaseCommandIssueReporting(unittest.TestCase):
 
         result = BaseCommand.create_command_issue_report(
             report_title="Search command fails",
-            report_list_id="901517404276",
+            report_list_id="bug-fixes",
             report_details="Expected search results. Actual: dependency failure.",
             root_command="search",
             command_path="search",
