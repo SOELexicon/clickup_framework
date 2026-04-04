@@ -13,6 +13,16 @@ Usage:
     formatted_task = tasks.get(task_id, detail_level="summary")
 """
 
+import warnings
+
+# Keep CLI/library output clean when the local environment has a known
+# requests dependency-version mismatch. Real request failures still surface.
+warnings.filterwarnings(
+    "ignore",
+    message=r"urllib3 .* doesn't match a supported version!",
+    category=Warning,
+)
+
 # Load environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv()

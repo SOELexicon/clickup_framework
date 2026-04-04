@@ -3,6 +3,7 @@
 import sys
 import os
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.commands.utils import read_text_from_file
@@ -41,23 +42,8 @@ COMMAND_METADATA = {
 }
 
 
-def comment_add_command(args):
-    """Add a comment to a task."""
-    from clickup_framework.resources import CommentsAPI
-    from clickup_framework.formatters import format_comment
-
-    context = get_context_manager()
-    client = ClickUpClient()
-    comments_api = CommentsAPI(client)
-
-    # Resolve "current" to actual task ID
-    try:
-        task_id = context.resolve_id('task', args.task_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Validate that either text or comment_file is provided, but not both
+def _read_comment_text(args):
+    """Return comment text from args or file with shared validation."""
     if args.text and args.comment_file:
         print("Error: Cannot provide both comment text and --comment-file", file=sys.stderr)
         sys.exit(1)
@@ -66,16 +52,19 @@ def comment_add_command(args):
         print("Error: Must provide either comment text or --comment-file", file=sys.stderr)
         sys.exit(1)
 
-    # Get comment text from argument or file
     if args.comment_file:
-        comment_text = read_text_from_file(args.comment_file)
-    else:
-        comment_text = args.text
+        return read_text_from_file(args.comment_file)
 
-    # Process markdown and mermaid diagrams if enabled
-    process_markdown = getattr(args, 'markdown', True)  # Default to True
+    return args.text
+
+
+def _process_comment_text(args, client, comment_text, task_id=None):
+    """Process markdown and mermaid content for comment text."""
+    process_markdown = getattr(args, 'markdown', True)
     skip_mermaid = getattr(args, 'skip_mermaid', False)
     upload_images = getattr(args, 'upload_images', False)
+    processor = None
+    result = {}
 
     if process_markdown:
         processor = ContentProcessor(
@@ -84,159 +73,7 @@ def comment_add_command(args):
             client=client if upload_images else None
         )
 
-        # Process content
-        if upload_images:
-            # Process and upload images in one step
-            result = processor.process_and_upload(
-                comment_text,
-                task_id,
-                format_markdown=True,
-                process_mermaid=not skip_mermaid,
-                convert_mermaid_to_images=not skip_mermaid
-            )
-            comment_text = result['content']
-
-            # Show upload results
-            upload_results = result.get('upload_results', {})
-            if upload_results.get('uploaded'):
-                print(f"✓ Uploaded {len(upload_results['uploaded'])} image(s)")
-            if upload_results.get('errors'):
-                for hash_val, error in upload_results['errors']:
-                    print(f"⚠️  Failed to upload {hash_val[:8]}: {error}", file=sys.stderr)
-        else:
-            # Just process without uploading
-            result = processor.process(
-                comment_text,
-                format_markdown=True,
-                process_mermaid=not skip_mermaid,
-                convert_mermaid_to_images=not skip_mermaid
-            )
-            comment_text = result['content']
-
-            # Inform about unuploaded images
-            if result.get('unuploaded_images'):
-                print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
-
-    # Get color setting
-    use_color = context.get_ansi_output()
-
-    # Handle image attachments if provided
-    attachment_urls = []
-    if hasattr(args, 'attach_images') and args.attach_images:
-        from clickup_framework.resources import AttachmentsAPI
-        attachments_api = AttachmentsAPI(client)
-        
-        for image_path in args.attach_images:
-            if not os.path.exists(image_path):
-                print(f"Warning: Image not found: {image_path}", file=sys.stderr)
-                continue
-            
-            try:
-                # Upload attachment
-                attachment = attachments_api.create(task_id, image_path)
-                attachment_url = attachment.get('url')
-                if attachment_url:
-                    attachment_urls.append(attachment_url)
-                    if use_color:
-                        print(f"📎 Uploaded: {colorize(os.path.basename(image_path), TextColor.BRIGHT_CYAN)}")
-                    else:
-                        print(f"Uploaded: {os.path.basename(image_path)}")
-            except Exception as e:
-                print(f"Warning: Failed to upload {image_path}: {e}", file=sys.stderr)
-
-    try:
-        # Create the comment with rich text formatting
-        # ClickUp supports both:
-        # - comment_text: Plain text (no formatting)
-        # - comment: Rich text JSON array (formatted content)
-        image_metadata = {}
-        attachment_ids = []
-
-        # If images were uploaded, get their metadata for inline embedding
-        if upload_images and result.get('image_metadata'):
-            image_metadata = result['image_metadata']
-            attachment_ids = result.get('attachment_ids', [])
-
-        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
-            # Use rich text JSON format for markdown
-            comment_data = processor.markdown_formatter.to_json_format(
-                comment_text,
-                image_metadata=image_metadata,
-                attachment_ids=attachment_ids
-            )
-
-            # Show debug output if requested
-            if getattr(args, 'debug', False):
-                import json
-                print("\n" + colorize("Generated JSON:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-                print("=" * 60)
-                print(json.dumps(comment_data, indent=2))
-                print("=" * 60 + "\n")
-
-            comment = comments_api.create_task_comment(task_id, comment_data=comment_data, attachment_urls=attachment_urls if attachment_urls else None)
-        else:
-            # Plain text
-            if getattr(args, 'debug', False):
-                print("\n" + colorize("Plain Text Mode:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-                print(f"comment_text: {repr(comment_text)}\n")
-
-            comment = comments_api.create_task_comment(task_id, comment_text=comment_text, attachment_urls=attachment_urls if attachment_urls else None)
-
-        # Show success message
-        success_msg = ANSIAnimations.success_message("Comment added")
-        print(success_msg)
-
-        # Format and display the comment
-        formatted = format_comment(comment, detail_level="summary")
-        print(f"\n{formatted}")
-
-    except Exception as e:
-        print(f"Error adding comment: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-def comment_reply_command(args):
-    """Reply to a comment (create threaded reply)."""
-    from clickup_framework.resources import CommentsAPI
-    from clickup_framework.formatters import format_comment
-
-    context = get_context_manager()
-    client = ClickUpClient()
-    comments_api = CommentsAPI(client)
-
-    # Validate that either text or comment_file is provided, but not both
-    if args.text and args.comment_file:
-        print("Error: Cannot provide both comment text and --comment-file", file=sys.stderr)
-        sys.exit(1)
-
-    if not args.text and not args.comment_file:
-        print("Error: Must provide either comment text or --comment-file", file=sys.stderr)
-        sys.exit(1)
-
-    # Get comment text from argument or file
-    if args.comment_file:
-        comment_text = read_text_from_file(args.comment_file)
-    else:
-        comment_text = args.text
-
-    # Process markdown and mermaid diagrams if enabled
-    process_markdown = getattr(args, 'markdown', True)  # Default to True
-    skip_mermaid = getattr(args, 'skip_mermaid', False)
-    upload_images = getattr(args, 'upload_images', False)
-
-    # Get task_id for uploads (needed to attach images)
-    task_id = getattr(args, 'task_id', None)
-
-    if process_markdown:
-        processor = ContentProcessor(
-            context=ParserContext.COMMENT,
-            cache_dir=getattr(args, 'image_cache', None),
-            client=client if upload_images else None
-        )
-
-        # Process content
         if upload_images and task_id:
-            # Process and upload images in one step
             result = processor.process_and_upload(
                 comment_text,
                 task_id,
@@ -246,7 +83,6 @@ def comment_reply_command(args):
             )
             comment_text = result['content']
 
-            # Show upload results
             upload_results = result.get('upload_results', {})
             if upload_results.get('uploaded'):
                 print(f"✓ Uploaded {len(upload_results['uploaded'])} image(s)")
@@ -254,7 +90,6 @@ def comment_reply_command(args):
                 for hash_val, error in upload_results['errors']:
                     print(f"⚠️  Failed to upload {hash_val[:8]}: {error}", file=sys.stderr)
         else:
-            # Just process without uploading
             result = processor.process(
                 comment_text,
                 format_markdown=True,
@@ -263,17 +98,141 @@ def comment_reply_command(args):
             )
             comment_text = result['content']
 
-            # Inform about unuploaded images
             if result.get('unuploaded_images'):
                 if task_id:
                     print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
                 else:
                     print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Provide --task-id to upload.")
 
+    return comment_text, processor, result
+
+
+def _build_comment_data(args, processor, comment_text, result):
+    """Create rich-text payload when the processed comment still contains markdown."""
+    if processor is None or not getattr(args, 'markdown', True):
+        return None
+
+    if not processor.markdown_formatter.contains_markdown(comment_text):
+        return None
+
+    image_metadata = {}
+    attachment_ids = []
+    if getattr(args, 'upload_images', False) and result.get('image_metadata'):
+        image_metadata = result['image_metadata']
+        attachment_ids = result.get('attachment_ids', [])
+
+    return processor.markdown_formatter.to_json_format(
+        comment_text,
+        image_metadata=image_metadata,
+        attachment_ids=attachment_ids
+    )
+
+
+def _print_debug_payload(args, comment_text=None, comment_data=None):
+    """Show debug payload details before sending when requested."""
+    if not getattr(args, 'debug', False):
+        return
+
+    if comment_data is not None:
+        import json
+        print("\n" + colorize("Generated JSON:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        print("=" * 60)
+        print(json.dumps(comment_data, indent=2))
+        print("=" * 60 + "\n")
+        return
+
+    if comment_text is not None:
+        print("\n" + colorize("Plain Text Mode:", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        print(f"comment_text: {repr(comment_text)}\n")
+
+
+def _upload_attachment_urls(args, client, task_id, use_color):
+    """Upload image attachments for comment_add."""
+    attachment_urls = []
+    if not getattr(args, 'attach_images', None):
+        return attachment_urls
+
+    from clickup_framework.resources import AttachmentsAPI
+
+    attachments_api = AttachmentsAPI(client)
+    for image_path in args.attach_images:
+        if not os.path.exists(image_path):
+            print(f"Warning: Image not found: {image_path}", file=sys.stderr)
+            continue
+
+        try:
+            attachment = attachments_api.create(task_id, image_path)
+            attachment_url = attachment.get('url')
+            if attachment_url:
+                attachment_urls.append(attachment_url)
+                if use_color:
+                    print(f"📎 Uploaded: {colorize(os.path.basename(image_path), TextColor.BRIGHT_CYAN)}")
+                else:
+                    print(f"Uploaded: {os.path.basename(image_path)}")
+        except Exception as e:
+            print(f"Warning: Failed to upload {image_path}: {e}", file=sys.stderr)
+
+    return attachment_urls
+
+
+def _print_comment_summary(comment):
+    """Format and display a comment summary."""
+    from clickup_framework.formatters import format_comment
+
+    formatted = format_comment(comment, detail_level="summary")
+    print(f"\n{formatted}")
+
+
+def _comment_add_impl(args, context, client, use_color):
+    """Add a comment to a task."""
+    from clickup_framework.resources import CommentsAPI
+
+    comments_api = CommentsAPI(client)
+
     try:
-        # Create the threaded reply
-        # Note: Threaded replies use comment_text, not rich text format
-        # ClickUp API doesn't support rich text for threaded replies yet
+        task_id = context.resolve_id('task', args.task_id)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    comment_text = _read_comment_text(args)
+    comment_text, processor, result = _process_comment_text(args, client, comment_text, task_id=task_id)
+    attachment_urls = _upload_attachment_urls(args, client, task_id, use_color)
+
+    try:
+        comment_data = _build_comment_data(args, processor, comment_text, result)
+        if comment_data is not None:
+            _print_debug_payload(args, comment_data=comment_data)
+            comment = comments_api.create_task_comment(
+                task_id,
+                comment_data=comment_data,
+                attachment_urls=attachment_urls if attachment_urls else None
+            )
+        else:
+            _print_debug_payload(args, comment_text=comment_text)
+            comment = comments_api.create_task_comment(
+                task_id,
+                comment_text=comment_text,
+                attachment_urls=attachment_urls if attachment_urls else None
+            )
+
+        print(ANSIAnimations.success_message("Comment added"))
+        _print_comment_summary(comment)
+    except Exception as e:
+        print(f"Error adding comment: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _comment_reply_impl(args, client):
+    """Reply to a comment (create threaded reply)."""
+    from clickup_framework.resources import CommentsAPI
+
+    comments_api = CommentsAPI(client)
+    comment_text = _read_comment_text(args)
+    task_id = getattr(args, 'task_id', None)
+    comment_text, _, _ = _process_comment_text(args, client, comment_text, task_id=task_id)
+
+    try:
         notify_all = getattr(args, 'notify_all', False)
         comment = comments_api.create_threaded_comment(
             args.cpid,
@@ -281,49 +240,33 @@ def comment_reply_command(args):
             notify_all=notify_all
         )
 
-        # Show success message
-        success_msg = ANSIAnimations.success_message("Reply added")
-        print(success_msg)
-
-        # Format and display the comment
-        formatted = format_comment(comment, detail_level="summary")
-        print(f"\n{formatted}")
-
+        print(ANSIAnimations.success_message("Reply added"))
+        _print_comment_summary(comment)
     except Exception as e:
         print(f"Error adding reply: {e}", file=sys.stderr)
         sys.exit(1)
 
 
-def comment_list_command(args):
+def _comment_list_impl(args, context, client, use_color):
     """List comments on a task."""
     from clickup_framework.resources import CommentsAPI
-    from clickup_framework.formatters import format_comment_list, format_comment
-    from clickup_framework.components.tree import TreeFormatter
+    from clickup_framework.formatters import format_comment_list
 
-    context = get_context_manager()
-    client = ClickUpClient()
     comments_api = CommentsAPI(client)
 
-    # Resolve "current" to actual task ID
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Check if threaded display is requested
-    show_threaded = getattr(args, 'threaded', True)  # Default to True for threaded display
+    show_threaded = getattr(args, 'threaded', True)
 
     try:
-        # Get task to display task name
         task = client.get_task(task_id)
-
-        # Get comments
         result = comments_api.get_task_comments(task_id)
         comments = result.get('comments', [])
 
-        # Display header
-        use_color = context.get_ansi_output()
         if use_color:
             header = colorize(f"Comments for: {task['name']}", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
         else:
@@ -335,31 +278,23 @@ def comment_list_command(args):
             print(colorize("\nNo comments found", TextColor.BRIGHT_BLACK) if use_color else "\nNo comments found")
             return
 
-        # Limit comments if specified
-        if hasattr(args, 'limit') and args.limit:
+        if getattr(args, 'limit', None):
             comments = comments[:args.limit]
 
-        # Display comments based on mode
         detail_level = getattr(args, 'detail', 'summary')
-
         if show_threaded:
-            # Fetch threaded replies for each comment and display in treeview
             _display_threaded_comments(comments, comments_api, detail_level, use_color)
         else:
-            # Display in flat list format (backward compatibility)
             formatted = format_comment_list(comments, detail_level=detail_level)
             print(f"\n{formatted}")
 
-        # Show total count
         total = len(result.get('comments', []))
         shown = len(comments)
         if shown < total:
             msg = f"\nShowing {shown} of {total} comments"
-            print(colorize(msg, TextColor.BRIGHT_BLACK) if use_color else msg)
         else:
             msg = f"\nTotal: {total} comment(s)"
-            print(colorize(msg, TextColor.BRIGHT_BLACK) if use_color else msg)
-
+        print(colorize(msg, TextColor.BRIGHT_BLACK) if use_color else msg)
     except Exception as e:
         print(f"Error listing comments: {e}", file=sys.stderr)
         sys.exit(1)
@@ -443,128 +378,36 @@ def _display_threaded_comments(comments, comments_api, detail_level, use_color):
         print()  # Empty line between root comments
 
 
-def comment_update_command(args):
+def _comment_update_impl(args, client):
     """Update an existing comment."""
     from clickup_framework.resources import CommentsAPI
-    from clickup_framework.formatters import format_comment
 
-    context = get_context_manager()
-    client = ClickUpClient()
     comments_api = CommentsAPI(client)
-
-    # Validate that either text or comment_file is provided, but not both
-    if args.text and args.comment_file:
-        print("Error: Cannot provide both comment text and --comment-file", file=sys.stderr)
-        sys.exit(1)
-
-    if not args.text and not args.comment_file:
-        print("Error: Must provide either comment text or --comment-file", file=sys.stderr)
-        sys.exit(1)
-
-    # Get comment text from argument or file
-    if args.comment_file:
-        comment_text = read_text_from_file(args.comment_file)
-    else:
-        comment_text = args.text
-
-    # Process markdown and mermaid diagrams if enabled
-    process_markdown = getattr(args, 'markdown', True)  # Default to True
-    skip_mermaid = getattr(args, 'skip_mermaid', False)
-    upload_images = getattr(args, 'upload_images', False)
-
-    # Get task_id for uploads (needed to attach images)
+    comment_text = _read_comment_text(args)
     task_id = getattr(args, 'task_id', None)
-
-    if process_markdown:
-        processor = ContentProcessor(
-            context=ParserContext.COMMENT,
-            cache_dir=getattr(args, 'image_cache', None),
-            client=client if upload_images else None
-        )
-
-        # Process content
-        if upload_images and task_id:
-            # Process and upload images in one step
-            result = processor.process_and_upload(
-                comment_text,
-                task_id,
-                format_markdown=True,
-                process_mermaid=not skip_mermaid,
-                convert_mermaid_to_images=not skip_mermaid
-            )
-            comment_text = result['content']
-
-            # Show upload results
-            upload_results = result.get('upload_results', {})
-            if upload_results.get('uploaded'):
-                print(f"✓ Uploaded {len(upload_results['uploaded'])} image(s)")
-            if upload_results.get('errors'):
-                for hash_val, error in upload_results['errors']:
-                    print(f"⚠️  Failed to upload {hash_val[:8]}: {error}", file=sys.stderr)
-        else:
-            # Just process without uploading
-            result = processor.process(
-                comment_text,
-                format_markdown=True,
-                process_mermaid=not skip_mermaid,
-                convert_mermaid_to_images=not skip_mermaid
-            )
-            comment_text = result['content']
-
-            # Inform about unuploaded images
-            if result.get('unuploaded_images'):
-                if task_id:
-                    print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Use --upload-images flag.")
-                else:
-                    print(f"ℹ️  {len(result['unuploaded_images'])} image(s) need uploading. Provide --task-id to upload.")
+    comment_text, processor, result = _process_comment_text(args, client, comment_text, task_id=task_id)
 
     try:
-        # Update the comment with rich text formatting
-        image_metadata = {}
-        attachment_ids = []
-
-        # If images were uploaded, get their metadata for inline embedding
-        if upload_images and task_id and result.get('image_metadata'):
-            image_metadata = result['image_metadata']
-            attachment_ids = result.get('attachment_ids', [])
-
-        if process_markdown and processor.markdown_formatter.contains_markdown(comment_text):
-            # Use rich text JSON format for markdown
-            comment_data = processor.markdown_formatter.to_json_format(
-                comment_text,
-                image_metadata=image_metadata,
-                attachment_ids=attachment_ids
-            )
-
+        comment_data = _build_comment_data(args, processor, comment_text, result)
+        if comment_data is not None:
             updated = comments_api.update(args.comment_id, comment_data=comment_data)
         else:
-            # Plain text
             updated = comments_api.update(args.comment_id, comment_text=comment_text)
 
-        # Show success message
-        success_msg = ANSIAnimations.success_message("Comment updated")
-        print(success_msg)
-
-        # Format and display the updated comment
-        formatted = format_comment(updated, detail_level="summary")
-        print(f"\n{formatted}")
-
+        print(ANSIAnimations.success_message("Comment updated"))
+        _print_comment_summary(updated)
     except Exception as e:
         print(f"Error updating comment: {e}", file=sys.stderr)
         sys.exit(1)
 
 
-def comment_delete_command(args):
+def _comment_delete_impl(args, use_color, client):
     """Delete a comment."""
     from clickup_framework.resources import CommentsAPI
 
-    context = get_context_manager()
-    client = ClickUpClient()
     comments_api = CommentsAPI(client)
 
-    # Confirmation prompt unless --force is specified
     if not args.force:
-        use_color = context.get_ansi_output()
         if use_color:
             prompt = colorize(f"Delete comment {args.comment_id}? (y/N): ", TextColor.BRIGHT_YELLOW)
         else:
@@ -576,16 +419,93 @@ def comment_delete_command(args):
             return
 
     try:
-        # Delete the comment
         comments_api.delete(args.comment_id)
-
-        # Show success message
-        success_msg = ANSIAnimations.success_message("Comment deleted")
-        print(success_msg)
-
+        print(ANSIAnimations.success_message("Comment deleted"))
     except Exception as e:
         print(f"Error deleting comment: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+class CommentCommandBase(BaseCommand):
+    """Shared BaseCommand wiring for comment commands."""
+
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Use module-local factories so existing tests can patch them."""
+        return ClickUpClient()
+
+
+class CommentAddCommand(CommentCommandBase):
+    """Add a comment to a task."""
+
+    def execute(self):
+        """Execute the comment_add command."""
+        return _comment_add_impl(self.args, self.context, self.client, self.use_color)
+
+
+class CommentReplyCommand(CommentCommandBase):
+    """Reply to a comment."""
+
+    def execute(self):
+        """Execute the comment_reply command."""
+        return _comment_reply_impl(self.args, self.client)
+
+
+class CommentListCommand(CommentCommandBase):
+    """List task comments."""
+
+    def execute(self):
+        """Execute the comment_list command."""
+        return _comment_list_impl(self.args, self.context, self.client, self.use_color)
+
+
+class CommentUpdateCommand(CommentCommandBase):
+    """Update an existing comment."""
+
+    def execute(self):
+        """Execute the comment_update command."""
+        return _comment_update_impl(self.args, self.client)
+
+
+class CommentDeleteCommand(CommentCommandBase):
+    """Delete a comment."""
+
+    def execute(self):
+        """Execute the comment_delete command."""
+        return _comment_delete_impl(self.args, self.use_color, self.client)
+
+
+def comment_add_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CommentAddCommand(args, command_name='comment_add')
+    command.execute()
+
+
+def comment_reply_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CommentReplyCommand(args, command_name='comment_reply')
+    command.execute()
+
+
+def comment_list_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CommentListCommand(args, command_name='comment_list')
+    command.execute()
+
+
+def comment_update_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CommentUpdateCommand(args, command_name='comment_update')
+    command.execute()
+
+
+def comment_delete_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CommentDeleteCommand(args, command_name='comment_delete')
+    command.execute()
 
 
 def register_command(subparsers):

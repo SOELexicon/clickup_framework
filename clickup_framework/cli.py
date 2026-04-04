@@ -22,12 +22,14 @@ import sys
 import os
 import re
 import logging
+import subprocess
 from collections import OrderedDict
-from typing import Dict, List, NoReturn, Optional, Tuple
+from typing import Dict, List, NoReturn, Optional, Sequence, Tuple
 from clickup_framework import get_context_manager, __version__
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.cli_error_handler import handle_cli_error
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.utils import create_format_options
 
 # Import command functions for backward compatibility with tests
@@ -551,6 +553,19 @@ DISPLAY_ALIAS_OVERRIDES = {
 
 HIDDEN_HELP_COMMANDS = {"h", "ls", "l"}
 
+ISSUE_REPORT_FLAGS = {
+    "--report-issue",
+    "--report-list",
+    "--report-details",
+    "--report-details-file",
+}
+ISSUE_REPORT_HELP_DESCRIPTION = (
+    "Create a linked ClickUp task instead of running the command. "
+    "Include the exact problem, expected behaviour, actual behaviour, "
+    "clear repro steps, and evidence such as task IDs, logs, screenshots, "
+    "or failing output."
+)
+
 
 def _should_use_help_colors() -> bool:
     """Enable help colors only when ANSI is enabled and stdout is interactive."""
@@ -661,6 +676,257 @@ def _format_command_label(
 def _get_command_category(root_command: str) -> str:
     """Map a root command name to a help category."""
     return ROOT_COMMAND_CATEGORIES.get(root_command, HELP_CATEGORY_FALLBACK)
+
+
+def _iter_unique_subparsers(
+    subparsers_action: argparse._SubParsersAction,
+) -> List[Tuple[str, argparse.ArgumentParser]]:
+    """Return unique subparsers in insertion order, skipping alias duplicates."""
+    unique = []
+    seen = set()
+
+    for name, subparser in subparsers_action._name_parser_map.items():
+        parser_id = id(subparser)
+        if parser_id in seen:
+            continue
+        seen.add(parser_id)
+        unique.append((name, subparser))
+
+    return unique
+
+
+def _add_issue_reporting_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    root_command: str,
+    command_path: str,
+) -> None:
+    """Add shared issue-reporting arguments to an executable command parser."""
+    if getattr(parser, "_issue_reporting_enabled", False):
+        return
+
+    issue_group = parser.add_argument_group(
+        "Issue Reporting",
+        ISSUE_REPORT_HELP_DESCRIPTION,
+    )
+    issue_group.add_argument(
+        "--report-issue",
+        metavar="TITLE",
+        help="Create a ClickUp issue/feature task with this title instead of executing the command.",
+    )
+    issue_group.add_argument(
+        "--report-list",
+        metavar="LIST_ID",
+        help="Destination ClickUp list ID (for example Bug Fixes or Features). Required with --report-issue.",
+    )
+    details_group = issue_group.add_mutually_exclusive_group()
+    details_group.add_argument(
+        "--report-details",
+        metavar="TEXT",
+        help="Detailed report body. Include expected vs actual behaviour, repro steps, and evidence.",
+    )
+    details_group.add_argument(
+        "--report-details-file",
+        metavar="PATH",
+        help="Read the detailed report body from a UTF-8 text file.",
+    )
+
+    parser.set_defaults(
+        _report_root_command=root_command,
+        _report_command_path=command_path,
+        _report_parser=parser,
+    )
+    parser._issue_reporting_enabled = True
+
+
+def _enable_issue_reporting(
+    parser: argparse.ArgumentParser,
+    *,
+    root_command: Optional[str] = None,
+    command_path: Optional[str] = None,
+) -> None:
+    """Traverse command parsers and add issue-reporting args to subcommands."""
+    if root_command is not None:
+        resolved_root = root_command or parser.prog.split()[-1]
+        resolved_path = command_path or resolved_root
+        _add_issue_reporting_arguments(
+            parser,
+            root_command=resolved_root,
+            command_path=resolved_path,
+        )
+
+    subparsers_action = _find_subparsers_action(parser)
+    if subparsers_action is None:
+        return
+
+    for name, subparser in _iter_unique_subparsers(subparsers_action):
+        next_root = root_command or name
+        next_path = name if not command_path else f"{command_path} {name}"
+        _enable_issue_reporting(
+            subparser,
+            root_command=next_root,
+            command_path=next_path,
+        )
+
+
+def _strip_issue_report_tokens(argv_tokens: Sequence[str]) -> List[str]:
+    """Remove issue-report flags from a command line token list."""
+    cleaned = []
+    skip_next = False
+
+    for token in argv_tokens:
+        if skip_next:
+            skip_next = False
+            continue
+
+        flag_name = token.split("=", 1)[0]
+        if flag_name in ISSUE_REPORT_FLAGS:
+            if "=" not in token:
+                skip_next = True
+            continue
+
+        cleaned.append(token)
+
+    return cleaned
+
+
+def _validate_issue_report_args(args) -> None:
+    """Validate conditional issue-report arguments after parsing."""
+    issue_title = getattr(args, "report_issue", None)
+    report_list = getattr(args, "report_list", None)
+    report_details = getattr(args, "report_details", None)
+    report_details_file = getattr(args, "report_details_file", None)
+    parser = getattr(args, "_report_parser", None)
+
+    if parser is None:
+        return
+
+    if not issue_title and (report_list or report_details or report_details_file):
+        parser.error(
+            "--report-list, --report-details, and --report-details-file require --report-issue."
+        )
+
+    if issue_title:
+        if not report_list:
+            parser.error("--report-list is required when using --report-issue.")
+        if not report_details and not report_details_file:
+            parser.error(
+                "Provide --report-details or --report-details-file when using --report-issue."
+            )
+
+
+def _handle_issue_report(args, argv_tokens: Sequence[str]) -> None:
+    """Create a linked ClickUp issue report instead of running the command."""
+    command_tokens = _strip_issue_report_tokens(argv_tokens)
+    command_line = "cum"
+    if command_tokens:
+        command_line = f"cum {subprocess.list2cmdline(list(command_tokens))}"
+
+    result = BaseCommand.create_command_issue_report(
+        report_title=args.report_issue,
+        report_list_id=args.report_list,
+        report_details=getattr(args, "report_details", None),
+        report_details_file=getattr(args, "report_details_file", None),
+        root_command=getattr(args, "_report_root_command", getattr(args, "command", None)),
+        command_path=getattr(args, "_report_command_path", getattr(args, "command", None)),
+        command_line=command_line,
+        cwd=os.getcwd(),
+    )
+
+    created_task = result["task"]
+    print(ANSIAnimations.success_message(f"Issue task created: {created_task['name']}"))
+    print(f"\nTask ID: {colorize(created_task['id'], TextColor.BRIGHT_GREEN)}")
+    if created_task.get("url"):
+        print(f"URL: {created_task['url']}")
+
+    linked_command_task = result.get("linked_command_task")
+    if linked_command_task and result.get("link_created"):
+        print(
+            f"Linked CLI command task: {linked_command_task['name']} "
+            f"[{linked_command_task['id']}]"
+        )
+    elif linked_command_task and result.get("link_error"):
+        print(
+            ANSIAnimations.warning_message(
+                "Issue task created, but linking to the CLI command task failed."
+            )
+        )
+        print(f"Link target: {linked_command_task['name']} [{linked_command_task['id']}]")
+        print(f"Link error: {result['link_error']}")
+    else:
+        print(
+            ANSIAnimations.warning_message(
+                "Issue task created, but no matching CLI command task was found in the CLI Commands list."
+            )
+        )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the root CLI argument parser."""
+    parser = ImprovedArgumentParser(
+        description='ClickUp Framework CLI - Beautiful hierarchical task displays',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Show hierarchy view
+  cum list <list_id>
+  cum hierarchy <list_id>
+
+  # Show all workspace tasks
+  cum list --all
+  cum hierarchy --all
+
+  # Show container view
+  cum clist <list_id>
+
+  # Show task details
+  cum detail <task_id> <list_id>
+
+  # Filter tasks
+  cum filter <list_id> --status "in progress"
+
+  # Show with custom options
+  cum list <list_id> --show-ids --show-descriptions
+
+  # Use preset formats
+  cum list <list_id> --preset detailed
+
+  # Report a command issue to ClickUp
+  cum detail current --report-issue "Detail view truncates linked tasks" --report-list 901517404276 --report-details-file repro.md
+
+  # Demo mode (no API required)
+  cum demo --mode hierarchy
+        """
+    )
+
+    parser.add_argument(
+        '--version', '-v',
+        action='version',
+        version=f'ClickUp Framework CLI (cum) version {__version__}'
+    )
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+
+    from clickup_framework.commands import register_all_commands
+
+    register_all_commands(subparsers)
+    _enable_issue_reporting(parser)
+    return parser
+
+
+def _configure_utf8_console_streams() -> None:
+    """Configure stdout/stderr for UTF-8 when the active stream supports it."""
+    import io
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name)
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+            continue
+
+        if hasattr(stream, "buffer"):
+            wrapped = io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
+            setattr(sys, stream_name, wrapped)
 
 
 def _walk_leaf_commands(
@@ -961,64 +1227,12 @@ def _display_examples_and_footer(use_color):
 
 def main():
     """Main CLI entry point."""
-    # Configure stdout and stderr to use UTF-8 encoding on Windows
-    # This prevents UnicodeEncodeError when using Unicode characters (✓, ├─, └─, │, etc.)
-    import io
+    # Configure stdout and stderr to use UTF-8 encoding on Windows.
+    # This prevents UnicodeEncodeError when using Unicode characters
+    # (✓, ├─, └─, │, etc.) without breaking redirected test streams.
+    _configure_utf8_console_streams()
 
-    if hasattr(sys.stdout, 'reconfigure'):
-        # Python 3.7+: Use reconfigure method
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    elif hasattr(sys.stdout, 'buffer'):
-        # Fallback for older Python versions (only if buffer exists)
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
-    parser = ImprovedArgumentParser(
-        description='ClickUp Framework CLI - Beautiful hierarchical task displays',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Show hierarchy view
-  cum list <list_id>
-  cum hierarchy <list_id>
-
-  # Show all workspace tasks
-  cum list --all
-  cum hierarchy --all
-
-  # Show container view
-  cum clist <list_id>
-
-  # Show task details
-  cum detail <task_id> <list_id>
-
-  # Filter tasks
-  cum filter <list_id> --status "in progress"
-
-  # Show with custom options
-  cum list <list_id> --show-ids --show-descriptions
-
-  # Use preset formats
-  cum list <list_id> --preset detailed
-
-  # Demo mode (no API required)
-  cum demo --mode hierarchy
-        """
-    )
-
-    # Add version flag
-    parser.add_argument(
-        '--version', '-v',
-        action='version',
-        version=f'ClickUp Framework CLI (cum) version {__version__}'
-    )
-
-    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
-
-    # Automatically discover and register all commands from the commands/ directory
-    from clickup_framework.commands import register_all_commands
-    register_all_commands(subparsers)
+    parser = build_parser()
 
     # Enable tab completion if argcomplete is available
     if ARGCOMPLETE_AVAILABLE:
@@ -1036,6 +1250,17 @@ Examples:
     if not args.command:
         show_command_tree()
         sys.exit(0)
+
+    _validate_issue_report_args(args)
+    if getattr(args, 'report_issue', None):
+        try:
+            _handle_issue_report(args, sys.argv[1:])
+            sys.exit(0)
+        except Exception as e:
+            if os.getenv('DEBUG'):
+                raise
+            handle_cli_error(e, getattr(args, '_report_root_command', args.command))
+            sys.exit(1)
 
     # Execute command
     try:

@@ -11,6 +11,8 @@ This base class provides common functionality that all commands need:
 """
 
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Optional, Dict, Any
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
@@ -50,8 +52,8 @@ class BaseCommand:
             command_name: Optional name of the command (auto-detected if not provided)
         """
         self.args = args
-        self.context = get_context_manager()
-        self.client = ClickUpClient()
+        self.context = self._get_context_manager()
+        self.client = self._create_client()
         self.command_name = command_name or self._detect_command_name()
         self.command_metadata: Optional[Dict[str, Any]] = None
         
@@ -66,6 +68,14 @@ class BaseCommand:
             self.format_options = create_format_options(args)
         else:
             self.format_options = None
+
+    def _get_context_manager(self):
+        """Return the active context manager instance."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Create the ClickUp client used by this command."""
+        return ClickUpClient()
     
     def _detect_command_name(self) -> str:
         """Detect command name from args or class name."""
@@ -213,6 +223,201 @@ class BaseCommand:
             return self.context.resolve_id('task', 'current')
         except ValueError:
             return None
+
+    # ==================== Issue Reporting Helpers ====================
+
+    CLI_COMMANDS_LIST_ID = "901517567020"
+
+    @staticmethod
+    def _read_report_details(
+        details: Optional[str] = None,
+        details_file: Optional[str] = None,
+    ) -> str:
+        """Read issue report details from inline text or a UTF-8 file."""
+        if details and details.strip():
+            return details.strip()
+
+        if not details_file:
+            raise ValueError(
+                "Provide --report-details or --report-details-file when using --report-issue."
+            )
+
+        path = Path(details_file)
+        if not path.exists():
+            raise ValueError(f"Report details file not found: {details_file}")
+        if not path.is_file():
+            raise ValueError(f"Report details path is not a file: {details_file}")
+
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"Report details file is not valid UTF-8 text: {details_file}"
+            ) from exc
+        except OSError as exc:
+            raise ValueError(
+                f"Could not read report details file {details_file}: {exc}"
+            ) from exc
+
+        if not content:
+            raise ValueError(f"Report details file is empty: {details_file}")
+
+        return content
+
+    @classmethod
+    def get_catalog_task_name(cls, root_command: str) -> str:
+        """Return the command-sync task name for a root CLI command."""
+        from clickup_framework.commands.command_sync import (
+            get_command_category,
+            get_task_name,
+        )
+
+        category = get_command_category(root_command)
+        return get_task_name(root_command, category)
+
+    @classmethod
+    def find_catalog_task(
+        cls,
+        client: ClickUpClient,
+        root_command: str,
+        cli_commands_list_id: str = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Find the related CLI Commands catalog task for a root command."""
+        cli_commands_list_id = cli_commands_list_id or cls.CLI_COMMANDS_LIST_ID
+        task_name = cls.get_catalog_task_name(root_command)
+        result = client.get_list_tasks(cli_commands_list_id, include_closed=True)
+        fallback_suffix = f") CUM {root_command}"
+
+        for task in result.get("tasks", []):
+            if task.get("name") == task_name:
+                return task
+
+        for task in result.get("tasks", []):
+            task_name_value = task.get("name", "")
+            if task_name_value.endswith(fallback_suffix):
+                return task
+
+        return None
+
+    @staticmethod
+    def build_issue_report_description(
+        details: str,
+        root_command: str,
+        command_path: Optional[str] = None,
+        command_line: Optional[str] = None,
+        cwd: Optional[str] = None,
+    ) -> str:
+        """Build a consistent markdown description for a command issue report."""
+        timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+        reported_path = command_path or root_command
+        lines = [
+            "# Command Issue Report",
+            "",
+            "## Command Context",
+            f"- Root command: `{root_command}`",
+            f"- Invoked command path: `{reported_path}`",
+            f"- Reported at: `{timestamp}`",
+        ]
+
+        if command_line:
+            lines.append(f"- Repro command: `{command_line}`")
+        if cwd:
+            lines.append(f"- Working directory: `{cwd}`")
+
+        lines.extend(
+            [
+                "",
+                "## Details",
+                details.strip(),
+                "",
+                "## Evidence Checklist",
+                "- Expected behaviour",
+                "- Actual behaviour",
+                "- Clear repro steps",
+                "- Relevant IDs, filters, or input values",
+                "- Logs, stack traces, screenshots, or failing output where available",
+            ]
+        )
+        return "\n".join(lines)
+
+    @classmethod
+    def create_command_issue_report(
+        cls,
+        report_title: str,
+        report_list_id: str,
+        *,
+        report_details: Optional[str] = None,
+        report_details_file: Optional[str] = None,
+        root_command: Optional[str] = None,
+        command_path: Optional[str] = None,
+        command_line: Optional[str] = None,
+        cwd: Optional[str] = None,
+        client: Optional[ClickUpClient] = None,
+        context=None,
+        cli_commands_list_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create a linked ClickUp issue report for a command.
+
+        Returns:
+            Dictionary containing the created task plus link status metadata.
+        """
+        if not report_title or not report_title.strip():
+            raise ValueError("Issue title cannot be empty.")
+        if not report_list_id or not report_list_id.strip():
+            raise ValueError("--report-list is required when using --report-issue.")
+        if not root_command:
+            raise ValueError("Could not determine the command to link this report to.")
+
+        context = context or get_context_manager()
+        client = client or ClickUpClient()
+        cli_commands_list_id = cli_commands_list_id or cls.CLI_COMMANDS_LIST_ID
+
+        details = cls._read_report_details(report_details, report_details_file)
+        resolved_list_id = context.resolve_id("list", report_list_id)
+
+        # Validate the destination list early so the user gets a direct error.
+        client.get_list(resolved_list_id)
+
+        task_data = {
+            "name": report_title.strip(),
+            "markdown_description": cls.build_issue_report_description(
+                details=details,
+                root_command=root_command,
+                command_path=command_path,
+                command_line=command_line,
+                cwd=cwd,
+            ),
+        }
+
+        default_assignee = context.get_default_assignee()
+        if default_assignee:
+            task_data["assignees"] = [{"id": default_assignee}]
+
+        created_task = client.create_task(resolved_list_id, **task_data)
+
+        linked_command_task = cls.find_catalog_task(
+            client,
+            root_command=root_command,
+            cli_commands_list_id=cli_commands_list_id,
+        )
+
+        link_created = False
+        link_error = None
+        if linked_command_task:
+            try:
+                client.add_task_link(created_task["id"], linked_command_task["id"])
+                link_created = True
+            except Exception as exc:
+                link_error = str(exc)
+
+        return {
+            "task": created_task,
+            "resolved_list_id": resolved_list_id,
+            "linked_command_task": linked_command_task,
+            "link_created": link_created,
+            "link_error": link_error,
+        }
     
     # ==================== Command Execution ====================
     

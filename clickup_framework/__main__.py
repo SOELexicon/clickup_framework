@@ -7,6 +7,13 @@ This allows the package to be run as:
 
 import sys
 import io
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"urllib3 .* doesn't match a supported version!",
+    category=Warning,
+)
 
 # Configure stdout and stderr to use UTF-8 encoding on Windows
 # This prevents UnicodeEncodeError when using Unicode characters (✓, ├─, └─, │, etc.)

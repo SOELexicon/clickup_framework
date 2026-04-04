@@ -12,6 +12,7 @@ from pathlib import Path
 from collections import defaultdict
 from typing import Optional, Dict, List, Set, Union
 from clickup_framework import get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 
 # Import map helper modules
@@ -44,11 +45,8 @@ COMMAND_METADATA = {
     ]
 }
 
-def map_command(args):
+def _map_command_impl(args, use_color):
     """Generate code map using ctags."""
-    context = get_context_manager()
-    use_color = context.get_ansi_output()
-
     # Handle installation request
     if args.install:
         if use_color:
@@ -383,6 +381,28 @@ def map_command(args):
     if export_success and output_path:
         print(f"  - {output_path} (Image export)")
     print()
+
+
+class MapCommand(BaseCommand):
+    """Generate code maps and optional mermaid exports."""
+
+    def _get_context_manager(self):
+        """Use the module-local context factory for compatibility."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Map generation is local-only and does not need the ClickUp client."""
+        return None
+
+    def execute(self):
+        """Execute the map command."""
+        return _map_command_impl(self.args, self.use_color)
+
+
+def map_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = MapCommand(args, command_name='map')
+    command.execute()
 
 
 def register_command(subparsers):

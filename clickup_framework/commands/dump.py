@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.cli_error_handler import handle_cli_error
 
@@ -300,109 +301,98 @@ def dump_doc_to_markdown(client: ClickUpClient, workspace_id: str, doc_id: str,
         handle_cli_error(e, {'command': 'dump doc', 'workspace_id': workspace_id, 'doc_id': doc_id})
 
 
-def dump_command(args):
-    """Main dump command handler."""
-    context = get_context_manager()
-    client = ClickUpClient()
+class DumpCommand(BaseCommand):
+    """Dump ClickUp resources to files or console."""
 
-    # Determine resource type
-    resource_type = args.resource_type
+    def _get_context_manager(self):
+        """Use module-local factories so tests can patch them if needed."""
+        return get_context_manager()
 
-    # Handle output format
-    output_format = args.format if hasattr(args, 'format') else 'markdown'
-    output_dir = Path(args.output_dir if hasattr(args, 'output_dir') and args.output_dir else './dump')
+    def _create_client(self):
+        """Use module-local factories so tests can patch them if needed."""
+        return ClickUpClient()
 
-    try:
-        if resource_type == 'list':
-            # Resolve list ID
-            list_id = context.resolve_id('list', args.resource_id)
-
-            if output_format == 'json':
-                data = dump_list_to_json(client, list_id)
-                if hasattr(args, 'output_dir') and args.output_dir:
-                    output_file = output_dir / f"list_{list_id}.json"
-                    output_dir.mkdir(parents=True, exist_ok=True)
-                    output_file.write_text(json.dumps(data, indent=2), encoding='utf-8')
-                    print(f"✓ Saved to: {output_file}")
-                else:
-                    print(json.dumps(data, indent=2))
-
-            elif output_format == 'console':
-                data = dump_list_to_json(client, list_id)
-                print(f"\n📋 List: {data['list']['name']}")
-                print(f"   Tasks: {data['task_count']}")
-                print("\nTasks:")
-                for task in data['tasks']:
-                    status = task['status']['status']
-                    print(f"  • [{status}] {task['name']} ({task['id']})")
-
-            else:  # markdown (default)
-                dump_list_to_markdown(client, list_id, output_dir)
-
-        elif resource_type == 'task':
-            # Resolve task ID
-            task_id = context.resolve_id('task', args.resource_id)
-
-            if output_format == 'json':
-                data = dump_task_to_json(client, task_id)
-                if hasattr(args, 'output_dir') and args.output_dir:
-                    output_file = output_dir / f"task_{task_id}.json"
-                    output_dir.mkdir(parents=True, exist_ok=True)
-                    output_file.write_text(json.dumps(data, indent=2), encoding='utf-8')
-                    print(f"✓ Saved to: {output_file}")
-                else:
-                    print(json.dumps(data, indent=2))
-
-            elif output_format == 'console':
-                task = dump_task_to_json(client, task_id)
-                print(f"\n📋 Task: {task['name']}")
-                print(f"   ID: {task['id']}")
-                print(f"   Status: {task['status']['status']}")
-                if task.get('description'):
-                    print(f"\n{task['description']}")
-
-            else:  # markdown (default)
-                dump_task_to_markdown(client, task_id, output_dir, recursive=True)
-
-        elif resource_type == 'doc':
-            # Need workspace_id and doc_id
-            if not hasattr(args, 'doc_id'):
-                print("Error: doc requires both workspace_id and doc_id", file=sys.stderr)
-                print("Usage: cum dump doc <workspace_id> <doc_id>", file=sys.stderr)
-                sys.exit(1)
-
-            workspace_id = context.resolve_id('workspace', args.resource_id)
-            doc_id = args.doc_id
-
-            if output_format == 'json':
-                data = client.get_doc(workspace_id, doc_id)
-                if hasattr(args, 'output_dir') and args.output_dir:
-                    output_file = output_dir / f"doc_{doc_id}.json"
-                    output_dir.mkdir(parents=True, exist_ok=True)
-                    output_file.write_text(json.dumps(data, indent=2), encoding='utf-8')
-                    print(f"✓ Saved to: {output_file}")
-                else:
-                    print(json.dumps(data, indent=2))
-
-            elif output_format == 'console':
-                doc = client.get_doc(workspace_id, doc_id)
-                print(f"\n📄 Doc: {doc.get('name', 'Unnamed')}")
-                print(f"   ID: {doc_id}")
-                if doc.get('pages'):
-                    print(f"   Pages: {len(doc['pages'])}")
-
-            else:  # markdown (default)
-                dump_doc_to_markdown(client, workspace_id, doc_id, output_dir)
-
+    def _write_json_or_print(self, filename: str, data: Dict[str, Any], output_dir: Path) -> None:
+        """Write JSON to disk when an output dir is supplied, otherwise print it."""
+        if hasattr(self.args, 'output_dir') and self.args.output_dir:
+            output_file = output_dir / filename
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_file.write_text(json.dumps(data, indent=2), encoding='utf-8')
+            self.print(f"✓ Saved to: {output_file}")
         else:
-            print(f"Error: Unknown resource type '{resource_type}'", file=sys.stderr)
-            print("Supported types: list, task, doc", file=sys.stderr)
-            sys.exit(1)
+            self.print(json.dumps(data, indent=2))
 
-    except Exception as e:
-        if os.getenv('DEBUG'):
-            raise
-        handle_cli_error(e)
+    def execute(self):
+        """Main dump command handler."""
+        resource_type = self.args.resource_type
+        output_format = self.args.format if hasattr(self.args, 'format') else 'markdown'
+        output_dir = Path(self.args.output_dir if hasattr(self.args, 'output_dir') and self.args.output_dir else './dump')
+
+        try:
+            if resource_type == 'list':
+                list_id = self.resolve_id('list', self.args.resource_id)
+
+                if output_format == 'json':
+                    data = dump_list_to_json(self.client, list_id)
+                    self._write_json_or_print(f"list_{list_id}.json", data, output_dir)
+                elif output_format == 'console':
+                    data = dump_list_to_json(self.client, list_id)
+                    self.print(f"\n📋 List: {data['list']['name']}")
+                    self.print(f"   Tasks: {data['task_count']}")
+                    self.print("\nTasks:")
+                    for task in data['tasks']:
+                        status = task['status']['status']
+                        self.print(f"  • [{status}] {task['name']} ({task['id']})")
+                else:
+                    dump_list_to_markdown(self.client, list_id, output_dir)
+
+            elif resource_type == 'task':
+                task_id = self.resolve_id('task', self.args.resource_id)
+
+                if output_format == 'json':
+                    data = dump_task_to_json(self.client, task_id)
+                    self._write_json_or_print(f"task_{task_id}.json", data, output_dir)
+                elif output_format == 'console':
+                    task = dump_task_to_json(self.client, task_id)
+                    self.print(f"\n📋 Task: {task['name']}")
+                    self.print(f"   ID: {task['id']}")
+                    self.print(f"   Status: {task['status']['status']}")
+                    if task.get('description'):
+                        self.print(f"\n{task['description']}")
+                else:
+                    dump_task_to_markdown(self.client, task_id, output_dir, recursive=True)
+
+            elif resource_type == 'doc':
+                if not hasattr(self.args, 'doc_id'):
+                    self.error("doc requires both workspace_id and doc_id\nUsage: cum dump doc <workspace_id> <doc_id>")
+
+                workspace_id = self.resolve_id('workspace', self.args.resource_id)
+                doc_id = self.args.doc_id
+
+                if output_format == 'json':
+                    data = self.client.get_doc(workspace_id, doc_id)
+                    self._write_json_or_print(f"doc_{doc_id}.json", data, output_dir)
+                elif output_format == 'console':
+                    doc = self.client.get_doc(workspace_id, doc_id)
+                    self.print(f"\n📄 Doc: {doc.get('name', 'Unnamed')}")
+                    self.print(f"   ID: {doc_id}")
+                    if doc.get('pages'):
+                        self.print(f"   Pages: {len(doc['pages'])}")
+                else:
+                    dump_doc_to_markdown(self.client, workspace_id, doc_id, output_dir)
+            else:
+                self.error(f"Unknown resource type '{resource_type}'\nSupported types: list, task, doc")
+
+        except Exception as e:
+            if os.getenv('DEBUG'):
+                raise
+            handle_cli_error(e)
+
+
+def dump_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = DumpCommand(args, command_name='dump')
+    command.execute()
 
 
 def register_command(subparsers):

@@ -4,6 +4,7 @@ import sys
 import logging
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.utils import create_format_options, add_common_args
 
 logger = logging.getLogger(__name__)
@@ -40,77 +41,66 @@ def _fetch_all_pages(fetch_func, **params):
     return all_tasks
 
 
-def detail_command(args):
+class DetailCommand(BaseCommand):
     """Display comprehensive details of a single task with relationships."""
-    context = get_context_manager()
-    client = ClickUpClient()
-    display = DisplayManager(client)
 
-    # Resolve "current" to actual task ID
-    try:
-        task_id = context.resolve_id('task', args.task_id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
 
-    # Get the specific task with all related data
-    # The get_task endpoint includes: status, priority, tags, assignees, dates,
-    # checklists, attachments, custom fields, dependencies, linked tasks, and more
-    task = client.get_task(task_id, include_subtasks=True)
+    def _create_client(self):
+        """Use module-local factories so existing tests can patch them."""
+        return ClickUpClient()
 
-    # Get all tasks from the list for comprehensive relationship context
-    # This provides full details for subtasks, siblings, and related tasks
-    # If list_id not provided, extract it from the task
-    if args.list_id:
-        try:
-            list_id = context.resolve_id('list', args.list_id)
-        except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # Extract list ID from the task object
-        list_data = task.get('list')
-        if list_data:
-            list_id = list_data.get('id') if isinstance(list_data, dict) else list_data
+    def execute(self):
+        """Execute the detail command."""
+        display = DisplayManager(self.client)
+        task_id = self.resolve_id('task', self.args.task_id)
+
+        # The get_task endpoint includes the full task payload used by the detail view.
+        task = self.client.get_task(task_id, include_subtasks=True)
+
+        # If list_id not provided, extract it from the task object for relationship context.
+        if self.args.list_id:
+            list_id = self.resolve_id('list', self.args.list_id)
         else:
-            list_id = None
+            list_data = task.get('list')
+            if list_data:
+                list_id = list_data.get('id') if isinstance(list_data, dict) else list_data
+            else:
+                list_id = None
 
-    # Fetch all tasks from the list if we have a list ID
-    # This ensures we have full subtask details for hierarchical display
-    # ClickUp API quirk: Need to fetch root tasks and subtasks separately, then merge
-    if list_id:
-        try:
-            # Fetch root tasks (without subtasks parameter)
-            root_tasks = _fetch_all_pages(
-                lambda **p: client.get_list_tasks(list_id, **p),
-                include_closed=True
-            )
+        # ClickUp API quirk: fetch root tasks and subtasks separately, then merge.
+        if list_id:
+            try:
+                root_tasks = _fetch_all_pages(
+                    lambda **p: self.client.get_list_tasks(list_id, **p),
+                    include_closed=True
+                )
+                subtask_list = _fetch_all_pages(
+                    lambda **p: self.client.get_list_tasks(list_id, **p),
+                    subtasks='true',
+                    include_closed=True
+                )
 
-            # Fetch subtasks (with subtasks='true' parameter)
-            subtask_list = _fetch_all_pages(
-                lambda **p: client.get_list_tasks(list_id, **p),
-                subtasks='true',
-                include_closed=True
-            )
-
-            # Merge both lists and deduplicate by task ID
-            task_map = {}
-            for t in root_tasks + subtask_list:
-                task_map[t['id']] = t
-            all_tasks = list(task_map.values())
-
-        except Exception as e:
-            # If we can't fetch list tasks, just show task without relationships
-            print(f"Warning: Could not fetch list tasks: {e}", file=sys.stderr)
+                task_map = {}
+                for item in root_tasks + subtask_list:
+                    task_map[item['id']] = item
+                all_tasks = list(task_map.values())
+            except Exception as e:
+                print(f"Warning: Could not fetch list tasks: {e}", file=sys.stderr)
+                all_tasks = None
+        else:
             all_tasks = None
-    else:
-        all_tasks = None
 
-    options = create_format_options(args)
+        output = display.detail_view(task, all_tasks, self.format_options or create_format_options(self.args))
+        self.print(output)
 
-    output = display.detail_view(task, all_tasks, options)
 
-    print(output)
+def detail_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = DetailCommand(args, command_name='detail')
+    command.execute()
 
 
 def register_command(subparsers):
