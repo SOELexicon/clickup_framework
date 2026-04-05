@@ -842,7 +842,6 @@ class UpdateCumCommand(BaseCommand):
                 else:
                     self.print("Update complete!")
 
-        import sys
         sys.exit(0 if failed_count == 0 else 1)
 
 
