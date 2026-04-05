@@ -11,6 +11,32 @@ from clickup_framework.utils.colors import TextColor, TextStyle, colorize
 logger = logging.getLogger(__name__)
 
 
+def expand_cli_tag_list(tag_args):
+    """
+    Expand argparse tag values that may contain comma-separated names.
+
+    Each CLI token is split on commas; whitespace around segments is stripped;
+    empty segments are dropped. Order is preserved across tokens.
+
+    Args:
+        tag_args: Sequence from ``nargs='+'`` tag options, or None.
+
+    Returns:
+        List of individual tag names.
+    """
+    if not tag_args:
+        return []
+    out = []
+    for raw in tag_args:
+        if raw is None:
+            continue
+        for part in str(raw).split(','):
+            t = part.strip()
+            if t:
+                out.append(t)
+    return out
+
+
 def get_list_statuses(client: ClickUpClient, list_id: str, use_color: bool = True) -> str:
     """
     Get and format available statuses for a list with caching.

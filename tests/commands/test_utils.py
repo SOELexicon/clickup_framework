@@ -8,7 +8,7 @@ import unittest
 import argparse
 from unittest.mock import patch, Mock
 
-from clickup_framework.commands.utils import create_format_options, add_common_args
+from clickup_framework.commands.utils import create_format_options, add_common_args, expand_cli_tag_list
 from clickup_framework.components import FormatOptions
 
 
@@ -471,6 +471,26 @@ class TestPresetChoices(unittest.TestCase):
         # Preset 4 is not valid (only 0-3)
         with self.assertRaises(SystemExit):
             subparser.parse_args(['-p', '4'])
+
+
+class TestExpandCliTagList(unittest.TestCase):
+    """Comma-separated tag tokens from the CLI are split into individual tags."""
+
+    def test_empty_and_none(self):
+        self.assertEqual(expand_cli_tag_list(None), [])
+        self.assertEqual(expand_cli_tag_list([]), [])
+
+    def test_separate_tokens_unchanged(self):
+        self.assertEqual(expand_cli_tag_list(['bug', 'finance']), ['bug', 'finance'])
+
+    def test_splits_commas_within_token(self):
+        self.assertEqual(expand_cli_tag_list(['bug, finance']), ['bug', 'finance'])
+
+    def test_mixed_tokens_and_commas(self):
+        self.assertEqual(expand_cli_tag_list(['a,b', 'c']), ['a', 'b', 'c'])
+
+    def test_drops_empty_segments(self):
+        self.assertEqual(expand_cli_tag_list(['a,,b', '  ']), ['a', 'b'])
 
 
 if __name__ == "__main__":

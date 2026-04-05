@@ -8,7 +8,7 @@ from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.diff import diff_strings
 from clickup_framework.exceptions import ClickUpAPIError
-from clickup_framework.commands.utils import read_text_from_file
+from clickup_framework.commands.utils import read_text_from_file, expand_cli_tag_list
 from clickup_framework.cli_error_handler import handle_cli_error
 from clickup_framework.utils.status_mapper import (
     map_status,
@@ -314,7 +314,7 @@ def _task_create_impl(args, context, client, use_color):
         task_data['priority'] = priority
 
     if args.tags:
-        task_data['tags'] = args.tags
+        task_data['tags'] = expand_cli_tag_list(args.tags)
 
     if args.assignees:
         task_data['assignees'] = [{'id': aid} for aid in args.assignees]
@@ -517,14 +517,16 @@ def _task_update_impl(args, context, client, use_color):
         # Get current task to append tags
         task = client.get_task(task_id)
         existing_tags = [tag['name'] for tag in task.get('tags', [])]
-        all_tags = list(set(existing_tags + args.add_tags))
+        to_add = expand_cli_tag_list(args.add_tags)
+        all_tags = list(set(existing_tags + to_add))
         updates['tags'] = all_tags
 
     if args.remove_tags:
         # Get current task to remove tags
         task = client.get_task(task_id)
         existing_tags = [tag['name'] for tag in task.get('tags', [])]
-        remaining_tags = [tag for tag in existing_tags if tag not in args.remove_tags]
+        to_remove = expand_cli_tag_list(args.remove_tags)
+        remaining_tags = [tag for tag in existing_tags if tag not in to_remove]
         updates['tags'] = remaining_tags
 
     if not updates:
@@ -1142,13 +1144,13 @@ def _task_set_tags_impl(args, context, client, use_color):
         )
 
     if args.add:
-        requested_tags = args.add
-        action = f"Added {len(args.add)} tag(s)"
+        requested_tags = expand_cli_tag_list(args.add)
+        action = f"Added {len(requested_tags)} tag(s)"
     elif args.remove:
-        requested_tags = args.remove
-        action = f"Removed {len(args.remove)} tag(s)"
+        requested_tags = expand_cli_tag_list(args.remove)
+        action = f"Removed {len(requested_tags)} tag(s)"
     elif args.set:
-        requested_tags = args.set
+        requested_tags = expand_cli_tag_list(args.set)
         action = "Set tags"
     else:
         print("Error: Use --add, --remove, or --set to modify tags", file=sys.stderr)

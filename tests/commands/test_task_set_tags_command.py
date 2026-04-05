@@ -93,6 +93,41 @@ class TestTaskSetTagsCommand(unittest.TestCase):
         self.assertIn("Failed: 1/2 tasks", stdout.getvalue())
         self.assertIn("Error setting tags for task-2: boom", stderr.getvalue())
 
+    @patch("clickup_framework.commands.task_commands.ClickUpClient")
+    @patch("clickup_framework.commands.task_commands.get_context_manager")
+    def test_task_set_tags_set_splits_comma_separated_values(
+        self,
+        mock_get_context_manager,
+        mock_client_cls,
+    ):
+        context = Mock()
+        context.resolve_id.side_effect = lambda resource_type, value: value
+        mock_get_context_manager.return_value = context
+
+        client = mock_client_cls.return_value
+        client.get_task.return_value = {
+            "id": "task-1",
+            "name": "Tagged Task",
+            "tags": [{"name": "old"}],
+        }
+        client.update_task.return_value = {"id": "task-1", "name": "Tagged Task"}
+
+        args = Namespace(
+            task_id=["task-1"],
+            add=None,
+            remove=None,
+            set=["bug, finance"],
+        )
+
+        stdout = io.StringIO()
+        with patch("sys.stdout", stdout):
+            task_set_tags_command(args)
+
+        client.update_task.assert_called_once_with(
+            "task-1",
+            tags=["bug", "finance"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

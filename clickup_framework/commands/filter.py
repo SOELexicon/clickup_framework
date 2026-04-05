@@ -2,7 +2,12 @@
 
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args
+from clickup_framework.commands.utils import (
+    create_format_options,
+    get_list_statuses,
+    add_common_args,
+    expand_cli_tag_list,
+)
 
 
 class FilterCommand(BaseCommand):
@@ -37,11 +42,14 @@ class FilterCommand(BaseCommand):
             self.print(status_line)
             self.print()  # Empty line for spacing
 
+        raw_tags = self.args.tags if hasattr(self.args, 'tags') else None
+        tag_filter = expand_cli_tag_list(raw_tags) if raw_tags else None
+
         output = display.filtered_view(
             tasks,
             status=self.args.status if hasattr(self.args, 'status') else None,
             priority=self.args.priority if hasattr(self.args, 'priority') else None,
-            tags=self.args.tags if hasattr(self.args, 'tags') else None,
+            tags=tag_filter,
             assignee_id=self.args.assignee if hasattr(self.args, 'assignee') else None,
             include_completed=self.args.include_completed if hasattr(self.args, 'include_completed') else False,
             options=options,
