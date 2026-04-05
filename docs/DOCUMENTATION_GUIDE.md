@@ -128,6 +128,7 @@ docs/
 │   ├── VIEW_COMMANDS.md
 │   ├── TASK_COMMANDS.md
 │   └── ...
+├── LESSONS_LEARNED.md      # Reusable implementation lessons from real issues
 ├── api/                    # API reference (auto-generated)
 │   ├── client.md
 │   ├── cli.md

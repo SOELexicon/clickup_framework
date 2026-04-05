@@ -59,6 +59,8 @@ CLI_COMMAND_CATEGORIES = {
     "page_list": "ClickUp Doc",
     "page_create": "ClickUp Doc",
     "page_update": "ClickUp Doc",
+    # Time Tracking Commands
+    "time": "ClickUp Time",
     # Workspace Hierarchy Commands
     "space": "ClickUp Space",
     "folder": "ClickUp Folder",
@@ -77,7 +79,10 @@ CLI_COMMAND_CATEGORIES = {
     # Utility Commands
     "ansi": "Utility",
     "demo": "Utility",
+    "diagram-diff": "Utility",
     "dump": "Utility",
+    "map": "Utility",
+    "stalker": "Utility",
     "update": "Utility",
     # Automation Commands
     "parent_auto_update": "ClickUp Automation",
@@ -107,6 +112,7 @@ CLI_COMMAND_TASK_IDS = {
     "comment_update": "86c6hvqaj",
     "custom-field": "86c6hvqbw",
     "demo": "86c6hvqc1",
+    "diagram-diff": "86c96jn29",
     "detail": "86c6hvqat",
     "diff": "86c6j3c1n",
     "dlist": "86c6hvwqa",
@@ -125,6 +131,7 @@ CLI_COMMAND_TASK_IDS = {
     "jizz": "86c6j3c49",
     "list-mgmt": "86c6hvqbq",
     "list_mgmt": "86c6hvwqt",
+    "map": "86c96jjuq",
     "overflow": "86c6hvq9y",
     "page_create": "86c6hvqbg",
     "page_list": "86c6hvqbf",
@@ -138,6 +145,8 @@ CLI_COMMAND_TASK_IDS = {
     "space": "86c6hvqbm",
     "stash": "86c6hvq9w",
     "stats": "86c6hvqax",
+    "stalker": "86c96gv55",
+    "time": "86c96j1nk",
     "suck": "86c6hvq9t",
     "task_add_dependency": "86c6hvqa9",
     "task_add_link": "86c6hvqad",

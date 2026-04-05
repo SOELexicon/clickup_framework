@@ -21,7 +21,9 @@ Usage:
             # Add nodes, edges, etc.
 """
 
+import base64
 import sys
+import zlib
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -52,6 +54,9 @@ class BaseGenerator(ABC):
         lines: List of diagram lines being built
         stats: Statistics dictionary from parsing
     """
+
+    LIVE_EDITOR_BASE_URL = "https://mermaid.live/edit#pako:"
+    LIVE_EDITOR_THEMES = {"default", "dark", "forest", "neutral"}
 
     def __init__(
         self,
@@ -474,6 +479,44 @@ class BaseGenerator(ABC):
             print(f"[INFO] Profile saved to: {profile_file}", file=sys.stderr)
         except Exception as e:
             print(f"[WARNING] Could not save profile report: {e}", file=sys.stderr)
+
+    @classmethod
+    def normalize_live_editor_theme(cls, theme: Optional[str]) -> str:
+        """Map framework themes to Mermaid Live Editor supported themes."""
+        normalized = (theme or "default").strip().lower()
+        if normalized == "light":
+            return "default"
+        if normalized in cls.LIVE_EDITOR_THEMES:
+            return normalized
+        return "default"
+
+    @classmethod
+    def create_live_editor_url(cls, mermaid_content: str, theme: Optional[str] = None) -> str:
+        """Create a Mermaid Live Editor share URL from Mermaid source text."""
+        if not mermaid_content or not mermaid_content.strip():
+            raise ValueError("Mermaid content is required to generate a live editor URL.")
+
+        live_editor_theme = cls.normalize_live_editor_theme(theme)
+        state = {
+            "code": mermaid_content,
+            "mermaid": json.dumps({"theme": live_editor_theme}, indent=2),
+            "updateEditor": True,
+            "autoSync": True,
+            "updateDiagram": True,
+        }
+        payload = json.dumps(state, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        encoded = base64.urlsafe_b64encode(zlib.compress(payload)).decode("ascii").rstrip("=")
+        return f"{cls.LIVE_EDITOR_BASE_URL}{encoded}"
+
+    def generate_live_editor_url(self, theme: Optional[str] = None) -> str:
+        """Create a Mermaid Live Editor URL for the generated diagram."""
+        mermaid_content = self._extract_mermaid_content()
+        if not mermaid_content:
+            raise ValueError("No mermaid content to export. Call generate() first.")
+        return self.create_live_editor_url(
+            mermaid_content,
+            theme=theme or self.theme_manager.current_theme,
+        )
 
     def export_html(self, html_file: Optional[str] = None, use_color: bool = False) -> bool:
         """Export diagram to interactive HTML with pan, zoom, and search.

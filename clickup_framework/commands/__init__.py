@@ -104,9 +104,11 @@ def collect_command_metadata():
         "🏷️  Custom Fields",
         "🤖 Parent Task Automation",
         "📄 Docs Management",
+        "⏱️  Time Tracking",
         "📦 Export/Dump",
         "🏗️  Workspace Hierarchy",
         "🔄 Git Workflow",
+        "📊 Diagram Management",
         "🛠️  Utility Commands",
         "🎨 Configuration",
     ]

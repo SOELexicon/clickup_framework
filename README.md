@@ -324,6 +324,18 @@ cum st <list_id>
 - `comment_update` / `cu` - Update comment
 - `comment_delete` / `cd` - Delete comment
 
+*Time Tracking:*
+- `time` - Start, stop, inspect, list, add, and delete ClickUp time entries
+
+*Diagram Management:*
+- `map` - Generate code maps and Mermaid diagrams from source
+- `mermaid` - Process markdown files and render Mermaid diagrams
+- `diagram-diff` - Compare two Mermaid diagrams and summarize structural changes
+
+*Utility Commands:*
+- `diff` - Compare two files or inline text
+- `stalker` - Launch the ProcMon-backed file system stalker in a new PowerShell window
+
 *Checklists:*
 - `checklist` / `chk` - Manage checklists and checklist items
 
@@ -356,6 +368,7 @@ See `./clickup <command> --help` for command-specific options.
 ### Documentation & Guides
 
 - **[Task Workflow Guide](docs/TASK_WORKFLOW_GUIDE.md)** - Comprehensive guide on managing tasks from start to finish, including when to update statuses, leave comments, and handle subtasks
+- **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Reusable implementation lessons from real CLI, API, and workflow failures
 - **[API Command Reference](CLICKUP.md)** - Complete CLI command reference with examples
 
 ## Quick Start

@@ -52,6 +52,62 @@ class ListCreateCommand(BaseCommand):
             self.error(f"Error creating list: {e}")
 
 
+class ListCreateFromTemplateCommand(BaseCommand):
+    """Create a list from a ClickUp list template."""
+
+    def execute(self):
+        """Execute the list create-from-template command."""
+        list_data = {"name": self.args.name}
+        if self.args.content:
+            list_data['content'] = self.args.content
+        if self.args.due_date:
+            list_data['due_date'] = self.args.due_date
+        if self.args.priority:
+            priority_map = {'urgent': 1, 'high': 2, 'normal': 3, 'low': 4}
+            if self.args.priority.lower() in priority_map:
+                list_data['priority'] = priority_map[self.args.priority.lower()]
+            else:
+                list_data['priority'] = int(self.args.priority)
+        if self.args.assignee is not None:
+            list_data['assignee'] = self.args.assignee
+        if self.args.status:
+            list_data['status'] = self.args.status
+
+        try:
+            if self.args.folder_id:
+                container_id = self.resolve_id('folder', self.args.folder_id)
+                new_list = self.client.create_list_from_template_in_folder(
+                    container_id,
+                    self.args.template_id,
+                    **list_data,
+                )
+                container_label = "Folder"
+            else:
+                container_id = self.resolve_id('space', self.args.space_id)
+                new_list = self.client.create_list_from_template_in_space(
+                    container_id,
+                    self.args.template_id,
+                    **list_data,
+                )
+                container_label = "Space"
+
+            success_msg = ANSIAnimations.success_message(f"List created from template: {self.args.name}")
+            self.print(f"\n{success_msg}")
+            self.print(f"List ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}")
+
+            if self.args.verbose:
+                self.print(f"{container_label} ID: {container_id}")
+                self.print(f"Template ID: {self.args.template_id}")
+                if len(list_data) > 1:
+                    self.print("\nProperties set:")
+                    for key, value in list_data.items():
+                        if key != "name":
+                            self.print(f"  {key}: {value}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error creating list from template: {e}")
+
+
 class ListUpdateCommand(BaseCommand):
     """Update a list."""
 
@@ -182,6 +238,12 @@ def list_update_command(args):
     command.execute()
 
 
+def list_create_from_template_command(args):
+    """Command wrapper for list create-from-template."""
+    command = ListCreateFromTemplateCommand(args, command_name='list-mgmt')
+    command.execute()
+
+
 def list_delete_command(args):
     """Command wrapper for list delete."""
     command = ListDeleteCommand(args, command_name='list-mgmt')
@@ -227,6 +289,25 @@ def register_command(subparsers):
     create_parser.add_argument('--status', help='Initial status')
     create_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
     create_parser.set_defaults(func=list_create_command)
+
+    # list create-from-template
+    create_template_parser = list_subparsers.add_parser(
+        'create-from-template',
+        help='Create a list from a list template',
+        description='Create a new list in a folder or space from a ClickUp list template'
+    )
+    container_group = create_template_parser.add_mutually_exclusive_group(required=True)
+    container_group.add_argument('--folder-id', help='Folder ID (or "current") to create the list in')
+    container_group.add_argument('--space-id', help='Space ID (or "current") to create the list in')
+    create_template_parser.add_argument('--template-id', required=True, help='List template ID to use')
+    create_template_parser.add_argument('--name', required=True, help='Name for the new list')
+    create_template_parser.add_argument('--content', help='List description')
+    create_template_parser.add_argument('--due-date', type=int, help='Due date (Unix timestamp in milliseconds)')
+    create_template_parser.add_argument('--priority', help='Priority (1-4 or urgent/high/normal/low)')
+    create_template_parser.add_argument('--assignee', type=int, help='User ID to assign the list to')
+    create_template_parser.add_argument('--status', help='Initial status')
+    create_template_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
+    create_template_parser.set_defaults(func=list_create_from_template_command)
 
     # list update
     update_parser = list_subparsers.add_parser(

@@ -51,9 +51,19 @@ class ListsAPI(BaseAPI):
 
     def create_list_from_template_in_folder(self, folder_id: str, template_id: str, **list_data) -> Dict[str, Any]:
         """Create a list from a template in a folder."""
-        return self._request("POST", f"folder/{folder_id}/list_template/{template_id}", json=list_data)
+        return self._request(
+            "POST",
+            f"folder/{folder_id}/list",
+            params={"template_id": template_id},
+            json=list_data,
+        )
 
     def create_list_from_template_in_space(self, space_id: str, template_id: str, **list_data) -> Dict[str, Any]:
         """Create a list from a template in a space."""
-        return self._request("POST", f"space/{space_id}/list_template/{template_id}", json=list_data)
+        return self._request(
+            "POST",
+            f"space/{space_id}/list",
+            params={"template_id": template_id},
+            json=list_data,
+        )
 

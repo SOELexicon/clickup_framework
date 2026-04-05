@@ -165,7 +165,7 @@ def execute_command_on_test_task(command: str, test_task_id: str) -> Tuple[str, 
     # Commands that can't be safely tested
     unsafe_commands = [
         "suck", "pull", "reauthor", "stash", "horde", "overflow",
-        "task_create", "task_delete", "update"
+        "stalker", "task_create", "task_delete", "update"
     ]
 
     try:

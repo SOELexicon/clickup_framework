@@ -10,6 +10,7 @@ from .datetime import (
     format_relative_time,
     parse_timestamp,
 )
+from .duration import parse_duration_to_ms
 from .text import (
     truncate,
     format_list,
@@ -37,6 +38,7 @@ __all__ = [
     "format_duration",
     "format_relative_time",
     "parse_timestamp",
+    "parse_duration_to_ms",
     # text
     "truncate",
     "format_list",

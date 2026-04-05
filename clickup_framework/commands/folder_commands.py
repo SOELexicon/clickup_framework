@@ -32,6 +32,32 @@ class FolderCreateCommand(BaseCommand):
             self.error(f"Error creating folder: {e}")
 
 
+class FolderCreateFromTemplateCommand(BaseCommand):
+    """Create a folder from a ClickUp folder template."""
+
+    def execute(self):
+        """Execute the folder create-from-template command."""
+        team_id = self.resolve_id('workspace', self.args.team_id)
+
+        try:
+            new_folder = self.client.create_folder_from_template(
+                team_id,
+                self.args.template_id,
+                name=self.args.name,
+            )
+
+            success_msg = ANSIAnimations.success_message(f"Folder created from template: {self.args.name}")
+            self.print(f"\n{success_msg}")
+            self.print(f"Folder ID: {colorize(new_folder['id'], TextColor.BRIGHT_GREEN)}")
+
+            if self.args.verbose:
+                self.print(f"Workspace ID: {team_id}")
+                self.print(f"Template ID: {self.args.template_id}")
+
+        except ClickUpAPIError as e:
+            self.error(f"Error creating folder from template: {e}")
+
+
 class FolderUpdateCommand(BaseCommand):
     """Update a folder."""
 
@@ -141,6 +167,12 @@ def folder_update_command(args):
     command.execute()
 
 
+def folder_create_from_template_command(args):
+    """Command wrapper for folder create-from-template."""
+    command = FolderCreateFromTemplateCommand(args, command_name='folder')
+    command.execute()
+
+
 def folder_delete_command(args):
     """Command wrapper for folder delete."""
     command = FolderDeleteCommand(args, command_name='folder')
@@ -182,6 +214,30 @@ def register_command(subparsers):
     create_parser.add_argument('name', help='Folder name')
     create_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
     create_parser.set_defaults(func=folder_create_command)
+
+    # folder create-from-template
+    template_parser = folder_subparsers.add_parser(
+        'create-from-template',
+        help='Create a folder from a folder template',
+        description='Create a new folder in a workspace from a ClickUp folder template'
+    )
+    template_parser.add_argument(
+        '--team-id',
+        required=True,
+        help='Workspace/team ID (or "current") where the folder should be created'
+    )
+    template_parser.add_argument(
+        '--template-id',
+        required=True,
+        help='Folder template ID to use'
+    )
+    template_parser.add_argument(
+        '--name',
+        required=True,
+        help='Name for the new folder'
+    )
+    template_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
+    template_parser.set_defaults(func=folder_create_from_template_command)
 
     # folder update
     update_parser = folder_subparsers.add_parser(

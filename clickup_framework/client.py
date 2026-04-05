@@ -493,9 +493,9 @@ class ClickUpClient:
         """Delete a folder."""
         return self.folders.delete_folder(folder_id)
 
-    def create_folder_from_template(self, space_id: str, template_id: str, **folder_data) -> Dict[str, Any]:
+    def create_folder_from_template(self, team_id: str, template_id: str, **folder_data) -> Dict[str, Any]:
         """Create a folder from a template."""
-        return self.folders.create_folder_from_template(space_id, template_id, **folder_data)
+        return self.folders.create_folder_from_template(team_id, template_id, **folder_data)
 
     # Space endpoints - Delegated to SpacesAPI
     def get_space(self, space_id: str) -> Dict[str, Any]:

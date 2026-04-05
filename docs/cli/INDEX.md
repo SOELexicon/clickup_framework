@@ -27,7 +27,10 @@ See [scripts/import_cli_docs.sh](../../scripts/import_cli_docs.sh) for more opti
 - [Task Management](#task-management) - Create, update, delete tasks
 - [Comment Management](#comment-management) - Manage task comments
 - [Docs Management](#docs-management) - Work with ClickUp Docs
+- [Time Tracking](#time-tracking) - Start, stop, and review time entries
+- [Diagram Management](#diagram-management) - Generate, render, and compare Mermaid diagrams
 - [Context Management](#context-management) - Set current workspace/list/task
+- [Utility Commands](#utility-commands) - Local helpers and diagnostics
 - [Configuration](#configuration) - Configure CLI settings
 - [Advanced Features](#advanced-features) - Checklists, custom fields, automation
 
@@ -90,6 +93,18 @@ See [scripts/import_cli_docs.sh](../../scripts/import_cli_docs.sh) for more opti
 | `pc` | `page_create` | Create page |
 | `pu` | `page_update` | Update page |
 
+### Time Tracking
+| Shortcode | Full Command | Description |
+|-----------|--------------|-------------|
+|  | `time` | Start, stop, inspect, list, add, and delete time entries |
+
+### Diagram Management
+| Shortcode | Full Command | Description |
+|-----------|--------------|-------------|
+|  | `map` | Generate code maps and Mermaid diagrams from source |
+|  | `mermaid` | Process markdown files and render Mermaid diagrams |
+|  | `diagram-diff` | Compare two Mermaid diagrams and summarize structural changes |
+
 ### Advanced Features
 | Shortcode | Full Command | Description |
 |-----------|--------------|-------------|
@@ -99,6 +114,12 @@ See [scripts/import_cli_docs.sh](../../scripts/import_cli_docs.sh) for more opti
 | `fld` `fd` | `folder` | Manage folders |
 | `lm` | `list-mgmt` `list_mgmt` | Manage lists |
 | `sp` `spc` | `space` | Manage spaces |
+
+### Utility Commands
+| Shortcode | Full Command | Description |
+|-----------|--------------|-------------|
+|  | `diff` | Compare files or inline text |
+|  | `stalker` | Launch the ProcMon-backed file system stalker |
 
 ---
 
@@ -140,12 +161,33 @@ Work with ClickUp Docs and pages.
 
 ---
 
+### Time Tracking
+Track active work and manage manual time entries.
+
+**Commands:** `time start` `time stop` `time status` `time list` `time add` `time delete`
+
+---
+
+### Diagram Management
+Generate, render, and compare Mermaid diagrams.
+
+**Commands:** `map` `mermaid` `diagram-diff`
+
+---
+
 ### Context Management
 Set and manage current workspace/list/task context.
 
 **Commands:** `set_current` `show_current` `clear_current`
 
 [Context Management Detail →](CONTEXT_COMMANDS.md)
+
+---
+
+### Utility Commands
+Local helpers that do not directly mutate ClickUp resources.
+
+**Commands:** `diff` `stalker`
 
 ---
 
@@ -193,6 +235,12 @@ cum tu <task_id> --status "in progress"
 
 # Add comment
 cum ca <task_id> "Great work!"
+
+# Show current timer
+cum time status
+
+# Preview the ProcMon stalker launch
+cum stalker . --dry-run
 
 # List docs
 cum dl <workspace_id>

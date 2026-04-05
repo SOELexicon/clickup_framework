@@ -30,7 +30,12 @@ class FoldersAPI(BaseAPI):
         """Delete a folder."""
         return self._request("DELETE", f"folder/{folder_id}")
 
-    def create_folder_from_template(self, space_id: str, template_id: str, **folder_data) -> Dict[str, Any]:
+    def create_folder_from_template(self, team_id: str, template_id: str, **folder_data) -> Dict[str, Any]:
         """Create a folder from a template."""
-        return self._request("POST", f"space/{space_id}/folder_template/{template_id}", json=folder_data)
+        return self._request(
+            "POST",
+            f"team/{team_id}/folder",
+            params={"template_id": template_id},
+            json=folder_data,
+        )
 

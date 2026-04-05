@@ -5,6 +5,7 @@ import os
 import json
 import re
 import subprocess
+import webbrowser
 import zipfile
 import urllib.request
 import shutil
@@ -13,7 +14,9 @@ from collections import defaultdict
 from typing import Optional, Dict, List, Set, Union
 from clickup_framework import get_context_manager
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.map_helpers.mermaid.generators import BaseGenerator
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.utils.argparse_helpers import raw_description_formatter
 
 # Import map helper modules
 from .map_helpers import (
@@ -39,14 +42,73 @@ COMMAND_METADATA = {
     "commands": [
         {
             "name": "map",
-            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output FILE] [--format FORMAT] [--install] [--ignore-gitignore]",
+            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output FILE] [--format FORMAT] [--html] [--live-editor] [--open] [--install] [--ignore-gitignore]",
             "description": "Generate code map using ctags, optionally export as mermaid diagram"
         },
     ]
 }
 
+
+def _extract_mermaid_code(markdown_content: str) -> str:
+    """Extract the first Mermaid code block from markdown content."""
+    match = re.search(r"```mermaid\r?\n(.*?)\n```", markdown_content, re.DOTALL)
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def _print_live_editor_link(live_editor_url: str, normalized_theme: str, requested_theme: str, use_color: bool) -> None:
+    """Print a Mermaid Live Editor URL with theme notes."""
+    if use_color:
+        print(colorize("[SUCCESS] Mermaid Live Editor:", TextColor.GREEN), end=" ")
+        print(colorize(live_editor_url, TextColor.BRIGHT_CYAN))
+    else:
+        print(f"[SUCCESS] Mermaid Live Editor: {live_editor_url}")
+
+    requested_normalized = (requested_theme or "default").strip().lower()
+    if requested_normalized != normalized_theme:
+        note = (
+            f"[INFO] Mermaid Live Editor theme limited to '{normalized_theme}' "
+            f"(requested framework theme: {requested_theme})"
+        )
+        if use_color:
+            print(colorize(note, TextColor.BRIGHT_YELLOW))
+        else:
+            print(note)
+
+
+def _open_live_editor(live_editor_url: str, use_color: bool) -> None:
+    """Best-effort browser open for the Mermaid Live Editor URL."""
+    try:
+        opened = webbrowser.open(live_editor_url)
+    except Exception as exc:
+        warning = f"[WARNING] Failed to open browser for Mermaid Live Editor: {exc}"
+        if use_color:
+            print(colorize(warning, TextColor.YELLOW), file=sys.stderr)
+        else:
+            print(warning, file=sys.stderr)
+        return
+
+    if not opened:
+        warning = "[WARNING] Browser did not report a successful open for the Mermaid Live Editor URL"
+        if use_color:
+            print(colorize(warning, TextColor.YELLOW), file=sys.stderr)
+        else:
+            print(warning, file=sys.stderr)
+
 def _map_command_impl(args, use_color):
     """Generate code map using ctags."""
+    if args.open_live_editor:
+        args.live_editor = True
+
+    if (args.live_editor or args.open_live_editor) and not args.mer:
+        error_msg = "ERROR: --live-editor and --open require --mer"
+        if use_color:
+            print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
+        sys.exit(1)
+
     # Handle installation request
     if args.install:
         if use_color:
@@ -245,6 +307,7 @@ def _map_command_impl(args, use_color):
     mermaid_file = None
     output_path = None
     export_success = False
+    live_editor_url = None
     if args.mer:
         # Validate theme before generating diagrams
         from .map_helpers.mermaid.styling import ThemeManager
@@ -363,6 +426,24 @@ def _map_command_impl(args, use_color):
                 if export_success:
                     print()
 
+        if args.live_editor and mermaid_file and mermaid_file.exists():
+            mermaid_markdown = mermaid_file.read_text(encoding='utf-8')
+            mermaid_code = _extract_mermaid_code(mermaid_markdown)
+            if not mermaid_code:
+                error_msg = f"ERROR: Could not extract Mermaid code from {mermaid_file}"
+                if use_color:
+                    print(colorize(error_msg, TextColor.RED), file=sys.stderr)
+                else:
+                    print(error_msg, file=sys.stderr)
+                sys.exit(1)
+
+            normalized_theme = BaseGenerator.normalize_live_editor_theme(args.theme)
+            live_editor_url = BaseGenerator.create_live_editor_url(mermaid_code, theme=args.theme)
+            _print_live_editor_link(live_editor_url, normalized_theme, args.theme, use_color)
+            if args.open_live_editor:
+                _open_live_editor(live_editor_url, use_color)
+            print()
+
     # Final summary
     if use_color:
         print(colorize("=" * 80, TextColor.BRIGHT_CYAN))
@@ -380,6 +461,8 @@ def _map_command_impl(args, use_color):
         print(f"  - {mermaid_file} (Mermaid diagram)")
     if export_success and output_path:
         print(f"  - {output_path} (Image export)")
+    if live_editor_url:
+        print(f"  - {live_editor_url} (Mermaid Live Editor)")
     print()
 
 
@@ -409,7 +492,15 @@ def register_command(subparsers):
     """Register the map command with the CLI parser."""
     parser = subparsers.add_parser(
         'map',
-        help='Generate code map using ctags'
+        help='Generate code map using ctags',
+        description='Generate a code map using universal ctags and optionally render Mermaid diagrams, interactive HTML, or Mermaid Live Editor links.',
+        formatter_class=raw_description_formatter(),
+        epilog='''Examples:
+  cum map --python
+  cum map --python --mer flowchart
+  cum map --python --mer flowchart --html --output docs/architecture.html
+  cum map --python --mer flowchart --live-editor
+  cum map --python --mer class --live-editor --open'''
     )
 
     # Language filter options (mutually exclusive)
@@ -472,6 +563,17 @@ def register_command(subparsers):
         '--html',
         action='store_true',
         help='Generate interactive HTML with zoom, pan, animations, and click handlers'
+    )
+    parser.add_argument(
+        '--live-editor',
+        action='store_true',
+        help='Generate a Mermaid Live Editor link for the generated diagram (requires --mer)'
+    )
+    parser.add_argument(
+        '--open',
+        dest='open_live_editor',
+        action='store_true',
+        help='Open the Mermaid Live Editor link in the default browser (requires --mer)'
     )
 
     # Execution trace option

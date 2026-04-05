@@ -25,6 +25,20 @@ Export any diagram type to interactive HTML:
 cum map --python --mer pie --html --output report.html
 ```
 
+### Mermaid Live Editor Links
+
+Generate a shareable Mermaid Live Editor URL without exporting HTML or images:
+
+```bash
+cum map --python --mer flowchart --live-editor
+cum map --python --mer class --live-editor --open
+```
+
+Notes:
+- `--live-editor` requires `--mer`
+- `--open` launches the generated link in your default browser
+- Custom framework themes are normalized to Mermaid Live Editor supported themes when needed
+
 ### With Theme Selection
 
 Choose dark or light theme:

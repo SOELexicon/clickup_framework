@@ -4,9 +4,12 @@ This module tests the template method pattern implementation and common
 functionality shared by all diagram generators.
 """
 
+import base64
+import json
 import pytest
 import tempfile
 import os
+import zlib
 from pathlib import Path
 from unittest.mock import Mock, patch, mock_open, MagicMock
 from clickup_framework.commands.map_helpers.mermaid.exceptions import DataValidationError, FileOperationError
@@ -225,6 +228,48 @@ class TestHeaderGeneration:
         generator2 = ConcreteGenerator(sample_stats, "my_custom_diagram.md")
         title = generator2._get_diagram_title()
         assert "Custom" in title or "My" in title
+
+
+class TestLiveEditorUrls:
+    """Test Mermaid Live Editor URL generation helpers."""
+
+    def test_create_live_editor_url_encodes_mermaid_state(self):
+        """Test live editor URLs contain a compressed editor state payload."""
+        mermaid_code = "graph TD\n    A --> B"
+
+        live_editor_url = BaseGenerator.create_live_editor_url(mermaid_code, theme="dark")
+
+        assert live_editor_url.startswith("https://mermaid.live/edit#pako:")
+
+        payload = live_editor_url.split("#pako:", 1)[1]
+        payload += "=" * (-len(payload) % 4)
+        state = json.loads(zlib.decompress(base64.urlsafe_b64decode(payload)))
+
+        assert state["code"] == mermaid_code
+        assert json.loads(state["mermaid"]) == {"theme": "dark"}
+        assert state["updateEditor"] is True
+        assert state["autoSync"] is True
+        assert state["updateDiagram"] is True
+
+    def test_generate_live_editor_url_uses_generated_mermaid_content(self, sample_stats, temp_output_file):
+        """Test instance live editor URL generation reads from the generated diagram block."""
+        generator = ConcreteGenerator(sample_stats, temp_output_file, theme="light")
+        generator.lines = [
+            "# Test Diagram",
+            "",
+            "```mermaid",
+            "graph TD",
+            "    A --> B",
+            "```",
+        ]
+
+        live_editor_url = generator.generate_live_editor_url()
+        payload = live_editor_url.split("#pako:", 1)[1]
+        payload += "=" * (-len(payload) % 4)
+        state = json.loads(zlib.decompress(base64.urlsafe_b64decode(payload)))
+
+        assert state["code"] == "graph TD\n    A --> B"
+        assert json.loads(state["mermaid"]) == {"theme": "default"}
 
 
 class TestFooterGeneration:
