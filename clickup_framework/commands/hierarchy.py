@@ -43,12 +43,13 @@ import sys
 import logging
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.components import DisplayManager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.utils import create_format_options, get_list_statuses, add_common_args, resolve_container_id
 
 logger = logging.getLogger(__name__)
 
 
-def hierarchy_command(args):
+def _hierarchy_impl(args, context, client, use_color):
     """
     Display tasks in hierarchical parent-child view with full pagination support.
 
@@ -104,8 +105,6 @@ def hierarchy_command(args):
         - Passes include_closed parameter through entire call chain
         - Uses DisplayManager for consistent formatting
     """
-    context = get_context_manager()
-    client = ClickUpClient()
     display = DisplayManager(client)
 
     # Check if --all flag is set
@@ -870,6 +869,28 @@ def _filter_task_and_descendants(all_tasks, root_task_id):
     result = []
     collect_descendants(root_task_id, result)
     return result
+
+
+class HierarchyCommand(BaseCommand):
+    """Display tasks in a hierarchical parent-child tree."""
+
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Use module-local factories so existing tests can patch them."""
+        return ClickUpClient()
+
+    def execute(self):
+        """Execute the hierarchy command."""
+        return _hierarchy_impl(self.args, self.context, self.client, self.use_color)
+
+
+def hierarchy_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = HierarchyCommand(args, command_name='hierarchy')
+    command.execute()
 
 
 def register_command(subparsers):

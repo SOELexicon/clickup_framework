@@ -2,9 +2,11 @@ import argparse
 import io
 import sys
 import unittest
+from argparse import Namespace
 from unittest.mock import Mock, patch
 
 from clickup_framework.commands import command_sync
+from clickup_framework.commands.base_command import BaseCommand
 
 
 def _make_command_parser(name: str, description: str) -> argparse.ArgumentParser:
@@ -14,6 +16,28 @@ def _make_command_parser(name: str, description: str) -> argparse.ArgumentParser
 
 
 class TestCommandSyncIntrospection(unittest.TestCase):
+    def test_command_sync_command_wraps_base_command_subclass(self):
+        self.assertTrue(issubclass(command_sync.CommandSyncCommand, BaseCommand))
+
+        args = Namespace(
+            list_missing=False,
+            list_id="901517567020",
+            test_task_id="86c6hvba1",
+            dry_run=True,
+            force=False,
+            colorize=None,
+        )
+
+        mock_context = Mock()
+        mock_context.get_ansi_output.return_value = False
+
+        with patch("clickup_framework.commands.command_sync.get_context_manager", return_value=mock_context):
+            with patch("clickup_framework.commands.command_sync.ClickUpClient", return_value=Mock()):
+                with patch.object(command_sync.CommandSyncCommand, "execute", return_value=None) as mock_execute:
+                    command_sync.command_sync_command(args)
+
+        mock_execute.assert_called_once()
+
     def test_discover_cli_commands_uses_registered_parsers(self):
         command_parsers = {
             "detail": _make_command_parser("detail", "Show detailed task output."),

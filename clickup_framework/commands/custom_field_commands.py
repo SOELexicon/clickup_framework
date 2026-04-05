@@ -3,6 +3,7 @@
 import sys
 from typing import Dict, Any, List, Tuple
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources.custom_fields import CustomFieldsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -242,10 +243,8 @@ def parse_field_value(field: Dict[str, Any], value_str: str) -> Any:
     return value_str
 
 
-def custom_field_set_command(args):
+def _custom_field_set_impl(args, context, client, use_color):
     """Set a custom field value on a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve task ID
     try:
@@ -285,10 +284,8 @@ def custom_field_set_command(args):
         sys.exit(1)
 
 
-def custom_field_get_command(args):
+def _custom_field_get_impl(args, context, client, use_color):
     """Get a custom field value from a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve task ID
     try:
@@ -326,10 +323,8 @@ def custom_field_get_command(args):
         sys.exit(1)
 
 
-def custom_field_list_command(args):
+def _custom_field_list_impl(args, context, client, use_color):
     """List custom fields."""
-    context = get_context_manager()
-    client = ClickUpClient()
     fields_api = CustomFieldsAPI(client)
 
     # Determine context and get fields
@@ -441,10 +436,8 @@ def _print_field_definitions(fields: List[Dict[str, Any]]):
             print()
 
 
-def custom_field_remove_command(args):
+def _custom_field_remove_impl(args, context, client, use_color):
     """Remove a custom field value from a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve task ID
     try:
@@ -490,6 +483,74 @@ def custom_field_remove_command(args):
     except ClickUpAPIError as e:
         print(f"Error removing custom field: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+class CustomFieldCommandBase(BaseCommand):
+    """Shared BaseCommand wiring for custom field commands."""
+
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Use module-local factories so existing tests can patch them."""
+        return ClickUpClient()
+
+
+class CustomFieldSetCommand(CustomFieldCommandBase):
+    """Set a custom field value on a task."""
+
+    def execute(self):
+        """Execute the custom_field_set command."""
+        return _custom_field_set_impl(self.args, self.context, self.client, self.use_color)
+
+
+class CustomFieldGetCommand(CustomFieldCommandBase):
+    """Get a custom field value from a task."""
+
+    def execute(self):
+        """Execute the custom_field_get command."""
+        return _custom_field_get_impl(self.args, self.context, self.client, self.use_color)
+
+
+class CustomFieldListCommand(CustomFieldCommandBase):
+    """List custom fields for a task, list, space, or workspace."""
+
+    def execute(self):
+        """Execute the custom_field_list command."""
+        return _custom_field_list_impl(self.args, self.context, self.client, self.use_color)
+
+
+class CustomFieldRemoveCommand(CustomFieldCommandBase):
+    """Remove a custom field value from a task."""
+
+    def execute(self):
+        """Execute the custom_field_remove command."""
+        return _custom_field_remove_impl(self.args, self.context, self.client, self.use_color)
+
+
+def custom_field_set_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CustomFieldSetCommand(args, command_name='custom_field_set')
+    command.execute()
+
+
+def custom_field_get_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CustomFieldGetCommand(args, command_name='custom_field_get')
+    command.execute()
+
+
+def custom_field_list_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CustomFieldListCommand(args, command_name='custom_field_list')
+    command.execute()
+
+
+def custom_field_remove_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = CustomFieldRemoveCommand(args, command_name='custom_field_remove')
+    command.execute()
 
 
 def register_command(subparsers):

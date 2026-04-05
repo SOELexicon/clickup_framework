@@ -22,6 +22,7 @@ from clickup_framework.automation.models import ParentUpdateResult
 from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
 from clickup_framework.parsers import ContentProcessor, ParserContext
 from clickup_framework.utils.argparse_helpers import raw_text_formatter
+from clickup_framework.commands.base_command import BaseCommand
 
 
 def display_automation_result(result: ParentUpdateResult):
@@ -192,10 +193,8 @@ def interactive_checklist_verification(task: dict, client) -> bool:
     return True
 
 
-def task_create_command(args):
+def _task_create_impl(args, context, client, use_color):
     """Create a new task."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # If parent task is provided, get list_id from parent
     if args.parent:
@@ -418,10 +417,8 @@ def task_create_command(args):
         handle_cli_error(e, error_context)
 
 
-def task_update_command(args):
+def _task_update_impl(args, context, client, use_color):
     """Update a task with specified fields."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task ID
     try:
@@ -592,10 +589,8 @@ def task_update_command(args):
         handle_cli_error(e, {'command': 'task_update', 'task_id': task_id, 'updates': updates})
 
 
-def task_delete_command(args):
+def _task_delete_impl(args, context, client, use_color):
     """Delete one or more tasks."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve all task IDs
     task_ids = []
@@ -655,10 +650,8 @@ def task_delete_command(args):
             sys.exit(1)
 
 
-def task_assign_command(args):
+def _task_assign_impl(args, context, client, use_color):
     """Assign users to a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task ID
     try:
@@ -686,10 +679,8 @@ def task_assign_command(args):
         handle_cli_error(e, {'command': 'task_assign', 'task_id': task_id, 'assignee_ids': args.assignee_ids})
 
 
-def task_unassign_command(args):
+def _task_unassign_impl(args, context, client, use_color):
     """Remove assignees from a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task ID
     try:
@@ -709,10 +700,8 @@ def task_unassign_command(args):
         handle_cli_error(e, {'command': 'task_unassign', 'task_id': task_id, 'assignee_ids': args.assignee_ids})
 
 
-def task_set_status_command(args):
+def _task_set_status_impl(args, context, client, use_color):
     """Set task status with subtask validation - supports multiple tasks."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Load automation configuration
     automation_config = load_automation_config()
@@ -943,16 +932,165 @@ def task_set_status_command(args):
         sys.exit(1)
 
 
-def task_set_priority_command(args):
-    """Set task priority."""
-    context = get_context_manager()
-    client = ClickUpClient()
+class TaskCommandBase(BaseCommand):
+    """Shared BaseCommand wiring for task management commands."""
 
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Use module-local factories so existing tests can patch them."""
+        return ClickUpClient()
+
+
+class TaskCreateCommand(TaskCommandBase):
+    """Create a task with description processing and checklist support."""
+
+    def execute(self):
+        """Execute the task_create command."""
+        return _task_create_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskUpdateCommand(TaskCommandBase):
+    """Update task fields including description, status, priority, and tags."""
+
+    def execute(self):
+        """Execute the task_update command."""
+        return _task_update_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskDeleteCommand(TaskCommandBase):
+    """Delete one or more tasks with confirmation and summary output."""
+
+    def execute(self):
+        """Execute the task_delete command."""
+        return _task_delete_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskAssignCommand(TaskCommandBase):
+    """Assign one or more users to a task."""
+
+    def execute(self):
+        """Execute the task_assign command."""
+        return _task_assign_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskUnassignCommand(TaskCommandBase):
+    """Remove one or more users from a task."""
+
+    def execute(self):
+        """Execute the task_unassign command."""
+        return _task_unassign_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskSetStatusCommand(TaskCommandBase):
+    """Update task status with checklist and parent-automation handling."""
+
+    def execute(self):
+        """Execute the task_set_status command."""
+        return _task_set_status_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskAddDependencyCommand(TaskCommandBase):
+    """Add a dependency relationship between tasks."""
+
+    def execute(self):
+        """Execute the task_add_dependency command."""
+        return _task_add_dependency_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskRemoveDependencyCommand(TaskCommandBase):
+    """Remove a dependency relationship between tasks."""
+
+    def execute(self):
+        """Execute the task_remove_dependency command."""
+        return _task_remove_dependency_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskAddLinkCommand(TaskCommandBase):
+    """Create one or more bidirectional task links."""
+
+    def execute(self):
+        """Execute the task_add_link command."""
+        return _task_add_link_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskRemoveLinkCommand(TaskCommandBase):
+    """Remove a bidirectional task link."""
+
+    def execute(self):
+        """Execute the task_remove_link command."""
+        return _task_remove_link_impl(self.args, self.context, self.client, self.use_color)
+
+
+def task_assign_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskAssignCommand(args, command_name='task_assign')
+    command.execute()
+
+
+def task_create_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskCreateCommand(args, command_name='task_create')
+    command.execute()
+
+
+def task_update_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskUpdateCommand(args, command_name='task_update')
+    command.execute()
+
+
+def task_delete_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskDeleteCommand(args, command_name='task_delete')
+    command.execute()
+
+
+def task_unassign_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskUnassignCommand(args, command_name='task_unassign')
+    command.execute()
+
+
+def task_set_status_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskSetStatusCommand(args, command_name='task_set_status')
+    command.execute()
+
+
+def task_add_dependency_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskAddDependencyCommand(args, command_name='task_add_dependency')
+    command.execute()
+
+
+def task_remove_dependency_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskRemoveDependencyCommand(args, command_name='task_remove_dependency')
+    command.execute()
+
+
+def task_add_link_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskAddLinkCommand(args, command_name='task_add_link')
+    command.execute()
+
+
+def task_remove_link_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskRemoveLinkCommand(args, command_name='task_remove_link')
+    command.execute()
+
+
+def _task_set_priority_impl(args, context, client, use_color):
+    """Set task priority."""
     # Resolve "current" to actual task ID
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(e, {'command': 'task_update', 'provided_task_id': args.task_id})
 
     # Map priority names to numbers if needed
     priority_map = {
@@ -986,56 +1124,111 @@ def task_set_priority_command(args):
         sys.exit(1)
 
 
-def task_set_tags_command(args):
+def _task_set_tags_impl(args, context, client, use_color):
     """Set/manage task tags."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
-    # Resolve "current" to actual task ID
+    raw_task_ids = args.task_id if isinstance(args.task_id, list) else [args.task_id]
+
+    # Resolve "current" to actual task IDs
     try:
-        task_id = context.resolve_id('task', args.task_id)
+        task_ids = [context.resolve_id('task', task_id) for task_id in raw_task_ids]
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(
+            e,
+            {
+                'command': args.func.__name__.replace('_command', ''),
+                'provided_task_id': ', '.join(raw_task_ids),
+            }
+        )
 
-    # Get current task
-    try:
-        task = client.get_task(task_id)
-        existing_tags = [tag['name'] for tag in task.get('tags', [])]
+    if args.add:
+        requested_tags = args.add
+        action = f"Added {len(args.add)} tag(s)"
+    elif args.remove:
+        requested_tags = args.remove
+        action = f"Removed {len(args.remove)} tag(s)"
+    elif args.set:
+        requested_tags = args.set
+        action = "Set tags"
+    else:
+        print("Error: Use --add, --remove, or --set to modify tags", file=sys.stderr)
+        sys.exit(1)
 
-        new_tags = existing_tags.copy()
+    success_count = 0
+    failed = []
 
-        # Handle different tag operations
-        if args.add:
-            new_tags.extend(args.add)
-            new_tags = list(set(new_tags))  # Remove duplicates
-            action = f"Added {len(args.add)} tag(s)"
-        elif args.remove:
-            new_tags = [t for t in new_tags if t not in args.remove]
-            action = f"Removed {len(args.remove)} tag(s)"
-        elif args.set:
-            new_tags = args.set
-            action = "Set tags"
-        else:
-            print("Error: Use --add, --remove, or --set to modify tags", file=sys.stderr)
-            sys.exit(1)
+    for task_id in task_ids:
+        try:
+            task = client.get_task(task_id)
+            existing_tags = [
+                tag['name'] if isinstance(tag, dict) else tag
+                for tag in task.get('tags', [])
+            ]
 
-        # Update task with new tags
-        updated_task = client.update_task(task_id, tags=new_tags)
+            if args.add:
+                # Preserve original order while de-duplicating newly added tags.
+                new_tags = list(dict.fromkeys(existing_tags + requested_tags))
+            elif args.remove:
+                new_tags = [tag for tag in existing_tags if tag not in requested_tags]
+            else:
+                new_tags = list(dict.fromkeys(requested_tags))
 
-        success_msg = ANSIAnimations.success_message(action)
-        print(success_msg)
-        print(f"\nTask: {updated_task['name']}")
-        print(f"Tags: {colorize(', '.join(new_tags) if new_tags else '(none)', TextColor.BRIGHT_MAGENTA)}")
+            updated_task = client.update_task(task_id, tags=new_tags)
 
-    except Exception as e:
-        print(f"Error setting tags: {e}", file=sys.stderr)
+            success_msg = ANSIAnimations.success_message(action)
+            print(success_msg)
+            print(f"\nTask: {updated_task['name']} [{task_id}]")
+            print(f"Tags: {colorize(', '.join(new_tags) if new_tags else '(none)', TextColor.BRIGHT_MAGENTA)}")
+
+            if len(task_ids) > 1:
+                print()
+
+            success_count += 1
+        except Exception as e:
+            failed.append((task_id, str(e)))
+
+    if len(task_ids) > 1:
+        print(f"{colorize('Summary:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+        print(f"  Updated: {success_count}/{len(task_ids)} tasks")
+        if failed:
+            print(f"  Failed: {len(failed)}/{len(task_ids)} tasks")
+
+    if failed:
+        for task_id, error in failed:
+            print(f"Error setting tags for {task_id}: {error}", file=sys.stderr)
         sys.exit(1)
 
 
-def task_add_dependency_command(args):
+class TaskSetPriorityCommand(TaskCommandBase):
+    """Set task priority using BaseCommand wiring."""
+
+    def execute(self):
+        """Execute the task_set_priority command."""
+        return _task_set_priority_impl(self.args, self.context, self.client, self.use_color)
+
+
+class TaskSetTagsCommand(TaskCommandBase):
+    """Set, add, or remove tags on one or more tasks."""
+
+    def execute(self):
+        """Execute the task_set_tags command."""
+        return _task_set_tags_impl(self.args, self.context, self.client, self.use_color)
+
+
+def task_set_priority_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskSetPriorityCommand(args, command_name='task_set_priority')
+    command.execute()
+
+
+def task_set_tags_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskSetTagsCommand(args, command_name='task_set_tags')
+    command.execute()
+
+
+def _task_add_dependency_impl(args, context, client, use_color):
     """Add a dependency relationship between tasks."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task ID
     try:
@@ -1078,10 +1271,8 @@ def task_add_dependency_command(args):
     print(success_msg)
 
 
-def task_remove_dependency_command(args):
+def _task_remove_dependency_impl(args, context, client, use_color):
     """Remove a dependency relationship between tasks."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task ID
     try:
@@ -1124,10 +1315,8 @@ def task_remove_dependency_command(args):
     print(success_msg)
 
 
-def task_add_link_command(args):
+def _task_add_link_impl(args, context, client, use_color):
     """Link two tasks together. Supports multiple task IDs as CSV string."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task IDs
     try:
@@ -1199,10 +1388,8 @@ def task_add_link_command(args):
         sys.exit(1)
 
 
-def task_remove_link_command(args):
+def _task_remove_link_impl(args, context, client, use_color):
     """Remove a link between two tasks."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve "current" to actual task IDs
     try:
@@ -1227,10 +1414,8 @@ def task_remove_link_command(args):
         sys.exit(1)
 
 
-def task_move_command(args):
+def _task_move_impl(args, context, client, use_color):
     """Move one or more tasks to a different list or parent."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Validate that at least one destination is provided
     if not args.list_id and not args.parent:
@@ -1367,6 +1552,20 @@ def task_move_command(args):
         if failed_count > 0:
             print(f"  Failed: {failed_count}/{len(tasks_to_move)} tasks")
             sys.exit(1)
+
+
+class TaskMoveCommand(TaskCommandBase):
+    """Move tasks between lists and/or parents using BaseCommand wiring."""
+
+    def execute(self):
+        """Execute the task_move command."""
+        return _task_move_impl(self.args, self.context, self.client, self.use_color)
+
+
+def task_move_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskMoveCommand(args, command_name='task_move')
+    command.execute()
 
 
 def register_command(subparsers):
@@ -1544,12 +1743,13 @@ def register_command(subparsers):
         description='Add, remove, or replace tags on a task for better organization and filtering.',
         epilog='''Tips:
   • Add tags: cum tst current --add bug frontend
+  • Add tags to multiple tasks: cum tst 86abc123 86def456 --add backend api
   • Remove tags: cum tst current --remove old-tag
   • Replace all tags: cum tst current --set feature v2.0
   • View current tags: cum d <task_id>
   • Use tags for filtering: cum filter <list_id> --tags bug'''
     )
-    task_set_tags_parser.add_argument('task_id', help='Task ID (or "current")')
+    task_set_tags_parser.add_argument('task_id', nargs='+', help='Task ID(s) (or "current")')
     task_set_tags_group = task_set_tags_parser.add_mutually_exclusive_group(required=True)
     task_set_tags_group.add_argument('--add', nargs='+', help='Tags to add')
     task_set_tags_group.add_argument('--remove', nargs='+', help='Tags to remove')

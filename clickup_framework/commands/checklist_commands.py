@@ -3,6 +3,7 @@
 import sys
 import json
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources.tasks import TasksAPI
 from clickup_framework.resources.checklist_template_manager import ChecklistTemplateManager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
@@ -161,10 +162,8 @@ def _resolve_item_id(task_id: str, checklist_id: str, item_id_or_index: str) -> 
     return uuid
 
 
-def checklist_create_command(args):
+def _checklist_create_impl(args, context, client, use_color):
     """Create a new checklist on a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
     tasks_api = TasksAPI(client)
     mapping_manager = get_mapping_manager()
 
@@ -198,10 +197,8 @@ def checklist_create_command(args):
         sys.exit(1)
 
 
-def checklist_delete_command(args):
+def _checklist_delete_impl(args, context, client, use_color):
     """Delete a checklist."""
-    context = get_context_manager()
-    client = ClickUpClient()
     mapping_manager = get_mapping_manager()
 
     # Resolve checklist ID (with optional task ID for index resolution)
@@ -246,10 +243,8 @@ def checklist_delete_command(args):
         sys.exit(1)
 
 
-def checklist_update_command(args):
+def _checklist_update_impl(args, context, client, use_color):
     """Update a checklist."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve checklist ID (with optional task ID for index resolution)
     checklist_id = args.checklist_id
@@ -293,10 +288,8 @@ def checklist_update_command(args):
         sys.exit(1)
 
 
-def checklist_item_add_command(args):
+def _checklist_item_add_impl(args, context, client, use_color):
     """Add an item to a checklist."""
-    context = get_context_manager()
-    client = ClickUpClient()
     tasks_api = TasksAPI(client)
     mapping_manager = get_mapping_manager()
 
@@ -366,10 +359,8 @@ def checklist_item_add_command(args):
         sys.exit(1)
 
 
-def checklist_item_update_command(args):
+def _checklist_item_update_impl(args, context, client, use_color):
     """Update a checklist item."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve checklist ID and item ID (with optional task ID for index resolution)
     checklist_id = args.checklist_id
@@ -424,10 +415,8 @@ def checklist_item_update_command(args):
         sys.exit(1)
 
 
-def checklist_item_delete_command(args):
+def _checklist_item_delete_impl(args, context, client, use_color):
     """Delete a checklist item."""
-    context = get_context_manager()
-    client = ClickUpClient()
     mapping_manager = get_mapping_manager()
 
     # Resolve checklist ID and item ID (with optional task ID for index resolution)
@@ -475,10 +464,8 @@ def checklist_item_delete_command(args):
         sys.exit(1)
 
 
-def checklist_list_command(args):
+def _checklist_list_impl(args, context, client, use_color):
     """List checklists on a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
     mapping_manager = get_mapping_manager()
 
     # Resolve task ID
@@ -585,7 +572,7 @@ def checklist_list_command(args):
         sys.exit(1)
 
 
-def checklist_template_list_command(args):
+def _checklist_template_list_impl(args, context, client, use_color):
     """List available checklist templates."""
     template_manager = ChecklistTemplateManager()
 
@@ -618,7 +605,7 @@ def checklist_template_list_command(args):
         sys.exit(1)
 
 
-def checklist_template_show_command(args):
+def _checklist_template_show_impl(args, context, client, use_color):
     """Show details of a checklist template."""
     template_manager = ChecklistTemplateManager()
 
@@ -656,10 +643,8 @@ def checklist_template_show_command(args):
         sys.exit(1)
 
 
-def checklist_template_apply_command(args):
+def _checklist_template_apply_impl(args, context, client, use_color):
     """Apply a checklist template to a task."""
-    context = get_context_manager()
-    client = ClickUpClient()
     template_manager = ChecklistTemplateManager()
 
     # Resolve task ID
@@ -699,10 +684,8 @@ def checklist_template_apply_command(args):
         sys.exit(1)
 
 
-def checklist_clone_command(args):
+def _checklist_clone_impl(args, context, client, use_color):
     """Clone checklists from one task to another."""
-    context = get_context_manager()
-    client = ClickUpClient()
 
     # Resolve task IDs
     try:
@@ -762,6 +745,172 @@ def checklist_clone_command(args):
     except ClickUpAPIError as e:
         print(f"Error cloning checklists: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+class ChecklistCommandBase(BaseCommand):
+    """Shared BaseCommand wiring for checklist commands."""
+
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """Use module-local factories so existing tests can patch them."""
+        return ClickUpClient()
+
+
+class ChecklistCreateCommand(ChecklistCommandBase):
+    """Create a checklist on a task."""
+
+    def execute(self):
+        """Execute the checklist create command."""
+        return _checklist_create_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistDeleteCommand(ChecklistCommandBase):
+    """Delete a checklist and its items."""
+
+    def execute(self):
+        """Execute the checklist delete command."""
+        return _checklist_delete_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistUpdateCommand(ChecklistCommandBase):
+    """Update checklist properties."""
+
+    def execute(self):
+        """Execute the checklist update command."""
+        return _checklist_update_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistItemAddCommand(ChecklistCommandBase):
+    """Add an item to a checklist."""
+
+    def execute(self):
+        """Execute the checklist item-add command."""
+        return _checklist_item_add_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistItemUpdateCommand(ChecklistCommandBase):
+    """Update a checklist item."""
+
+    def execute(self):
+        """Execute the checklist item-update command."""
+        return _checklist_item_update_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistItemDeleteCommand(ChecklistCommandBase):
+    """Delete a checklist item."""
+
+    def execute(self):
+        """Execute the checklist item-delete command."""
+        return _checklist_item_delete_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistListCommand(ChecklistCommandBase):
+    """List checklists on a task."""
+
+    def execute(self):
+        """Execute the checklist list command."""
+        return _checklist_list_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistTemplateListCommand(ChecklistCommandBase):
+    """List available checklist templates."""
+
+    def execute(self):
+        """Execute the checklist template list command."""
+        return _checklist_template_list_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistTemplateShowCommand(ChecklistCommandBase):
+    """Show checklist template details."""
+
+    def execute(self):
+        """Execute the checklist template show command."""
+        return _checklist_template_show_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistTemplateApplyCommand(ChecklistCommandBase):
+    """Apply a checklist template to a task."""
+
+    def execute(self):
+        """Execute the checklist template apply command."""
+        return _checklist_template_apply_impl(self.args, self.context, self.client, self.use_color)
+
+
+class ChecklistCloneCommand(ChecklistCommandBase):
+    """Clone checklists between tasks."""
+
+    def execute(self):
+        """Execute the checklist clone command."""
+        return _checklist_clone_impl(self.args, self.context, self.client, self.use_color)
+
+
+def checklist_create_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistCreateCommand(args, command_name='checklist create')
+    command.execute()
+
+
+def checklist_delete_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistDeleteCommand(args, command_name='checklist delete')
+    command.execute()
+
+
+def checklist_update_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistUpdateCommand(args, command_name='checklist update')
+    command.execute()
+
+
+def checklist_item_add_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistItemAddCommand(args, command_name='checklist item-add')
+    command.execute()
+
+
+def checklist_item_update_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistItemUpdateCommand(args, command_name='checklist item-update')
+    command.execute()
+
+
+def checklist_item_delete_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistItemDeleteCommand(args, command_name='checklist item-delete')
+    command.execute()
+
+
+def checklist_list_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistListCommand(args, command_name='checklist list')
+    command.execute()
+
+
+def checklist_template_list_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistTemplateListCommand(args, command_name='checklist template list')
+    command.execute()
+
+
+def checklist_template_show_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistTemplateShowCommand(args, command_name='checklist template show')
+    command.execute()
+
+
+def checklist_template_apply_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistTemplateApplyCommand(args, command_name='checklist template apply')
+    command.execute()
+
+
+def checklist_clone_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = ChecklistCloneCommand(args, command_name='checklist clone')
+    command.execute()
 
 
 def register_command(subparsers):

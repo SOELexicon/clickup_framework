@@ -13,13 +13,28 @@ import sys
 import os
 import time
 from pathlib import Path
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
 from clickup_framework import get_context_manager
+from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from .map_helpers.pipeline_config import PipelineConfig
 from .map_helpers.batch_generator import BatchGenerator
+
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
+    WATCHDOG_AVAILABLE = True
+    WATCHDOG_IMPORT_ERROR = None
+except ImportError as exc:
+    Observer = None
+
+    class FileSystemEventHandler:  # type: ignore[override]
+        """Fallback base class when watchdog is unavailable."""
+
+        pass
+
+    WATCHDOG_AVAILABLE = False
+    WATCHDOG_IMPORT_ERROR = exc
 
 
 # Metadata for automatic help generation
@@ -86,15 +101,12 @@ class PipelineFileHandler(FileSystemEventHandler):
             print(f"[ERROR] Regeneration failed: {e}", file=sys.stderr)
 
 
-def batch_diagram_command(args):
+def _batch_diagram_impl(args, context, client, use_color):
     """Generate multiple diagrams from YAML pipeline configuration.
 
     Args:
         args: Command line arguments from argparse
     """
-    context = get_context_manager()
-    use_color = context.get_ansi_output()
-
     # Handle --init: create example configuration
     if args.init:
         output_file = args.config if args.config else '.diagram-pipeline.yaml'
@@ -162,6 +174,14 @@ def batch_diagram_command(args):
 
     # Handle watch mode
     if args.watch:
+        if not WATCHDOG_AVAILABLE:
+            error_msg = "Watch mode requires the optional 'watchdog' dependency. Install watchdog to use --watch."
+            if use_color:
+                print(colorize(f"[ERROR] {error_msg}", TextColor.RED), file=sys.stderr)
+            else:
+                print(f"[ERROR] {error_msg}", file=sys.stderr)
+            sys.exit(1)
+
         if args.dry_run:
             error_msg = "Cannot use --watch with --dry-run"
             if use_color:
@@ -216,6 +236,28 @@ def batch_diagram_command(args):
     # Standard batch generation
     success = generator.generate_all()
     sys.exit(0 if success else 1)
+
+
+class BatchDiagramCommand(BaseCommand):
+    """Generate multiple diagrams from YAML pipeline configuration."""
+
+    def _get_context_manager(self):
+        """Use module-local factories so existing tests can patch them."""
+        return get_context_manager()
+
+    def _create_client(self):
+        """This command does not require a ClickUp client."""
+        return None
+
+    def execute(self):
+        """Execute the batch-diagram command."""
+        return _batch_diagram_impl(self.args, self.context, self.client, self.use_color)
+
+
+def batch_diagram_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = BatchDiagramCommand(args, command_name='batch-diagram')
+    command.execute()
 
 
 def register_command(subparsers):
