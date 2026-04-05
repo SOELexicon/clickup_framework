@@ -782,13 +782,16 @@ class UpdateCumCommand(BaseCommand):
             python_path = get_python_from_script(instance)
 
             if not python_path:
+                python_path = sys.executable or shutil.which('python')
                 self.print()
+                msg = f"⚠ Could not determine Python for: {instance}. Falling back to {python_path}"
                 if use_color:
-                    self.print(colorize(f"⚠ Could not determine Python for: {instance}", TextColor.YELLOW))
+                    self.print(colorize(msg, TextColor.YELLOW))
                 else:
-                    self.print(f"⚠ Could not determine Python for: {instance}")
-                failed_count += 1
-                continue
+                    self.print(msg)
+                if not python_path:
+                    failed_count += 1
+                    continue
 
             # Verify python exists
             if not os.path.isfile(python_path):
