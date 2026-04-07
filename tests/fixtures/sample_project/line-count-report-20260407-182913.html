@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sample_project</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #1a1a1a;
+            --surface: #242424;
+            --text: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --highlight: #FF9800;
+            --border: #3a3a3a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+                         Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #242424 0%, #1a1a1a 100%);
+            border-bottom: 2px solid var(--border);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .header-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .header-content .subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            background: #242424;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            color: var(--text);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-button.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .main-content {
+            padding: 2rem;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #242424;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background: #242424;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .chart-container h2 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .pie-chart, .bar-chart, .histogram {
+            width: 100%;
+            height: auto;
+        }
+
+        .chart-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        .section {
+            background: #242424;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section h2 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .section h3 {
+            margin: 1.5rem 0 1rem 0;
+            color: var(--secondary);
+        }
+
+        .search-box {
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .data-table thead {
+            background: #1a1a1a;
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .data-table th:hover {
+            background: #242424;
+        }
+
+        .data-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s ease;
+        }
+
+        .data-table tbody tr:hover {
+            background: #1a1a1a;
+        }
+
+        .data-table td {
+            padding: 0.75rem 1rem;
+        }
+
+        .data-table .numeric {
+            text-align: right;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item h3 {
+            margin-bottom: 1rem;
+            color: var(--secondary);
+        }
+
+        .percentile-list, .metrics-list {
+            list-style: none;
+        }
+
+        .percentile-list li, .metrics-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .percentile-list li:last-child, .metrics-list li:last-child {
+            border-bottom: none;
+        }
+
+        .percentile-list .label, .metrics-list .label {
+            color: var(--text-muted);
+        }
+
+        .percentile-list .value, .metrics-list .value {
+            font-weight: 600;
+            color: var(--highlight);
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .footer {
+            background: #242424;
+            border-top: 1px solid var(--border);
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 3rem;
+        }
+
+        .footer .timestamp {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .header-content h1 {
+                font-size: 1.75rem;
+            }
+
+            .nav-tabs {
+                overflow-x: auto;
+                padding: 0 1rem;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .data-table {
+                font-size: 0.8rem;
+            }
+
+            .data-table th, .data-table td {
+                padding: 0.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 1rem;
+            }
+
+            .header-content h1 {
+                font-size: 1.5rem;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-tabs {
+                padding: 0;
+            }
+
+            .tab-button {
+                padding: 0.75rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Keyboard navigation support */
+        .tab-button:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        .data-table tbody tr:focus-within {
+            outline: 2px solid var(--secondary);
+            outline-offset: -1px;
+        }
+
+        /* Accessibility: high contrast for tables */
+        .data-table th {
+            background-color: var(--border);
+            color: var(--text);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1>sample_project</h1>
+                <p class="subtitle">Generated on 2026-04-07 18:29:13</p>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="tab-button active" data-tab="overview">Overview</button>
+            <button class="tab-button" data-tab="files">Files</button>
+            <button class="tab-button" data-tab="languages">Languages</button>
+            <button class="tab-button" data-tab="statistics">Statistics</button>
+        </nav>
+
+        <main class="main-content">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="summary-cards">
+                    <div class="card">
+                        <div class="card-value">5</div>
+                        <div class="card-label">Total Files</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-value">90</div>
+                        <div class="card-label">Total Lines</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-value">4</div>
+                        <div class="card-label">Languages</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-value">18</div>
+                        <div class="card-label">Avg File Size</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h2>Lines by Language</h2>
+                        <svg viewBox="0 0 400 400" class="pie-chart">
+<path d="M 200 200 L 200.0 50.0 A 150 150 0 0 1 251.3 341.0 Z" fill="#4CAF50" stroke="#1a1a1a" stroke-width="2" />
+<path d="M 200 200 L 251.3 341.0 A 150 150 0 0 1 65.2 265.8 Z" fill="#2196F3" stroke="#1a1a1a" stroke-width="2" />
+<path d="M 200 200 L 65.2 265.8 A 150 150 0 0 1 111.8 78.6 Z" fill="#FF9800" stroke="#1a1a1a" stroke-width="2" />
+<path d="M 200 200 L 111.8 78.6 A 150 150 0 0 1 200.0 50.0 Z" fill="#F44336" stroke="#1a1a1a" stroke-width="2" />
+                        </svg>
+                        <div class="chart-legend">
+<div class="legend-item"><div class="legend-color" style="background: #4CAF50;"></div><span>Python: 40 (44.4%)</span></div>
+<div class="legend-item"><div class="legend-color" style="background: #2196F3;"></div><span>JavaScript: 21 (23.3%)</span></div>
+<div class="legend-item"><div class="legend-color" style="background: #FF9800;"></div><span>CSS: 20 (22.2%)</span></div>
+<div class="legend-item"><div class="legend-color" style="background: #F44336;"></div><span>JSON: 9 (10.0%)</span></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <h2>Top 10 Files by Lines</h2>
+                        <svg viewBox="0 0 800 350" class="bar-chart">
+<text x="10" y="107.5" text-anchor="end" fill="#a0a0a0" font-size="12">Files</text>
+<text x="400" y="330" text-anchor="middle" fill="#a0a0a0" font-size="12">Lines</text>
+<rect x="150" y="20" width="600.0" height="30" fill="#4CAF50" opacity="0.8" />
+<text x="145" y="39.0" text-anchor="end" fill="#a0a0a0" font-size="11">simple.py</text>
+<text x="755.0" y="39.0" fill="#e0e0e0" font-size="11">23</text>
+<rect x="150" y="55" width="547.8260869565217" height="30" fill="#4CAF50" opacity="0.8" />
+<text x="145" y="74.0" text-anchor="end" fill="#a0a0a0" font-size="11">script.js</text>
+<text x="702.8260869565217" y="74.0" fill="#e0e0e0" font-size="11">21</text>
+<rect x="150" y="90" width="521.7391304347826" height="30" fill="#4CAF50" opacity="0.8" />
+<text x="145" y="109.0" text-anchor="end" fill="#a0a0a0" font-size="11">style.css</text>
+<text x="676.7391304347826" y="109.0" fill="#e0e0e0" font-size="11">20</text>
+<rect x="150" y="125" width="443.4782608695652" height="30" fill="#4CAF50" opacity="0.8" />
+<text x="145" y="144.0" text-anchor="end" fill="#a0a0a0" font-size="11">module.py</text>
+<text x="598.4782608695652" y="144.0" fill="#e0e0e0" font-size="11">17</text>
+<rect x="150" y="160" width="234.7826086956522" height="30" fill="#4CAF50" opacity="0.8" />
+<text x="145" y="179.0" text-anchor="end" fill="#a0a0a0" font-size="11">config.json</text>
+<text x="389.7826086956522" y="179.0" fill="#e0e0e0" font-size="11">9</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Files Tab -->
+            <div id="files" class="tab-content">
+                <div class="section">
+                    <h2>File Listing</h2>
+                    <div class="search-box">
+                        <input type="text" id="fileSearch" placeholder="Search files...">
+                    </div>
+                    <table class="data-table" id="filesTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('filesTable', 0)">Filename ▼</th>
+                                <th onclick="sortTable('filesTable', 1)">Lines</th>
+                                <th onclick="sortTable('filesTable', 2)">% Total</th>
+                                <th onclick="sortTable('filesTable', 3)">Language</th>
+                                <th onclick="sortTable('filesTable', 4)">Blank</th>
+                                <th onclick="sortTable('filesTable', 5)">Comment</th>
+                                <th onclick="sortTable('filesTable', 6)">Code</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+<tr><td>simple.py</td><td class="numeric">23</td><td class="numeric">25.56%</td><td>Python</td><td class="numeric">7</td><td class="numeric">4</td><td class="numeric">12</td></tr>
+<tr><td>script.js</td><td class="numeric">21</td><td class="numeric">23.33%</td><td>JavaScript</td><td class="numeric">3</td><td class="numeric">5</td><td class="numeric">13</td></tr>
+<tr><td>style.css</td><td class="numeric">20</td><td class="numeric">22.22%</td><td>CSS</td><td class="numeric">3</td><td class="numeric">2</td><td class="numeric">15</td></tr>
+<tr><td>module.py</td><td class="numeric">17</td><td class="numeric">18.89%</td><td>Python</td><td class="numeric">4</td><td class="numeric">4</td><td class="numeric">9</td></tr>
+<tr><td>config.json</td><td class="numeric">9</td><td class="numeric">10.00%</td><td>JSON</td><td class="numeric">0</td><td class="numeric">0</td><td class="numeric">9</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Languages Tab -->
+            <div id="languages" class="tab-content">
+                <div class="section">
+                    <h2>Language Statistics</h2>
+                    <table class="data-table" id="langTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('langTable', 0)">Language</th>
+                                <th onclick="sortTable('langTable', 1)">Files</th>
+                                <th onclick="sortTable('langTable', 2)">Total Lines</th>
+                                <th onclick="sortTable('langTable', 3)">Avg/File</th>
+                                <th onclick="sortTable('langTable', 4)">% of Total</th>
+                                <th onclick="sortTable('langTable', 5)">Blank</th>
+                                <th onclick="sortTable('langTable', 6)">Comment</th>
+                                <th onclick="sortTable('langTable', 7)">Code</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+<tr><td>Python</td><td class="numeric">2</td><td class="numeric">40</td><td class="numeric">20.0</td><td class="numeric">44.44%</td><td class="numeric">11</td><td class="numeric">8</td><td class="numeric">21</td></tr>
+<tr><td>JavaScript</td><td class="numeric">1</td><td class="numeric">21</td><td class="numeric">21.0</td><td class="numeric">23.33%</td><td class="numeric">3</td><td class="numeric">5</td><td class="numeric">13</td></tr>
+<tr><td>CSS</td><td class="numeric">1</td><td class="numeric">20</td><td class="numeric">20.0</td><td class="numeric">22.22%</td><td class="numeric">3</td><td class="numeric">2</td><td class="numeric">15</td></tr>
+<tr><td>JSON</td><td class="numeric">1</td><td class="numeric">9</td><td class="numeric">9.0</td><td class="numeric">10.00%</td><td class="numeric">0</td><td class="numeric">0</td><td class="numeric">9</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div id="statistics" class="tab-content">
+                <div class="section">
+                    <h2>Distribution & Percentiles</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <h3>File Size Percentiles</h3>
+                            <ul class="percentile-list">
+<li><span class="label">P50:</span><span class="value">20</span></li>
+<li><span class="label">P75:</span><span class="value">22</span></li>
+<li><span class="label">P90:</span><span class="value">23</span></li>
+<li><span class="label">P95:</span><span class="value">24</span></li>
+<li><span class="label">P99:</span><span class="value">24</span></li>
+                            </ul>
+                        </div>
+                        <div class="stat-item">
+                            <h3>Code Metrics</h3>
+                            <ul class="metrics-list">
+<li>
+                                <span class="label">Code Lines:</span>
+                                <span class="value">58 (64.4%)</span>
+                            </li>
+                            <li>
+                                <span class="label">Comment Lines:</span>
+                                <span class="value">15 (16.7%)</span>
+                            </li>
+                            <li>
+                                <span class="label">Blank Lines:</span>
+                                <span class="value">17 (18.9%)</span>
+                            </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3>Distribution Histogram</h3>
+                    <svg viewBox="0 0 800 300" class="histogram">
+<rect x="80" y="237.5" width="60" height="62.5" fill="#2196F3" opacity="0.8" />
+<text x="110.0" y="320" text-anchor="middle" fill="#a0a0a0" font-size="12">0-10</text>
+<text x="110.0" y="232.5" text-anchor="middle" fill="#e0e0e0" font-size="12">1</text>
+<rect x="160" y="50.0" width="60" height="250.0" fill="#2196F3" opacity="0.8" />
+<text x="190.0" y="320" text-anchor="middle" fill="#a0a0a0" font-size="12">10-50</text>
+<text x="190.0" y="45.0" text-anchor="middle" fill="#e0e0e0" font-size="12">4</text>
+<rect x="240" y="300.0" width="60" height="0.0" fill="#2196F3" opacity="0.8" />
+<text x="270.0" y="320" text-anchor="middle" fill="#a0a0a0" font-size="12">50-100</text>
+<text x="270.0" y="295.0" text-anchor="middle" fill="#e0e0e0" font-size="12">0</text>
+<rect x="320" y="300.0" width="60" height="0.0" fill="#2196F3" opacity="0.8" />
+<text x="350.0" y="320" text-anchor="middle" fill="#a0a0a0" font-size="12">100-500</text>
+<text x="350.0" y="295.0" text-anchor="middle" fill="#e0e0e0" font-size="12">0</text>
+<rect x="400" y="300.0" width="60" height="0.0" fill="#2196F3" opacity="0.8" />
+<text x="430.0" y="320" text-anchor="middle" fill="#a0a0a0" font-size="12">500+</text>
+<text x="430.0" y="295.0" text-anchor="middle" fill="#e0e0e0" font-size="12">0</text>
+                    </svg>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Generated by ClickUp Framework • Line Count Report v1.0</p>
+            <p class="timestamp">2026-04-07 18:29:13</p>
+        </footer>
+    </div>
+
+    <script>
+        // Tab switching
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                switchTab(tabName);
+            });
+
+            // Keyboard navigation: arrow keys
+            button.addEventListener('keydown', function(e) {
+                const buttons = Array.from(tabButtons);
+                const index = buttons.indexOf(this);
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    buttons[(index + 1) % buttons.length].focus();
+                    buttons[(index + 1) % buttons.length].click();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    buttons[(index - 1 + buttons.length) % buttons.length].focus();
+                    buttons[(index - 1 + buttons.length) % buttons.length].click();
+                }
+            });
+        });
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Remove active class from buttons
+            tabButtons.forEach(button => button.classList.remove('active'));
+
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+
+            // Mark button as active
+            const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('active');
+            }
+        }
+
+        // Table sorting
+        function sortTable(tableId, columnIndex) {
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Determine sort direction
+            const isAscending = table.getAttribute('data-sort-column') === String(columnIndex) &&
+                               table.getAttribute('data-sort-direction') === 'asc';
+            const direction = isAscending ? 'desc' : 'asc';
+
+            // Sort rows
+            rows.sort((a, b) => {
+                const aValue = a.children[columnIndex].textContent.trim();
+                const bValue = b.children[columnIndex].textContent.trim();
+
+                // Try numeric comparison
+                const aNum = parseFloat(aValue.replace(/[^0-9.-]/g, ''));
+                const bNum = parseFloat(bValue.replace(/[^0-9.-]/g, ''));
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                // String comparison
+                return direction === 'asc' ?
+                    aValue.localeCompare(bValue) :
+                    bValue.localeCompare(aValue);
+            });
+
+            // Update table
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Update header icons
+            table.querySelectorAll('th').forEach((th, idx) => {
+                if (idx === columnIndex) {
+                    th.textContent = th.textContent.replace(/[▲▼]/g, '');
+                    th.textContent += (direction === 'asc' ? ' ▲' : ' ▼');
+                } else {
+                    th.textContent = th.textContent.replace(/[▲▼]/g, '');
+                    th.textContent += ' ▼';
+                }
+            });
+
+            // Remember sort state
+            table.setAttribute('data-sort-column', columnIndex);
+            table.setAttribute('data-sort-direction', direction);
+        }
+
+        // Table search/filter
+        const fileSearch = document.getElementById('fileSearch');
+        if (fileSearch) {
+            fileSearch.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                const filesTable = document.getElementById('filesTable');
+                const rows = filesTable.querySelectorAll('tbody tr');
+
+                rows.forEach(row => {
+                    const filename = row.children[0].textContent.toLowerCase();
+                    const language = row.children[3].textContent.toLowerCase();
+                    const matches = filename.includes(searchTerm) || language.includes(searchTerm);
+                    row.style.display = matches ? '' : 'none';
+                });
+            });
+        }
+
+        // Accessibility: tab key navigation in tables
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                const activeElement = document.activeElement;
+                if (activeElement && activeElement.tagName === 'TD') {
+                    // Allow default tab behavior
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

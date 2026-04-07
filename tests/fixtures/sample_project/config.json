@@ -1,0 +1,9 @@
+{
+  "name": "sample-project",
+  "version": "1.0.0",
+  "description": "A sample configuration file",
+  "settings": {
+    "debug": false,
+    "port": 3000
+  }
+}
