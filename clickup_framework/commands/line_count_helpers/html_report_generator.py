@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import math
 from .stats_calculator import StatsCalculator
+from .file_filter import LANGUAGE_GROUPS
 
 
 DARK_THEME_COLORS = {
@@ -170,15 +171,18 @@ class HTMLReportGenerator:
             total = info.get('total', 0)
             percentage = (total / total_lines * 100) if total_lines > 0 else 0
             ext = Path(file_path).suffix or 'no-ext'
+            language = info.get('language', 'Unknown')
+            language_group = LANGUAGE_GROUPS.get(language, 'Other')
             files.append({
                 'path': str(file_path),
                 'filename': Path(file_path).name,
                 'extension': ext.lstrip('.'),
+                'language': language,
+                'language_group': language_group,
                 'total': total,
                 'blank': info.get('blank', 0),
                 'comment': info.get('comment', 0),
                 'code': info.get('code', 0),
-                'language': info.get('language', 'Unknown'),
                 'percentage': round(percentage, 2),
             })
 
@@ -363,6 +367,12 @@ class HTMLReportGenerator:
                         <label>Filter by Extension:</label>
                         <div id="extFilterButtons" class="filter-buttons">
 {self._generate_extension_filters(files_data)}
+                        </div>
+                    </div>
+                    <div class="extension-filter">
+                        <label>Filter by Language Group:</label>
+                        <div id="langGroupFilterButtons" class="filter-buttons">
+{self._generate_language_group_filters(files_data)}
                         </div>
                     </div>
                     <table class="data-table" id="filesTable">
@@ -1000,7 +1010,7 @@ class HTMLReportGenerator:
             const rows = filesTable.querySelectorAll('tbody tr');
 
             // Update button states
-            document.querySelectorAll('.ext-filter-btn').forEach(btn => {
+            document.querySelectorAll('[onclick*="filterByExtension"]').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
@@ -1008,7 +1018,48 @@ class HTMLReportGenerator:
             // Filter rows
             rows.forEach(row => {
                 const rowExt = row.getAttribute('data-extension');
-                if (extension === 'all' || rowExt === extension) {
+                const rowGroup = row.getAttribute('data-language-group');
+                const activeGroup = document.querySelector('[onclick*="filterByLanguageGroup"].active');
+                const groupFilter = activeGroup ? activeGroup.getAttribute('data-group') : 'all';
+
+                // Check both extension and language group filters
+                const extMatch = extension === 'all' || rowExt === extension;
+                const groupMatch = groupFilter === 'all' || rowGroup === groupFilter;
+
+                if (extMatch && groupMatch) {
+                    row.classList.remove('hidden');
+                    row.style.display = '';
+                } else {
+                    row.classList.add('hidden');
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Language group filter
+        function filterByLanguageGroup(languageGroup, event) {
+            event.preventDefault();
+            const filesTable = document.getElementById('filesTable');
+            const rows = filesTable.querySelectorAll('tbody tr');
+
+            // Update button states
+            document.querySelectorAll('[onclick*="filterByLanguageGroup"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter rows
+            rows.forEach(row => {
+                const rowExt = row.getAttribute('data-extension');
+                const rowGroup = row.getAttribute('data-language-group');
+                const activeExt = document.querySelector('[onclick*="filterByExtension"].active');
+                const extFilter = activeExt ? activeExt.getAttribute('data-ext') : 'all';
+
+                // Check both extension and language group filters
+                const extMatch = extFilter === 'all' || rowExt === extFilter;
+                const groupMatch = languageGroup === 'all' || rowGroup === languageGroup;
+
+                if (extMatch && groupMatch) {
                     row.classList.remove('hidden');
                     row.style.display = '';
                 } else {
@@ -1182,9 +1233,10 @@ class HTMLReportGenerator:
         rows = []
         for file_data in files_data:
             ext = file_data.get('extension', 'no-ext')
+            lang_group = file_data.get('language_group', 'Other').replace(' ', '-')
             path_display = f'{self._escape_html(file_data["path"])}'
             rows.append(
-                f'<tr data-extension="{ext}">'
+                f'<tr data-extension="{ext}" data-language-group="{lang_group}">'
                 f'<td>{path_display}</td>'
                 f'<td class="numeric">{file_data["total"]:,}</td>'
                 f'<td class="numeric">{file_data["percentage"]:.2f}%</td>'
@@ -1212,6 +1264,28 @@ class HTMLReportGenerator:
             buttons.append(
                 f'<button class="ext-filter-btn" onclick="filterByExtension(\'{ext}\', event)" data-ext="{ext}">'
                 f'{ext} ({count})</button>'
+            )
+
+        return '\n'.join(buttons)
+
+    def _generate_language_group_filters(self, files_data: list) -> str:
+        """Generate language group filter buttons."""
+        # Extract unique language groups with counts
+        group_counts = {}
+        for file_data in files_data:
+            group = file_data.get('language_group', 'Other')
+            group_counts[group] = group_counts.get(group, 0) + 1
+
+        # Sort by frequency (descending)
+        sorted_groups = sorted(group_counts.items(), key=lambda x: x[1], reverse=True)
+
+        buttons = ['<button class="ext-filter-btn active" onclick="filterByLanguageGroup(\'all\', event)" data-group="all">All</button>']
+        for group, count in sorted_groups:
+            # Replace spaces with dashes for data attribute
+            group_attr = group.replace(' ', '-')
+            buttons.append(
+                f'<button class="ext-filter-btn" onclick="filterByLanguageGroup(\'{group_attr}\', event)" data-group="{group_attr}">'
+                f'{group} ({count})</button>'
             )
 
         return '\n'.join(buttons)

@@ -15,6 +15,8 @@ from typing import Optional
 # Map file extensions to programming languages
 LANGUAGE_EXTENSIONS = {
     '.cs': 'C#',
+    '.razor': 'C#',
+    '.cshtml': 'C#',
     '.py': 'Python',
     '.js': 'JavaScript',
     '.ts': 'TypeScript',
@@ -33,6 +35,23 @@ LANGUAGE_EXTENSIONS = {
     '.c': 'C',
     '.h': 'C',
     '.hpp': 'C++',
+}
+
+# Map languages to language groups for filtering
+LANGUAGE_GROUPS = {
+    'C#': '.NET Core',
+    'YAML': '.NET Core',
+    'JSON': '.NET Core',
+    'Python': 'Python',
+    'JavaScript': 'JavaScript/TypeScript',
+    'TypeScript': 'JavaScript/TypeScript',
+    'HTML': 'Web Frontend',
+    'CSS': 'Web Frontend',
+    'Go': 'Go',
+    'Rust': 'Rust',
+    'Java': 'Java',
+    'C++': 'C/C++',
+    'C': 'C/C++',
 }
 
 # Binary and compiled files to ignore
