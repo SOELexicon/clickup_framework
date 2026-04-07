@@ -404,7 +404,10 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
                     else:
                         print("  ✓ Updated source code")
             except subprocess.CalledProcessError as e:
-                print(colorize(f"  ⚠ Could not update source: {e}", TextColor.YELLOW) if use_color else f"  ⚠ Could not update source: {e}")
+                error_msg = f"  ⚠ Could not update source: {e}"
+                if hasattr(e, 'stderr') and e.stderr:
+                    error_msg += f"\n  Details: {e.stderr}"
+                print(colorize(error_msg, TextColor.YELLOW) if use_color else error_msg)
 
         # Reinstall editable
         try:
@@ -417,11 +420,12 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             else:
                 pip_cmd.append('--upgrade')
 
-            # Run pip with all output suppressed (capture stdout and stderr)
+            # Run pip with output captured for debugging
             result = subprocess.run(
                 pip_cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
                 check=True
             )
 
@@ -438,7 +442,10 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             return True
         except subprocess.CalledProcessError as e:
             action = "reinstall" if fresh_load else "update"
-            print(colorize(f"  ✗ Failed to {action}: {e}", TextColor.RED) if use_color else f"  ✗ Failed to {action}: {e}", file=sys.stderr)
+            error_msg = f"  ✗ Failed to {action}: {e}"
+            if e.stderr:
+                error_msg += f"\n  Details: {e.stderr[:500]}"  # Limit error output to 500 chars
+            print(colorize(error_msg, TextColor.RED) if use_color else error_msg, file=sys.stderr)
             return False
     else:
         # For regular installs, reinstall from git
@@ -458,11 +465,12 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             else:
                 pip_cmd.append('--upgrade')
 
-            # Run pip with all output suppressed (capture stdout and stderr)
+            # Run pip with output captured for debugging
             result = subprocess.run(
                 pip_cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
                 check=True
             )
 
@@ -479,7 +487,10 @@ def update_instance(script_path, python_path, use_color, fresh_load=False):
             return True
         except subprocess.CalledProcessError as e:
             action = "reinstall" if fresh_load else "update"
-            print(colorize(f"  ✗ Failed to {action}: {e}", TextColor.RED) if use_color else f"  ✗ Failed to {action}: {e}", file=sys.stderr)
+            error_msg = f"  ✗ Failed to {action}: {e}"
+            if e.stderr:
+                error_msg += f"\n  Details: {e.stderr[:500]}"  # Limit error output to 500 chars
+            print(colorize(error_msg, TextColor.RED) if use_color else error_msg, file=sys.stderr)
             return False
 
 
