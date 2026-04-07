@@ -169,9 +169,11 @@ class HTMLReportGenerator:
         for file_path, info in loc_data.items():
             total = info.get('total', 0)
             percentage = (total / total_lines * 100) if total_lines > 0 else 0
+            ext = Path(file_path).suffix or 'no-ext'
             files.append({
                 'path': str(file_path),
                 'filename': Path(file_path).name,
+                'extension': ext.lstrip('.'),
                 'total': total,
                 'blank': info.get('blank', 0),
                 'comment': info.get('comment', 0),
@@ -357,10 +359,16 @@ class HTMLReportGenerator:
                     <div class="search-box">
                         <input type="text" id="fileSearch" placeholder="Search files...">
                     </div>
+                    <div class="extension-filter">
+                        <label>Filter by Extension:</label>
+                        <div id="extFilterButtons" class="filter-buttons">
+{self._generate_extension_filters(files_data)}
+                        </div>
+                    </div>
                     <table class="data-table" id="filesTable">
                         <thead>
                             <tr>
-                                <th onclick="sortTable('filesTable', 0)">Filename ▼</th>
+                                <th onclick="sortTable('filesTable', 0)">Path / Filename ▼</th>
                                 <th onclick="sortTable('filesTable', 1)">Lines</th>
                                 <th onclick="sortTable('filesTable', 2)">% Total</th>
                                 <th onclick="sortTable('filesTable', 3)">Language</th>
@@ -740,6 +748,55 @@ class HTMLReportGenerator:
             font-size: 0.85rem;
         }}
 
+        .extension-filter {{
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: {self.colors['background']};
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }}
+
+        .extension-filter label {{
+            display: block;
+            margin-bottom: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }}
+
+        .filter-buttons {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }}
+
+        .ext-filter-btn {{
+            padding: 0.5rem 1rem;
+            background: {self.colors['surface']};
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }}
+
+        .ext-filter-btn:hover {{
+            background: {self.colors['primary']};
+            color: #000;
+            border-color: var(--primary);
+        }}
+
+        .ext-filter-btn.active {{
+            background: var(--primary);
+            color: #000;
+            font-weight: 600;
+        }}
+
+        .data-table tbody tr.hidden {{
+            display: none;
+        }}
+
         /* Mobile responsiveness */
         @media (max-width: 768px) {{
             .header-content h1 {{
@@ -935,6 +992,31 @@ class HTMLReportGenerator:
                 }
             }
         });
+
+        // Extension filter
+        function filterByExtension(extension, event) {
+            event.preventDefault();
+            const filesTable = document.getElementById('filesTable');
+            const rows = filesTable.querySelectorAll('tbody tr');
+
+            // Update button states
+            document.querySelectorAll('.ext-filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter rows
+            rows.forEach(row => {
+                const rowExt = row.getAttribute('data-extension');
+                if (extension === 'all' || rowExt === extension) {
+                    row.classList.remove('hidden');
+                    row.style.display = '';
+                } else {
+                    row.classList.add('hidden');
+                    row.style.display = 'none';
+                }
+            });
+        }
 """
 
     def _generate_pie_chart(self, labels: list, values: list) -> str:
@@ -1099,9 +1181,11 @@ class HTMLReportGenerator:
         """Generate HTML table rows for files table."""
         rows = []
         for file_data in files_data:
+            ext = file_data.get('extension', 'no-ext')
+            path_display = f'{self._escape_html(file_data["path"])}'
             rows.append(
-                '<tr>'
-                f'<td>{self._escape_html(file_data["path"])}</td>'
+                f'<tr data-extension="{ext}">'
+                f'<td>{path_display}</td>'
                 f'<td class="numeric">{file_data["total"]:,}</td>'
                 f'<td class="numeric">{file_data["percentage"]:.2f}%</td>'
                 f'<td>{self._escape_html(file_data["language"])}</td>'
@@ -1111,6 +1195,26 @@ class HTMLReportGenerator:
                 '</tr>'
             )
         return '\n'.join(rows)
+
+    def _generate_extension_filters(self, files_data: list) -> str:
+        """Generate extension filter buttons."""
+        # Extract unique extensions with counts
+        ext_counts = {}
+        for file_data in files_data:
+            ext = file_data.get('extension', 'no-ext')
+            ext_counts[ext] = ext_counts.get(ext, 0) + 1
+
+        # Sort by frequency (descending)
+        sorted_exts = sorted(ext_counts.items(), key=lambda x: x[1], reverse=True)
+
+        buttons = ['<button class="ext-filter-btn active" onclick="filterByExtension(\'all\', event)" data-ext="all">All</button>']
+        for ext, count in sorted_exts:
+            buttons.append(
+                f'<button class="ext-filter-btn" onclick="filterByExtension(\'{ext}\', event)" data-ext="{ext}">'
+                f'{ext} ({count})</button>'
+            )
+
+        return '\n'.join(buttons)
 
     def _generate_languages_table_rows(self, lang_stats: list) -> str:
         """Generate HTML table rows for languages table."""
