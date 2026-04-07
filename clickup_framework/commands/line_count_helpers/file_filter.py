@@ -40,8 +40,8 @@ LANGUAGE_EXTENSIONS = {
 # Map languages to language groups for filtering
 LANGUAGE_GROUPS = {
     'C#': '.NET Core',
-    'YAML': '.NET Core',
-    'JSON': '.NET Core',
+    'YAML': 'Config/Data',
+    'JSON': 'Config/Data',
     'Python': 'Python',
     'JavaScript': 'JavaScript/TypeScript',
     'TypeScript': 'JavaScript/TypeScript',
