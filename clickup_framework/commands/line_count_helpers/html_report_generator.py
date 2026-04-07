@@ -309,6 +309,7 @@ class HTMLReportGenerator:
 
         <nav class="nav-tabs">
             <button class="tab-button active" data-tab="overview">Overview</button>
+            <button class="tab-button" data-tab="tree">Directory Tree</button>
             <button class="tab-button" data-tab="files">Files</button>
             <button class="tab-button" data-tab="languages">Languages</button>
             <button class="tab-button" data-tab="statistics">Statistics</button>
@@ -352,6 +353,18 @@ class HTMLReportGenerator:
                         <svg viewBox="0 0 800 350" class="bar-chart">
 {self._generate_bar_chart(top_filenames, top_file_lines, max(top_file_lines) if top_file_lines else 1)}
                         </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Directory Tree Tab -->
+            <div id="tree" class="tab-content">
+                <div class="section">
+                    <h2>Directory Tree</h2>
+                    <div class="tree-container">
+                        <ul class="tree">
+{self._generate_directory_tree(files_data)}
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -807,6 +820,65 @@ class HTMLReportGenerator:
             display: none;
         }}
 
+        .tree-container {{
+            font-size: 0.9rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }}
+
+        .tree {{
+            list-style: none;
+            padding-left: 0;
+        }}
+
+        .tree ul {{
+            list-style: none;
+            padding-left: 1.5rem;
+        }}
+
+        .tree li {{
+            padding: 0.4rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+
+        .tree-dir {{
+            font-weight: 500;
+        }}
+
+        .tree-toggle {{
+            cursor: pointer;
+            display: inline-block;
+            width: 1.2rem;
+            transition: transform 0.2s ease;
+            color: var(--primary);
+            user-select: none;
+        }}
+
+        .tree-toggle.open {{
+            transform: rotate(90deg);
+        }}
+
+        .tree-name {{
+            flex: 1;
+            word-break: break-all;
+            color: var(--text);
+        }}
+
+        .tree-file .tree-name {{
+            color: var(--text-muted);
+        }}
+
+        .tree-badge {{
+            background: var(--primary);
+            color: #000;
+            padding: 0.2rem 0.6rem;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }}
+
         /* Mobile responsiveness */
         @media (max-width: 768px) {{
             .header-content h1 {{
@@ -1068,6 +1140,27 @@ class HTMLReportGenerator:
                 }
             });
         }
+
+        // Tree toggle
+        function toggleTree(element) {
+            element.classList.toggle('open');
+            const nested = element.parentElement.querySelector('.tree-nested');
+            if (nested) {
+                nested.style.display = nested.style.display === 'none' ? '' : 'none';
+            }
+        }
+
+        // Auto-expand first level on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const treeTab = document.getElementById('tree');
+            if (treeTab) {
+                const firstLevelDirs = treeTab.querySelectorAll('.tree > .tree-dir > .tree-toggle');
+                firstLevelDirs.forEach(toggle => {
+                    toggle.classList.add('open');
+                    toggle.parentElement.querySelector('.tree-nested').style.display = '';
+                });
+            }
+        });
 """
 
     def _generate_pie_chart(self, labels: list, values: list) -> str:
@@ -1289,6 +1382,78 @@ class HTMLReportGenerator:
             )
 
         return '\n'.join(buttons)
+
+    def _generate_directory_tree(self, files_data: list) -> str:
+        """Generate directory tree HTML with line count badges."""
+        if not files_data:
+            return '<li>No files</li>'
+
+        # Build tree structure
+        tree = {}
+        for file_data in files_data:
+            path_parts = file_data['path'].split('\\')  # Split path into parts
+            current = tree
+            for part in path_parts[:-1]:  # Navigate to parent directory
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            # Add file
+            current[path_parts[-1]] = {'total': file_data['total']}
+
+        # Generate HTML
+        return self._render_tree_node(tree)
+
+    def _render_tree_node(self, node: dict) -> str:
+        """Recursively render tree nodes."""
+        if not node:
+            return ''
+
+        items = []
+        # Separate dirs and files
+        dirs = {}
+        files = {}
+        for key, value in sorted(node.items()):
+            if isinstance(value, dict) and 'total' not in value:
+                dirs[key] = value
+            else:
+                files[key] = value
+
+        # Render directories first
+        for dir_name, dir_content in dirs.items():
+            total = self._sum_tree_lines(dir_content)
+            items.append(
+                f'<li class="tree-dir">'
+                f'<span class="tree-toggle" onclick="toggleTree(this)">▶</span>'
+                f'<span class="tree-name">{self._escape_html(dir_name)}</span>'
+                f'<span class="tree-badge">{total:,}</span>'
+                f'<ul class="tree-nested" style="display: none;">'
+                f'{self._render_tree_node(dir_content)}'
+                f'</ul>'
+                f'</li>'
+            )
+
+        # Render files
+        for file_name, file_data in files.items():
+            total = file_data.get('total', 0)
+            items.append(
+                f'<li class="tree-file">'
+                f'<span class="tree-name">{self._escape_html(file_name)}</span>'
+                f'<span class="tree-badge">{total:,}</span>'
+                f'</li>'
+            )
+
+        return '\n'.join(items)
+
+    def _sum_tree_lines(self, node: dict) -> int:
+        """Sum line counts recursively in tree node."""
+        total = 0
+        for value in node.values():
+            if isinstance(value, dict):
+                if 'total' in value:
+                    total += value['total']
+                else:
+                    total += self._sum_tree_lines(value)
+        return total
 
     def _generate_languages_table_rows(self, lang_stats: list) -> str:
         """Generate HTML table rows for languages table."""
