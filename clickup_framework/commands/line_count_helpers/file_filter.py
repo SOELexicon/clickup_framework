@@ -208,7 +208,7 @@ IGNORE_DIRS = {
     # Node.js
     'node_modules', 'npm-debug',
     # .NET
-    'bin', 'obj', '.vs', 'packages', '.nuget', 'codex-obj',
+    'bin', 'obj', '.vs', 'packages', '.nuget', 'codex-obj', 'Migrations',
     # Ruby
     'Gems', 'vendor', '.bundle',
     # Go
