@@ -48,6 +48,27 @@ class LineCountCommand(BaseCommand):
     Changes:    [v0.1.0] Initial: Command registration and help integration
     """
 
+    def _make_paths_relative(self, loc_data: dict, root_path: Path) -> dict:
+        """
+        Convert absolute file paths to relative paths from root.
+
+        Args:
+            loc_data: Dictionary with absolute file paths as keys
+            root_path: Root path to compute relative paths from
+
+        Returns:
+            Dictionary with relative paths as keys
+        """
+        relative_data = {}
+        for file_path, info in loc_data.items():
+            try:
+                rel_path = Path(file_path).relative_to(root_path)
+                relative_data[str(rel_path)] = info
+            except ValueError:
+                # Path doesn't start with root_path, keep original
+                relative_data[file_path] = info
+        return relative_data
+
     def execute(self) -> None:
         """
         Execute the line count command.
@@ -84,6 +105,9 @@ class LineCountCommand(BaseCommand):
             logger.exception("Failed to count files")
             sys.exit(1)
 
+        # Convert to relative paths for display
+        relative_results: dict = self._make_paths_relative(results, path)
+
         # Generate console output unless disabled
         no_console: bool = getattr(self.args, 'no_console', False)
         if not no_console:
@@ -93,13 +117,13 @@ class LineCountCommand(BaseCommand):
             formatter: ConsoleFormatter = ConsoleFormatter()
 
             # Print summary stats
-            summary_output: str = formatter.format_summary_stats(results, use_color=not no_color)
+            summary_output: str = formatter.format_summary_stats(relative_results, use_color=not no_color)
             print(summary_output)
             print()
 
             # Print top files table
             top_files_output: str = formatter.format_top_files(
-                results,
+                relative_results,
                 limit=limit,
                 use_color=not no_color
             )
@@ -120,7 +144,7 @@ class LineCountCommand(BaseCommand):
 
                 html_generator: HTMLReportGenerator = HTMLReportGenerator()
                 report_path: Path = html_generator.generate_report(
-                    results,
+                    relative_results,
                     output_path=output_dir,
                     project_name=path.name
                 )

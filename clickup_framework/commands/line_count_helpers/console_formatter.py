@@ -83,7 +83,8 @@ class ConsoleFormatter:
             total = info.get('total', 0)
             percentage = (total / total_lines * 100) if total_lines > 0 else 0
             language = info.get('language', 'Unknown')
-            filename = Path(file_path).name
+            # Use full path (relative or absolute as provided)
+            filename = file_path
 
             rows.append({
                 'rank': str(rank),

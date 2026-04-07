@@ -1101,7 +1101,7 @@ class HTMLReportGenerator:
         for file_data in files_data:
             rows.append(
                 '<tr>'
-                f'<td>{self._escape_html(file_data["filename"])}</td>'
+                f'<td>{self._escape_html(file_data["path"])}</td>'
                 f'<td class="numeric">{file_data["total"]:,}</td>'
                 f'<td class="numeric">{file_data["percentage"]:.2f}%</td>'
                 f'<td>{self._escape_html(file_data["language"])}</td>'
