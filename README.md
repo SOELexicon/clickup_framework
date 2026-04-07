@@ -333,6 +333,7 @@ cum st <list_id>
 - `diagram-diff` - Compare two Mermaid diagrams and summarize structural changes
 
 *Utility Commands:*
+- `line-count` / `loc` / `lines` - Analyze source code line counts and generate reports
 - `diff` - Compare two files or inline text
 - `stalker` - Launch the ProcMon-backed file system stalker in a new PowerShell window
 
@@ -854,6 +855,132 @@ tasks = TasksAPI(client, duplicate_threshold=0.98)
 
 # Or more lenient (90% similarity)
 tasks = TasksAPI(client, duplicate_threshold=0.90)
+```
+
+### Line Count Analysis (NEW! ✨)
+
+Analyze source code and generate comprehensive reports on line counts, language distribution, and file metrics.
+
+**CLI Commands:**
+
+```bash
+# Analyze current directory
+cum line-count
+
+# Analyze specific path (aliases: loc, lines)
+cum loc /path/to/project
+cum lines . --language py
+
+# Show only top 10 files
+cum line-count . --limit 10
+
+# Exclude HTML files, show only Python
+cum line-count . --language py
+
+# Generate only console output (no HTML)
+cum line-count . --no-html
+
+# Limit recursion depth to 2 levels
+cum line-count . --max-depth 2
+
+# Custom output location
+cum line-count . --output-file ~/Desktop/report.html
+
+# Disable color output
+cum line-count . --no-color
+
+# Skip console output (useful with --output-file)
+cum line-count . --no-console
+```
+
+**Output Features:**
+
+The command generates both console and HTML output:
+
+**Console Output:**
+- Summary statistics (total lines, files, average)
+- Language distribution breakdown
+- Size distribution percentiles (P50, P75, P90, P95, P99)
+- Formatted ASCII table with top files (customizable limit)
+- Colored output (optional, can be disabled with `--no-color`)
+
+**HTML Report:**
+- Professional styled report with dark theme
+- Interactive charts (pie, bar, histogram)
+- Sortable file listing with line counts
+- Language breakdown statistics
+- Search and filtering capabilities
+- Responsive design works on desktop and mobile
+- Default location: `line-count-report-{timestamp}.html` in current directory
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--max-depth N` | Limit recursion depth (default: unlimited) |
+| `--language LANG` | Filter by language (e.g., py, js, cs, java) |
+| `--limit N` | Show top N files in console (default: 20) |
+| `--no-html` | Skip HTML report generation |
+| `--no-console` | Skip console output |
+| `--output-file PATH` | Custom HTML report path |
+| `--no-color` | Disable ANSI colors |
+| `--exclude-dir PATTERN` | Exclude directories matching pattern |
+
+**Supported Languages:**
+
+Python, JavaScript, TypeScript, C#, Java, C++, C, Go, Rust, HTML, CSS, JSON, YAML
+
+**Examples:**
+
+```bash
+# Quick project size check (no HTML)
+cum loc . --no-html
+
+# Detailed analysis of Python files only
+cum line-count . --language py
+
+# Generate report in specific location
+cum loc . --output-file ~/projects/analysis.html
+
+# Analyze only top 2 levels of directories
+cum line-count /code --max-depth 2
+
+# Focus on JavaScript/TypeScript files
+cum loc . --language js --limit 15
+
+# Generate silent report (no console output)
+cum line-count . --no-console --output-file report.html
+```
+
+**Output Example:**
+
+```
+LINE COUNT ANALYSIS SUMMARY
+
+Total Lines: 1,234
+Total Files: 42
+Average per File: 29.4
+
+Lines by Language:
+  Python              567 ( 46.0%)
+  JavaScript          345 ( 28.0%)
+  HTML                215 ( 17.4%)
+  CSS                 107 (  8.7%)
+
+Size Distribution:
+  P50          22 lines
+  P75          45 lines
+  P90          78 lines
+  P95         125 lines
+  P99         234 lines
+
+╔══════╦════════════════════════════╦══════════╦════════╦════════════╗
+║Rank  ║Filename                    ║Lines     ║%       ║Language    ║
+╠══════╬════════════════════════════╬══════════╬════════╬════════════╣
+║1     ║main.py                     ║       234║ 19.0% ║Python      ║
+║2     ║app.js                      ║       189║ 15.3% ║JavaScript  ║
+║3     ║styles.css                  ║       156║ 12.6% ║CSS         ║
+...
 ```
 
 ## Features
