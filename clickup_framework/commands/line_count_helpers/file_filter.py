@@ -14,62 +14,226 @@ from typing import Optional
 
 # Map file extensions to programming languages
 LANGUAGE_EXTENSIONS = {
+    # .NET Core
     '.cs': 'C#',
     '.razor': 'C#',
     '.cshtml': 'C#',
-    '.py': 'Python',
+    '.vb': 'VB.NET',
+    '.fs': 'F#',
+    '.fsx': 'F#',
+    '.fsi': 'F#',
+
+    # Web Frontend
     '.js': 'JavaScript',
-    '.ts': 'TypeScript',
     '.jsx': 'JavaScript',
+    '.ts': 'TypeScript',
     '.tsx': 'TypeScript',
-    '.json': 'JSON',
-    '.yaml': 'YAML',
-    '.yml': 'YAML',
     '.html': 'HTML',
     '.htm': 'HTML',
     '.css': 'CSS',
+    '.scss': 'SCSS',
+    '.sass': 'SASS',
+    '.less': 'LESS',
+    '.vue': 'Vue',
+
+    # Web Backend
+    '.php': 'PHP',
+    '.rb': 'Ruby',
+    '.erb': 'Ruby',
+    '.py': 'Python',
     '.go': 'Go',
     '.rs': 'Rust',
+
+    # Java/JVM
     '.java': 'Java',
+    '.kt': 'Kotlin',
+    '.scala': 'Scala',
+    '.groovy': 'Groovy',
+    '.gradle': 'Gradle',
+
+    # Other Languages
     '.cpp': 'C++',
+    '.cc': 'C++',
+    '.cxx': 'C++',
     '.c': 'C',
     '.h': 'C',
     '.hpp': 'C++',
+    '.swift': 'Swift',
+    '.m': 'Objective-C',
+    '.mm': 'Objective-C++',
+    '.pl': 'Perl',
+    '.r': 'R',
+    '.lua': 'Lua',
+    '.clj': 'Clojure',
+    '.cljs': 'Clojure',
+    '.hs': 'Haskell',
+    '.erl': 'Erlang',
+    '.ex': 'Elixir',
+    '.exs': 'Elixir',
+    '.dart': 'Dart',
+    '.sql': 'SQL',
+    '.sh': 'Shell',
+    '.bash': 'Shell',
+    '.zsh': 'Shell',
+    '.fish': 'Shell',
+    '.ps1': 'PowerShell',
+
+    # Configuration & Data
+    '.json': 'JSON',
+    '.yaml': 'YAML',
+    '.yml': 'YAML',
+    '.xml': 'XML',
+    '.config': 'XML',
+    '.toml': 'TOML',
+    '.ini': 'INI',
+    '.cfg': 'Config',
+    '.conf': 'Config',
+    '.properties': 'Properties',
+    '.gradle': 'Gradle',
+    '.pom': 'Maven POM',
+    '.env': 'Env',
+    '.lock': 'Lock File',
+    '.dockerfile': 'Dockerfile',
+
+    # Documentation
+    '.md': 'Markdown',
+    '.rst': 'ReStructuredText',
+    '.adoc': 'AsciiDoc',
+    '.asciidoc': 'AsciiDoc',
+    '.tex': 'LaTeX',
 }
 
 # Map languages to language groups for filtering
 LANGUAGE_GROUPS = {
+    # .NET Core
     'C#': '.NET Core',
-    'YAML': 'Config/Data',
-    'JSON': 'Config/Data',
-    'Python': 'Python',
-    'JavaScript': 'JavaScript/TypeScript',
-    'TypeScript': 'JavaScript/TypeScript',
+    'VB.NET': '.NET Core',
+    'F#': '.NET Core',
+
+    # Web Frontend
+    'JavaScript': 'Web Frontend',
+    'TypeScript': 'Web Frontend',
     'HTML': 'Web Frontend',
     'CSS': 'Web Frontend',
-    'Go': 'Go',
-    'Rust': 'Rust',
-    'Java': 'Java',
-    'C++': 'C/C++',
-    'C': 'C/C++',
+    'SCSS': 'Web Frontend',
+    'SASS': 'Web Frontend',
+    'LESS': 'Web Frontend',
+    'Vue': 'Web Frontend',
+
+    # Web Backend
+    'PHP': 'Web Backend',
+    'Ruby': 'Web Backend',
+    'Python': 'Web Backend',
+    'Go': 'Web Backend',
+    'Rust': 'Web Backend',
+
+    # Java/JVM Ecosystem
+    'Java': 'JVM Languages',
+    'Kotlin': 'JVM Languages',
+    'Scala': 'JVM Languages',
+    'Groovy': 'JVM Languages',
+    'Gradle': 'JVM Languages',
+
+    # Systems Languages
+    'C': 'Systems Languages',
+    'C++': 'Systems Languages',
+    'Objective-C': 'Systems Languages',
+    'Objective-C++': 'Systems Languages',
+    'Swift': 'Systems Languages',
+
+    # Scripting & Data
+    'Perl': 'Scripting',
+    'Shell': 'Scripting',
+    'PowerShell': 'Scripting',
+    'R': 'Scripting',
+    'Lua': 'Scripting',
+    'SQL': 'Database',
+
+    # Functional Languages
+    'Clojure': 'Functional',
+    'Haskell': 'Functional',
+    'Erlang': 'Functional',
+    'Elixir': 'Functional',
+
+    # Other Languages
+    'Dart': 'Other Languages',
+
+    # Configuration & Data Files
+    'JSON': 'Config/Data',
+    'YAML': 'Config/Data',
+    'XML': 'Config/Data',
+    'TOML': 'Config/Data',
+    'INI': 'Config/Data',
+    'Config': 'Config/Data',
+    'Properties': 'Config/Data',
+    'Maven POM': 'Config/Data',
+    'Env': 'Config/Data',
+    'Lock File': 'Config/Data',
+    'Dockerfile': 'Config/Data',
+
+    # Documentation
+    'Markdown': 'Documentation',
+    'ReStructuredText': 'Documentation',
+    'AsciiDoc': 'Documentation',
+    'LaTeX': 'Documentation',
 }
 
 # Binary and compiled files to ignore
 BINARY_EXTENSIONS = {
+    # Compiled binaries
     '.dll', '.exe', '.pdb', '.o', '.so', '.a', '.dylib',
-    '.pyc', '.pyo', '.egg-info', '.class', '.jar',
+    '.elf', '.app', '.bin', '.out', '.com',
+    # Python
+    '.pyc', '.pyo', '.egg-info',
+    # Java
+    '.class', '.jar',
+    # C/C++
+    '.o', '.obj', '.lib', '.a', '.so', '.dylib',
+    # Archive formats
+    '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar',
+    # Images & Media
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
+    '.mp4', '.avi', '.mov', '.mkv', '.flv', '.wav', '.mp3', '.m4a',
+    # Office & PDFs
+    '.pdf', '.docx', '.xlsx', '.pptx', '.doc', '.xls', '.ppt',
 }
 
 # Directories to completely ignore
 IGNORE_DIRS = {
-    '.git', '.venv', '__pycache__', 'node_modules', 'bin', 'obj',
-    'dist', '.pytest_cache', '.mypy_cache', '.tox', '.eggs',
-    'venv', 'env', 'build', 'htmlcov', 'egg-info',
+    # Version control
+    '.git', '.hg', '.svn', '.bzr',
+    # Python
+    '.venv', '__pycache__', '.pytest_cache', '.mypy_cache', '.tox',
+    'venv', 'env', '.eggs', 'egg-info',
+    # Node.js
+    'node_modules', 'npm-debug',
+    # .NET
+    'bin', 'obj', '.vs', 'packages', '.nuget', 'codex-obj',
+    # Ruby
+    'Gems', 'vendor', '.bundle',
+    # Go
+    'vendor', '.vendor',
+    # Java
+    'target', '.gradle',
+    # Build & Distribution
+    'dist', 'build', 'release', 'out', 'coverage',
+    # Reports & Logs
+    '.nyc_output', 'htmlcov', '.coverage', 'coverage',
+    # IDE
+    '.vscode', '.idea', '.eclipseme', '.vs',
+    # OS
+    '.DS_Store', 'Thumbs.db', '.AppleDouble',
+    # Package managers
+    'bower_components', 'components',
+    # Docker
+    '.docker',
+    # Misc build/cache
+    '.cache', '.tmp', 'tmp',
 }
 
-# Config files that are binary or compiled
+# Files to ignore (binary or large generated files)
 IGNORE_FILES = {
-    '.config', '.pdb',
+    '.pdb', '.snap',
 }
 
 
