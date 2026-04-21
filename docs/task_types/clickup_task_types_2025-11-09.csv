@@ -1,0 +1,26 @@
+id,name,name_plural,description,icon,icon_source
+1,"milestone","milestones","",circle,fas
+3,"form_response","form_responses","",circle,fas
+4,"meeting_note","meeting_notes","",circle,fas
+1001,"Feature","Feature Requests","New functionality or capability being added to the system. Use for user-facing features, API endpoints, or significant enhancements.",circle,fas
+1002,"Bug","Bugs","Software defect or unexpected behavior that needs to be fixed. Use for errors, crashes, incorrect behavior, or quality issues.",circle,fas
+1003,"Goal","Goals","Measurable objective with defined success criteria. Use for setting goals, objectives, or targets.",circle,fas
+1004,"Project","Projects","Project-level container for related work with multiple subtasks and milestones. Use for organizing large initiatives or project planning.",circle,fas
+1005,"User Story","User Stories","User story or feature story describing functionality from a user perspective. Use for user-facing features or product requirements.",circle,fas
+1006,"Objective","Objectives","Objective for organizing and tracking work. Use this task type to categorize and manage objective work items.",circle,fas
+1007,"Requirement","Requirements","Requirement for organizing and tracking work. Use this task type to categorize and manage requirement work items.",circle,fas
+1008,"Account","Accounts","Manage client or customer account details and interactions. Use for account management, customer relations, or account-related work.",circle,fas
+1009,"Request","Requests","Request for organizing and tracking work. Use this task type to categorize and manage request work items.",circle,fas
+1010,"Resource","Resources","Resource for organizing and tracking work. Use this task type to categorize and manage resource work items.",circle,fas
+1011,"Content","Contents","Content for organizing and tracking work. Use this task type to categorize and manage content work items.",circle,fas
+1012,"Warning","Warnings","Warning for organizing and tracking work. Use this task type to categorize and manage warning work items.",circle,fas
+1013,"Project File","Project Files","Project-level container for related work with multiple subtasks and milestones. Use for organizing large initiatives or project planning.",circle,fas
+1014,"Error","Errors","Error for organizing and tracking work. Use this task type to categorize and manage error work items.",circle,fas
+1015,"Lesson Learned","Lessons Learned","Lesson Learned for organizing and tracking work. Use this task type to categorize and manage lesson learned work items.",circle,fas
+1016,"Test Result","Test Results","Testing activities including unit tests, integration tests, or manual testing. Use for test development, test execution, or quality verification.",circle,fas
+1017,"Pull Request","Pull Requests","Pull Request for organizing and tracking work. Use this task type to categorize and manage pull request work items.",circle,fas
+1018,"Actions Run","Actions Runs","Actions Run for organizing and tracking work. Use this task type to categorize and manage actions run work items.",circle,fas
+1019,"Commit","Commits","Commit for organizing and tracking work. Use this task type to categorize and manage commit work items.",circle,fas
+1020,"Command","Commands","Command for organizing and tracking work. Use this task type to categorize and manage command work items.",circle,fas
+1021,"Branch","Branch","Branch for organizing and tracking work. Use this task type to categorize and manage branch work items.",circle,fas
+1022,"trest","test","trest for organizing and tracking work. Use this task type to categorize and manage trest work items.",circle,fas

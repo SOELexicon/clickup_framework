@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClickUp Task Type Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #7b68ee;
+        }
+
+        .tab.active {
+            color: #7b68ee;
+            border-bottom-color: #7b68ee;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .csv-example {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 8px;
+            white-space: pre-wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #7b68ee;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #6a5acd;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .task-types-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .task-type-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .task-type-card:hover {
+            border-color: #7b68ee;
+            box-shadow: 0 2px 4px rgba(123, 104, 238, 0.1);
+        }
+
+        .task-type-info {
+            flex: 1;
+        }
+
+        .task-type-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task-type-icon {
+            font-size: 18px;
+        }
+
+        .task-type-description {
+            color: #666;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .task-type-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .icon-preview {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            text-align: center;
+            line-height: 24px;
+            font-size: 14px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 ClickUp Task Type Manager</h1>
+        <p class="subtitle">Create, update, and manage custom task types with descriptions and icons</p>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="list">Existing Types</button>
+            <button class="tab" data-tab="create">Create New</button>
+            <button class="tab" data-tab="csv">CSV Import</button>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <!-- List Tab -->
+        <div class="tab-content active" id="tab-list">
+            <div id="task-types-container">
+                <div class="loading">Loading task types...</div>
+            </div>
+        </div>
+
+        <!-- Create Tab -->
+        <div class="tab-content" id="tab-create">
+            <form id="create-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="create-name">Name (Singular) *</label>
+                        <input type="text" id="create-name" required placeholder="e.g., Bug">
+                    </div>
+                    <div class="form-group">
+                        <label for="create-name-plural">Name (Plural) *</label>
+                        <input type="text" id="create-name-plural" required placeholder="e.g., Bugs">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="create-description">Description</label>
+                    <textarea id="create-description" placeholder="Describe when to use this task type..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="create-icon">Icon (Font Awesome name)</label>
+                        <input type="text" id="create-icon" placeholder="e.g., bug, rocket, book" value="circle">
+                        <small style="color: #666; margin-top: 4px; display: block;">Preview: <span id="icon-preview" class="icon-preview">○</span></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="create-icon-source">Icon Source</label>
+                        <select id="create-icon-source">
+                            <option value="fas" selected>Font Awesome Solid</option>
+                            <option value="far">Font Awesome Regular</option>
+                            <option value="fab">Font Awesome Brands</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Task Type</button>
+            </form>
+        </div>
+
+        <!-- CSV Import Tab -->
+        <div class="tab-content" id="tab-csv">
+            <div class="form-group">
+                <label for="csv-data">CSV Data</label>
+                <textarea id="csv-data" placeholder="Paste CSV data here..."></textarea>
+                <div class="csv-example">Example CSV format:
+name,name_plural,description,icon
+Bug,Bugs,Software defects that need fixing,bug
+Feature,Features,New functionality being added,rocket
+Documentation,Docs,Documentation and guides,book</div>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="csv-update-existing" checked>
+                    Update existing task types if name matches
+                </label>
+            </div>
+            <button type="button" class="btn btn-primary" id="csv-import-btn">Import from CSV</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            workspaceId: null,
+            sessionToken: null,
+            apiBase: 'https://frontdoor-prod-eu-west-1-3.clickup.com/tasks/v1'
+        };
+
+        // Icon mappings (same as bookmarklet)
+        const ICON_MAPPINGS = {
+            'bug': 'bug', 'feature': 'rocket', 'documentation': 'book', 'test': 'flask',
+            'project': 'folder-open', 'account': 'user-circle', 'security': 'shield-alt',
+            'warning': 'triangle-exclamation', 'error': 'exclamation-triangle',
+            // Add more as needed
+        };
+
+        // Initialize
+        async function init() {
+            // Get workspace ID from URL
+            const urlMatch = window.location.pathname.match(/\/(\d+)\//);
+            if (urlMatch) {
+                CONFIG.workspaceId = urlMatch[1];
+            }
+
+            // Try to get session token from cookies/localStorage
+            CONFIG.sessionToken = await getSessionToken();
+
+            if (!CONFIG.sessionToken) {
+                showAlert('Please set your session token: window.__CLICKUP_SESSION_TOKEN = "your-token"', 'error');
+            }
+
+            // Setup tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+                    switchTab(tabName);
+                });
+            });
+
+            // Setup forms
+            document.getElementById('create-form').addEventListener('submit', handleCreate);
+            document.getElementById('csv-import-btn').addEventListener('click', handleCSVImport);
+            document.getElementById('create-icon').addEventListener('input', updateIconPreview);
+
+            // Load task types
+            if (CONFIG.workspaceId && CONFIG.sessionToken) {
+                loadTaskTypes();
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            if (tabName === 'list') {
+                loadTaskTypes();
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        async function getSessionToken() {
+            // Check global variable first
+            if (window.__CLICKUP_SESSION_TOKEN) {
+                return window.__CLICKUP_SESSION_TOKEN.replace(/^Bearer\s+/i, '');
+            }
+
+            // Check cookies
+            const cookies = document.cookie.split(';');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (value && value.startsWith('eyJ')) {
+                    return decodeURIComponent(value);
+                }
+            }
+
+            // Check localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const value = localStorage.getItem(localStorage.key(i));
+                if (value && value.startsWith('eyJ')) {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        async function loadTaskTypes() {
+            const container = document.getElementById('task-types-container');
+            container.innerHTML = '<div class="loading">Loading task types...</div>';
+
+            try {
+                const response = await fetch(`${CONFIG.apiBase}/${CONFIG.workspaceId}/customItems`, {
+                    headers: {
+                        'Authorization': `Bearer ${CONFIG.sessionToken}`,
+                        'Accept': 'application/json, text/plain, */*',
+                        'x-workspace-id': CONFIG.workspaceId,
+                    },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const taskTypes = data.customItems || data.custom_items || data || [];
+
+                if (taskTypes.length === 0) {
+                    container.innerHTML = '<div class="alert alert-info">No custom task types found.</div>';
+                    return;
+                }
+
+                container.innerHTML = '<div class="task-types-list"></div>';
+                const list = container.querySelector('.task-types-list');
+
+                taskTypes.forEach(taskType => {
+                    const card = createTaskTypeCard(taskType);
+                    list.appendChild(card);
+                });
+            } catch (error) {
+                container.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function createTaskTypeCard(taskType) {
+            const card = document.createElement('div');
+            card.className = 'task-type-card';
+            
+            const icon = taskType.avatar_value || 'circle';
+            const iconClass = `fas fa-${icon}`;
+
+            card.innerHTML = `
+                <div class="task-type-info">
+                    <div class="task-type-name">
+                        <span class="task-type-icon">${getIconHTML(icon)}</span>
+                        ${taskType.name}
+                    </div>
+                    <div class="task-type-description">
+                        ${taskType.description || '<em>No description</em>'}
+                    </div>
+                </div>
+                <div class="task-type-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="editTaskType('${taskType.id}')">Edit</button>
+                    <button class="btn btn-sm btn-primary" onclick="updateTaskType('${taskType.id}')">Update</button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function getIconHTML(iconName) {
+            // Return a simple representation - in real implementation, you'd use Font Awesome
+            return `<i class="fas fa-${iconName}"></i>`;
+        }
+
+        async function handleCreate(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('create-name').value.trim();
+            const namePlural = document.getElementById('create-name-plural').value.trim();
+            const description = document.getElementById('create-description').value.trim();
+            const icon = document.getElementById('create-icon').value.trim() || 'circle';
+            const iconSource = document.getElementById('create-icon-source').value;
+
+            try {
+                const response = await fetch(`${CONFIG.apiBase}/${CONFIG.workspaceId}/customItem`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${CONFIG.sessionToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json, text/plain, */*',
+                        'x-workspace-id': CONFIG.workspaceId,
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        name: name,
+                        name_plural: namePlural,
+                        description: description,
+                        avatar_source: iconSource,
+                        avatar_value: icon
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to create: ${response.status} - ${errorText}`);
+                }
+
+                showAlert(`Task type "${name}" created successfully!`, 'success');
+                document.getElementById('create-form').reset();
+                loadTaskTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function updateTaskType(taskTypeId) {
+            // This would open an edit modal or form
+            // For now, just show a message
+            showAlert('Update functionality - implement edit form here', 'info');
+        }
+
+        function editTaskType(taskTypeId) {
+            showAlert('Edit functionality - implement edit form here', 'info');
+        }
+
+        function updateIconPreview() {
+            const iconName = document.getElementById('create-icon').value.trim() || 'circle';
+            const preview = document.getElementById('icon-preview');
+            preview.innerHTML = `<i class="fas fa-${iconName}"></i>`;
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) return [];
+
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, idx) => {
+                    row[header] = values[idx] || '';
+                });
+                data.push(row);
+            }
+
+            return data;
+        }
+
+        async function handleCSVImport() {
+            const csvData = document.getElementById('csv-data').value.trim();
+            const updateExisting = document.getElementById('csv-update-existing').checked;
+
+            if (!csvData) {
+                showAlert('Please paste CSV data', 'error');
+                return;
+            }
+
+            try {
+                const rows = parseCSV(csvData);
+                if (rows.length === 0) {
+                    showAlert('No data found in CSV', 'error');
+                    return;
+                }
+
+                showAlert(`Processing ${rows.length} task type(s)...`, 'info');
+
+                let success = 0;
+                let errors = 0;
+
+                for (const row of rows) {
+                    try {
+                        const name = row.name || row.Name || '';
+                        const namePlural = row.name_plural || row['name_plural'] || row.Name_Plural || name + 's';
+                        const description = row.description || row.Description || '';
+                        const icon = row.icon || row.Icon || 'circle';
+                        const iconSource = row.icon_source || row['icon_source'] || row.Icon_Source || 'fas';
+
+                        if (!name) {
+                            errors++;
+                            continue;
+                        }
+
+                        // Check if exists and updateExisting is true
+                        if (updateExisting) {
+                            // Try to find existing by name and update
+                            // For now, we'll create new ones
+                        }
+
+                        const response = await fetch(`${CONFIG.apiBase}/${CONFIG.workspaceId}/customItem`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${CONFIG.sessionToken}`,
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json, text/plain, */*',
+                                'x-workspace-id': CONFIG.workspaceId,
+                            },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                name: name,
+                                name_plural: namePlural,
+                                description: description,
+                                avatar_source: iconSource,
+                                avatar_value: icon
+                            })
+                        });
+
+                        if (response.ok) {
+                            success++;
+                        } else {
+                            errors++;
+                        }
+
+                        // Small delay to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    } catch (error) {
+                        errors++;
+                    }
+                }
+
+                showAlert(`Import complete: ${success} created, ${errors} errors`, success > 0 ? 'success' : 'error');
+                loadTaskTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
+
+
+
