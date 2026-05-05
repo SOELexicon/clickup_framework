@@ -5,6 +5,8 @@ from clickup_framework.resources.workspaces import WorkspacesAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
+from clickup_framework.commands.utils import add_common_args
+from clickup_framework.formatters.workspace import SpaceFormatter
 
 
 class SpaceCreateCommand(BaseCommand):
@@ -45,15 +47,9 @@ class SpaceCreateCommand(BaseCommand):
             new_space = workspaces_api.create_space(team_id, self.args.name, **space_data)
 
             success_msg = ANSIAnimations.success_message(f"Space created: {self.args.name}")
-            self.print(f"\n{success_msg}")
-            self.print(f"Space ID: {colorize(new_space['id'], TextColor.BRIGHT_GREEN)}")
-
-            if self.args.verbose:
-                self.print(f"Team/Workspace ID: {team_id}")
-                if space_data:
-                    self.print("\nFeatures configured:")
-                    for key, value in space_data.items():
-                        self.print(f"  {key}: {value}")
+            console_out = f"\n{success_msg}\nSpace ID: {colorize(new_space['id'], TextColor.BRIGHT_GREEN)}"
+            
+            self.handle_output(data=new_space, formatter=SpaceFormatter(), console_output=console_out)
 
         except ClickUpAPIError as e:
             self.error(f"Error creating space: {e}")
@@ -88,14 +84,11 @@ class SpaceUpdateCommand(BaseCommand):
         # Update the space
         try:
             workspaces_api.update_space(space_id, **updates)
+            # Fetch updated space for output
+            updated_space = self.client.get_space(space_id)
+            
             success_msg = ANSIAnimations.success_message("Space updated successfully")
-            self.print(f"\n{success_msg}")
-
-            if self.args.verbose:
-                self.print(f"\nSpace ID: {space_id}")
-                self.print("Updates applied:")
-                for key, value in updates.items():
-                    self.print(f"  {key}: {value}")
+            self.handle_output(data=updated_space, formatter=SpaceFormatter(), console_output=f"\n{success_msg}")
 
         except ClickUpAPIError as e:
             self.error(f"Error updating space: {e}")
@@ -122,7 +115,7 @@ class SpaceDeleteCommand(BaseCommand):
         try:
             self.client.delete_space(space_id)
             success_msg = ANSIAnimations.success_message("Space deleted successfully")
-            self.print(f"\n{success_msg}")
+            self.handle_output(data={"id": space_id, "status": "deleted"}, console_output=f"\n{success_msg}")
 
         except ClickUpAPIError as e:
             self.error(f"Error deleting space: {e}")
@@ -139,38 +132,7 @@ class SpaceGetCommand(BaseCommand):
         # Get the space
         try:
             space_data = self.client.get_space(space_id)
-
-            # Display space details
-            self.print(f"\n{colorize(space_data.get('name', 'Unnamed Space'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-            self.print(f"ID: {colorize(space_data['id'], TextColor.BRIGHT_GREEN)}")
-
-            if space_data.get('private'):
-                self.print(f"Privacy: Private")
-            else:
-                self.print(f"Privacy: Public")
-
-            if space_data.get('multiple_assignees'):
-                self.print(f"Multiple Assignees: Enabled")
-
-            # Show features
-            if space_data.get('features'):
-                self.print(f"\n{colorize('Features:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-                features = space_data['features']
-                for feature_name, feature_data in features.items():
-                    if isinstance(feature_data, dict) and feature_data.get('enabled'):
-                        self.print(f"  ✓ {feature_name.replace('_', ' ').title()}")
-
-            # Show folders
-            if space_data.get('folders'):
-                folder_count = len(space_data['folders'])
-                self.print(f"\n{colorize(f'Folders ({folder_count}):', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-                for folder in space_data['folders']:
-                    self.print(f"  • {folder.get('name', 'Unnamed')} ({folder['id']})")
-
-            if self.args.verbose:
-                self.print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
-                import json
-                self.print(json.dumps(space_data, indent=2))
+            self.handle_output(data=space_data, formatter=SpaceFormatter(), detail_level=getattr(self.args, 'preset', 'summary'))
 
         except ClickUpAPIError as e:
             self.error(f"Error getting space: {e}")
@@ -188,24 +150,7 @@ class SpaceListCommand(BaseCommand):
         try:
             spaces_data = self.client.get_team_spaces(team_id, archived=self.args.archived)
             spaces = spaces_data.get('spaces', [])
-
-            space_count = len(spaces)
-            self.print(f"\n{colorize(f'Spaces in Workspace ({space_count}):', TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-            self.print()
-
-            for space in spaces:
-                privacy = "🔒 Private" if space.get('private') else "🌐 Public"
-                self.print(f"{colorize(space.get('name', 'Unnamed'), TextColor.BRIGHT_GREEN)} {privacy}")
-                self.print(f"  ID: {colorize(space['id'], TextColor.BRIGHT_BLACK)}")
-
-                if space.get('folders'):
-                    self.print(f"  Folders: {len(space['folders'])}")
-
-                if self.args.show_details:
-                    if space.get('statuses'):
-                        self.print(f"  Statuses: {', '.join([s['status'] for s in space['statuses']])}")
-
-                self.print()
+            self.handle_output(data=spaces, formatter=SpaceFormatter(), detail_level=getattr(self.args, 'preset', 'summary'))
 
         except ClickUpAPIError as e:
             self.error(f"Error listing spaces: {e}")
@@ -257,10 +202,10 @@ def register_command(subparsers):
   • List spaces: cum space list current
   • Spaces contain Folders, which contain Lists
   • Use --verbose for detailed output'''
-    )
+  )
 
+    add_common_args(space_parser)
     space_subparsers = space_parser.add_subparsers(dest='space_command', help='Space command')
-
     # space create
     create_parser = space_subparsers.add_parser(
         'create',
@@ -276,6 +221,7 @@ def register_command(subparsers):
                                        'remap_closed_due_date'],
                                help='Features to enable')
     create_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
+    add_common_args(create_parser)
     create_parser.set_defaults(func=space_create_command)
 
     # space update
@@ -291,6 +237,7 @@ def register_command(subparsers):
     update_parser.add_argument('--admin-can-manage', type=bool, help='Admin can manage (true/false)')
     update_parser.add_argument('--multiple-assignees', type=bool, help='Multiple assignees (true/false)')
     update_parser.add_argument('--verbose', '-v', action='store_true', help='Show update details')
+    add_common_args(update_parser)
     update_parser.set_defaults(func=space_update_command)
 
     # space delete
@@ -302,6 +249,7 @@ def register_command(subparsers):
     )
     delete_parser.add_argument('space_id', help='Space ID (or "current")')
     delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
+    add_common_args(delete_parser)
     delete_parser.set_defaults(func=space_delete_command)
 
     # space get
@@ -312,6 +260,7 @@ def register_command(subparsers):
     )
     get_parser.add_argument('space_id', help='Space ID (or "current")')
     get_parser.add_argument('--verbose', '-v', action='store_true', help='Show full JSON response')
+    add_common_args(get_parser)
     get_parser.set_defaults(func=space_get_command)
 
     # space list
@@ -324,4 +273,5 @@ def register_command(subparsers):
     list_parser.add_argument('team_id', help='Team/Workspace ID (or "current")')
     list_parser.add_argument('--archived', action='store_true', help='Include archived spaces')
     list_parser.add_argument('--show-details', action='store_true', help='Show additional details')
+    add_common_args(list_parser)
     list_parser.set_defaults(func=space_list_command)

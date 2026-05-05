@@ -37,6 +37,7 @@ import re
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.hierarchy import hierarchy_command
 from clickup_framework.utils.argparse_helpers import raw_description_formatter
+from clickup_framework.commands.utils import add_common_args
 
 
 # Command metadata for help generation
@@ -129,12 +130,16 @@ class SearchCommand(BaseCommand):
                 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
                 pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
                 count_colored = colorize(str(result_count), TextColor.BRIGHT_GREEN, TextStyle.BOLD)
-                self.print(f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n")
+                header = f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n"
             else:
-                self.print(f'\n🔍 Found {result_count} result(s) matching "{self.args.pattern}"\n')
+                header = f'\n🔍 Found {result_count} result(s) matching "{self.args.pattern}"\n'
 
             # Print the filtered output
-            self.print("\n".join(matches))
+            full_output = header + "\n" + "\n".join(matches)
+            self.handle_output(
+                data={'matches': matches, 'count': result_count, 'pattern': self.args.pattern},
+                console_output=full_output
+            )
         except Exception as e:
             self.error(f"Error executing search: {e}")
 
@@ -227,6 +232,7 @@ Tips:
         help='Treat pattern as literal string (escape regex)'
     )
 
+    add_common_args(parser)
     parser.set_defaults(func=search_command)
 
     return parser

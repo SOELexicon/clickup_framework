@@ -4,6 +4,7 @@ Base Formatter
 Abstract base class for all formatters.
 """
 
+import json
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Literal
 
@@ -31,6 +32,43 @@ class BaseFormatter(ABC):
             Formatted string
         """
         pass
+
+    def to_json(self, data: Any) -> str:
+        """
+        Convert data to JSON string.
+
+        Args:
+            data: Data to convert (dict or list)
+
+        Returns:
+            JSON string
+        """
+        return json.dumps(data, indent=2)
+
+    def to_markdown(self, data: Any, detail_level: DetailLevel = "summary") -> str:
+        """
+        Convert data to Markdown string.
+        By default, wraps the standard format in a code block.
+        Subclasses can override for richer markdown.
+
+        Args:
+            data: Data to convert
+            detail_level: Detail level
+
+        Returns:
+            Markdown string
+        """
+        if isinstance(data, list):
+            formatted = self.format_list(data, detail_level)
+        else:
+            formatted = self.format(data, detail_level)
+        
+        # Clean up ANSI escape codes for markdown
+        import re
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        clean_formatted = ansi_escape.sub('', formatted)
+        
+        return f"```text\n{clean_formatted}\n```"
 
     @classmethod
     def format_list(

@@ -1,6 +1,7 @@
 """ANSI output configuration command."""
 
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 class AnsiCommand(BaseCommand):
@@ -35,7 +36,7 @@ def ansi_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the ansi command with argparse."""
     parser = subparsers.add_parser(
         'ansi',
@@ -47,4 +48,6 @@ def register_command(subparsers, add_common_args=None):
         choices=['enable', 'disable', 'status'],
         help='Action to perform (enable/disable/status)'
     )
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=ansi_command)

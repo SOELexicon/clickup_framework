@@ -14,13 +14,14 @@ from clickup_framework.commands.map_helpers.mermaid.diff import (
     render_text_report,
 )
 from clickup_framework.utils.argparse_helpers import raw_description_formatter
+from clickup_framework.commands.utils import add_common_args
 
 COMMAND_METADATA = {
     "category": "📊 Diagram Management",
     "commands": [
         {
             "name": "diagram-diff",
-            "args": "<baseline_file> <current_file> [--format FORMAT] [--output FILE]",
+            "args": "<baseline_file> <current_file> [--format FORMAT] [--output-file FILE]",
             "description": "Compare two Mermaid diagrams and summarize structural changes",
         },
     ],
@@ -51,8 +52,9 @@ class DiagramDiffCommand(BaseCommand):
         return None
 
     def execute(self):
-        output_format = _infer_format(self.args.output, self.args.format)
-        use_color = bool(output_format == "text" and not self.args.output and self.use_color and not self.args.no_color)
+        output_path = getattr(self.args, 'output_file', None)
+        output_format = _infer_format(output_path, self.args.format)
+        use_color = bool(output_format == "text" and not output_path and self.use_color and not self.args.no_color)
 
         baseline = load_diagram_snapshot(
             self.args.baseline_file,
@@ -84,12 +86,11 @@ class DiagramDiffCommand(BaseCommand):
             self.error(f"Unsupported format: {output_format}")
             return
 
-        if self.args.output:
-            Path(self.args.output).write_text(rendered, encoding="utf-8")
-            self.print_success(f"Diagram comparison report written to {self.args.output}")
-            return
+        if output_path:
+            Path(output_path).write_text(rendered, encoding="utf-8")
+            self.print_success(f"Diagram comparison report written to {output_path}")
 
-        self.print(rendered, end="" if rendered.endswith("\n") else "\n")
+        self.handle_output(data=result, console_output=rendered)
 
 
 def diagram_diff_command(args):
@@ -107,9 +108,9 @@ def register_command(subparsers):
         formatter_class=raw_description_formatter(),
         epilog="""Examples:
   cum diagram-diff old.mmd new.mmd
-  cum diagram-diff docs/old.md docs/new.md --format report --output diagram_diff.md
-  cum diagram-diff before.mmd after.mmd --format html --output diagram_diff.html
-  cum diagram-diff before.mmd after.mmd --format mermaid --output diagram_diff_visual.md
+  cum diagram-diff docs/old.md docs/new.md --format report --output-file diagram_diff.md
+  cum diagram-diff before.mmd after.mmd --format html --output-file diagram_diff.html
+  cum diagram-diff before.mmd after.mmd --format mermaid --output-file diagram_diff_visual.md
   cum diagram-diff before.mmd after.mmd --format side-by-side""",
     )
     parser.add_argument("baseline_file", help="Baseline Mermaid file or markdown document containing a Mermaid block")
@@ -117,9 +118,9 @@ def register_command(subparsers):
     parser.add_argument(
         "--format",
         choices=["text", "report", "html", "mermaid", "side-by-side"],
-        help="Output format. Defaults to text unless inferred from --output",
+        help="Output format. Defaults to text unless inferred from --output-file",
     )
-    parser.add_argument("--output", help="Write the comparison report to a file")
+    parser.add_argument("--output-file", help="Write the comparison report to a file")
     parser.add_argument("--baseline-label", help="Custom display label for the baseline diagram")
     parser.add_argument("--current-label", help="Custom display label for the current diagram")
     parser.add_argument(
@@ -139,4 +140,5 @@ def register_command(subparsers):
         action="store_true",
         help="Disable ANSI color in text output",
     )
+    add_common_args(parser)
     parser.set_defaults(func=diagram_diff_command)

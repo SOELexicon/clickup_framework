@@ -3,40 +3,6 @@ Hierarchy view command - displays tasks in parent-child hierarchy.
 
 This module provides the `hierarchy` command (and its aliases: h, list, ls, l) which
 displays ClickUp tasks in a hierarchical tree structure showing parent-child relationships.
-
-Features:
-    - Workspace-wide task listing with --all flag
-    - Support for spaces, folders, lists, and individual task containers
-    - Pagination support for large task sets (auto-fetches all pages)
-    - Filter completed/closed tasks with --include-completed flag
-    - Customizable display options (colors, tags, descriptions, etc.)
-    - Visual tree structure with Unicode box-drawing characters
-
-Examples:
-    # Show all tasks in workspace (with pagination)
-    cum h --all
-
-    # Show all tasks including completed ones
-    cum h --all --include-completed
-
-    # Show tasks from a specific list
-    cum h <list_id>
-
-    # Show tasks from a space or folder
-    cum h <space_id>
-    cum h <folder_id>
-
-    # Use preset format options
-    cum h --all --preset summary
-
-Aliases:
-    - hierarchy: Full command name
-    - h: Short alias
-    - list: Alternative name
-    - ls: Unix-style list
-    - l: Shortest alias
-
-Author: ClickUp Framework Team
 """
 
 import sys
@@ -52,58 +18,6 @@ logger = logging.getLogger(__name__)
 def _hierarchy_impl(args, context, client, use_color):
     """
     Display tasks in hierarchical parent-child view with full pagination support.
-
-    This command displays ClickUp tasks in a tree structure showing parent-child
-    relationships. It automatically handles pagination to fetch all tasks, regardless
-    of workspace size.
-
-    Args:
-        args: argparse.Namespace containing:
-            - list_id (str, optional): ClickUp space, folder, list, or task ID.
-              If provided, shows tasks from that container.
-            - show_all (bool): If True, shows all tasks from entire workspace.
-            - include_completed (bool): If True, includes closed/completed tasks.
-            - header (str, optional): Custom header text for the display.
-            - colorize (bool, optional): Enable/disable color output.
-            - show_ids (bool): Show task IDs.
-            - show_tags (bool): Show task tags.
-            - show_descriptions (bool): Show task descriptions.
-            - show_dates (bool): Show task dates.
-            - show_comments (int): Number of comments to show per task.
-            - show_emoji (bool): Show task type emojis.
-            - preset (str, optional): Preset format (minimal|summary|detailed|full).
-
-    Behavior:
-        - Fetches all pages of tasks using pagination (handles 100+ task workspaces)
-        - Respects include_completed flag throughout entire call chain
-        - Validates that either list_id or --all is provided (not both)
-        - Displays status information for single list views
-        - Uses custom header or auto-generates based on container
-
-    Exits:
-        1: If neither list_id nor --all is provided
-        1: If both list_id and --all are provided
-        1: If workspace is not set when using --all
-        1: If container ID is invalid
-
-    Examples:
-        Show all workspace tasks (with pagination):
-            >>> args = Namespace(list_id=None, show_all=True, include_completed=False)
-            >>> hierarchy_command(args)
-
-        Show tasks from a specific list:
-            >>> args = Namespace(list_id='123456', show_all=False)
-            >>> hierarchy_command(args)
-
-        Show all tasks including completed:
-            >>> args = Namespace(show_all=True, include_completed=True)
-            >>> hierarchy_command(args)
-
-    Notes:
-        - Automatically detects container type (space/folder/list)
-        - Handles API pagination transparently (fetches all pages)
-        - Passes include_closed parameter through entire call chain
-        - Uses DisplayManager for consistent formatting
     """
     display = DisplayManager(client)
 
@@ -113,16 +27,13 @@ def _hierarchy_impl(args, context, client, use_color):
     # Check if --space flag is set
     space_id = getattr(args, 'space_id', None)
 
-    # If --space is provided, use it as the list_id (space IDs work as container IDs)
+    # If --space is provided, use it as the list_id
     if space_id:
         args.list_id = space_id
 
     # Get the include_completed and show_closed_only flags
     include_completed = getattr(args, 'include_completed', False)
     show_closed_only = getattr(args, 'show_closed_only', False)
-
-    # Determine if we need to fetch closed tasks from the API
-    # We need closed tasks if either include_completed or show_closed_only is True
     include_closed = include_completed or show_closed_only
 
     # Validate that either list_id or --all is provided
@@ -135,14 +46,12 @@ def _hierarchy_impl(args, context, client, use_color):
         sys.exit(1)
 
     if show_all:
-        # Get workspace/team ID and fetch all tasks
         try:
             team_id = context.resolve_id('workspace', 'current')
         except ValueError:
             print("Error: No workspace ID set. Use 'cum set workspace <team_id>' first.", file=sys.stderr)
             sys.exit(1)
 
-        # Fetch all pages of tasks from the workspace
         tasks = _fetch_all_pages(
             lambda **p: client.get_team_tasks(team_id, **p),
             subtasks=True,
@@ -151,7 +60,6 @@ def _hierarchy_impl(args, context, client, use_color):
         list_id = None
         container_name = None
     else:
-        # Resolve container ID (space, folder, list, or task)
         try:
             container = resolve_container_id(client, args.list_id, context)
         except ValueError as e:
@@ -162,33 +70,26 @@ def _hierarchy_impl(args, context, client, use_color):
         container_id = container['id']
 
         if container_type == 'space':
-            # Fetch all tasks from all lists in the space
             space_data = container['data']
             container_name = space_data.get('name', 'Space')
             tasks = _get_tasks_from_space(client, space_data, include_closed)
-            # Wrap tasks in folder/list containers to show space structure
             colorize_val = getattr(args, 'colorize', None)
-            use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
-            tasks = _wrap_space_tasks_in_containers(tasks, space_data, use_color)
+            use_color_val = colorize_val if colorize_val is not None else context.get_ansi_output()
+            tasks = _wrap_space_tasks_in_containers(tasks, space_data, use_color_val)
             list_id = None
         elif container_type == 'folder':
-            # Fetch all tasks from all lists in the folder
             folder_data = container['data']
             container_name = folder_data.get('name', 'Folder')
             tasks = _get_tasks_from_folder(client, folder_data, include_closed)
-            # Wrap tasks in list containers to show folder structure
             colorize_val = getattr(args, 'colorize', None)
-            use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
-            tasks = _wrap_folder_tasks_in_lists(tasks, folder_data, use_color)
+            use_color_val = colorize_val if colorize_val is not None else context.get_ansi_output()
+            tasks = _wrap_folder_tasks_in_lists(tasks, folder_data, use_color_val)
             list_id = None
         elif container_type == 'task':
-            # Fetch task and all its subtasks recursively
             task_data = container['data']
             list_id_for_fetch = container['list_id']
             container_name = task_data.get('name', 'Task')
 
-            # Fetch all tasks from the list - need BOTH root tasks and subtasks
-            # ClickUp API: without 'subtasks' param returns root tasks, with it returns subtasks
             root_tasks = _fetch_all_pages(
                 lambda **p: client.get_list_tasks(list_id_for_fetch, **p),
                 include_closed=include_closed
@@ -199,18 +100,13 @@ def _hierarchy_impl(args, context, client, use_color):
                 include_closed=include_closed
             )
 
-            # Merge both lists and deduplicate by task ID
             task_map = {}
             for task in root_tasks + subtask_list:
                 task_map[task['id']] = task
             all_tasks = list(task_map.values())
-
-            # Filter to only include the specified task and its descendants
             tasks = _filter_task_and_descendants(all_tasks, container_id)
             list_id = None
         else:  # container_type == 'list'
-            # Fetch all pages of tasks from the single list
-            # Need BOTH root tasks and subtasks for complete hierarchy
             list_id = container_id
             root_tasks = _fetch_all_pages(
                 lambda **p: client.get_list_tasks(list_id, **p),
@@ -222,792 +118,239 @@ def _hierarchy_impl(args, context, client, use_color):
                 include_closed=include_closed
             )
 
-            # Merge both lists and deduplicate by task ID
             task_map = {}
             for task in root_tasks + subtask_list:
                 task_map[task['id']] = task
             tasks = list(task_map.values())
-
             container_name = None
 
     options = create_format_options(args)
-
-    # Set target task ID for highlighting (when viewing specific task)
-    target_task_id = None
     if not show_all and args.list_id and container_type == 'task':
-        target_task_id = container_id
-        options.highlight_task_id = target_task_id
+        options.highlight_task_id = container_id
 
-    # Show available statuses (only for single list view)
     if list_id:
         colorize_val = getattr(args, 'colorize', None)
-        colorize = colorize_val if colorize_val is not None else context.get_ansi_output()
-        status_line = get_list_statuses(client, list_id, use_color=colorize)
+        use_color_val = colorize_val if colorize_val is not None else context.get_ansi_output()
+        status_line = get_list_statuses(client, list_id, use_color=use_color_val)
         if status_line:
             print(status_line)
-            print()  # Empty line for spacing
+            print()
 
-    # Determine header for display
     header = getattr(args, "header", None)
     if not header:
-        if show_all:
-            header = "All Workspace Tasks"
-        elif container_name:
-            header = f"Tasks in {container_name}"
-        else:
-            header = "Tasks"
+        if show_all: header = "All Workspace Tasks"
+        elif container_name: header = f"Tasks in {container_name}"
+        else: header = "Tasks"
 
-    # Build container hierarchy tree when viewing a specific task
-    show_containers = not show_all and args.list_id and tasks and container_type == 'task'
-    if show_containers:
-        colorize_val = getattr(args, 'colorize', None)
-        use_color = colorize_val if colorize_val is not None else context.get_ansi_output()
-        # Store container info for later wrapping
+    if not show_all and args.list_id and tasks and container_type == 'task':
         options.show_containers = True
         options.container_info = {
             'space': tasks[0].get('space') if tasks else None,
             'folder': tasks[0].get('folder') if tasks else None,
             'list': tasks[0].get('list') if tasks else None,
-            'use_color': use_color
+            'use_color': context.get_ansi_output()
         }
 
-    # Use hierarchy view to show tasks with header
     output = display.hierarchy_view(tasks, options, header=header)
-
-    print(output)
-
-    # Show helpful tip
-    from clickup_framework.components.tips import show_tip
-    show_tips_enabled = getattr(args, 'show_tips', True)
-    use_color = options.colorize_output
-    show_tip('hierarchy', use_color=use_color, enabled=show_tips_enabled)
+    return tasks, output
 
 
 def _wrap_tasks_in_containers(tasks, use_color=True):
-    """
-    Wrap tasks in a container hierarchy showing workspace > folder > list.
-
-    Args:
-        tasks: List of tasks to wrap
-        use_color: Whether to use color in container names
-
-    Returns:
-        List containing a single root container node with nested children
-    """
-    if not tasks:
-        return None
-
+    if not tasks: return None
     from clickup_framework.utils.colors import colorize, TextColor, TextStyle
-
-    # Get container info from first task
     first_task = tasks[0]
-
-    # Build container hierarchy from bottom up
-    # Start with the tasks as the deepest level
     current_children = tasks
 
-    # Wrap in list container
     if first_task.get('list'):
         list_obj = first_task['list']
         list_name = list_obj.get('name', 'Unknown List') if isinstance(list_obj, dict) else str(list_obj)
         list_id = list_obj.get('id', '') if isinstance(list_obj, dict) else ''
-
         if use_color:
             list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
-            if list_id:
-                list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
+            if list_id: list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
             list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
         else:
-            list_id_str = f" [{list_id}]" if list_id else ""
-            list_display = f"{list_name}{list_id_str} (list)"
-
-        list_node = {
-            'id': 'container_list',
-            'name': list_display,
-            'custom_type': 'container',
-            '_children': current_children,
-            '_is_container': True
-        }
+            list_display = f"{list_name} [{list_id}] (list)" if list_id else f"{list_name} (list)"
+        list_node = {'id': 'container_list', 'name': list_display, 'custom_type': 'container', '_children': current_children, '_is_container': True}
         current_children = [list_node]
 
-    # Wrap in folder container (if exists)
     if first_task.get('folder'):
         folder = first_task['folder']
         folder_name = folder.get('name', 'Unknown Folder') if isinstance(folder, dict) else str(folder)
         folder_id = folder.get('id', '') if isinstance(folder, dict) else ''
-
         if use_color:
             folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD)
-            if folder_id:
-                folder_display += colorize(f" [{folder_id}]", TextColor.BRIGHT_BLACK)
+            if folder_id: folder_display += colorize(f" [{folder_id}]", TextColor.BRIGHT_BLACK)
             folder_display += colorize(" (folder)", TextColor.BRIGHT_BLACK)
         else:
-            folder_id_str = f" [{folder_id}]" if folder_id else ""
-            folder_display = f"{folder_name}{folder_id_str} (folder)"
-
-        folder_node = {
-            'id': 'container_folder',
-            'name': folder_display,
-            'custom_type': 'container',
-            '_children': current_children,
-            '_is_container': True
-        }
+            folder_display = f"{folder_name} [{folder_id}] (folder)" if folder_id else f"{folder_name} (folder)"
+        folder_node = {'id': 'container_folder', 'name': folder_display, 'custom_type': 'container', '_children': current_children, '_is_container': True}
         current_children = [folder_node]
 
-    # Wrap in workspace container (only if we have a name)
     if first_task.get('space'):
         space = first_task['space']
-        if isinstance(space, dict):
-            space_name = space.get('name', '')
-        else:
-            space_name = str(space)
-
-        # Only add workspace node if we have a name
+        space_name = space.get('name', '') if isinstance(space, dict) else str(space)
         if space_name:
             if use_color:
                 space_display = colorize(space_name, TextColor.BRIGHT_MAGENTA, TextStyle.BOLD) + colorize(" (workspace)", TextColor.BRIGHT_BLACK)
             else:
                 space_display = f"{space_name} (workspace)"
-
-            space_node = {
-                'id': 'container_workspace',
-                'name': space_display,
-                'custom_type': 'container',
-                '_children': current_children,
-                '_is_container': True
-            }
+            space_node = {'id': 'container_workspace', 'name': space_display, 'custom_type': 'container', '_children': current_children, '_is_container': True}
             current_children = [space_node]
-
     return current_children
 
 
 def _wrap_space_tasks_in_containers(tasks, space_data, use_color=True):
-    """
-    Wrap tasks in folder/list container nodes to show space structure.
-
-    When viewing a space, this groups tasks by their folder and list,
-    creating container nodes for each folder and list.
-
-    Args:
-        tasks: List of tasks from the space
-        space_data: Space metadata containing folder and list information
-        use_color: Whether to use color in container names
-
-    Returns:
-        List of folder/list container nodes with tasks as children
-    """
-    if not tasks:
-        return []
-
+    if not tasks: return []
     from clickup_framework.utils.colors import colorize, TextColor, TextStyle
     from collections import defaultdict
-
-    # Get context for color settings
-    context = get_context_manager()
-    if use_color is None:
-        use_color = context.get_ansi_output()
-
-    # Group tasks by folder and list
     tasks_by_folder_and_list = defaultdict(lambda: defaultdict(list))
     folderless_tasks_by_list = defaultdict(list)
 
     for task in tasks:
-        folder_info = task.get('folder', {})
-        list_info = task.get('list', {})
+        f_info = task.get('folder', {})
+        l_info = task.get('list', {})
+        f_id = f_info.get('id') if isinstance(f_info, dict) else (str(f_info) if f_info else None)
+        l_id = l_info.get('id') if isinstance(l_info, dict) else (str(l_info) if l_info else None)
+        if f_id and l_id: tasks_by_folder_and_list[f_id][l_id].append(task)
+        elif l_id: folderless_tasks_by_list[l_id].append(task)
 
-        # Get folder ID
-        if isinstance(folder_info, dict):
-            folder_id = folder_info.get('id')
-        else:
-            folder_id = str(folder_info) if folder_info else None
-
-        # Get list ID
-        if isinstance(list_info, dict):
-            list_id = list_info.get('id')
-        else:
-            list_id = str(list_info) if list_info else None
-
-        if folder_id and list_id:
-            # Task is in a folder
-            tasks_by_folder_and_list[folder_id][list_id].append(task)
-        elif list_id:
-            # Task is in a folderless list
-            folderless_tasks_by_list[list_id].append(task)
-
-    # Build metadata lookups
     folders_metadata = {fld.get('id'): fld for fld in space_data.get('folders', [])}
     all_lists_metadata = {}
+    for fld in space_data.get('folders', []):
+        for lst in fld.get('lists', []): all_lists_metadata[lst.get('id')] = lst
+    for lst in space_data.get('lists', []): all_lists_metadata[lst.get('id')] = lst
 
-    # Get lists from folders
-    for folder in space_data.get('folders', []):
-        for lst in folder.get('lists', []):
-            all_lists_metadata[lst.get('id')] = lst
+    nodes = []
+    for f_id, lists_in_f in tasks_by_folder_and_list.items():
+        f_meta = folders_metadata.get(f_id, {})
+        f_name = f_meta.get('name', 'Unknown Folder')
+        f_disp = colorize(f_name, TextColor.YELLOW, TextStyle.BOLD) + colorize(f" [{f_id}] (folder)", TextColor.BRIGHT_BLACK) if use_color else f"{f_name} [{f_id}] (folder)"
+        l_nodes = []
+        for l_id, l_tasks in lists_in_f.items():
+            l_meta = all_lists_metadata.get(l_id, {})
+            l_name = l_meta.get('name', 'Unknown List')
+            l_disp = colorize(l_name, TextColor.CYAN, TextStyle.BOLD) + colorize(f" [{l_id}] (list)", TextColor.BRIGHT_BLACK) if use_color else f"{l_name} [{l_id}] (list)"
+            l_nodes.append({'id': f'container_list_{l_id}', 'name': l_disp, 'custom_type': 'container', '_children': l_tasks, '_is_container': True})
+        l_nodes.sort(key=lambda x: x['name'])
+        nodes.append({'id': f'container_folder_{f_id}', 'name': f_disp, 'custom_type': 'container', '_children': l_nodes, '_is_container': True})
 
-    # Get folderless lists
-    for lst in space_data.get('lists', []):
-        all_lists_metadata[lst.get('id')] = lst
-
-    # Create container nodes
-    container_nodes = []
-
-    # Create folder containers with list containers inside
-    for folder_id, lists_in_folder in tasks_by_folder_and_list.items():
-        folder_meta = folders_metadata.get(folder_id, {})
-        folder_name = folder_meta.get('name', 'Unknown Folder')
-
-        # Format folder display name
-        if use_color:
-            folder_display = colorize(folder_name, TextColor.YELLOW, TextStyle.BOLD)
-            if folder_id:
-                folder_display += colorize(f" [{folder_id}]", TextColor.BRIGHT_BLACK)
-            folder_display += colorize(" (folder)", TextColor.BRIGHT_BLACK)
-        else:
-            folder_id_str = f" [{folder_id}]" if folder_id else ""
-            folder_display = f"{folder_name}{folder_id_str} (folder)"
-
-        # Create list containers for this folder
-        list_containers = []
-        for list_id, list_tasks in lists_in_folder.items():
-            list_meta = all_lists_metadata.get(list_id, {})
-            list_name = list_meta.get('name', 'Unknown List')
-
-            if use_color:
-                list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
-                if list_id:
-                    list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
-                list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
-            else:
-                list_id_str = f" [{list_id}]" if list_id else ""
-                list_display = f"{list_name}{list_id_str} (list)"
-
-            list_node = {
-                'id': f'container_list_{list_id}',
-                'name': list_display,
-                'custom_type': 'container',
-                '_children': list_tasks,
-                '_is_container': True
-            }
-            list_containers.append(list_node)
-
-        # Sort lists within folder
-        list_containers.sort(key=lambda x: x['name'])
-
-        # Create folder container
-        folder_node = {
-            'id': f'container_folder_{folder_id}',
-            'name': folder_display,
-            'custom_type': 'container',
-            '_children': list_containers,
-            '_is_container': True
-        }
-        container_nodes.append(folder_node)
-
-    # Create folderless list containers
-    for list_id, list_tasks in folderless_tasks_by_list.items():
-        list_meta = all_lists_metadata.get(list_id, {})
-        list_name = list_meta.get('name', 'Unknown List')
-
-        if use_color:
-            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
-            if list_id:
-                list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
-            list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
-        else:
-            list_id_str = f" [{list_id}]" if list_id else ""
-            list_display = f"{list_name}{list_id_str} (list)"
-
-        list_node = {
-            'id': f'container_list_{list_id}',
-            'name': list_display,
-            'custom_type': 'container',
-            '_children': list_tasks,
-            '_is_container': True
-        }
-        container_nodes.append(list_node)
-
-    # Sort containers by name for consistent display
-    container_nodes.sort(key=lambda x: x['name'])
-
-    return container_nodes
+    for l_id, l_tasks in folderless_tasks_by_list.items():
+        l_meta = all_lists_metadata.get(l_id, {})
+        l_name = l_meta.get('name', 'Unknown List')
+        l_disp = colorize(l_name, TextColor.CYAN, TextStyle.BOLD) + colorize(f" [{l_id}] (list)", TextColor.BRIGHT_BLACK) if use_color else f"{l_name} [{l_id}] (list)"
+        nodes.append({'id': f'container_list_{l_id}', 'name': l_disp, 'custom_type': 'container', '_children': l_tasks, '_is_container': True})
+    nodes.sort(key=lambda x: x['name'])
+    return nodes
 
 
 def _wrap_folder_tasks_in_lists(tasks, folder_data, use_color=True):
-    """
-    Wrap tasks in list container nodes to show folder structure.
-
-    When viewing a folder, this groups tasks by their list and creates
-    container nodes for each list, making the folder structure visible.
-
-    Args:
-        tasks: List of tasks from the folder
-        folder_data: Folder metadata containing list information
-        use_color: Whether to use color in container names
-
-    Returns:
-        List of list container nodes with tasks as children
-    """
-    if not tasks:
-        return []
-
+    if not tasks: return []
     from clickup_framework.utils.colors import colorize, TextColor, TextStyle
     from collections import defaultdict
-
-    # Get context for color settings
-    context = get_context_manager()
-    if use_color is None:
-        use_color = context.get_ansi_output()
-
-    # Group tasks by list ID
     tasks_by_list = defaultdict(list)
     for task in tasks:
-        list_info = task.get('list', {})
-        if isinstance(list_info, dict):
-            list_id = list_info.get('id')
-        else:
-            list_id = str(list_info) if list_info else None
+        l_info = task.get('list', {})
+        l_id = l_info.get('id') if isinstance(l_info, dict) else (str(l_info) if l_info else None)
+        if l_id: tasks_by_list[l_id].append(task)
 
-        if list_id:
-            tasks_by_list[list_id].append(task)
-
-    # Create list container nodes
-    list_containers = []
-    lists_metadata = {lst.get('id'): lst for lst in folder_data.get('lists', [])}
-
-    for list_id, list_tasks in tasks_by_list.items():
-        # Get list name from folder metadata
-        list_meta = lists_metadata.get(list_id, {})
-        list_name = list_meta.get('name', 'Unknown List')
-
-        # Format list display name
-        if use_color:
-            list_display = colorize(list_name, TextColor.CYAN, TextStyle.BOLD)
-            if list_id:
-                list_display += colorize(f" [{list_id}]", TextColor.BRIGHT_BLACK)
-            list_display += colorize(" (list)", TextColor.BRIGHT_BLACK)
-        else:
-            list_id_str = f" [{list_id}]" if list_id else ""
-            list_display = f"{list_name}{list_id_str} (list)"
-
-        # Create container node for this list
-        list_node = {
-            'id': f'container_list_{list_id}',
-            'name': list_display,
-            'custom_type': 'container',
-            '_children': list_tasks,
-            '_is_container': True
-        }
-        list_containers.append(list_node)
-
-    # Sort list containers by list name for consistent display
-    list_containers.sort(key=lambda x: x['name'])
-
-    return list_containers
+    l_containers = []
+    l_metadata = {lst.get('id'): lst for lst in folder_data.get('lists', [])}
+    for l_id, l_tasks in tasks_by_list.items():
+        l_meta = l_metadata.get(l_id, {})
+        l_name = l_meta.get('name', 'Unknown List')
+        l_disp = colorize(l_name, TextColor.CYAN, TextStyle.BOLD) + colorize(f" [{l_id}] (list)", TextColor.BRIGHT_BLACK) if use_color else f"{l_name} [{l_id}] (list)"
+        l_containers.append({'id': f'container_list_{l_id}', 'name': l_disp, 'custom_type': 'container', '_children': l_tasks, '_is_container': True})
+    l_containers.sort(key=lambda x: x['name'])
+    return l_containers
 
 
 def _fetch_all_pages(fetch_func, **params):
-    """
-    Fetch all pages of results from a paginated API endpoint.
-
-    ClickUp API endpoints return a maximum of 100 tasks per page. This function
-    automatically iterates through all pages until last_page is True, collecting
-    all tasks into a single list.
-
-    Args:
-        fetch_func (callable): Function to call for fetching data. Should accept
-            a 'page' parameter and return a dict with 'tasks' and 'last_page' keys.
-            Example: lambda **p: client.get_team_tasks(team_id, **p)
-        **params: Additional parameters to pass to fetch_func on each call.
-            Common parameters:
-            - subtasks (bool): Include subtasks in results
-            - include_closed (bool): Include completed/closed tasks
-            - archived (bool): Include archived tasks
-
-    Returns:
-        list: All tasks from all pages combined. Returns empty list if no tasks found.
-
-    Raises:
-        Exception: Logs warning and stops pagination if any page fetch fails.
-            Returns tasks fetched up to that point.
-
-    Examples:
-        Fetch all team tasks:
-            >>> tasks = _fetch_all_pages(
-            ...     lambda **p: client.get_team_tasks('123', **p),
-            ...     subtasks=True,
-            ...     include_closed=False
-            ... )
-
-        Fetch all list tasks:
-            >>> tasks = _fetch_all_pages(
-            ...     lambda **p: client.get_list_tasks('456', **p),
-            ...     include_closed=True
-            ... )
-
-    Notes:
-        - Starts with page=0 and increments until last_page=True
-        - Each page typically contains up to 100 tasks
-        - Gracefully handles errors by returning partial results
-        - Logs warnings for pagination failures
-        - Uses 'last_page' field from API response to determine completion
-    """
-    all_tasks = []
-    page = 0
-    last_page = False
-
+    all_tasks, page, last_page = [], 0, False
     while not last_page:
         try:
             result = fetch_func(page=page, **params)
-            tasks = result.get('tasks', [])
-            all_tasks.extend(tasks)
+            all_tasks.extend(result.get('tasks', []))
             last_page = result.get('last_page', True)
             page += 1
         except Exception as e:
-            # If pagination fails, log and break
             logger.warning(f"Pagination stopped at page {page}: {e}")
             break
-
     return all_tasks
 
 
 def _get_tasks_from_lists(client, lists, include_closed=False):
-    """
-    Fetch tasks from multiple ClickUp lists with pagination support.
-
-    Iterates through a list of ClickUp list objects and fetches all tasks from each,
-    using pagination to handle large lists. Continues fetching from other lists even
-    if one fails due to permissions or API errors.
-
-    Args:
-        client (ClickUpClient): Authenticated ClickUp API client instance
-        lists (list): List of dictionaries containing list metadata. Each dict
-            should have an 'id' key with the list ID.
-            Example: [{'id': '123', 'name': 'List 1'}, {'id': '456', 'name': 'List 2'}]
-        include_closed (bool, optional): If True, includes completed/closed tasks
-            in results. Defaults to False (open tasks only).
-
-    Returns:
-        list: Combined list of all tasks from all lists. Tasks are returned in
-            the order they were fetched (list by list). Returns empty list if
-            no tasks found or all fetches fail.
-
-    Error Handling:
-        - ClickUpNotFoundError: Logged at debug level, continues with next list
-        - ClickUpAuthError: Logged at debug level, continues with next list
-        - Other exceptions: Logged as warnings, continues with next list
-
-    Examples:
-        Fetch from multiple lists (open tasks only):
-            >>> lists = [{'id': '123'}, {'id': '456'}]
-            >>> tasks = _get_tasks_from_lists(client, lists, include_closed=False)
-
-        Fetch including completed tasks:
-            >>> tasks = _get_tasks_from_lists(client, lists, include_closed=True)
-
-    Notes:
-        - Each list is fetched with full pagination support
-        - Errors on individual lists don't stop processing of other lists
-        - Useful for fetching tasks from spaces and folders
-        - Debug/warning logs help diagnose permission issues
-    """
     from clickup_framework.exceptions import ClickUpNotFoundError, ClickUpAuthError
-
     tasks = []
-    for list_item in lists:
-        list_id = list_item.get('id')
-        if list_id:
+    for item in lists:
+        l_id = item.get('id')
+        if l_id:
             try:
-                # Fetch all pages for this list
-                list_tasks = _fetch_all_pages(
-                    lambda **p: client.get_list_tasks(list_id, **p),
-                    include_closed=include_closed
-                )
-                tasks.extend(list_tasks)
-            except (ClickUpNotFoundError, ClickUpAuthError) as e:
-                # Log known errors but continue with other lists
-                logger.debug(f"Failed to fetch tasks from list {list_id}: {e}")
-            except Exception as e:
-                # Log unexpected errors but continue with other lists
-                logger.warning(f"Unexpected error fetching tasks from list {list_id}: {e}")
+                tasks.extend(_fetch_all_pages(lambda **p: client.get_list_tasks(l_id, **p), include_closed=include_closed))
+            except (ClickUpNotFoundError, ClickUpAuthError) as e: logger.debug(f"Failed list {l_id}: {e}")
+            except Exception as e: logger.warning(f"Error list {l_id}: {e}")
     return tasks
 
 
 def _get_tasks_from_space(client, space_data, include_closed=False):
-    """
-    Fetch all tasks from all lists within a ClickUp space (including folders).
-
-    A ClickUp space can contain both folders (which contain lists) and folderless
-    lists directly under the space. This function fetches tasks from both locations,
-    using pagination for each list.
-
-    Args:
-        client (ClickUpClient): Authenticated ClickUp API client instance
-        space_data (dict): Space metadata dictionary containing:
-            - id (str): Space ID
-            - name (str): Space name
-            - folders (list): List of folder objects, each with a 'lists' key
-            - lists (list): List of folderless list objects
-        include_closed (bool, optional): If True, includes completed/closed tasks.
-            Defaults to False.
-
-    Returns:
-        list: All tasks from the space, including tasks from:
-            - Lists within folders
-            - Folderless lists directly under the space
-        Returns empty list if no tasks found.
-
-    Examples:
-        >>> space_data = {
-        ...     'id': 'space_123',
-        ...     'folders': [{'lists': [{'id': 'list_1'}]}],
-        ...     'lists': [{'id': 'list_2'}]
-        ... }
-        >>> tasks = _get_tasks_from_space(client, space_data, include_closed=False)
-
-    Notes:
-        - Processes folders first, then folderless lists
-        - Uses _get_tasks_from_lists() internally for pagination
-        - Combines results from all sources into single list
-    """
     tasks = []
-
-    # Get lists from folders
-    folders = space_data.get('folders', [])
-    for folder in folders:
-        lists = folder.get('lists', [])
-        tasks.extend(_get_tasks_from_lists(client, lists, include_closed))
-
-    # Get folderless lists (lists directly under space)
-    lists = space_data.get('lists', [])
-    tasks.extend(_get_tasks_from_lists(client, lists, include_closed))
-
+    for folder in space_data.get('folders', []):
+        tasks.extend(_get_tasks_from_lists(client, folder.get('lists', []), include_closed))
+    tasks.extend(_get_tasks_from_lists(client, space_data.get('lists', []), include_closed))
     return tasks
 
 
 def _get_tasks_from_folder(client, folder_data, include_closed=False):
-    """
-    Fetch all tasks from all lists within a ClickUp folder.
-
-    A ClickUp folder contains multiple lists. This function fetches all tasks from
-    all lists in the folder using pagination.
-
-    Args:
-        client (ClickUpClient): Authenticated ClickUp API client instance
-        folder_data (dict): Folder metadata dictionary containing:
-            - id (str): Folder ID
-            - name (str): Folder name
-            - lists (list): List of list objects with 'id' field
-        include_closed (bool, optional): If True, includes completed/closed tasks.
-            Defaults to False.
-
-    Returns:
-        list: All tasks from all lists in the folder. Returns empty list if
-            no tasks found.
-
-    Examples:
-        >>> folder_data = {
-        ...     'id': 'folder_123',
-        ...     'lists': [{'id': 'list_1'}, {'id': 'list_2'}]
-        ... }
-        >>> tasks = _get_tasks_from_folder(client, folder_data, include_closed=True)
-
-    Notes:
-        - Simple wrapper around _get_tasks_from_lists()
-        - Provides consistent interface for folder-level fetching
-        - Uses full pagination support via _get_tasks_from_lists()
-    """
-    lists = folder_data.get('lists', [])
-    return _get_tasks_from_lists(client, lists, include_closed)
+    return _get_tasks_from_lists(client, folder_data.get('lists', []), include_closed)
 
 
 def _filter_task_and_descendants(all_tasks, root_task_id):
-    """
-    Filter tasks to only include a specific task and all its descendants.
-
-    Recursively finds all subtasks, sub-subtasks, etc. of the specified root task.
-
-    Args:
-        all_tasks (list): Complete list of all tasks from the list
-        root_task_id (str): ID of the root task to start from
-
-    Returns:
-        list: List containing only the root task and all its descendants
-
-    Examples:
-        Given task hierarchy:
-            Task A [root_task_id]
-            ├─ Task B (subtask of A)
-            │  └─ Task C (subtask of B)
-            └─ Task D (subtask of A)
-
-        Returns: [Task A, Task B, Task C, Task D]
-
-    Notes:
-        - Handles arbitrary nesting depth
-        - Preserves all descendants regardless of status
-        - Returns empty list if root task not found
-    """
-    # Build a map of task_id -> task for quick lookup
     task_map = {task['id']: task for task in all_tasks}
-
-    # Check if root task exists
-    if root_task_id not in task_map:
-        logger.warning(f"Root task {root_task_id} not found in task list")
-        return []
-
-    # Recursively collect all descendants
-    def collect_descendants(task_id, collected):
-        """Recursively collect a task and all its descendants."""
-        if task_id in task_map:
-            task = task_map[task_id]
-            collected.append(task)
-
-            # Find all children of this task
-            for potential_child in all_tasks:
-                if potential_child.get('parent') == task_id:
-                    collect_descendants(potential_child['id'], collected)
-
-    result = []
-    collect_descendants(root_task_id, result)
-    return result
+    if root_task_id not in task_map: return []
+    def collect(tid, coll):
+        if tid in task_map:
+            coll.append(task_map[tid])
+            for child in all_tasks:
+                if child.get('parent') == tid: collect(child['id'], coll)
+    res = []
+    collect(root_task_id, res)
+    return res
 
 
 class HierarchyCommand(BaseCommand):
-    """Display tasks in a hierarchical parent-child tree."""
-
-    def _get_context_manager(self):
-        """Use module-local factories so existing tests can patch them."""
-        return get_context_manager()
-
-    def _create_client(self):
-        """Use module-local factories so existing tests can patch them."""
-        return ClickUpClient()
-
+    def _get_context_manager(self): return get_context_manager()
+    def _create_client(self): return ClickUpClient()
     def execute(self):
-        """Execute the hierarchy command."""
-        return _hierarchy_impl(self.args, self.context, self.client, self.use_color)
+        tasks, output = _hierarchy_impl(self.args, self.context, self.client, self.use_color)
+        from clickup_framework.components.display import DisplayManager
+        display_mgr = DisplayManager(self.client)
+        self.handle_output(data=tasks, formatter=display_mgr.hierarchy_formatter, detail_level=getattr(self.args, 'preset', 'full'), console_output=output)
+        if getattr(self.args, 'output', 'console') == 'console':
+            from clickup_framework.components.tips import show_tip
+            show_tip('hierarchy', use_color=self.use_color, enabled=getattr(self.args, 'show_tips', True))
+        return tasks, output
 
 
 def hierarchy_command(args):
-    """Command function wrapper for backward compatibility."""
     command = HierarchyCommand(args, command_name='hierarchy')
     command.execute()
 
 
 def register_command(subparsers):
-    """
-    Register the hierarchy command and its aliases with the CLI argument parser.
-
-    Registers five command aliases that all execute the same hierarchy_command function:
-    - hierarchy: Full command name
-    - h: Short alias
-    - list: Alternative name
-    - ls: Unix-style list
-    - l: Shortest alias
-
-    Each command accepts the same arguments for consistency.
-
-    Args:
-        subparsers: argparse subparsers object to register commands with
-
-    Command Arguments:
-        list_id (positional, optional): ClickUp space, folder, list, or task ID
-        --header: Custom header text for output
-        --all: Show all tasks from entire workspace
-        --preset: Use preset format (minimal|summary|detailed|full)
-        --colorize/--no-colorize: Enable/disable color output
-        --show-ids: Show task IDs
-        --show-tags: Show task tags (default: true)
-        --show-descriptions: Show task descriptions
-        -d, --full-descriptions: Show full descriptions without truncation
-        --show-dates: Show task dates
-        --show-comments N: Show N comments per task
-        --include-completed: Include completed/closed tasks
-        --no-emoji: Hide task type emojis
-
-    Examples of registered commands:
-        cum hierarchy --all
-        cum h --all
-        cum list <list_id>
-        cum ls <space_id> --include-completed
-        cum l --all --preset summary
-
-    Notes:
-        - All aliases use the same hierarchy_command function
-        - Preset defaults to 'full' for rich output
-        - Common args are added via add_common_args() utility
-    """
-    # Hierarchy command
-    hierarchy_parser = subparsers.add_parser(
-        'hierarchy',
-        help='Display tasks in hierarchical view',
-        description='Display tasks in a hierarchical parent-child tree view with rich formatting and filtering options.',
-        epilog='''Tips:
-  • View all workspace tasks: cum h --all
-  • Use presets for quick formatting: cum h <list_id> --preset summary
-  • Show completed tasks: cum h <list_id> --include-completed
-  • Limit depth: cum h <list_id> --depth 2
-  • Show full descriptions: cum h <list_id> -d
-  • Aliases: hierarchy, h, list, ls, l (all work the same)'''
-    )
-    hierarchy_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
-    hierarchy_parser.add_argument('--header', help='Custom header text')
-    hierarchy_parser.add_argument('--all', dest='show_all', action='store_true',
-                                 help='Show all tasks from the entire workspace')
-    hierarchy_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
-                                 help='Show all folders/lists/tasks in a specific space')
-    hierarchy_parser.add_argument('--depth', type=int, metavar='N',
-                                 help='Limit hierarchy display to N levels deep')
-    add_common_args(hierarchy_parser)
-    hierarchy_parser.set_defaults(func=hierarchy_command, preset='full')
-
-    # Short alias: h
-    h_parser = subparsers.add_parser('h', help='Display tasks in hierarchical view (alias for hierarchy)')
-    h_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
-    h_parser.add_argument('--header', help='Custom header text')
-    h_parser.add_argument('--all', dest='show_all', action='store_true',
-                         help='Show all tasks from the entire workspace')
-    h_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
-                         help='Show all folders/lists/tasks in a specific space')
-    h_parser.add_argument('--depth', type=int, metavar='N',
-                         help='Limit hierarchy display to N levels deep')
-    add_common_args(h_parser)
-    h_parser.set_defaults(func=hierarchy_command, preset='full')
-
-    # List command (alias for hierarchy)
-    list_parser = subparsers.add_parser('list', help='Display tasks in hierarchical view (alias for hierarchy)')
-    list_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
-    list_parser.add_argument('--header', help='Custom header text')
-    list_parser.add_argument('--all', dest='show_all', action='store_true',
-                            help='Show all tasks from the entire workspace')
-    list_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
-                            help='Show all folders/lists/tasks in a specific space')
-    list_parser.add_argument('--depth', type=int, metavar='N',
-                            help='Limit hierarchy display to N levels deep')
-    add_common_args(list_parser)
-    list_parser.set_defaults(func=hierarchy_command, preset='full')
-
-    # Short alias: ls
-    ls_parser = subparsers.add_parser('ls', help='Display tasks in hierarchical view (alias for hierarchy)')
-    ls_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
-    ls_parser.add_argument('--header', help='Custom header text')
-    ls_parser.add_argument('--all', dest='show_all', action='store_true',
-                          help='Show all tasks from the entire workspace')
-    ls_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
-                          help='Show all folders/lists/tasks in a specific space')
-    ls_parser.add_argument('--depth', type=int, metavar='N',
-                          help='Limit hierarchy display to N levels deep')
-    add_common_args(ls_parser)
-    ls_parser.set_defaults(func=hierarchy_command, preset='full')
-
-    # Short alias: l
-    l_parser = subparsers.add_parser('l', help='Display tasks in hierarchical view (alias for hierarchy)')
-    l_parser.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID (optional if --all or --space is used)')
-    l_parser.add_argument('--header', help='Custom header text')
-    l_parser.add_argument('--all', dest='show_all', action='store_true',
-                         help='Show all tasks from the entire workspace')
-    l_parser.add_argument('--space', dest='space_id', metavar='SPACE_ID',
-                         help='Show all folders/lists/tasks in a specific space')
-    l_parser.add_argument('--depth', type=int, metavar='N',
-                         help='Limit hierarchy display to N levels deep')
-    add_common_args(l_parser)
-    l_parser.set_defaults(func=hierarchy_command, preset='full')
+    parsers = []
+    for name, help_text in [
+        ('hierarchy', 'Display tasks in hierarchical view'),
+        ('h', 'Display tasks in hierarchical view (alias)'),
+        ('list', 'Display tasks in hierarchical view (alias)'),
+        ('ls', 'Display tasks in hierarchical view (alias)'),
+        ('l', 'Display tasks in hierarchical view (alias)')
+    ]:
+        p = subparsers.add_parser(name, help=help_text)
+        p.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID')
+        p.add_argument('--header', help='Custom header text')
+        p.add_argument('--all', dest='show_all', action='store_true', help='Show all tasks from entire workspace')
+        p.add_argument('--space', dest='space_id', help='Show all in specific space')
+        p.add_argument('--depth', type=int, help='Limit depth')
+        add_common_args(p)
+        p.set_defaults(func=hierarchy_command, preset='full')
+        parsers.append(p)

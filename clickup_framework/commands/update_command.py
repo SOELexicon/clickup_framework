@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import add_common_args
 
 # Ensure UTF-8 encoding for Windows
 if platform.system() == 'Windows':
@@ -1010,6 +1011,7 @@ def register_command(subparsers):
         action='store_true',
         help='Force reinstall instead of upgrade (removes and reinstalls package)'
     )
+    add_common_args(update_cum_parser)
     update_cum_parser.set_defaults(func=update_cum_command)
 
     # Update version (bump version)
@@ -1040,4 +1042,5 @@ def register_command(subparsers):
         action='store_true',
         help='Create tag locally but do not push to origin'
     )
+    add_common_args(update_version_parser)
     update_version_parser.set_defaults(func=update_version_command)

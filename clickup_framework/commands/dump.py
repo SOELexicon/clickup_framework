@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Optional
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.commands.utils import add_common_args
 from clickup_framework.cli_error_handler import handle_cli_error
 
 
@@ -410,6 +411,7 @@ def register_command(subparsers):
     list_parser.add_argument('--output-dir', '-o', help='Output directory (default: ./dump)')
     list_parser.add_argument('--format', '-f', choices=['markdown', 'json', 'console'],
                            default='markdown', help='Output format (default: markdown)')
+    add_common_args(list_parser)
     list_parser.set_defaults(func=dump_command)
 
     # Task dump
@@ -418,6 +420,7 @@ def register_command(subparsers):
     task_parser.add_argument('--output-dir', '-o', help='Output directory (default: ./dump)')
     task_parser.add_argument('--format', '-f', choices=['markdown', 'json', 'console'],
                            default='markdown', help='Output format (default: markdown)')
+    add_common_args(task_parser)
     task_parser.set_defaults(func=dump_command)
 
     # Doc dump
@@ -427,4 +430,5 @@ def register_command(subparsers):
     doc_parser.add_argument('--output-dir', '-o', help='Output directory (default: ./dump)')
     doc_parser.add_argument('--format', '-f', choices=['markdown', 'json', 'console'],
                            default='markdown', help='Output format (default: markdown)')
+    add_common_args(doc_parser)
     doc_parser.set_defaults(func=dump_command)

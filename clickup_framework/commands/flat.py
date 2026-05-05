@@ -40,7 +40,13 @@ class FlatCommand(BaseCommand):
         header = self.args.header if hasattr(self.args, 'header') and self.args.header else None
         output = display.flat_view(tasks, options, header)
 
-        self.print(output)
+        detail_level = getattr(self.args, 'preset', 'summary')
+        self.handle_output(
+            data=tasks,
+            formatter=display.task_formatter,
+            detail_level=detail_level,
+            console_output=output
+        )
 
 
 def flat_command(args):

@@ -4,33 +4,12 @@ Drop-in plugin command loader for CLI.
 Each command module in this directory should define:
 1. A `register_command(subparsers)` function that configures argparse
 2. A `COMMAND_METADATA` dict for automatic help generation (optional but recommended)
-
-Example command module structure:
-    # Metadata for automatic help generation
-    COMMAND_METADATA = {
-        "category": "📊 View Commands",
-        "commands": [
-            {
-                "name": "mycommand [alias1, alias2]",
-                "args": "<arg1> [options]",
-                "description": "Command description shown in help"
-            }
-        ]
-    }
-
-    def my_command(args):
-        '''Command implementation'''
-        pass
-
-    def register_command(subparsers):
-        parser = subparsers.add_parser('mycommand', aliases=['alias1', 'alias2'],
-                                       help='Description')
-        parser.add_argument('arg1', help='Argument 1')
-        parser.set_defaults(func=my_command)
 """
 
 import os
+import sys
 import importlib
+import inspect
 import pkgutil
 import logging
 from pathlib import Path
@@ -134,11 +113,17 @@ def register_all_commands(subparsers):
     Args:
         subparsers: The argparse subparsers object to register commands with
     """
+    from .utils import add_common_args
+
     commands = discover_commands()
 
     for module in commands:
         try:
-            module.register_command(subparsers)
+            signature = inspect.signature(module.register_command)
+            if len(signature.parameters) >= 2:
+                module.register_command(subparsers, add_common_args)
+            else:
+                module.register_command(subparsers)
         except Exception as e:
             module_name = module.__name__.split('.')[-1]
             logger.debug("Failed to register command from '%s': %s", module_name, e)

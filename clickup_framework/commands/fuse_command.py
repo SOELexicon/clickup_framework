@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from difflib import SequenceMatcher
 
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 from clickup_framework.utils.diff import diff_strings, get_diff_summary
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -444,4 +445,5 @@ Tips:
                        action='store_true',
                        help='Keep source tasks instead of deleting them')
 
+    add_common_args(parser)
     parser.set_defaults(func=fuse_command)

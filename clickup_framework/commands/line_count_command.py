@@ -116,18 +116,18 @@ class LineCountCommand(BaseCommand):
 
             formatter: ConsoleFormatter = ConsoleFormatter()
 
-            # Print summary stats
+            # Format summary stats
             summary_output: str = formatter.format_summary_stats(relative_results, use_color=not no_color)
-            print(summary_output)
-            print()
-
-            # Print top files table
+            
+            # Format top files table
             top_files_output: str = formatter.format_top_files(
                 relative_results,
                 limit=limit,
                 use_color=not no_color
             )
-            print(top_files_output)
+            
+            console_out = summary_output + "\n\n" + top_files_output
+            self.handle_output(data=relative_results, console_output=console_out)
 
         # Generate HTML report unless disabled
         no_html: bool = getattr(self.args, 'no_html', False)

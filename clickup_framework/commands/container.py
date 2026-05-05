@@ -39,7 +39,13 @@ class ContainerCommand(BaseCommand):
 
         output = display.container_view(tasks, self.format_options)
 
-        self.print(output)
+        detail_level = getattr(self.args, 'preset', 'full')
+        self.handle_output(
+            data=tasks,
+            formatter=display.task_formatter,
+            detail_level=detail_level,
+            console_output=output
+        )
 
 
 def container_command(args):

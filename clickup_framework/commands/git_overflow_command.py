@@ -8,6 +8,7 @@ from clickup_framework.git import (
     load_config,
 )
 from clickup_framework.exceptions import ClickUpAuthError
+from clickup_framework.commands.utils import add_common_args
 
 
 class OverflowCommand(BaseCommand):
@@ -125,52 +126,9 @@ class OverflowCommand(BaseCommand):
 
             # Display results
             if result.success:
-                self.print("✅ Workflow completed successfully!")
-                self.print("")
-
-                if result.commit_result:
-                    commit = result.commit_result
-                    self.print(f"📝 Commit: {commit.commit_sha_short}")
-
-                    if commit.author_name:
-                        self.print(f"👤 Author: {commit.author_name} <{commit.author_email}>")
-
-                    self.print(f"📁 Files changed: {commit.files_changed_count}")
-                    self.print(f"   +{commit.additions} -{commit.deletions}")
-
-                    if commit.pushed:
-                        self.print(f"📤 Pushed to {commit.branch}")
-                    elif commit.push_error:
-                        self.print_error(f"⚠️  Push failed: {commit.push_error}")
-
-                    if commit.commit_url:
-                        self.print(f"🔗 {commit.commit_url}")
-
-                    self.print("")
-
-                if result.clickup_update:
-                    clickup = result.clickup_update
-                    if clickup.applied:
-                        self.print("🔗 ClickUp updated:")
-                        if clickup.comment:
-                            self.print("   ✓ Comment posted")
-                        if clickup.status:
-                            self.print(f"   ✓ Status set to '{clickup.status}'")
-                        self.print("")
-                    elif clickup.error:
-                        self.print_error(f"⚠️  ClickUp update failed: {clickup.error}")
-                        self.print("")
-
-                # Show warnings
-                if result.warnings:
-                    self.print("⚠️  Warnings:")
-                    for warning in result.warnings:
-                        self.print(f"   • {warning}")
-                    self.print("")
-
-                self.print(f"⏱️  Duration: {result.duration_seconds:.2f}s")
-
-            else:
+                # ... results displayed via self.print ...
+                self.handle_output(data=result.__dict__)
+                return result
                 # Workflow failed
                 self.print_error("❌ Workflow failed!")
                 self.print_error("")
@@ -299,4 +257,5 @@ Example:
         help='Show detailed error information'
     )
 
+    add_common_args(parser)
     parser.set_defaults(func=overflow_command)

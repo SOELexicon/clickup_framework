@@ -49,6 +49,48 @@ class TaskFormatter(BaseFormatter):
         else:
             raise ValueError(f"Invalid detail level: {detail_level}")
 
+    def to_markdown(self, data: Any, detail_level: DetailLevel = "summary") -> str:
+        """
+        Convert task to rich Markdown.
+        """
+        if isinstance(data, list):
+            tasks = data
+        else:
+            tasks = [data]
+            
+        md_lines = []
+        for task in tasks:
+            task_id = task.get('id', 'unknown')
+            name = task.get('name', 'Unnamed')
+            status = task.get('status', {}).get('status', 'None') if isinstance(task.get('status'), dict) else task.get('status', 'None')
+            
+            md_lines.append(f"## Task: {name} ([{task_id}]({task.get('url', '#')}))")
+            md_lines.append(f"- **Status:** {status}")
+            
+            priority = task.get('priority')
+            if priority:
+                p_name = priority.get('priority', 'None') if isinstance(priority, dict) else str(priority)
+                md_lines.append(f"- **Priority:** {p_name}")
+                
+            assignees = task.get('assignees', [])
+            if assignees:
+                names = [a.get('username', 'Unknown') for a in assignees]
+                md_lines.append(f"- **Assignees:** {', '.join(names)}")
+            
+            tags = task.get('tags', [])
+            if tags:
+                tag_names = [t.get('name', t) if isinstance(t, dict) else str(t) for t in tags]
+                md_lines.append(f"- **Tags:** `{', '.join(tag_names)}`")
+                
+            desc = task.get('description') or task.get('markdown_description')
+            if desc and detail_level in ["detailed", "full"]:
+                md_lines.append("\n### Description")
+                md_lines.append(desc)
+                
+            md_lines.append("\n---")
+            
+        return "\n".join(md_lines)
+
     def _format_minimal(self, task: Dict[str, Any]) -> str:
         """
         Minimal format: ID and name only.

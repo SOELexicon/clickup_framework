@@ -2,7 +2,7 @@
 
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.components import DisplayManager
-from clickup_framework.commands.utils import get_list_statuses
+from clickup_framework.commands.utils import get_list_statuses, add_common_args
 
 
 def get_task_type_emoji(task_type):
@@ -158,7 +158,10 @@ class StatsCommand(BaseCommand):
             # Show regular summary
             output = display.summary_stats(tasks)
 
-        self.print(output)
+        self.handle_output(
+            data=tasks,
+            console_output=output
+        )
 
 
 def stats_command(args):
@@ -172,7 +175,7 @@ def stats_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the stats command with argparse."""
     parser = subparsers.add_parser(
         'stats',
@@ -193,4 +196,6 @@ def register_command(subparsers, add_common_args=None):
                         help='Filter tasks by specific type (e.g., Bug, Feature, Test)')
     parser.add_argument('--include-closed', action='store_true',
                         help='Include closed/archived tasks in statistics')
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=stats_command)

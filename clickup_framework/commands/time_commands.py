@@ -9,6 +9,7 @@ from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources import TimeAPI
 from clickup_framework.utils import format_duration, format_timestamp, parse_duration_to_ms
 from clickup_framework.utils.argparse_helpers import raw_text_formatter
+from clickup_framework.commands.utils import add_common_args
 
 
 COMMAND_METADATA = {
@@ -266,7 +267,33 @@ class TimeStatusCommand(TimeCommandBase):
         if not current_entry:
             self.print("No timer is currently running.")
             return
-        self._print_timer_status(current_entry)
+        
+        # Determine output
+        task_id = _entry_task_id(current_entry)
+        task_name = _entry_task_name(current_entry)
+        started = _entry_start_ms(current_entry)
+        description = _entry_description(current_entry)
+        elapsed = format_duration(_entry_duration_ms(current_entry))
+
+        lines = [
+            "⏱️  Current Timer",
+            "",
+            f"Task: {task_name} [{task_id or 'unknown'}]"
+        ]
+        if started is not None:
+            lines.append(f"Started: {format_timestamp(started, include_time=True)} ({elapsed} ago)")
+        else:
+            lines.append(f"Elapsed: {elapsed}")
+        if description:
+            lines.append(f"Description: {description}")
+        lines.append("")
+        lines.append("Use 'cum time stop' to stop the timer")
+        
+        output = "\n".join(lines)
+        self.handle_output(
+            data=current_entry,
+            console_output=output
+        )
 
 
 class TimeListCommand(TimeCommandBase):
@@ -326,16 +353,20 @@ class TimeListCommand(TimeCommandBase):
             row.append(_format_description_cell(_entry_description(entry) or "-"))
             rows.append(row)
 
-        widths = [max(len(header), *(len(str(row[index])) for row in rows)) for index, header in enumerate(headers)]
-        header_line = " | ".join(header.ljust(widths[index]) for index, header in enumerate(headers))
         divider = "-+-".join("-" * widths[index] for index in range(len(headers)))
-        self.print(header_line)
-        self.print(divider)
+        
+        output_lines = [header_line, divider]
         for row in rows:
-            self.print(" | ".join(str(cell).ljust(widths[index]) for index, cell in enumerate(row)))
-
-        self.print("")
-        self.print(f"Total: {format_duration(total_ms)}")
+            output_lines.append(" | ".join(str(cell).ljust(widths[index]) for index, cell in enumerate(row)))
+        output_lines.append("")
+        output_lines.append(f"Total: {format_duration(total_ms)}")
+        
+        console_output = "\n".join(output_lines)
+        
+        self.handle_output(
+            data=entries,
+            console_output=console_output
+        )
 
 
 class TimeAddCommand(TimeCommandBase):
@@ -440,15 +471,18 @@ def register_command(subparsers):
     start_parser.add_argument("task_id", help='Task ID or "current"')
     start_parser.add_argument("--team", dest="team_id", help='Workspace/team ID (defaults to "current")')
     start_parser.add_argument("--description", help="Optional timer description")
+    add_common_args(start_parser)
     start_parser.set_defaults(func=time_start_command)
 
     stop_parser = time_subparsers.add_parser("stop", help="Stop the currently running timer")
     stop_parser.add_argument("--team", dest="team_id", help='Workspace/team ID (defaults to "current")')
     stop_parser.add_argument("--task", dest="task_id", help="Require the running timer to belong to this task")
+    add_common_args(stop_parser)
     stop_parser.set_defaults(func=time_stop_command)
 
     status_parser = time_subparsers.add_parser("status", help="Show the currently running timer")
     status_parser.add_argument("--team", dest="team_id", help='Workspace/team ID (defaults to "current")')
+    add_common_args(status_parser)
     status_parser.set_defaults(func=time_status_command)
 
     list_parser = time_subparsers.add_parser("list", help="List time entries")
@@ -457,6 +491,7 @@ def register_command(subparsers):
     list_parser.add_argument("--assignee", type=int, help="Filter by user ID")
     list_parser.add_argument("--start-date", help="Start date filter in YYYY-MM-DD format")
     list_parser.add_argument("--end-date", help="End date filter in YYYY-MM-DD format")
+    add_common_args(list_parser)
     list_parser.set_defaults(func=time_list_command)
 
     add_parser = time_subparsers.add_parser("add", help="Add a manual time entry")
@@ -465,10 +500,12 @@ def register_command(subparsers):
     add_parser.add_argument("--team", dest="team_id", help='Workspace/team ID (defaults to "current")')
     add_parser.add_argument("--description", help="Description for the manual time entry")
     add_parser.add_argument("--date", help="Work date in YYYY-MM-DD format (defaults to now-duration)")
+    add_common_args(add_parser)
     add_parser.set_defaults(func=time_add_command)
 
     delete_parser = time_subparsers.add_parser("delete", help="Delete a time entry")
     delete_parser.add_argument("timer_id", help="Time entry/timer ID")
     delete_parser.add_argument("--team", dest="team_id", help='Workspace/team ID (defaults to "current")')
     delete_parser.add_argument("--force", "-f", action="store_true", help="Skip confirmation prompt")
+    add_common_args(delete_parser)
     delete_parser.set_defaults(func=time_delete_command)

@@ -1,6 +1,7 @@
 """Set current context command."""
 
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 class SetCurrentCommand(BaseCommand):
@@ -38,9 +39,11 @@ class SetCurrentCommand(BaseCommand):
             # Mask token in output for security
             if resource_type == 'token':
                 masked_token = f"{resource_id[:15]}...{resource_id[-4:]}" if len(resource_id) > 20 else "********"
-                self.print_success(f"API token validated and saved successfully: {masked_token}")
+                msg = f"API token validated and saved successfully: {masked_token}"
+                self.handle_output(data={"type": "token", "status": "success"}, console_output=f"✓ {msg}")
             else:
-                self.print_success(f"Set current {resource_type} to: {resource_id}")
+                msg = f"Set current {resource_type} to: {resource_id}"
+                self.handle_output(data={"type": resource_type, "id": resource_id, "status": "success"}, console_output=f"✓ {msg}")
         except ValueError as e:
             self.error(str(e))
 
@@ -56,7 +59,7 @@ def set_current_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the set_current command with argparse."""
     parser = subparsers.add_parser(
         'set_current',
@@ -77,4 +80,6 @@ def register_command(subparsers, add_common_args=None):
         help='Type of resource to set as current'
     )
     parser.add_argument('resource_id', help='ID/value of the resource (API token for token type)')
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=set_current_command)

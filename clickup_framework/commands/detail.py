@@ -94,8 +94,16 @@ class DetailCommand(BaseCommand):
         else:
             all_tasks = None
 
-        output = display.detail_view(task, all_tasks, self.format_options or create_format_options(self.args))
-        self.print(output)
+        options = self.format_options or create_format_options(self.args)
+        detail_level = getattr(self.args, 'preset', 'full')
+        output = display.detail_view(task, all_tasks, options)
+        
+        self.handle_output(
+            data=task, 
+            formatter=display.detail_formatter, 
+            detail_level=detail_level, 
+            console_output=output
+        )
 
 
 def detail_command(args):

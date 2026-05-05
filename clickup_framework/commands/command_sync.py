@@ -18,6 +18,7 @@ from clickup_framework.clickup_constants import (
     CLI_COMMAND_TASK_IDS,
 )
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 from clickup_framework.exceptions import ClickUpAPIError
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
@@ -898,4 +899,5 @@ help output, syntax, purpose, and execution results.
         help='Audit registered commands against category/task mappings and the CLI Commands list'
     )
 
+    add_common_args(parser)
     parser.set_defaults(func=command_sync_command)

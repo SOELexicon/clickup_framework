@@ -6,11 +6,13 @@ import json
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
 from clickup_framework import ClickUpClient, get_context_manager
+from clickup_framework.formatters.task import TaskFormatter
+from clickup_framework.formatters.base import BaseFormatter
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.diff import diff_strings
 from clickup_framework.exceptions import ClickUpAPIError
-from clickup_framework.commands.utils import read_text_from_file, expand_cli_tag_list
+from clickup_framework.commands.utils import read_text_from_file, expand_cli_tag_list, add_common_args
 from clickup_framework.cli_error_handler import handle_cli_error
 from clickup_framework.utils.status_mapper import (
     map_status,
@@ -453,6 +455,8 @@ def _task_create_impl(args, context, client, use_color):
         use_color = context.get_ansi_output()
         show_tip('task_create', use_color=use_color, enabled=show_tips_enabled)
 
+        return task
+
     except Exception as e:
         # If it's a status error, try to get available statuses for the error message
         error_context = {
@@ -481,7 +485,7 @@ def _task_update_impl(args, context, client, use_color):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(e, {'command': getattr(args, 'func', lambda x: None).__name__.replace('_command', '') if hasattr(args, 'func') else 'task', 'provided_task_id': args.task_id})
 
     # Build update dictionary from provided arguments
     updates = {}
@@ -680,6 +684,8 @@ def _task_update_impl(args, context, client, use_color):
                 value_str = str(value)
             print(f"  {colorize(key, TextColor.BRIGHT_CYAN)}: {value_str}")
 
+        return updated_task
+
     except Exception as e:
         handle_cli_error(e, {'command': 'task_update', 'task_id': task_id, 'updates': updates})
 
@@ -752,7 +758,7 @@ def _task_assign_impl(args, context, client, use_color):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(e, {'command': getattr(args, 'func', lambda x: None).__name__.replace('_command', '') if hasattr(args, 'func') else 'task', 'provided_task_id': args.task_id})
 
     # Get current task to append assignees
     try:
@@ -781,7 +787,7 @@ def _task_unassign_impl(args, context, client, use_color):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(e, {'command': getattr(args, 'func', lambda x: None).__name__.replace('_command', '') if hasattr(args, 'func') else 'task', 'provided_task_id': args.task_id})
 
     # Remove assignees
     try:
@@ -1044,7 +1050,10 @@ class TaskCreateCommand(TaskCommandBase):
 
     def execute(self):
         """Execute the task_create command."""
-        return _task_create_impl(self.args, self.context, self.client, self.use_color)
+        result = _task_create_impl(self.args, self.context, self.client, self.use_color)
+        if isinstance(result, dict) and 'id' in result:
+            self.handle_output(data=result, formatter=TaskFormatter(), detail_level="summary")
+        return result
 
 
 class TaskUpdateCommand(TaskCommandBase):
@@ -1052,7 +1061,10 @@ class TaskUpdateCommand(TaskCommandBase):
 
     def execute(self):
         """Execute the task_update command."""
-        return _task_update_impl(self.args, self.context, self.client, self.use_color)
+        result = _task_update_impl(self.args, self.context, self.client, self.use_color)
+        if isinstance(result, dict) and 'id' in result:
+            self.handle_output(data=result, formatter=TaskFormatter(), detail_level="summary")
+        return result
 
 
 class TaskDeleteCommand(TaskCommandBase):
@@ -1084,7 +1096,10 @@ class TaskSetStatusCommand(TaskCommandBase):
 
     def execute(self):
         """Execute the task_set_status command."""
-        return _task_set_status_impl(self.args, self.context, self.client, self.use_color)
+        result = _task_set_status_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class TaskAddDependencyCommand(TaskCommandBase):
@@ -1231,7 +1246,7 @@ def _task_set_tags_impl(args, context, client, use_color):
         handle_cli_error(
             e,
             {
-                'command': args.func.__name__.replace('_command', ''),
+                'command': getattr(args, 'func', lambda x: None).__name__.replace('_command', '') if hasattr(args, 'func') else 'task',
                 'provided_task_id': ', '.join(raw_task_ids),
             }
         )
@@ -1329,7 +1344,7 @@ def _task_add_dependency_impl(args, context, client, use_color):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(e, {'command': getattr(args, 'func', lambda x: None).__name__.replace('_command', '') if hasattr(args, 'func') else 'task', 'provided_task_id': args.task_id})
 
     # Validate that exactly one relationship type is provided
     if not args.waiting_on and not args.blocking:
@@ -1373,7 +1388,7 @@ def _task_remove_dependency_impl(args, context, client, use_color):
     try:
         task_id = context.resolve_id('task', args.task_id)
     except ValueError as e:
-        handle_cli_error(e, {'command': args.func.__name__.replace('_command', ''), 'provided_task_id': args.task_id})
+        handle_cli_error(e, {'command': getattr(args, 'func', lambda x: None).__name__.replace('_command', '') if hasattr(args, 'func') else 'task', 'provided_task_id': args.task_id})
 
     # Validate that exactly one relationship type is provided
     if not args.waiting_on and not args.blocking:
@@ -1762,50 +1777,40 @@ def _task_types_impl(args, context, client, use_color):
         task_types.sort(key=lambda x: str(x['id']))
 
         # Output formatting
-        if args.json:
-            print(json.dumps(task_types, indent=2))
-            return
-
-        if not task_types:
-            print(f"\nNo custom task types discovered for workspace {team_id}.")
-            if source == "inferred":
-                print("Tip: Ensure the specified list contains tasks of custom types.")
-            return
-
-        # Display table
-        print(f"\n{colorize('Task Types (Custom Items)', TextStyle.BOLD)} for Workspace {team_id}\n")
-        
-        # Calculate column widths
-        id_width = max(len("ID"), max([len(str(t['id'])) for t in task_types]))
-        name_width = max(len("Name"), max([len(str(t['name'])) for t in task_types]))
-        source_width = max(len("Source"), max([len(str(t['source'])) for t in task_types]))
-        
-        header = f"{'ID':>{id_width}}  {'Name':<{name_width}}  {'Source':<{source_width}}"
-        if any('sample' in t for t in task_types):
-            header += "  Sample Task"
-        
-        print(colorize(header, TextStyle.BOLD))
-        print(colorize("─" * len(header), TextColor.BRIGHT_BLACK))
-
-        for t in task_types:
-            row = f"{str(t['id']):>{id_width}}  {str(t['name']):<{name_width}}  {str(t['source']):<{source_width}}"
-            if 'sample' in t:
-                row += f"  {t['sample']}"
-            
-            # Highlight custom types
-            if t['id'] != "null":
-                print(row)
-            else:
-                print(colorize(row, TextColor.BRIGHT_BLACK))
-
-        if source == "inferred":
-            print(f"\n{colorize('Tip:', TextColor.BRIGHT_YELLOW)} type names are inferred from sampled tasks.")
-            print("     Edit a representative task in ClickUp UI to confirm the exact name.")
-        
-        print(f"\nTotal types: {len(task_types)}")
+        return task_types
 
     except Exception as e:
         handle_cli_error(e, {'command': 'task_types'})
+
+
+class TaskTypeFormatter(BaseFormatter):
+    """Formatter for task types."""
+    def format(self, data: Dict[str, Any], detail_level: str = "summary") -> str:
+        return f"{data.get('id', 'null'):>4}  {data.get('name', 'Unknown'):<20}  {data.get('source', 'registry'):<10}"
+    
+    def format_list(self, items: List[Dict[str, Any]], detail_level: str = "summary") -> str:
+        if not items:
+            return "No task types found."
+        
+        # Calculate column widths
+        id_width = max(len("ID"), max([len(str(t['id'])) for t in items]))
+        name_width = max(len("Name"), max([len(str(t['name'])) for t in items]))
+        source_width = max(len("Source"), max([len(str(t['source'])) for t in items]))
+        
+        lines = []
+        header = f"{'ID':>{id_width}}  {'Name':<{name_width}}  {'Source':<{source_width}}"
+        if any('sample' in t for t in items):
+            header += "  Sample Task"
+        lines.append(header)
+        lines.append("─" * len(header))
+
+        for t in items:
+            row = f"{str(t['id']):>{id_width}}  {str(t['name']):<{name_width}}  {str(t['source']):<{source_width}}"
+            if 'sample' in t:
+                row += f"  {t['sample']}"
+            lines.append(row)
+        
+        return "\n".join(lines)
 
 
 class TaskTypesCommand(TaskCommandBase):
@@ -1813,7 +1818,10 @@ class TaskTypesCommand(TaskCommandBase):
 
     def execute(self):
         """Execute the task_types command."""
-        return _task_types_impl(self.args, self.context, self.client, self.use_color)
+        result = _task_types_impl(self.args, self.context, self.client, self.use_color)
+        if result is not None:
+            self.handle_output(data=result, formatter=TaskTypeFormatter())
+        return result
 
 
 def task_types_command(args):
@@ -1864,6 +1872,7 @@ def register_command(subparsers):
     task_create_parser.add_argument('--image-cache', help='Directory for image cache')
     task_create_parser.add_argument('--task-type', '--type', dest='task_type',
                                     help='Task type (e.g., "Task", "Milestone", "Feature")')
+    add_common_args(task_create_parser)
     task_create_parser.set_defaults(func=task_create_command)
 
     # Task update
@@ -1897,6 +1906,7 @@ def register_command(subparsers):
     task_update_parser.add_argument('--skip-mermaid', action='store_true',
                                     help='Skip mermaid diagram processing in description')
     task_update_parser.add_argument('--image-cache', help='Directory for image cache')
+    add_common_args(task_update_parser)
     task_update_parser.set_defaults(func=task_update_command)
 
     # Task delete
@@ -1916,6 +1926,7 @@ def register_command(subparsers):
     task_delete_parser.add_argument('task_ids', nargs='+', help='Task ID(s) to delete (or "current")')
     task_delete_parser.add_argument('--force', '-f', action='store_true',
                                     help='Skip confirmation prompt')
+    add_common_args(task_delete_parser)
     task_delete_parser.set_defaults(func=task_delete_command)
 
     # Task assign
@@ -1933,6 +1944,7 @@ def register_command(subparsers):
     )
     task_assign_parser.add_argument('task_id', help='Task ID (or "current")')
     task_assign_parser.add_argument('assignee_ids', nargs='+', help='User IDs to assign')
+    add_common_args(task_assign_parser)
     task_assign_parser.set_defaults(func=task_assign_command)
 
     # Task unassign
@@ -1950,6 +1962,7 @@ def register_command(subparsers):
     )
     task_unassign_parser.add_argument('task_id', help='Task ID (or "current")')
     task_unassign_parser.add_argument('assignee_ids', nargs='+', help='User IDs to remove')
+    add_common_args(task_unassign_parser)
     task_unassign_parser.set_defaults(func=task_unassign_command)
 
     # Task set status
@@ -1976,6 +1989,7 @@ def register_command(subparsers):
                                         help='Bypass checklist validation (use with caution)')
     task_set_status_parser.add_argument('--verify-checklist', action='store_true',
                                         help='Interactively verify and check each unchecked checklist item')
+    add_common_args(task_set_status_parser)
     task_set_status_parser.set_defaults(func=task_set_status_command)
 
     # Task set priority
@@ -1993,6 +2007,7 @@ def register_command(subparsers):
     )
     task_set_priority_parser.add_argument('task_id', help='Task ID (or "current")')
     task_set_priority_parser.add_argument('priority', help='Priority (1-4 or urgent/high/normal/low)')
+    add_common_args(task_set_priority_parser)
     task_set_priority_parser.set_defaults(func=task_set_priority_command)
 
     # Task set tags
@@ -2014,6 +2029,7 @@ def register_command(subparsers):
     task_set_tags_group.add_argument('--add', nargs='+', help='Tags to add')
     task_set_tags_group.add_argument('--remove', nargs='+', help='Tags to remove')
     task_set_tags_group.add_argument('--set', nargs='+', help='Set tags (replace all)')
+    add_common_args(task_set_tags_parser)
     task_set_tags_parser.set_defaults(func=task_set_tags_command)
 
     # Task add dependency
@@ -2035,6 +2051,7 @@ def register_command(subparsers):
                                       help='Task ID that this task depends on (waiting-on relationship)')
     task_add_dep_parser.add_argument('--blocking',
                                       help='Task ID that depends on this task (blocking relationship)')
+    add_common_args(task_add_dep_parser)
     task_add_dep_parser.set_defaults(func=task_add_dependency_command)
 
     # Task remove dependency
@@ -2055,6 +2072,7 @@ def register_command(subparsers):
                                      help='Task ID to remove from "waiting on" list')
     task_rm_dep_parser.add_argument('--blocking',
                                      help='Task ID to remove from "blocking" list')
+    add_common_args(task_rm_dep_parser)
     task_rm_dep_parser.set_defaults(func=task_remove_dependency_command)
 
     # Task add link
@@ -2075,6 +2093,7 @@ def register_command(subparsers):
     task_link_parser.add_argument('linked_task_id', help='Task ID(s) to link to (comma-separated for multiple)')
     task_link_parser.add_argument('--verbose', '-v', action='store_true',
                                    help='Show additional information about the link')
+    add_common_args(task_link_parser)
     task_link_parser.set_defaults(func=task_add_link_command)
 
     # Task remove link
@@ -2092,6 +2111,7 @@ def register_command(subparsers):
     )
     task_unlink_parser.add_argument('task_id', help='Task ID to unlink from (or "current")')
     task_unlink_parser.add_argument('linked_task_id', help='Task ID to unlink')
+    add_common_args(task_unlink_parser)
     task_unlink_parser.set_defaults(func=task_remove_link_command)
 
     # Task move
@@ -2114,6 +2134,7 @@ def register_command(subparsers):
     task_move_parser.add_argument('--parent', help='New parent task ID (or "current"). If --list is omitted, the parent list becomes the destination home list.')
     task_move_parser.add_argument('--force', '-f', action='store_true',
                                    help='Skip confirmation prompt')
+    add_common_args(task_move_parser)
     task_move_parser.set_defaults(func=task_move_command)
 
     # Task types
@@ -2132,6 +2153,5 @@ def register_command(subparsers):
     task_types_parser.add_argument('list_id', nargs='?', help='Optional list ID to scan for types (if registry is empty)')
     task_types_parser.add_argument('--include-task-default', action='store_true',
                                     help='Include standard "Task" type (ID: null)')
-    task_types_parser.add_argument('--json', action='store_true',
-                                    help='Output in machine-readable JSON format')
+    add_common_args(task_types_parser)
     task_types_parser.set_defaults(func=task_types_command)

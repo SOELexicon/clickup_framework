@@ -5,6 +5,7 @@ from clickup_framework.resources.lists import ListsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
+from clickup_framework.commands.utils import add_common_args
 
 
 class ListCreateCommand(BaseCommand):
@@ -38,15 +39,16 @@ class ListCreateCommand(BaseCommand):
             new_list = lists_api.create(folder_id, self.args.name, **list_data)
 
             success_msg = ANSIAnimations.success_message(f"List created: {self.args.name}")
-            self.print(f"\n{success_msg}")
-            self.print(f"List ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}")
+            console_out = f"\n{success_msg}\nList ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}"
 
             if self.args.verbose:
-                self.print(f"Folder ID: {folder_id}")
+                console_out += f"\nFolder ID: {folder_id}"
                 if list_data:
-                    self.print("\nProperties set:")
+                    console_out += "\nProperties set:"
                     for key, value in list_data.items():
-                        self.print(f"  {key}: {value}")
+                        console_out += f"\n  {key}: {value}"
+            
+            self.handle_output(data=new_list, console_output=console_out)
 
         except ClickUpAPIError as e:
             self.error(f"Error creating list: {e}")
@@ -92,17 +94,18 @@ class ListCreateFromTemplateCommand(BaseCommand):
                 container_label = "Space"
 
             success_msg = ANSIAnimations.success_message(f"List created from template: {self.args.name}")
-            self.print(f"\n{success_msg}")
-            self.print(f"List ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}")
+            console_out = f"\n{success_msg}\nList ID: {colorize(new_list['id'], TextColor.BRIGHT_GREEN)}"
 
             if self.args.verbose:
-                self.print(f"{container_label} ID: {container_id}")
-                self.print(f"Template ID: {self.args.template_id}")
+                console_out += f"\n{container_label} ID: {container_id}"
+                console_out += f"\nTemplate ID: {self.args.template_id}"
                 if len(list_data) > 1:
-                    self.print("\nProperties set:")
+                    console_out += "\nProperties set:"
                     for key, value in list_data.items():
                         if key != "name":
-                            self.print(f"  {key}: {value}")
+                            console_out += f"\n  {key}: {value}"
+            
+            self.handle_output(data=new_list, console_output=console_out)
 
         except ClickUpAPIError as e:
             self.error(f"Error creating list from template: {e}")
@@ -141,13 +144,14 @@ class ListUpdateCommand(BaseCommand):
         try:
             lists_api.update(list_id, **updates)
             success_msg = ANSIAnimations.success_message("List updated successfully")
-            self.print(f"\n{success_msg}")
-
+            
+            console_out = f"\n{success_msg}"
             if self.args.verbose:
-                self.print(f"\nList ID: {list_id}")
-                self.print("Updates applied:")
+                console_out += f"\nList ID: {list_id}\nUpdates applied:"
                 for key, value in updates.items():
-                    self.print(f"  {key}: {value}")
+                    console_out += f"\n  {key}: {value}"
+            
+            self.handle_output(data={"id": list_id, "updates": updates}, console_output=console_out)
 
         except ClickUpAPIError as e:
             self.error(f"Error updating list: {e}")
@@ -174,7 +178,7 @@ class ListDeleteCommand(BaseCommand):
         try:
             self.client.delete_list(list_id)
             success_msg = ANSIAnimations.success_message("List deleted successfully")
-            self.print(f"\n{success_msg}")
+            self.handle_output(data={"id": list_id, "status": "deleted"}, console_output=f"\n{success_msg}")
 
         except ClickUpAPIError as e:
             self.error(f"Error deleting list: {e}")
@@ -195,31 +199,35 @@ class ListGetCommand(BaseCommand):
             list_data = lists_api.get(list_id)
 
             # Display list details
-            self.print(f"\n{colorize(list_data.get('name', 'Unnamed List'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
-            self.print(f"ID: {colorize(list_data['id'], TextColor.BRIGHT_GREEN)}")
+            lines = [
+                f"\n{colorize(list_data.get('name', 'Unnamed List'), TextColor.BRIGHT_CYAN, TextStyle.BOLD)}",
+                f"ID: {colorize(list_data['id'], TextColor.BRIGHT_GREEN)}"
+            ]
 
             if list_data.get('content'):
-                self.print(f"Description: {list_data['content']}")
+                lines.append(f"Description: {list_data['content']}")
 
             if list_data.get('status'):
-                self.print(f"Status: {list_data['status'].get('status', 'N/A')}")
+                lines.append(f"Status: {list_data['status'].get('status', 'N/A')}")
 
             if list_data.get('priority'):
                 priority_names = {1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low'}
                 priority = list_data['priority'].get('priority')
                 priority_name = priority_names.get(int(priority), 'Unknown') if priority else 'None'
-                self.print(f"Priority: {priority_name}")
+                lines.append(f"Priority: {priority_name}")
 
             if list_data.get('folder'):
-                self.print(f"Folder: {list_data['folder'].get('name', 'N/A')} ({list_data['folder']['id']})")
+                lines.append(f"Folder: {list_data['folder'].get('name', 'N/A')} ({list_data['folder']['id']})")
 
             if list_data.get('space'):
-                self.print(f"Space: {list_data['space'].get('name', 'N/A')} ({list_data['space']['id']})")
+                lines.append(f"Space: {list_data['space'].get('name', 'N/A')} ({list_data['space']['id']})")
 
             if self.args.verbose:
-                self.print(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
+                lines.append(f"\n{colorize('Full Response:', TextColor.BRIGHT_WHITE, TextStyle.BOLD)}")
                 import json
-                self.print(json.dumps(list_data, indent=2))
+                lines.append(json.dumps(list_data, indent=2))
+            
+            self.handle_output(data=list_data, console_output="\n".join(lines))
 
         except ClickUpAPIError as e:
             self.error(f"Error getting list: {e}")
@@ -273,6 +281,7 @@ def register_command(subparsers):
   • Use "cum list" or "cum h" to view tasks in a list'''
     )
 
+    add_common_args(list_parser)
     list_subparsers = list_parser.add_subparsers(dest='list_command', help='List command')
 
     # list create

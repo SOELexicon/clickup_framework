@@ -56,7 +56,13 @@ class FilterCommand(BaseCommand):
             view_mode=self.args.view_mode if hasattr(self.args, 'view_mode') else 'hierarchy'
         )
 
-        self.print(output)
+        detail_level = getattr(self.args, 'preset', 'summary')
+        self.handle_output(
+            data=tasks,
+            formatter=display.task_formatter,
+            detail_level=detail_level,
+            console_output=output
+        )
 
 
 def filter_command(args):

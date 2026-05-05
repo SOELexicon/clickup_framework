@@ -7,6 +7,7 @@ from pathlib import Path
 
 from clickup_framework import get_context_manager
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 from clickup_framework.utils.argparse_helpers import raw_text_formatter
 
 
@@ -121,7 +122,7 @@ def stalker_command(args):
     StalkerCommand(args, command_name="stalker").execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the stalker command."""
     parser = subparsers.add_parser(
         "stalker",
@@ -172,4 +173,6 @@ def register_command(subparsers, add_common_args=None):
         action="store_true",
         help="Print the launch plan without opening a new console window.",
     )
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=stalker_command)

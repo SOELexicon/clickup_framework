@@ -10,6 +10,7 @@ from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.checklist_mapping import get_mapping_manager
 from clickup_framework.exceptions import ClickUpAPIError
+from clickup_framework.commands.utils import add_common_args
 
 # Metadata for automatic help generation
 COMMAND_METADATA = {
@@ -567,6 +568,8 @@ def _checklist_list_impl(args, context, client, use_color):
                     print(f"    • Add multiple items:     cum chk item-add {task_id} {first_checklist_index} \"Item 1\" \"Item 2\" \"Item 3\"")
         print(f"  {colorize('Note:', TextColor.BRIGHT_CYAN)} Indices are more convenient than using long GUIDs\n")
 
+        return checklists
+
     except ClickUpAPIError as e:
         print(f"Error listing checklists: {e}", file=sys.stderr)
         sys.exit(1)
@@ -764,7 +767,10 @@ class ChecklistCreateCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist create command."""
-        return _checklist_create_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_create_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistDeleteCommand(ChecklistCommandBase):
@@ -772,7 +778,10 @@ class ChecklistDeleteCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist delete command."""
-        return _checklist_delete_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_delete_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistUpdateCommand(ChecklistCommandBase):
@@ -780,7 +789,10 @@ class ChecklistUpdateCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist update command."""
-        return _checklist_update_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_update_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistItemAddCommand(ChecklistCommandBase):
@@ -788,7 +800,10 @@ class ChecklistItemAddCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist item-add command."""
-        return _checklist_item_add_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_item_add_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistItemUpdateCommand(ChecklistCommandBase):
@@ -796,7 +811,10 @@ class ChecklistItemUpdateCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist item-update command."""
-        return _checklist_item_update_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_item_update_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistItemDeleteCommand(ChecklistCommandBase):
@@ -804,7 +822,10 @@ class ChecklistItemDeleteCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist item-delete command."""
-        return _checklist_item_delete_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_item_delete_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistListCommand(ChecklistCommandBase):
@@ -812,7 +833,10 @@ class ChecklistListCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist list command."""
-        return _checklist_list_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_list_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistTemplateListCommand(ChecklistCommandBase):
@@ -820,7 +844,10 @@ class ChecklistTemplateListCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist template list command."""
-        return _checklist_template_list_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_template_list_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistTemplateShowCommand(ChecklistCommandBase):
@@ -828,7 +855,10 @@ class ChecklistTemplateShowCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist template show command."""
-        return _checklist_template_show_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_template_show_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistTemplateApplyCommand(ChecklistCommandBase):
@@ -836,7 +866,10 @@ class ChecklistTemplateApplyCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist template apply command."""
-        return _checklist_template_apply_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_template_apply_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class ChecklistCloneCommand(ChecklistCommandBase):
@@ -844,7 +877,10 @@ class ChecklistCloneCommand(ChecklistCommandBase):
 
     def execute(self):
         """Execute the checklist clone command."""
-        return _checklist_clone_impl(self.args, self.context, self.client, self.use_color)
+        result = _checklist_clone_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 def checklist_create_command(args):
@@ -934,6 +970,7 @@ def register_command(subparsers):
     create_parser.add_argument('task_id', help='Task ID (or "current")')
     create_parser.add_argument('name', help='Checklist name')
     create_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
+    add_common_args(create_parser)
     create_parser.set_defaults(func=checklist_create_command)
 
     # checklist delete
@@ -946,6 +983,7 @@ def register_command(subparsers):
     delete_parser.add_argument('checklist_id', help='Checklist ID or index (e.g., 1, 2, 3)')
     delete_parser.add_argument('--task', help='Task ID (required when using checklist index)')
     delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
+    add_common_args(delete_parser)
     delete_parser.set_defaults(func=checklist_delete_command)
 
     # checklist update
@@ -959,6 +997,7 @@ def register_command(subparsers):
     update_parser.add_argument('--name', help='New checklist name')
     update_parser.add_argument('--position', type=int, help='New position (order)')
     update_parser.add_argument('--verbose', '-v', action='store_true', help='Show update details')
+    add_common_args(update_parser)
     update_parser.set_defaults(func=checklist_update_command)
 
     # checklist list
@@ -972,6 +1011,7 @@ def register_command(subparsers):
     list_parser.add_argument('--show-ids', action='store_true', help='Show checklist and item IDs')
     list_parser.add_argument('--no-items', action='store_true', help='Hide checklist items, show only checklist names')
     list_parser.add_argument('--colorize', action='store_true', default=True, help='Use colors in output')
+    add_common_args(list_parser)
     list_parser.set_defaults(func=checklist_list_command)
 
     # checklist-item add
@@ -986,6 +1026,7 @@ def register_command(subparsers):
     item_add_parser.add_argument('--task', help='Task ID (required when using checklist index)')
     item_add_parser.add_argument('--assignee', help='User ID to assign (or "current")')
     item_add_parser.add_argument('--verbose', '-v', action='store_true', help='Show additional information')
+    add_common_args(item_add_parser)
     item_add_parser.set_defaults(func=checklist_item_add_command)
 
     # checklist-item update
@@ -1003,6 +1044,7 @@ def register_command(subparsers):
     item_update_parser.add_argument('--resolved', type=bool, help='Mark as resolved (true/false)')
     item_update_parser.add_argument('--parent', help='Parent checklist item ID')
     item_update_parser.add_argument('--verbose', '-v', action='store_true', help='Show update details')
+    add_common_args(item_update_parser)
     item_update_parser.set_defaults(func=checklist_item_update_command)
 
     # checklist-item delete
@@ -1016,6 +1058,7 @@ def register_command(subparsers):
     item_delete_parser.add_argument('item_id', help='Item ID or index (e.g., 1, 2, 3)')
     item_delete_parser.add_argument('--task', help='Task ID (required when using indices)')
     item_delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
+    add_common_args(item_delete_parser)
     item_delete_parser.set_defaults(func=checklist_item_delete_command)
 
     # checklist template list
@@ -1033,6 +1076,7 @@ def register_command(subparsers):
         help='List available checklist templates',
         description='List all available checklist templates'
     )
+    add_common_args(tpl_list_parser)
     tpl_list_parser.set_defaults(func=checklist_template_list_command)
 
     # template show
@@ -1043,6 +1087,7 @@ def register_command(subparsers):
     )
     tpl_show_parser.add_argument('template_name', help='Template name')
     tpl_show_parser.add_argument('--json', action='store_true', help='Output template as JSON')
+    add_common_args(tpl_show_parser)
     tpl_show_parser.set_defaults(func=checklist_template_show_command)
 
     # template apply
@@ -1054,6 +1099,7 @@ def register_command(subparsers):
     tpl_apply_parser.add_argument('task_id', help='Task ID (or "current")')
     tpl_apply_parser.add_argument('template_name', help='Template name')
     tpl_apply_parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed output')
+    add_common_args(tpl_apply_parser)
     tpl_apply_parser.set_defaults(func=checklist_template_apply_command)
 
     # checklist clone
@@ -1065,4 +1111,5 @@ def register_command(subparsers):
     clone_parser.add_argument('source_task_id', help='Source task ID (or "current")')
     clone_parser.add_argument('target_task_id', help='Target task ID')
     clone_parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed output')
+    add_common_args(clone_parser)
     clone_parser.set_defaults(func=checklist_clone_command)

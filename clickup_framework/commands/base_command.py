@@ -158,19 +158,23 @@ class BaseCommand:
     # ==================== Output Methods ====================
     
     def print(self, *args, **kwargs):
-        """Print with optional colorization."""
-        print(*args, **kwargs)
+        """Print with optional colorization. Silenced if output is markdown."""
+        output_format = getattr(self.args, 'output', 'console')
+        if output_format in ('console', 'json'):
+            print(*args, **kwargs)
     
     def print_color(self, text: str, color: TextColor = TextColor.BRIGHT_WHITE,
                    style: TextStyle = None):
-        """Print colorized text."""
-        if self.use_color:
-            print(colorize(text, color, style))
-        else:
-            print(text)
+        """Print colorized text. Silenced if output is markdown."""
+        output_format = getattr(self.args, 'output', 'console')
+        if output_format in ('console', 'json'):
+            if self.use_color:
+                print(colorize(text, color, style))
+            else:
+                print(text)
     
     def print_error(self, message: str, **kwargs):
-        """Print error message."""
+        """Print error message. Always shows."""
         kwargs.setdefault('file', sys.stderr)
         if self.use_color:
             print(ANSIAnimations.error_message(message), **kwargs)
@@ -178,31 +182,112 @@ class BaseCommand:
             print(f"Error: {message}", **kwargs)
     
     def print_success(self, message: str):
-        """Print success message."""
-        if self.use_color:
-            print(ANSIAnimations.success_message(message))
-        else:
-            print(f"Success: {message}")
+        """Print success message. Silenced if output is markdown."""
+        output_format = getattr(self.args, 'output', 'console')
+        if output_format in ('console', 'json'):
+            if self.use_color:
+                print(ANSIAnimations.success_message(message))
+            else:
+                print(f"Success: {message}")
     
     def print_warning(self, message: str):
-        """Print warning message."""
-        if self.use_color:
-            print(ANSIAnimations.warning_message(message))
-        else:
-            print(f"Warning: {message}")
-    
+        """Print warning message. Silenced if output is markdown."""
+        output_format = getattr(self.args, 'output', 'console')
+        if output_format in ('console', 'json'):
+            if self.use_color:
+                print(ANSIAnimations.warning_message(message))
+            else:
+                print(f"Warning: {message}")
+
+    def print_info(self, message: str):
+        """Print info message to stderr. Always shows."""
+        print(message, file=sys.stderr)
+
     def error(self, message: str, exit_code: int = 1):
         """
         Print error and exit.
-        
+
         Args:
             message: Error message
             exit_code: Exit code (default: 1)
         """
         self.print_error(message)
         sys.exit(exit_code)
-    
-    # ==================== Utility Methods ====================
+
+    def _get_common_output_file(self) -> Optional[str]:
+        """Return the generic output-file path supplied by add_common_args."""
+        return getattr(self.args, "common_output_file", None)
+
+    def _write_text_output_file(self, path: str, content: str) -> None:
+        """Write command output text to a UTF-8 file."""
+        output_path = Path(path)
+        if output_path.parent and str(output_path.parent) != ".":
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(content, encoding="utf-8")
+        self.print_info(f"Output written: {output_path.resolve()}")
+
+    def _json_output_text(self, data: Any) -> str:
+        """Serialize output data as stable, human-readable JSON."""
+        import json
+
+        return json.dumps(data, indent=2, default=str)
+
+    def save_json_output(self, data: Any):
+        """Save JSON data to --output-file/--to-file, or cum_output.json."""
+        filename = self._get_common_output_file() or "cum_output.json"
+        try:
+            self._write_text_output_file(filename, self._json_output_text(data))
+        except Exception as e:
+            self.print_error(f"Failed to save JSON output: {e}")
+
+    def handle_output(self, data: Any, formatter: Optional[Any] = None,
+                     detail_level: str = "summary", console_output: Optional[str] = None):
+        """
+        Handle command output based on the --output flag.
+
+        Args:
+            data: The raw data object (dict or list) to be formatted.
+            formatter: A Formatter instance (BaseFormatter subclass).
+            detail_level: Level of detail for markdown/console output.
+            console_output: Pre-formatted console string. If provided,
+                           used for "console" output instead of formatter.
+        """
+        output_format = getattr(self.args, 'output', 'console')
+        output_file = self._get_common_output_file()
+
+        def render_console() -> str:
+            if console_output is not None:
+                return console_output
+            if formatter:
+                if isinstance(data, list):
+                    return formatter.format_list(data, detail_level=detail_level)
+                return formatter.format(data, detail_level=detail_level)
+            return self._json_output_text(data)
+
+        if output_format == 'json':
+            self.save_json_output(data)
+            # Always print console output for JSON mode as requested
+            self.print(render_console())
+            return
+
+        if output_format == 'markdown':
+            if formatter and hasattr(formatter, 'to_markdown'):
+                rendered = formatter.to_markdown(data, detail_level=detail_level)
+            else:
+                rendered = f"```json\n{self._json_output_text(data)}\n```"
+            if output_file:
+                self._write_text_output_file(output_file, rendered)
+            else:
+                print(rendered)
+            return
+
+        # Default console output
+        rendered = render_console()
+        if output_file:
+            self._write_text_output_file(output_file, rendered)
+        else:
+            self.print(rendered)
+    # ==================== Workspace Methods ====================
     
     def get_default_assignee(self) -> Optional[str]:
         """Get default assignee from context."""

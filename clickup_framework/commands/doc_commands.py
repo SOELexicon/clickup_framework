@@ -6,6 +6,7 @@ from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.text import unescape_content
+from clickup_framework.commands.utils import add_common_args
 
 
 class DocListCommand(BaseCommand):
@@ -29,32 +30,28 @@ class DocListCommand(BaseCommand):
                 self.print("No docs found in this workspace")
                 return
 
-            # Display header
             use_color = self.context.get_ansi_output()
-            if use_color:
-                header = colorize(f"Docs in Workspace {workspace_id}", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
-            else:
-                header = f"Docs in Workspace {workspace_id}"
-            self.print(f"\n{header}")
-            self.print(colorize("─" * 60, TextColor.BRIGHT_BLACK) if use_color else "─" * 60)
-            self.print()
+            header = colorize(f"Docs in Workspace {workspace_id}", TextColor.BRIGHT_CYAN, TextStyle.BOLD) if use_color else f"Docs in Workspace {workspace_id}"
+            
+            lines = [f"\n{header}"]
+            lines.append(colorize("─" * 60, TextColor.BRIGHT_BLACK) if use_color else "─" * 60)
+            lines.append("")
 
-            # Display docs
             for i, doc in enumerate(docs_list, 1):
                 doc_name = doc.get('name', 'Unnamed')
                 doc_id = doc.get('id', 'Unknown')
-
                 if use_color:
                     name_colored = colorize(doc_name, TextColor.BRIGHT_WHITE, TextStyle.BOLD)
                     id_colored = colorize(f"[{doc_id}]", TextColor.BRIGHT_BLACK)
                 else:
                     name_colored = doc_name
                     id_colored = f"[{doc_id}]"
+                lines.append(f"{i}. {name_colored} {id_colored}")
 
-                self.print(f"{i}. {name_colored} {id_colored}")
-
-            self.print()
-            self.print(colorize(f"Total: {len(docs_list)} doc(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(docs_list)} doc(s)")
+            lines.append("")
+            lines.append(colorize(f"Total: {len(docs_list)} doc(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(docs_list)} doc(s)")
+            
+            self.handle_output(data=docs_list, console_output="\n".join(lines))
 
         except Exception as e:
             self.error(f"Error listing docs: {e}")
@@ -78,26 +75,28 @@ class DocGetCommand(BaseCommand):
             doc = docs_api.get_doc(workspace_id, self.args.doc_id)
 
             # Display doc info
+            lines = []
             if use_color:
-                self.print(colorize(f"\n📄 Doc: {doc.get('name', 'Unnamed')}", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-                self.print(colorize(f"ID: {doc.get('id')}", TextColor.BRIGHT_BLACK))
+                lines.append(colorize(f"\n📄 Doc: {doc.get('name', 'Unnamed')}", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+                lines.append(colorize(f"ID: {doc.get('id')}", TextColor.BRIGHT_BLACK))
             else:
-                self.print(f"\n📄 Doc: {doc.get('name', 'Unnamed')}")
-                self.print(f"ID: {doc.get('id')}")
+                lines.append(f"\n📄 Doc: {doc.get('name', 'Unnamed')}")
+                lines.append(f"ID: {doc.get('id')}")
 
-            self.print(colorize("─" * 60, TextColor.BRIGHT_BLACK) if use_color else "─" * 60)
-            self.print()
+            lines.append(colorize("─" * 60, TextColor.BRIGHT_BLACK) if use_color else "─" * 60)
+            lines.append("")
 
             # Get pages
             pages = docs_api.get_doc_pages(workspace_id, self.args.doc_id)
 
             if not pages:
-                self.print("No pages in this doc")
+                lines.append("No pages in this doc")
+                self.handle_output(data=doc, console_output="\n".join(lines))
                 return
 
             # Display pages
-            self.print(colorize("Pages:", TextColor.BRIGHT_WHITE, TextStyle.BOLD) if use_color else "Pages:")
-            self.print()
+            lines.append(colorize("Pages:", TextColor.BRIGHT_WHITE, TextStyle.BOLD) if use_color else "Pages:")
+            lines.append("")
 
             for i, page in enumerate(pages, 1):
                 page_name = page.get('name', 'Unnamed')
@@ -110,7 +109,7 @@ class DocGetCommand(BaseCommand):
                     name_colored = page_name
                     id_colored = f"[{page_id}]"
 
-                self.print(f"  {i}. {name_colored} {id_colored}")
+                lines.append(f"  {i}. {name_colored} {id_colored}")
 
                 # Show content preview if requested
                 if hasattr(self.args, 'preview') and self.args.preview:
@@ -122,11 +121,13 @@ class DocGetCommand(BaseCommand):
                         preview = content[:150].replace('\n', ' ')
                         if len(content) > 150:
                             preview += "..."
-                        self.print(colorize(f"     {preview}", TextColor.BRIGHT_BLACK) if use_color else f"     {preview}")
-                    self.print()
+                        lines.append(colorize(f"     {preview}", TextColor.BRIGHT_BLACK) if use_color else f"     {preview}")
+                    lines.append("")
 
-            self.print()
-            self.print(colorize(f"Total: {len(pages)} page(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(pages)} page(s)")
+            lines.append("")
+            lines.append(colorize(f"Total: {len(pages)} page(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(pages)} page(s)")
+
+            self.handle_output(data=doc, console_output="\n".join(lines))
 
         except Exception as e:
             self.error(f"Error getting doc: {e}")
@@ -168,23 +169,23 @@ class DocCreateCommand(BaseCommand):
                 doc = result['doc']
                 created_pages = result['pages']
 
-                # Show success message
                 success_msg = ANSIAnimations.success_message(f"Doc created with {len(created_pages)} page(s)")
-                self.print(success_msg)
             else:
                 # Create doc without pages
                 doc = docs_api.create_doc(workspace_id, self.args.name)
                 success_msg = ANSIAnimations.success_message("Doc created")
-                self.print(success_msg)
 
             # Display doc info
-            self.print(f"\nDoc Name: {colorize(doc['name'], TextColor.BRIGHT_CYAN) if use_color else doc['name']}")
-            self.print(f"Doc ID: {colorize(doc['id'], TextColor.BRIGHT_GREEN) if use_color else doc['id']}")
+            lines = [success_msg, ""]
+            lines.append(f"Doc Name: {colorize(doc['name'], TextColor.BRIGHT_CYAN) if use_color else doc['name']}")
+            lines.append(f"Doc ID: {colorize(doc['id'], TextColor.BRIGHT_GREEN) if use_color else doc['id']}")
 
             if pages:
-                self.print(f"\nPages created:")
+                lines.append(f"\nPages created:")
                 for i, page in enumerate(created_pages, 1):
-                    self.print(f"  {i}. {page['name']} [{page['id']}]")
+                    lines.append(f"  {i}. {page['name']} [{page['id']}]")
+            
+            self.handle_output(data=doc, console_output="\n".join(lines))
 
         except Exception as e:
             self.error(f"Error creating doc: {e}")
@@ -214,11 +215,12 @@ class DocUpdateCommand(BaseCommand):
             )
 
             success_msg = ANSIAnimations.success_message("Page updated")
-            self.print(success_msg)
             page_name = updated_page.get('name', self.args.name or self.args.page_id)
             page_id_display = updated_page.get('id', self.args.page_id)
-            self.print(f"\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}")
-            self.print(f"ID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}")
+            console_out = f"{success_msg}\n\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}"
+            console_out += f"\nID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}"
+            
+            self.handle_output(data=updated_page, console_output=console_out)
 
         except Exception as e:
             self.error(f"Error updating page: {e}")
@@ -523,6 +525,10 @@ class PageListCommand(BaseCommand):
             self.print()
 
             # Display pages
+            lines = [f"\n{header}"]
+            lines.append(colorize("─" * 60, TextColor.BRIGHT_BLACK) if use_color else "─" * 60)
+            lines.append("")
+
             for i, page in enumerate(pages, 1):
                 page_name = page.get('name', 'Unnamed')
                 page_id = page.get('id', 'Unknown')
@@ -534,10 +540,12 @@ class PageListCommand(BaseCommand):
                     name_colored = page_name
                     id_colored = f"[{page_id}]"
 
-                self.print(f"{i}. {name_colored} {id_colored}")
+                lines.append(f"{i}. {name_colored} {id_colored}")
 
-            self.print()
-            self.print(colorize(f"Total: {len(pages)} page(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(pages)} page(s)")
+            lines.append("")
+            lines.append(colorize(f"Total: {len(pages)} page(s)", TextColor.BRIGHT_BLACK) if use_color else f"Total: {len(pages)} page(s)")
+            
+            self.handle_output(data=pages, console_output="\n".join(lines))
 
         except Exception as e:
             self.error(f"Error listing pages: {e}")
@@ -568,9 +576,10 @@ class PageCreateCommand(BaseCommand):
             )
 
             success_msg = ANSIAnimations.success_message("Page created")
-            self.print(success_msg)
-            self.print(f"\nPage Name: {colorize(page['name'], TextColor.BRIGHT_CYAN) if use_color else page['name']}")
-            self.print(f"Page ID: {colorize(page['id'], TextColor.BRIGHT_GREEN) if use_color else page['id']}")
+            console_out = f"{success_msg}\n\nPage Name: {colorize(page['name'], TextColor.BRIGHT_CYAN) if use_color else page['name']}"
+            console_out += f"\nPage ID: {colorize(page['id'], TextColor.BRIGHT_GREEN) if use_color else page['id']}"
+            
+            self.handle_output(data=page, console_output=console_out)
 
         except Exception as e:
             self.error(f"Error creating page: {e}")
@@ -602,11 +611,12 @@ class PageUpdateCommand(BaseCommand):
             )
 
             success_msg = ANSIAnimations.success_message("Page updated")
-            self.print(success_msg)
             page_name = updated_page.get('name', self.args.name or page_id)
             page_id_display = updated_page.get('id', page_id)
-            self.print(f"\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}")
-            self.print(f"ID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}")
+            console_out = f"{success_msg}\n\nPage: {colorize(page_name, TextColor.BRIGHT_CYAN) if use_color else page_name}"
+            console_out += f"\nID: {colorize(page_id_display, TextColor.BRIGHT_BLACK) if use_color else page_id_display}"
+            
+            self.handle_output(data=updated_page, console_output=console_out)
 
         except Exception as e:
             self.error(f"Error updating page: {e}")
@@ -683,6 +693,7 @@ def register_command(subparsers):
   • Docs contain one or more pages of content'''
     )
     doc_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
+    add_common_args(doc_list_parser)
     doc_list_parser.set_defaults(func=doc_list_command)
 
     # Doc get
@@ -702,6 +713,7 @@ def register_command(subparsers):
     doc_get_parser.add_argument('doc_id', help='Doc ID')
     doc_get_parser.add_argument('--preview', action='store_true',
                                 help='Show content preview for each page')
+    add_common_args(doc_get_parser)
     doc_get_parser.set_defaults(func=doc_get_command)
 
     # Doc create
@@ -721,6 +733,7 @@ def register_command(subparsers):
     doc_create_parser.add_argument('name', help='Doc name')
     doc_create_parser.add_argument('--pages', nargs='+',
                                    help='Pages in format "name" or "name:content"')
+    add_common_args(doc_create_parser)
     doc_create_parser.set_defaults(func=doc_create_command)
 
     # Doc update
@@ -741,6 +754,7 @@ def register_command(subparsers):
     doc_update_parser.add_argument('page_id', help='Page ID')
     doc_update_parser.add_argument('--name', help='New page name')
     doc_update_parser.add_argument('--content', help='New page content (markdown)')
+    add_common_args(doc_update_parser)
     doc_update_parser.set_defaults(func=doc_update_command)
 
     # Doc export
@@ -763,6 +777,7 @@ def register_command(subparsers):
                                    help='Output directory (default: current directory)')
     doc_export_parser.add_argument('--nested', action='store_true',
                                    help='Create nested folder structure based on page names')
+    add_common_args(doc_export_parser)
     doc_export_parser.set_defaults(func=doc_export_command)
 
     # Doc import
@@ -786,6 +801,7 @@ def register_command(subparsers):
                                    help='Preserve nested folder structure in page names')
     doc_import_parser.add_argument('--recursive', action='store_true',
                                    help='Recursively find markdown files in subdirectories')
+    add_common_args(doc_import_parser)
     doc_import_parser.set_defaults(func=doc_import_command)
 
     # Page list
@@ -803,6 +819,7 @@ def register_command(subparsers):
     )
     page_list_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
     page_list_parser.add_argument('doc_id', help='Doc ID')
+    add_common_args(page_list_parser)
     page_list_parser.set_defaults(func=page_list_command)
 
     # Page create
@@ -822,6 +839,7 @@ def register_command(subparsers):
     page_create_parser.add_argument('doc_id', help='Doc ID')
     page_create_parser.add_argument('--name', required=True, help='Page name')
     page_create_parser.add_argument('--content', help='Page content (markdown)')
+    add_common_args(page_create_parser)
     page_create_parser.set_defaults(func=page_create_command)
 
     # Page update
@@ -842,4 +860,5 @@ def register_command(subparsers):
     page_update_parser.add_argument('page_id', help='Page ID')
     page_update_parser.add_argument('--name', help='New page name')
     page_update_parser.add_argument('--content', help='New page content (markdown)')
+    add_common_args(page_update_parser)
     page_update_parser.set_defaults(func=page_update_command)

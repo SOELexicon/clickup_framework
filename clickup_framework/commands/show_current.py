@@ -4,6 +4,7 @@ import os
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import add_common_args
 
 
 class ShowCurrentCommand(BaseCommand):
@@ -107,7 +108,7 @@ class ShowCurrentCommand(BaseCommand):
             color=TextColor.BRIGHT_CYAN
         )
 
-        self.print("\n" + box + "\n")
+        self.handle_output(data=all_context, console_output="\n" + box + "\n")
 
 
 def show_current_command(args):
@@ -121,7 +122,7 @@ def show_current_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the show_current command with argparse."""
     parser = subparsers.add_parser(
         'show_current',
@@ -135,4 +136,6 @@ def register_command(subparsers, add_common_args=None):
   • Set context with: cum set <type> <id>
   • Clear context with: cum clear'''
     )
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=show_current_command)

@@ -4,6 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 def find_git_repositories(root_path):
@@ -74,7 +75,17 @@ class SuckCommand(BaseCommand):
             self.print()  # Empty line between repos
 
         # Summary
-        self.print(f"Summary: {successful} successful, {failed} failed")
+        summary = f"Summary: {successful} successful, {failed} failed"
+        self.print(summary)
+
+        # Build results for data output
+        results = {
+            'repositories': [str(r) for r in repos],
+            'successful': successful,
+            'failed': failed
+        }
+
+        self.handle_output(data=results)
 
         # Exit with error if any failed
         sys.exit(1 if failed > 0 else 0)
@@ -86,7 +97,7 @@ def suck_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the suck command."""
     parser = subparsers.add_parser(
         'suck',
@@ -99,4 +110,6 @@ def register_command(subparsers, add_common_args=None):
   • Useful for multi-repo projects or monorepos
   • Skips repositories with uncommitted changes'''
     )
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=suck_command)

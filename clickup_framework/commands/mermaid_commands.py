@@ -7,6 +7,7 @@ from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.parsers import ContentProcessor, ParserContext
+from clickup_framework.commands.utils import add_common_args
 
 # Metadata for automatic help generation
 COMMAND_METADATA = {
@@ -14,7 +15,7 @@ COMMAND_METADATA = {
     "commands": [
         {
             "name": "mermaid",
-            "args": "<input_file> [--output OUTPUT] [options]",
+            "args": "<input_file> [--output-file OUTPUT] [options]",
             "description": "Process markdown file and generate mermaid diagram images"
         },
     ]
@@ -36,14 +37,10 @@ class MermaidCommand(BaseCommand):
         """Execute the mermaid command."""
         input_file = Path(self.args.input_file)
         if not input_file.exists():
-            if self.use_color:
-                print(f"Error: Input file not found: {colorize(str(input_file), TextColor.RED)}", file=sys.stderr)
-            else:
-                print(f"Error: Input file not found: {input_file}", file=sys.stderr)
-            sys.exit(1)
+            self.error(f"Input file not found: {input_file}")
 
-        if self.args.output:
-            output_file = Path(self.args.output)
+        if getattr(self.args, 'output_file', None):
+            output_file = Path(self.args.output_file)
         else:
             output_file = input_file.parent / f"{input_file.stem}_processed{input_file.suffix}"
 
@@ -56,20 +53,12 @@ class MermaidCommand(BaseCommand):
         try:
             content = input_file.read_text(encoding='utf-8')
         except Exception as e:
-            if self.use_color:
-                print(f"Error reading input file: {colorize(str(e), TextColor.RED)}", file=sys.stderr)
-            else:
-                print(f"Error reading input file: {e}", file=sys.stderr)
-            sys.exit(1)
+            self.error(f"Error reading input file: {e}")
 
-        if self.use_color:
-            self.print(f"📄 Processing: {colorize(str(input_file), TextColor.BRIGHT_CYAN)}")
-            self.print(f"💾 Output: {colorize(str(output_file), TextColor.BRIGHT_CYAN)}")
-            self.print(f"📦 Cache: {colorize(str(cache_dir), TextColor.BRIGHT_CYAN)}")
-        else:
-            self.print(f"Processing: {input_file}")
-            self.print(f"Output: {output_file}")
-            self.print(f"Cache: {cache_dir}")
+        # Console info (silenced if markdown)
+        self.print(f"📄 Processing: {colorize(str(input_file), TextColor.BRIGHT_CYAN) if self.use_color else input_file}")
+        self.print(f"💾 Output: {colorize(str(output_file), TextColor.BRIGHT_CYAN) if self.use_color else output_file}")
+        self.print(f"📦 Cache: {colorize(str(cache_dir), TextColor.BRIGHT_CYAN) if self.use_color else cache_dir}")
 
         processor = ContentProcessor(
             context=ParserContext.COMMENT,
@@ -99,58 +88,31 @@ class MermaidCommand(BaseCommand):
             mermaid_blocks = result.get('mermaid_blocks', [])
             generated_images = result.get('generated_images', [])
 
-            if self.use_color:
-                self.print("\n✅ Processing complete!")
-                self.print(f"   Found {colorize(str(len(mermaid_blocks)), TextColor.BRIGHT_YELLOW)} mermaid diagram(s)")
-                self.print(f"   Generated {colorize(str(len(generated_images)), TextColor.BRIGHT_YELLOW)} image(s)")
-            else:
-                self.print("\nProcessing complete!")
-                self.print(f"   Found {len(mermaid_blocks)} mermaid diagram(s)")
-                self.print(f"   Generated {len(generated_images)} image(s)")
+            # Console completion (silenced if markdown)
+            lines = []
+            lines.append("\n✅ Processing complete!" if self.use_color else "\nProcessing complete!")
+            lines.append(f"   Found {colorize(str(len(mermaid_blocks)), TextColor.BRIGHT_YELLOW) if self.use_color else len(mermaid_blocks)} mermaid diagram(s)")
+            lines.append(f"   Generated {colorize(str(len(generated_images)), TextColor.BRIGHT_YELLOW) if self.use_color else len(generated_images)} image(s)")
 
             if generated_images:
-                self.print("\n📸 Generated images:" if self.use_color else "\nGenerated images:")
+                lines.append("\n📸 Generated images:" if self.use_color else "\nGenerated images:")
                 for img_info in generated_images:
                     img_path = img_info.get('path', 'N/A')
                     img_hash = img_info.get('hash', 'N/A')[:16]
-                    if self.use_color:
-                        self.print(f"   • {colorize(str(img_path), TextColor.BRIGHT_GREEN)} (hash: {img_hash}...)")
-                    else:
-                        self.print(f"   • {img_path} (hash: {img_hash}...)")
+                    lines.append(f"   • {colorize(str(img_path), TextColor.BRIGHT_GREEN) if self.use_color else img_path} (hash: {img_hash}...)")
 
             try:
                 output_file.write_text(result['content'], encoding='utf-8')
-                if self.use_color:
-                    self.print(f"\n💾 Saved processed markdown to: {colorize(str(output_file), TextColor.BRIGHT_CYAN)}")
-                else:
-                    self.print(f"\nSaved processed markdown to: {output_file}")
+                lines.append(f"\n💾 Saved processed markdown to: {colorize(str(output_file), TextColor.BRIGHT_CYAN) if self.use_color else output_file}")
             except Exception as e:
-                if self.use_color:
-                    print(f"Warning: Failed to save output file: {colorize(str(e), TextColor.YELLOW)}", file=sys.stderr)
-                else:
-                    print(f"Warning: Failed to save output file: {e}", file=sys.stderr)
+                self.print_warning(f"Failed to save output file: {e}")
 
             from clickup_framework.utils.mermaid_cli import is_mermaid_available
             if not is_mermaid_available():
-                if self.use_color:
-                    self.print("\n⚠️  Warning: Mermaid CLI (mmdc) not found. Images were not generated.")
-                    self.print(f"   Install with: {colorize('npm install -g @mermaid-js/mermaid-cli', TextColor.BRIGHT_YELLOW)}")
-                else:
-                    self.print("\nWarning: Mermaid CLI (mmdc) not found. Images were not generated.")
-                    self.print("   Install with: npm install -g @mermaid-js/mermaid-cli")
-            elif len(mermaid_blocks) > 0 and len(generated_images) == 0:
-                if self.use_color:
-                    self.print("\n⚠️  Warning: Mermaid CLI found but no images were generated.")
-                    self.print("   This may be due to:")
-                    self.print(f"   - Missing {colorize('PUPPETEER_EXECUTABLE_PATH', TextColor.BRIGHT_YELLOW)} environment variable")
-                    self.print("   - Chrome/Chromium not found in default location")
-                    self.print(f"   - Set {colorize('PUPPETEER_EXECUTABLE_PATH', TextColor.BRIGHT_YELLOW)} to your Chrome headless shell path")
-                else:
-                    self.print("\nWarning: Mermaid CLI found but no images were generated.")
-                    self.print("   This may be due to:")
-                    self.print("   - Missing PUPPETEER_EXECUTABLE_PATH environment variable")
-                    self.print("   - Chrome/Chromium not found in default location")
-                    self.print("   - Set PUPPETEER_EXECUTABLE_PATH to your Chrome headless shell path")
+                lines.append("\n⚠️  Warning: Mermaid CLI (mmdc) not found. Images were not generated.")
+
+            console_out = "\n".join(lines)
+            self.handle_output(data=result, console_output=console_out)
 
             return 0
         except Exception as e:
@@ -178,7 +140,7 @@ def register_command(subparsers):
         description='Process markdown file containing mermaid diagrams and generate images from them.',
         epilog='''Examples:
   Process markdown file: cum mermaid document.md
-  Specify output file: cum mermaid document.md --output processed.md
+  Specify output file: cum mermaid document.md --output-file processed.md
   Use PNG format: cum mermaid document.md --format png
   Use SVG format: cum mermaid document.md --format svg
   Custom theme: cum mermaid document.md --theme dark
@@ -197,7 +159,7 @@ Requirements:
         help='Input markdown file containing mermaid diagrams'
     )
     mermaid_parser.add_argument(
-        '--output', '-o',
+        '--output-file',
         help='Output file path (default: <input>_processed.md)'
     )
     mermaid_parser.add_argument(
@@ -249,4 +211,5 @@ Requirements:
         help='Show verbose error messages'
     )
 
+    add_common_args(mermaid_parser)
     mermaid_parser.set_defaults(func=mermaid_command)

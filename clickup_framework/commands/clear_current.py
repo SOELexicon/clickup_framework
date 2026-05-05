@@ -1,6 +1,7 @@
 """Clear current context command."""
 
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 class ClearCurrentCommand(BaseCommand):
@@ -30,11 +31,13 @@ class ClearCurrentCommand(BaseCommand):
                           f"Valid types: {', '.join(clearers.keys())}")
 
             clearer()
-            self.print_success(f"Cleared current {resource_type}")
+            msg = f"Cleared current {resource_type}"
+            self.handle_output(data={"cleared": resource_type, "status": "success"}, console_output=f"✓ {msg}")
         else:
             # Clear all context
             self.context.clear_all()
-            self.print_success("Cleared all context")
+            msg = "Cleared all context"
+            self.handle_output(data={"cleared": "all", "status": "success"}, console_output=f"✓ {msg}")
 
 
 def clear_current_command(args):
@@ -48,7 +51,7 @@ def clear_current_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the clear_current command with argparse."""
     parser = subparsers.add_parser(
         'clear_current',
@@ -68,4 +71,6 @@ def register_command(subparsers, add_common_args=None):
         choices=['task', 'list', 'space', 'folder', 'workspace', 'team', 'assignee', 'token'],
         help='Type of resource to clear (omit to clear all)'
     )
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=clear_current_command)

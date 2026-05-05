@@ -1438,6 +1438,11 @@ def main():
             handle_cli_error(e, getattr(args, '_report_root_command', args.command))
             sys.exit(1)
 
+    if not hasattr(args, 'func'):
+        parser.error(
+            "No runnable command selected. Run `cum <command> --help` for that command's usage."
+        )
+
     # Execute command
     try:
         args.func(args)

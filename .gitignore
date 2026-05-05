@@ -52,6 +52,7 @@ coverage.xml
 test_report.json
 test_summary.json
 test_errors.json
+cum_output.json
 
 # Translations
 *.mo
@@ -145,6 +146,8 @@ Thumbs.db
 
 # Generated outputs (intermediate files)
 outputs/
+*_final_part.txt
+*.py.new
 
 # Screenshots HTML files (keep JPGs for documentation)
 screenshots/*.html

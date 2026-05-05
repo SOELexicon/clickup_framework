@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import add_common_args
 
 # Ensure UTF-8 encoding and enable VT100 mode for Windows
 if platform.system() == 'Windows':
@@ -490,4 +491,5 @@ Note: This is a humorous command for a humorous CLI tool.
         help='Show what would be done without making any changes'
     )
 
+    add_common_args(parser)
     parser.set_defaults(func=jizz_command)

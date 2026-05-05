@@ -14,6 +14,7 @@ from collections import defaultdict
 from typing import Optional, Dict, List, Set, Union
 from clickup_framework import get_context_manager
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 from clickup_framework.commands.map_helpers.mermaid.generators import BaseGenerator
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.argparse_helpers import raw_description_formatter
@@ -42,7 +43,7 @@ COMMAND_METADATA = {
     "commands": [
         {
             "name": "map",
-            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output FILE] [--format FORMAT] [--html] [--live-editor] [--open] [--install] [--ignore-gitignore]",
+            "args": "[--python|--csharp|--all-langs] [--mer TYPE] [--output-file FILE] [--format FORMAT] [--html] [--live-editor] [--open] [--install] [--ignore-gitignore]",
             "description": "Generate code map using ctags, optionally export as mermaid diagram"
         },
     ]
@@ -498,7 +499,7 @@ def register_command(subparsers):
         epilog='''Examples:
   cum map --python
   cum map --python --mer flowchart
-  cum map --python --mer flowchart --html --output docs/architecture.html
+  cum map --python --mer flowchart --html --output-file docs/architecture.html
   cum map --python --mer flowchart --live-editor
   cum map --python --mer class --live-editor --open'''
     )
@@ -545,7 +546,7 @@ def register_command(subparsers):
 
     # Image output option (requires --mer)
     parser.add_argument(
-        '--output',
+        '--output-file',
         type=str,
         help='Export diagram to image file (png/svg/jpg) using mmdc. Requires --mer and mermaid-cli (npm install -g @mermaid-js/mermaid-cli)'
     )
@@ -555,7 +556,7 @@ def register_command(subparsers):
         '--format',
         type=str,
         choices=['png', 'svg', 'jpg'],
-        help='Image format for --output (default: inferred from file extension or png)'
+        help='Image format for --output-file (default: inferred from file extension or png)'
     )
 
     # Interactive HTML option
@@ -598,4 +599,5 @@ def register_command(subparsers):
         help='List all available color themes and exit'
     )
 
+    add_common_args(parser)
     parser.set_defaults(func=map_command)

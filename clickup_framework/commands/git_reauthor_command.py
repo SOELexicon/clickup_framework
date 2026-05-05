@@ -4,6 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 def get_git_config(key):
@@ -279,7 +280,7 @@ def reauthor_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the reauthor command."""
     parser = subparsers.add_parser(
         'reauthor',
@@ -330,4 +331,6 @@ Safety:
         help='Skip the force-push prompt after rewriting history'
     )
 
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=reauthor_command)

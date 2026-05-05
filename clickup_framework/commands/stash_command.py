@@ -2,6 +2,7 @@
 
 import subprocess
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 class StashCommand(BaseCommand):
@@ -52,7 +53,7 @@ def stash_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the stash command."""
     parser = subparsers.add_parser(
         'stash',
@@ -79,4 +80,6 @@ def register_command(subparsers, add_common_args=None):
         help='Additional arguments to pass to git stash'
     )
 
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=stash_command)

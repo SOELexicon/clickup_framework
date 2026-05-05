@@ -1,9 +1,11 @@
 """Assigned tasks command for ClickUp Framework CLI."""
 
+import os
 from collections import defaultdict, deque
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import add_common_args
 
 
 class AssignedTasksCommand(BaseCommand):
@@ -11,16 +13,62 @@ class AssignedTasksCommand(BaseCommand):
     Assigned Tasks Command using BaseCommand.
     """
 
+    def _resolve_user_id(self):
+        """
+        Purpose:    Resolve the user IDs to filter assigned tasks by, and persist the
+                    primary assignee as the default so task create/update commands inherit it.
+                    Priority: CLICKUP_ASSIGNEE env var > --user-id > --task lookup > stored default.
+                    Set CLICKUP_NO_AUTO_ASSIGNEE=1 to skip the persist-on-lookup behaviour.
+        Usage:      Returns a list of user ID strings to pass to the API.
+        Version:    0.1.0
+        Changes:    [v0.1.0] Initial: --task flag, env var override, auto-persist assignee
+        """
+        env_assignee = os.environ.get('CLICKUP_ASSIGNEE')
+        if env_assignee:
+            return [env_assignee]
+
+        if self.args.user_id:
+            return [self.args.user_id]
+
+        task_id = getattr(self.args, 'task_id', None)
+        if task_id:
+            try:
+                task = self.client.get_task(task_id)
+            except Exception as e:
+                self.error(f"Could not fetch task {task_id}: {e}")
+
+            assignees = task.get('assignees', [])
+            if not assignees:
+                self.error(f"Task {task_id} has no assignees.")
+
+            ids = [str(a['id']) for a in assignees if a.get('id')]
+            if not ids:
+                self.error(f"Task {task_id} assignees have no usable IDs.")
+
+            names = ', '.join(a.get('username') or a.get('email') or str(a['id']) for a in assignees)
+            self.print(f"Showing tasks assigned to: {names}\n")
+
+            # Persist primary assignee so subsequent tc/tu commands target the same person,
+            # unless the caller has opted out via the env var.
+            if not os.environ.get('CLICKUP_NO_AUTO_ASSIGNEE'):
+                try:
+                    self.context.set_default_assignee(int(ids[0]))
+                except (ValueError, TypeError):
+                    pass
+
+            return ids
+
+        default = self.context.get_default_assignee()
+        if not default:
+            self.error("No user ID specified and no default assignee configured.\n" +
+                       "Use --user-id <user_id>, --task <task_id>, or set default: set_current assignee <user_id>")
+        return [default]
+
     def execute(self):
         """Display tasks assigned to a user, sorted by dependency difficulty."""
-        # Get user ID from args or use default assignee
-        if self.args.user_id:
-            user_id = self.args.user_id
-        else:
-            user_id = self.context.get_default_assignee()
-            if not user_id:
-                self.error("No user ID specified and no default assignee configured.\n" +
-                          "Use --user-id <user_id> or set default: set_current assignee <user_id>")
+        user_ids = self._resolve_user_id()
+        # Keep backward-compat: single-user display uses first ID for the header
+        user_id = user_ids[0]
 
         # Get workspace/team ID
         try:
@@ -72,11 +120,11 @@ class AssignedTasksCommand(BaseCommand):
         # We need closed tasks if either include_completed or show_closed_only is True
         include_closed = include_completed or show_closed_only
 
-        # Fetch tasks assigned to user
+        # Fetch tasks assigned to user(s)
         try:
             result = self.client.get_team_tasks(
                 team_id,
-                assignees=[user_id],
+                assignees=user_ids,
                 subtasks=True,
                 include_closed=include_closed
             )
@@ -225,14 +273,15 @@ class AssignedTasksCommand(BaseCommand):
         )
 
         # Display header
-        self.print(ANSIAnimations.gradient_text(f"Tasks Assigned to User {user_id}", ANSIAnimations.GRADIENT_RAINBOW))
+        label = ', '.join(user_ids) if len(user_ids) > 1 else user_id
+        self.print(ANSIAnimations.gradient_text(f"Tasks Assigned to {label}", ANSIAnimations.GRADIENT_RAINBOW))
         self.print(f"Total: {len(tasks)} tasks\n")
 
         # Get colorize setting
         use_color = self.context.get_ansi_output()
 
         # Display tasks
-        from clickup_framework.utils.colors import status_color as get_status_color
+        from clickup_framework.utils.colors import status_color as get_status_color, get_task_type_info
 
         def display_task(task_id, indent_level=0):
             """Display a task with optional indentation for subtasks."""
@@ -249,13 +298,20 @@ class AssignedTasksCommand(BaseCommand):
             else:
                 status_name = str(status)
 
-            # Format status with color
+            # Task type info
+            type_info = get_task_type_info(task)
+            type_id_display = f"{type_info['id']} " if type_info['id'] is not None and type_info['id'] != 1 else ""
+            id_bracket = f"[{type_info['emoji']} {type_id_display}{type_info['name']} {task_id}]"
+
+            # Format status and ID with color
             if use_color:
                 status_colored = colorize(status_name, get_status_color(status_name), TextStyle.BOLD)
                 task_name_colored = colorize(task_name, TextColor.BRIGHT_WHITE)
+                id_colored = colorize(id_bracket, type_info['color'])
             else:
                 status_colored = status_name
                 task_name_colored = task_name
+                id_colored = id_bracket
 
             # Difficulty indicator
             difficulty = info['difficulty']
@@ -269,11 +325,10 @@ class AssignedTasksCommand(BaseCommand):
             # Add subtask indicator if this is a subtask
             prefix = f"{indent}   ↳ " if indent_level > 0 else ""
 
-            self.print(f"{prefix}{task_name_colored}")
+            self.print(f"{prefix}{id_colored} {task_name_colored}")
             self.print(f"{indent}   Status: {status_colored}")
             self.print(f"{indent}   Difficulty: {difficulty_indicator}")
             self.print(f"{indent}   Depth: {info['depth']} | Relationships: {len(info['blockers'])} blockers, {len(info['dependents'])} dependents")
-            self.print(f"{indent}   ID: {colorize(task_id, TextColor.BRIGHT_BLACK) if use_color else task_id}")
 
             # Show blocker details if any
             if info['open_blockers']:
@@ -323,6 +378,15 @@ class AssignedTasksCommand(BaseCommand):
         self.print(f"  Ready to start: {ready_tasks} task(s)")
         self.print(f"  Blocked: {blocked_tasks} task(s)")
 
+        # Handle alternative outputs
+        output_format = getattr(self.args, 'output', 'console')
+        if output_format == 'json':
+            self.save_json_output(tasks)
+        elif output_format == 'markdown':
+            from clickup_framework.components import DisplayManager
+            display = DisplayManager(self.client)
+            self.handle_output(data=tasks, formatter=display.task_formatter)
+
 
 def assigned_tasks_command(args):
     """
@@ -351,6 +415,8 @@ def register_command(subparsers):
     )
     assigned_parser.add_argument('--user-id', dest='user_id',
                                 help='User ID to filter tasks (defaults to configured default assignee)')
+    assigned_parser.add_argument('--task', dest='task_id', metavar='TASK_ID',
+                                help='Look up assignees from this task and show their tasks; also sets them as the default assignee')
     assigned_parser.add_argument('--team-id', dest='team_id',
                                 help='Team/workspace ID (defaults to current workspace)')
     assigned_parser.add_argument('--include-completed', action='store_true',
@@ -358,3 +424,4 @@ def register_command(subparsers):
     assigned_parser.add_argument('-sc', '--show-closed', dest='show_closed_only', action='store_true',
                                 help='Show ONLY closed tasks')
     assigned_parser.set_defaults(func=assigned_tasks_command)
+    add_common_args(assigned_parser)

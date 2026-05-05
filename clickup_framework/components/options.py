@@ -46,6 +46,7 @@ class FormatOptions:
     tag_style: str = "colored"
     show_type_emoji: bool = True
     show_status_icon: bool = True
+    show_task_type: bool = True
     show_progress_state: bool = False
     show_descriptions: bool = False
     show_dates: bool = False

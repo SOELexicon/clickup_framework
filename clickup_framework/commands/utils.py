@@ -1,5 +1,6 @@
 """Utility functions for CLI commands."""
 
+import argparse
 import logging
 import sys
 from pathlib import Path
@@ -174,15 +175,57 @@ def create_format_options(args) -> FormatOptions:
     )
 
 
+def _add_argument_if_available(
+    subparser: argparse.ArgumentParser,
+    *option_strings: str,
+    skip_on_any_conflict: bool = False,
+    **kwargs,
+):
+    """Add an option only when it does not collide with parser-owned flags."""
+    existing_options = set(subparser._option_string_actions)
+    conflicting_options = [option for option in option_strings if option in existing_options]
+    if conflicting_options and skip_on_any_conflict:
+        logger.debug(
+            "Skipping common CLI option %s for %s because %s already exist",
+            option_strings,
+            subparser.prog,
+            conflicting_options,
+        )
+        return None
+
+    available_options = [option for option in option_strings if option not in existing_options]
+    if not available_options:
+        logger.debug(
+            "Skipping common CLI option %s for %s because all option strings already exist",
+            option_strings,
+            subparser.prog,
+        )
+        return None
+
+    try:
+        return subparser.add_argument(*available_options, **kwargs)
+    except argparse.ArgumentError as exc:
+        logger.debug(
+            "Skipping common CLI option %s for %s because argparse rejected it: %s",
+            option_strings,
+            subparser.prog,
+            exc,
+        )
+        return None
+
+
 def add_common_args(subparser):
-    """Add common formatting arguments to a command parser."""
-    subparser.add_argument(
+    """Add common formatting/output arguments to a command parser."""
+    _add_argument_if_available(
+        subparser,
         "-p",
         "--preset",
+        dest="preset",
         choices=["0", "minimal", "1", "summary", "2", "detailed", "3", "full"],
         help="Use a preset format configuration: 0/minimal, 1/summary, 2/detailed, 3/full",
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "--no-colorize",
         dest="colorize",
         action="store_const",
@@ -190,76 +233,113 @@ def add_common_args(subparser):
         default=None,
         help="Disable color output (default: use config setting)",
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "--colorize", dest="colorize", action="store_const", const=True, help="Enable color output"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-i",
         "--show-ids",
+        dest="show_ids",
         action="store_true",
         help="Show task IDs"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-t",
         "--show-tags",
+        dest="show_tags",
         action="store_true",
         default=True,
         help="Show task tags (default: true)"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-D",
         "--show-descriptions",
+        dest="show_descriptions",
         action="store_true",
         help="Show task descriptions"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-d",
         "--full-descriptions",
         dest="full_descriptions",
         action="store_true",
         help="Show full descriptions without truncation (implies --show-descriptions)",
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-dd",
         "--show-dates",
+        dest="show_dates",
         action="store_true",
         help="Show task dates"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
+        "-O",
+        "--output",
+        dest="output",
+        choices=["console", "json", "markdown"],
+        default="console",
+        help="Output format (default: console)",
+    )
+    _add_argument_if_available(
+        subparser,
+        "--output-file",
+        "--to-file",
+        dest="common_output_file",
+        metavar="PATH",
+        skip_on_any_conflict=True,
+        help="Write formatted command output to PATH",
+    )
+    _add_argument_if_available(
+        subparser,
         "-c",
         "--show-comments",
+        dest="show_comments",
         type=int,
         default=5,
         metavar="N",
         help="Show N most recent comments per task (default: 5, set to 0 to hide)",
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-C",
         "--include-completed",
+        dest="include_completed",
         action="store_true",
         help="Include completed tasks"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-sc",
         "--show-closed",
         dest="show_closed_only",
         action="store_true",
         help="Show ONLY closed tasks",
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-ne",
         "--no-emoji",
         dest="show_emoji",
         action="store_false",
         help="Hide task type emojis"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-cf",
         "--show-custom-fields",
+        dest="show_custom_fields",
         action="store_true",
         help="Show all custom fields"
     )
-    subparser.add_argument(
+    _add_argument_if_available(
+        subparser,
         "-nt",
         "--no-tips",
         dest="show_tips",

@@ -3,6 +3,7 @@
 import subprocess
 from pathlib import Path
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.utils import add_common_args
 
 
 class PullCommand(BaseCommand):
@@ -18,9 +19,12 @@ class PullCommand(BaseCommand):
         # Execute git pull --rebase
         result = subprocess.run(
             ['git', 'pull', '--rebase'],
-            capture_output=False,  # Show output in real-time
+            capture_output=True,
             text=True
         )
+
+        console_out = result.stdout + "\n" + result.stderr
+        self.handle_output(data={"stdout": result.stdout, "stderr": result.stderr, "returncode": result.returncode}, console_output=console_out)
 
         # Exit with Git's exit code
         import sys
@@ -33,7 +37,7 @@ def pull_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """Register the pull command."""
     parser = subparsers.add_parser(
         'pull',
@@ -46,4 +50,6 @@ def register_command(subparsers, add_common_args=None):
   • Resolves conflicts during rebase if needed
   • Alternative to 'git pull --rebase' shortcut'''
     )
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=pull_command)

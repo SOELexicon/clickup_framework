@@ -73,7 +73,7 @@ class DemoCommand(BaseCommand):
         else:
             output = display.hierarchy_view(sample_tasks, options, "Demo: Hierarchy View")
 
-        self.print(output)
+        self.handle_output(data=sample_tasks, console_output=output)
 
 
 def demo_command(args):

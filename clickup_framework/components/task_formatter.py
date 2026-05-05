@@ -15,6 +15,7 @@ from clickup_framework.utils.colors import (
     get_progress_state,
     get_status_icon,
     get_task_emoji,
+    get_task_type_info,
     priority_color,
     status_color,
     status_to_code,
@@ -112,14 +113,21 @@ class RichTaskFormatter:
             parts.append(indicator)
 
         # Add task ID if requested
+        type_info = get_task_type_info(task)
         if options.show_ids and task.get("id"):
-            id_str = f"[{task['id']}]"
+            # Friendly display is type_name
+            # Include type ID if it's not standard (standard task type ID is usually 1 or None)
+            type_id_display = f"{type_info['id']} " if type_info['id'] is not None and type_info['id'] != 1 else ""
+            display_str = f"[{type_info['emoji']} {type_id_display}{type_info['name']} {task['id']}]"
+            
             if options.colorize_output:
                 if is_highlighted:
-                    # Highlight the ID more prominently
-                    id_str = colorize(id_str, TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+                    # Highlight overrides type color for the highlighted task
+                    id_str = colorize(display_str, TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
                 else:
-                    id_str = colorize(id_str, TextColor.BRIGHT_BLACK)
+                    id_str = colorize(display_str, type_info['color'])
+            else:
+                id_str = display_str
             parts.append(id_str)
 
         # Add dependency and blocker indicators
@@ -278,8 +286,8 @@ class RichTaskFormatter:
                     indicator = f"T:{hours_spent:.1f}h"
                 parts.append(indicator)
 
-        # Add task type emoji
-        if options.show_type_emoji:
+        # Add task type emoji (only if show_ids is false, otherwise it's already in brackets)
+        if options.show_type_emoji and not options.show_ids:
             task_type = task.get("custom_type") or "task"
             task_name = task.get("name", "")
             emoji = get_task_emoji(task_type, task_name)

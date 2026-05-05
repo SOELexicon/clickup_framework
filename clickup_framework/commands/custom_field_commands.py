@@ -8,6 +8,7 @@ from clickup_framework.resources.custom_fields import CustomFieldsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
+from clickup_framework.commands.utils import add_common_args
 
 
 # Field type color mapping
@@ -502,7 +503,10 @@ class CustomFieldSetCommand(CustomFieldCommandBase):
 
     def execute(self):
         """Execute the custom_field_set command."""
-        return _custom_field_set_impl(self.args, self.context, self.client, self.use_color)
+        result = _custom_field_set_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class CustomFieldGetCommand(CustomFieldCommandBase):
@@ -510,7 +514,10 @@ class CustomFieldGetCommand(CustomFieldCommandBase):
 
     def execute(self):
         """Execute the custom_field_get command."""
-        return _custom_field_get_impl(self.args, self.context, self.client, self.use_color)
+        result = _custom_field_get_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class CustomFieldListCommand(CustomFieldCommandBase):
@@ -518,7 +525,10 @@ class CustomFieldListCommand(CustomFieldCommandBase):
 
     def execute(self):
         """Execute the custom_field_list command."""
-        return _custom_field_list_impl(self.args, self.context, self.client, self.use_color)
+        result = _custom_field_list_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 class CustomFieldRemoveCommand(CustomFieldCommandBase):
@@ -526,7 +536,10 @@ class CustomFieldRemoveCommand(CustomFieldCommandBase):
 
     def execute(self):
         """Execute the custom_field_remove command."""
-        return _custom_field_remove_impl(self.args, self.context, self.client, self.use_color)
+        result = _custom_field_remove_impl(self.args, self.context, self.client, self.use_color)
+        if result:
+            self.handle_output(data=result)
+        return result
 
 
 def custom_field_set_command(args):
@@ -562,6 +575,7 @@ def register_command(subparsers):
         help='Manage custom fields on tasks',
         description='Manage custom fields on tasks'
     )
+    add_common_args(cf_parser)
 
     cf_subparsers = cf_parser.add_subparsers(dest='cf_command', help='Custom field command')
 

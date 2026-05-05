@@ -17,6 +17,7 @@ from pathlib import Path
 from clickup_framework import get_context_manager
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+from clickup_framework.commands.utils import add_common_args
 from .map_helpers.pipeline_config import PipelineConfig
 from .map_helpers.batch_generator import BatchGenerator
 
@@ -307,4 +308,5 @@ def register_command(subparsers):
         help='Stop processing on first error (default: continue on error)'
     )
 
+    add_common_args(parser)
     parser.set_defaults(func=batch_diagram_command)

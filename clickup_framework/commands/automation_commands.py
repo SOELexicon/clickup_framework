@@ -8,6 +8,7 @@ from clickup_framework.automation.config import (
 )
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import add_common_args
 
 
 class ParentAutoUpdateStatusCommand(BaseCommand):
@@ -16,33 +17,37 @@ class ParentAutoUpdateStatusCommand(BaseCommand):
     def execute(self):
         """Execute the status command."""
         config = load_automation_config()
-
-        self.print("\n" + colorize("Parent Task Auto-Update Configuration", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
-        self.print("=" * 50)
-        self.print()
+        
+        lines = []
+        lines.append("\n" + colorize("Parent Task Auto-Update Configuration", TextColor.BRIGHT_CYAN, TextStyle.BOLD))
+        lines.append("=" * 50)
+        lines.append("")
 
         # Status
         status_text = "✅ Enabled" if config.enabled else "❌ Disabled"
-        self.print(f"Status: {status_text}")
-        self.print(f"Post Comments: {'✅ Yes' if config.post_comment else '❌ No'}")
-        self.print(f"Update Delay: {config.update_delay_seconds} seconds")
-        self.print(f"Retry on Failure: {'✅ Yes' if config.retry_on_failure else '❌ No'} (max {config.max_retries} attempts)")
-        self.print()
+        lines.append(f"Status: {status_text}")
+        lines.append(f"Post Comments: {'✅ Yes' if config.post_comment else '❌ No'}")
+        lines.append(f"Update Delay: {config.update_delay_seconds} seconds")
+        lines.append(f"Retry on Failure: {'✅ Yes' if config.retry_on_failure else '❌ No'} (max {config.max_retries} attempts)")
+        lines.append("")
 
         # Trigger statuses
-        self.print(colorize(f"Trigger Statuses ({len(config.trigger_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+        lines.append(colorize(f"Trigger Statuses ({len(config.trigger_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
         for status in config.trigger_statuses:
-            self.print(f"  • {status}")
-        self.print()
+            lines.append(f"  • {status}")
+        lines.append("")
 
         # Parent inactive statuses
-        self.print(colorize(f"Parent Inactive Statuses ({len(config.parent_inactive_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
+        lines.append(colorize(f"Parent Inactive Statuses ({len(config.parent_inactive_statuses)}):", TextColor.BRIGHT_WHITE, TextStyle.BOLD))
         for status in config.parent_inactive_statuses:
-            self.print(f"  • {status}")
-        self.print()
+            lines.append(f"  • {status}")
+        lines.append("")
 
-        self.print(f"Target Status for Parent: \"{config.parent_target_status}\"")
-        self.print()
+        lines.append(f"Target Status for Parent: \"{config.parent_target_status}\"")
+        lines.append("")
+        
+        console_out = "\n".join(lines)
+        self.handle_output(data=config.__dict__, console_output=console_out)
 
 
 class ParentAutoUpdateEnableCommand(BaseCommand):
@@ -206,6 +211,7 @@ def register_command(subparsers):
         'status',
         help='Show current automation configuration'
     )
+    add_common_args(status_parser)
     status_parser.set_defaults(func=parent_auto_update_status_command)
 
     # Enable subcommand
@@ -213,6 +219,7 @@ def register_command(subparsers):
         'enable',
         help='Enable parent task auto-update'
     )
+    add_common_args(enable_parser)
     enable_parser.set_defaults(func=parent_auto_update_enable_command)
 
     # Disable subcommand
@@ -220,6 +227,7 @@ def register_command(subparsers):
         'disable',
         help='Disable parent task auto-update'
     )
+    add_common_args(disable_parser)
     disable_parser.set_defaults(func=parent_auto_update_disable_command)
 
     # Config subcommand
@@ -229,6 +237,7 @@ def register_command(subparsers):
     )
     config_parser.add_argument('key', help='Configuration key to update')
     config_parser.add_argument('value', help='New value')
+    add_common_args(config_parser)
     config_parser.set_defaults(func=parent_auto_update_config_command)
 
     # Add trigger subcommand
@@ -237,6 +246,7 @@ def register_command(subparsers):
         help='Add a status to the trigger list'
     )
     add_trigger_parser.add_argument('status', help='Status to add')
+    add_common_args(add_trigger_parser)
     add_trigger_parser.set_defaults(func=parent_auto_update_add_trigger_command)
 
     # Remove trigger subcommand
@@ -245,6 +255,7 @@ def register_command(subparsers):
         help='Remove a status from the trigger list'
     )
     remove_trigger_parser.add_argument('status', help='Status to remove')
+    add_common_args(remove_trigger_parser)
     remove_trigger_parser.set_defaults(func=parent_auto_update_remove_trigger_command)
 
     # List triggers subcommand
@@ -252,6 +263,7 @@ def register_command(subparsers):
         'list-triggers',
         help='List all trigger statuses'
     )
+    add_common_args(list_triggers_parser)
     list_triggers_parser.set_defaults(func=parent_auto_update_list_triggers_command)
 
     # If no subcommand provided, default to status

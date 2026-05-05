@@ -2,6 +2,7 @@
 
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.utils.diff import diff_files, diff_strings
+from clickup_framework.commands.utils import add_common_args
 
 
 class DiffCommand(BaseCommand):
@@ -57,7 +58,6 @@ class DiffCommand(BaseCommand):
                     context_lines=context_lines,
                     use_color=use_color
                 )
-                self.print(result, end='')
             else:
                 # String comparison
                 result = diff_strings(
@@ -68,7 +68,8 @@ class DiffCommand(BaseCommand):
                     context_lines=context_lines,
                     use_color=use_color
                 )
-                self.print(result, end='')
+
+            self.handle_output(data=result, console_output=result)
         except SystemExit:
             # Re-raise SystemExit from diff utilities (already handled)
             raise
@@ -87,13 +88,13 @@ def diff_command(args):
     command.execute()
 
 
-def register_command(subparsers, add_common_args=None):
+def register_command(subparsers, add_common_args_func=None):
     """
     Register the diff command with argparse.
 
     Args:
         subparsers: The subparsers object from argparse
-        add_common_args: Optional function to add common arguments
+        add_common_args_func: Optional function to add common arguments
     """
     parser = subparsers.add_parser(
         'diff',
@@ -158,4 +159,6 @@ def register_command(subparsers, add_common_args=None):
     )
 
     # Set the command function
+    common_args = add_common_args_func or add_common_args
+    common_args(parser)
     parser.set_defaults(func=diff_command)

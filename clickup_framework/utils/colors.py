@@ -9,7 +9,7 @@ import re
 import sys
 import platform
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 
 # Check if colors should be disabled
@@ -578,6 +578,128 @@ TASK_TYPE_EMOJI = {
     "research": "🔬",
     "security": "🛡️",
 }
+
+
+# Task type color mapping
+TASK_TYPE_COLOR = {
+    # Default/Built-in types
+    "task": TextColor.BRIGHT_BLACK,
+    "milestone": TextColor.BRIGHT_MAGENTA,
+    "form_response": TextColor.BRIGHT_WHITE,
+    "meeting_note": TextColor.BRIGHT_WHITE,
+
+    # Development & Code
+    "feature": TextColor.BRIGHT_BLUE,
+    "feat": TextColor.BRIGHT_BLUE,
+    "bug": TextColor.BRIGHT_RED,
+    "refactor": TextColor.BRIGHT_GREEN,
+    "enhancement": TextColor.BRIGHT_CYAN,
+    "chore": TextColor.BRIGHT_BLACK,
+
+    # Documentation & Content
+    "documentation": TextColor.BRIGHT_YELLOW,
+    "docs": TextColor.BRIGHT_YELLOW,
+    "content": TextColor.WHITE,
+    "user_story": TextColor.BRIGHT_BLUE,
+    "user story": TextColor.BRIGHT_BLUE,
+
+    # Project Management
+    "project": TextColor.BRIGHT_MAGENTA,
+    "goal": TextColor.BRIGHT_YELLOW,
+    "objective": TextColor.BRIGHT_RED,
+
+    # Testing & Quality
+    "test_result": TextColor.BRIGHT_GREEN,
+    "warning": TextColor.BRIGHT_YELLOW,
+    "error": TextColor.BRIGHT_RED,
+
+    # Git & Version Control
+    "git": TextColor.BRIGHT_BLUE,
+    "commit": TextColor.BRIGHT_GREEN,
+    "pull_request": TextColor.BRIGHT_MAGENTA,
+    "branch": TextColor.BRIGHT_CYAN,
+
+    # ClickUp Entity Categories
+    "clickup task": TextColor.BRIGHT_GREEN,
+    "clickup space": TextColor.BRIGHT_BLUE,
+    "clickup context": TextColor.BRIGHT_YELLOW,
+    
+    # Custom Types from discovery
+    "plugin": TextColor.BRIGHT_CYAN,
+}
+
+
+def get_task_type_color(task_type: str) -> TextColor:
+    """Get the color for a task type."""
+    if not task_type:
+        return TextColor.BRIGHT_BLACK
+    
+    normalized_type = str(task_type).lower().strip()
+    return TASK_TYPE_COLOR.get(normalized_type, TextColor.WHITE)
+
+
+def get_task_type_info(task: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract task type information (id, name, emoji, color) from a task object.
+    
+    Args:
+        task: Task dictionary from API
+        
+    Returns:
+        Dict with 'id', 'name', 'emoji', 'color'
+    """
+    # custom_item_id is the numeric ID
+    type_id = task.get('custom_item_id')
+    
+    # Try to find a name. Sometimes ClickUp tasks have a 'custom_type' field if enriched,
+    # otherwise we might have to rely on our own mapping or the task name prefix.
+    type_name = task.get('custom_type')
+    
+    # Common ID to Name mapping
+    id_to_name = {
+        1: "Milestone",
+        3: "Form",
+        4: "Meeting",
+    }
+    
+    if not type_name and type_id in id_to_name:
+        type_name = id_to_name[type_id]
+        
+    if not type_name:
+        # Check task name for (Category) pattern
+        category = extract_category_from_name(task.get('name', ''))
+        if category:
+            type_name = category
+            
+    if not type_name:
+        if type_id is None or type_id == 1:
+             type_name = "Task"
+        else:
+             type_name = f"Type {type_id}"
+             
+    # Normalize for lookup
+    norm_name = type_name.lower().strip()
+    
+    # Fix for Plugin type if ID is 1030 (based on previous discovery)
+    if type_id == 1030:
+        type_name = "Plugin"
+        norm_name = "plugin"
+    elif type_id == 1001:
+        type_name = "Feature"
+        norm_name = "feature"
+    elif type_id == 1002:
+        type_name = "Bug"
+        norm_name = "bug"
+
+    emoji = get_task_emoji(norm_name)
+    color = get_task_type_color(norm_name)
+    
+    return {
+        'id': type_id,
+        'name': type_name,
+        'emoji': emoji,
+        'color': color
+    }
 
 
 def extract_category_from_name(task_name: str) -> Optional[str]:

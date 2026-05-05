@@ -168,11 +168,11 @@ class WorkspaceFormatter(BaseFormatter):
     def _build_hierarchy_tree(self, spaces: List[Dict[str, Any]], prefix: str = "") -> List[str]:
         """
         Build ASCII tree representation of workspace hierarchy.
-
+        
         Args:
             spaces: List of space objects
             prefix: Current line prefix for indentation
-
+            
         Returns:
             List of formatted tree lines
         """
@@ -227,6 +227,68 @@ class WorkspaceFormatter(BaseFormatter):
                 lines.append(f"{new_prefix}{list_connector}{list_name} ({task_count} tasks)")
 
         return lines
+
+
+class SpaceFormatter(BaseFormatter):
+    """
+    Format ClickUp space objects.
+    
+    Detail Levels:
+        - minimal: ID and name only
+        - summary: + privacy, status count
+        - detailed: + folders and lists
+        - full: + features and full hierarchy
+    """
+
+    def format(self, space: Dict[str, Any], detail_level: DetailLevel = "summary") -> str:
+        """
+        Format space based on detail level.
+        
+        Args:
+            space: Space dictionary from API
+            detail_level: One of "minimal", "summary", "detailed", "full"
+            
+        Returns:
+            Formatted space string
+        """
+        if detail_level == "minimal":
+            return f"Space: {space.get('id', 'unknown')} - \"{space.get('name', 'Unnamed')}\""
+        
+        lines = []
+        name = space.get("name", "Unnamed")
+        space_id = space.get("id", "unknown")
+        lines.append(f"Space: {space_id} - \"{name}\"")
+        
+        privacy = "Private" if space.get("private") else "Public"
+        lines.append(f"Privacy: {privacy}")
+        
+        if detail_level in ["detailed", "full"]:
+            if space.get("multiple_assignees"):
+                lines.append("Multiple Assignees: Enabled")
+            
+            # Features
+            features = space.get("features", {})
+            if features:
+                enabled_features = [f.replace('_', ' ').title() for f, d in features.items() 
+                                   if isinstance(d, dict) and d.get('enabled')]
+                if enabled_features:
+                    lines.append(f"Features: {', '.join(enabled_features)}")
+            
+            # Folders and Lists
+            folders = space.get("folders", [])
+            lists = space.get("lists", [])
+            
+            if folders:
+                lines.append(f"Folders ({len(folders)}):")
+                for folder in folders:
+                    lines.append(f"  • {folder.get('name', 'Unnamed')} ({folder['id']})")
+            
+            if lists:
+                lines.append(f"Lists ({len(lists)}):")
+                for lst in lists:
+                    lines.append(f"  • {lst.get('name', 'Unnamed')} ({lst['id']})")
+                    
+        return "\n".join(lines)
 
 
 # Convenience functions

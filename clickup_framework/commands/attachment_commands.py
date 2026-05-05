@@ -5,6 +5,7 @@ from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources import AttachmentsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
+from clickup_framework.commands.utils import add_common_args
 
 
 class AttachmentCreateCommand(BaseCommand):
@@ -47,19 +48,22 @@ class AttachmentCreateCommand(BaseCommand):
 
             # Show success message
             success_msg = ANSIAnimations.success_message("Attachment uploaded successfully")
-            self.print(success_msg)
-
+            
             # Display attachment details
+            lines = [success_msg, ""]
             if use_color:
-                self.print(f"\n📄 File: {colorize(result.get('title', file_name), TextColor.BRIGHT_CYAN)}")
-                self.print(f"🆔 ID: {colorize(result.get('id', 'N/A'), TextColor.BRIGHT_GREEN)}")
+                lines.append(f"📄 File: {colorize(result.get('title', file_name), TextColor.BRIGHT_CYAN)}")
+                lines.append(f"🆔 ID: {colorize(result.get('id', 'N/A'), TextColor.BRIGHT_GREEN)}")
                 if result.get('url'):
-                    self.print(f"🔗 URL: {colorize(result['url'], TextColor.BRIGHT_BLUE)}")
+                    lines.append(f"🔗 URL: {colorize(result['url'], TextColor.BRIGHT_BLUE)}")
             else:
-                self.print(f"\nFile: {result.get('title', file_name)}")
-                self.print(f"ID: {result.get('id', 'N/A')}")
+                lines.append(f"File: {result.get('title', file_name)}")
+                lines.append(f"ID: {result.get('id', 'N/A')}")
                 if result.get('url'):
-                    self.print(f"URL: {result['url']}")
+                    lines.append(f"URL: {result['url']}")
+            
+            console_out = "\n".join(lines)
+            self.handle_output(data=result, console_output=console_out)
 
             # Show helpful tip
             from clickup_framework.components.tips import show_tip
@@ -104,6 +108,7 @@ def register_command(subparsers):
         'file_path',
         help='Path to file to upload'
     )
+    add_common_args(attach_parser)
     attach_parser.set_defaults(func=attachment_create_command)
 
     # Verbose 'attachment' command with subcommands
@@ -129,4 +134,5 @@ def register_command(subparsers):
         'file_path',
         help='Path to file to upload'
     )
+    add_common_args(create_parser)
     create_parser.set_defaults(func=attachment_create_command)
