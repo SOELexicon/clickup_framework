@@ -20,6 +20,9 @@ from clickup_framework.commands.task_commands import (
     TaskSetTagsCommand,
     TaskUnassignCommand,
     TaskUpdateCommand,
+    resolve_task_type,
+    _task_create_impl,
+    _task_update_impl,
     task_add_dependency_command,
     task_add_link_command,
     task_assign_command,
@@ -42,6 +45,9 @@ class TestTaskCommandMigration(unittest.TestCase):
     def _mock_context(self):
         context = Mock()
         context.get_ansi_output.return_value = False
+        context.get_current_workspace.return_value = "team-1"
+        context.get_default_assignee.return_value = None
+        context.resolve_id.side_effect = lambda type, id: id
         return context
 
     def test_task_command_classes_inherit_base_command(self):
@@ -59,6 +65,103 @@ class TestTaskCommandMigration(unittest.TestCase):
         self.assertTrue(issubclass(TaskSetPriorityCommand, TaskCommandBase))
         self.assertTrue(issubclass(TaskSetTagsCommand, TaskCommandBase))
         self.assertTrue(issubclass(TaskMoveCommand, TaskCommandBase))
+
+    @patch("clickup_framework.commands.task_commands.ClickUpClient")
+    def test_resolve_task_type_success(self, mock_client_cls):
+        mock_client = mock_client_cls.return_value
+        mock_client.get_custom_task_types.return_value = {
+            "custom_items": [
+                {"id": 100, "name": "Feature"},
+                {"id": 101, "name": "Bug"}
+            ]
+        }
+        
+        type_id = resolve_task_type(mock_client, "team-1", "Feature")
+        self.assertEqual(type_id, 100)
+        
+        type_id = resolve_task_type(mock_client, "team-1", "feature") # Case-insensitive
+        self.assertEqual(type_id, 100)
+
+    @patch("clickup_framework.commands.task_commands.ClickUpClient")
+    def test_resolve_task_type_standard_task(self, mock_client_cls):
+        mock_client = mock_client_cls.return_value
+        type_id = resolve_task_type(mock_client, "team-1", "Task")
+        self.assertEqual(type_id, 1)
+
+    @patch("clickup_framework.commands.task_commands.resolve_task_type")
+    @patch("clickup_framework.commands.task_commands.ANSIAnimations")
+    @patch("clickup_framework.commands.task_commands.ClickUpClient")
+    @patch("clickup_framework.commands.task_commands.get_context_manager")
+    def test_task_create_with_type(self, mock_get_context_manager, mock_client_cls, mock_ansi, mock_resolve):
+        mock_get_context_manager.return_value = self._mock_context()
+        mock_client = mock_client_cls.return_value
+        mock_resolve.return_value = 100
+        mock_ansi.success_message.return_value = "Success"
+        
+        args = Namespace(
+            name="New Task",
+            list_id="list-1",
+            parent=None,
+            description=None,
+            description_file=None,
+            status=None,
+            priority=None,
+            tags=None,
+            assignees=None,
+            custom_task_ids=False,
+            check_required_custom_fields=None,
+            task_type="Feature",
+            markdown=True,
+            skip_mermaid=False,
+            image_cache=None,
+            show_tips=False
+        )
+        
+        mock_client.create_task.return_value = {
+            "id": "task-1", "name": "New Task", "url": "http://task"
+        }
+        
+        _task_create_impl(args, mock_get_context_manager.return_value, mock_client, False)
+        
+        mock_client.create_task.assert_called_once()
+        kwargs = mock_client.create_task.call_args[1]
+        self.assertEqual(kwargs['custom_item_id'], 100)
+
+    @patch("clickup_framework.commands.task_commands.resolve_task_type")
+    @patch("clickup_framework.commands.task_commands.ANSIAnimations")
+    @patch("clickup_framework.commands.task_commands.ClickUpClient")
+    @patch("clickup_framework.commands.task_commands.get_context_manager")
+    def test_task_update_with_type(self, mock_get_context_manager, mock_client_cls, mock_ansi, mock_resolve):
+        mock_get_context_manager.return_value = self._mock_context()
+        mock_client = mock_client_cls.return_value
+        mock_resolve.return_value = 100
+        mock_ansi.success_message.return_value = "Success"
+        
+        args = Namespace(
+            task_id="task-1",
+            name=None,
+            description=None,
+            description_file=None,
+            status=None,
+            priority=None,
+            parent=None,
+            add_tags=None,
+            remove_tags=None,
+            task_type="Feature",
+            markdown=True,
+            skip_mermaid=False,
+            image_cache=None,
+            func=Mock(__name__="task_update")
+        )
+        
+        mock_client.get_task.return_value = {"id": "task-1", "team_id": "team-1"}
+        mock_client.update_task.return_value = {"id": "task-1", "name": "Task"}
+        
+        _task_update_impl(args, mock_get_context_manager.return_value, mock_client, False)
+        
+        mock_client.update_task.assert_called_once()
+        kwargs = mock_client.update_task.call_args[1]
+        self.assertEqual(kwargs['custom_item_id'], 100)
 
     @patch("clickup_framework.commands.task_commands.ClickUpClient")
     @patch("clickup_framework.commands.task_commands.get_context_manager")

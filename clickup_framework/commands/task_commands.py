@@ -2,6 +2,8 @@
 
 import os
 import sys
+import json
+from typing import List, Dict, Any, Optional
 from collections import defaultdict
 from clickup_framework import ClickUpClient, get_context_manager
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
@@ -74,6 +76,40 @@ def is_completion_status(status: str) -> bool:
     """
     completion_statuses = ['committed', 'comitted', 'closed', 'completed', 'complete', 'done']
     return status.lower() in completion_statuses
+
+
+def resolve_task_type(client, team_id, type_name):
+    """
+    Resolve a task type name to its custom_item_id.
+
+    Args:
+        client: ClickUpClient
+        team_id: Workspace ID
+        type_name: Name of the task type (e.g., 'Feature')
+
+    Returns:
+        The custom_item_id (int) or None if not found
+    """
+    if not team_id or not type_name:
+        return None
+
+    # ClickUp standard task type is usually ID 1 (Task)
+    if type_name.lower() in ['task', 'standard']:
+        return 1
+
+    try:
+        # Get custom task types for the workspace
+        types_response = client.get_custom_task_types(team_id)
+        custom_items = types_response.get('custom_items', [])
+
+        # Exact match (case-insensitive)
+        for item in custom_items:
+            if item['name'].lower() == type_name.lower():
+                return item['id']
+
+        return None
+    except Exception:
+        return None
 
 
 def get_unchecked_items(task: dict) -> list:
@@ -333,6 +369,27 @@ def _task_create_impl(args, context, client, use_color):
     if args.check_required_custom_fields is not None:
         task_data['check_required_custom_fields'] = args.check_required_custom_fields
 
+    # Handle task type
+    if hasattr(args, 'task_type') and args.task_type:
+        team_id = context.get_current_workspace()
+        if not team_id:
+            try:
+                # Try to get first authorized workspace
+                workspaces = client.get_authorized_workspaces()
+                teams = workspaces.get('teams', [])
+                if teams:
+                    team_id = teams[0]['id']
+            except:
+                pass
+
+        if team_id:
+            type_id = resolve_task_type(client, team_id, args.task_type)
+            if type_id is not None:
+                task_data['custom_item_id'] = type_id
+                print(f"ℹ️  Setting task type: {colorize(args.task_type, TextColor.BRIGHT_BLUE)} [{type_id}]")
+            else:
+                print(f"⚠️  Warning: Could not resolve task type '{args.task_type}'. Using default.")
+
     # Create the task
     try:
         task = client.create_task(list_id, **task_data)
@@ -429,6 +486,14 @@ def _task_update_impl(args, context, client, use_color):
     # Build update dictionary from provided arguments
     updates = {}
 
+    # Helper to fetch current task only once if needed
+    _current_task = None
+    def get_current_task():
+        nonlocal _current_task
+        if _current_task is None:
+            _current_task = client.get_task(task_id)
+        return _current_task
+
     if args.name:
         updates['name'] = args.name
 
@@ -474,8 +539,8 @@ def _task_update_impl(args, context, client, use_color):
     if diff_enabled and ('description' in updates or 'markdown_description' in updates):
         # Fetch current task to get current description
         try:
-            current_task = client.get_task(task_id)
-            current_description = current_task.get('description', '') or current_task.get('markdown_description', '') or ''
+            task = get_current_task()
+            current_description = task.get('description', '') or task.get('markdown_description', '') or ''
             new_description = updates.get('description', '') or updates.get('markdown_description', '')
 
             # Only show diff if descriptions are different
@@ -515,7 +580,7 @@ def _task_update_impl(args, context, client, use_color):
 
     if args.add_tags:
         # Get current task to append tags
-        task = client.get_task(task_id)
+        task = get_current_task()
         existing_tags = [tag['name'] for tag in task.get('tags', [])]
         to_add = expand_cli_tag_list(args.add_tags)
         all_tags = list(set(existing_tags + to_add))
@@ -523,19 +588,44 @@ def _task_update_impl(args, context, client, use_color):
 
     if args.remove_tags:
         # Get current task to remove tags
-        task = client.get_task(task_id)
+        task = get_current_task()
         existing_tags = [tag['name'] for tag in task.get('tags', [])]
         to_remove = expand_cli_tag_list(args.remove_tags)
         remaining_tags = [tag for tag in existing_tags if tag not in to_remove]
         updates['tags'] = remaining_tags
 
+    # Handle task type update
+    if hasattr(args, 'task_type') and args.task_type:
+        team_id = context.get_current_workspace()
+        if not team_id:
+            try:
+                task = get_current_task()
+                team_id = task.get('team_id')
+                
+                # If still not found, try authorized workspaces
+                if not team_id:
+                    workspaces = client.get_authorized_workspaces()
+                    teams = workspaces.get('teams', [])
+                    if teams:
+                        team_id = teams[0]['id']
+            except:
+                pass
+        
+        if team_id:
+            type_id = resolve_task_type(client, team_id, args.task_type)
+            if type_id is not None:
+                updates['custom_item_id'] = type_id
+                print(f"ℹ️  Updating task type: {colorize(args.task_type, TextColor.BRIGHT_BLUE)} [{type_id}]")
+            else:
+                print(f"⚠️  Warning: Could not resolve task type '{args.task_type}'.")
+
     if not updates:
-        print("Error: No updates specified. Use --name, --description, --status, --priority, or tag options.", file=sys.stderr)
+        print("Error: No updates specified. Use --name, --description, --status, --priority, --type, or tag options.", file=sys.stderr)
         sys.exit(1)
 
     # If status is being updated, validate checklist completion
     if 'status' in updates:
-        task = client.get_task(task_id)
+        task = get_current_task()
         target_status = updates['status']
 
         # Get flags for checklist validation (not available in task_update yet, but added for consistency)
@@ -583,6 +673,9 @@ def _task_update_impl(args, context, client, use_color):
         for key, value in updates.items():
             if key == 'tags' and isinstance(value, list):
                 value_str = ', '.join(value)
+            elif key == 'custom_item_id':
+                key = 'task_type'
+                value_str = f"{args.task_type} [{value}]"
             else:
                 value_str = str(value)
             print(f"  {colorize(key, TextColor.BRIGHT_CYAN)}: {value_str}")
@@ -1570,6 +1663,165 @@ def task_move_command(args):
     command.execute()
 
 
+def _task_types_impl(args, context, client, use_color):
+    """
+    List all task types defined in the workspace.
+    
+    TODO: Add support for resolving task type IDs to names in fallback mode by 
+          fetching a single task of that type and checking metadata if available.
+    TODO: Cache workspace task types in context to avoid repeated API calls 
+          when using --task-type name resolution.
+    """
+    try:
+        # Resolve workspace ID
+        team_id = context.get_current_workspace()
+        if not team_id:
+            workspaces = client.get_authorized_workspaces()
+            teams = workspaces.get('teams', [])
+            if teams:
+                team_id = teams[0]['id']
+            else:
+                print("Error: No workspace available. Use 'cum set workspace <id>'", file=sys.stderr)
+                sys.exit(1)
+
+        task_types = []
+        source = "registry"
+        sample_info = {}
+
+        # Phase 1: Try official custom_items endpoint
+        try:
+            response = client.get_custom_task_types(team_id)
+            custom_items = response.get('custom_items', [])
+            for item in custom_items:
+                task_types.append({
+                    "id": item['id'],
+                    "name": item['name'],
+                    "source": "registry"
+                })
+        except Exception as e:
+            logger.debug(f"Failed to fetch from registry: {e}")
+
+        # Phase 2: Fallback to task scan if registry is empty
+        if not task_types:
+            source = "inferred"
+            list_id = None
+            if args.list_id:
+                try:
+                    list_id = context.resolve_id('list', args.list_id)
+                except ValueError as e:
+                    print(f"Error resolving list '{args.list_id}': {e}", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                list_id = context.get_current_list()
+
+            if not list_id:
+                print("ℹ️  Registry empty. To infer types from tasks, provide a [list_id] or set a current list.")
+            else:
+                print(f"ℹ️  Registry empty. Scanning tasks in list {list_id} to infer types...")
+                try:
+                    # Get tasks with subtasks and closed included
+                    tasks_response = client.get_list_tasks(list_id, subtasks='true', include_closed='true')
+                    tasks = tasks_response.get('tasks', [])
+                    
+                    type_counts = {}
+                    type_samples = {}
+                    
+                    for task in tasks:
+                        # custom_item_id is what we want
+                        tid = task.get('custom_item_id')
+                        if tid is not None:
+                            tid = int(tid)
+                            type_counts[tid] = type_counts.get(tid, 0) + 1
+                            if tid not in type_samples:
+                                type_samples[tid] = f"{task['id']} {task['name'][:20]}..."
+                    
+                    for tid, count in type_counts.items():
+                        # We don't have the name from registry, try to get it from the task's 'custom_item_id' context if available
+                        # Actually ClickUp API doesn't return the name in the task object easily if registry is broken
+                        # But we can try to find where it might be.
+                        name = "Unknown"
+                        # Search for the type name in the task if possible (sometimes it's in the UI only)
+                        task_types.append({
+                            "id": tid,
+                            "name": name,
+                            "source": "inferred",
+                            "sample": type_samples.get(tid)
+                        })
+                except Exception as e:
+                    print(f"Error during task scan fallback: {e}", file=sys.stderr)
+
+        # Phase 3: Manual override for default Task type
+        if args.include_task_default:
+            task_types.insert(0, {
+                "id": "null",
+                "name": "Task",
+                "source": "standard"
+            })
+
+        # Sort by ID
+        task_types.sort(key=lambda x: str(x['id']))
+
+        # Output formatting
+        if args.json:
+            print(json.dumps(task_types, indent=2))
+            return
+
+        if not task_types:
+            print(f"\nNo custom task types discovered for workspace {team_id}.")
+            if source == "inferred":
+                print("Tip: Ensure the specified list contains tasks of custom types.")
+            return
+
+        # Display table
+        print(f"\n{colorize('Task Types (Custom Items)', TextStyle.BOLD)} for Workspace {team_id}\n")
+        
+        # Calculate column widths
+        id_width = max(len("ID"), max([len(str(t['id'])) for t in task_types]))
+        name_width = max(len("Name"), max([len(str(t['name'])) for t in task_types]))
+        source_width = max(len("Source"), max([len(str(t['source'])) for t in task_types]))
+        
+        header = f"{'ID':>{id_width}}  {'Name':<{name_width}}  {'Source':<{source_width}}"
+        if any('sample' in t for t in task_types):
+            header += "  Sample Task"
+        
+        print(colorize(header, TextStyle.BOLD))
+        print(colorize("─" * len(header), TextColor.BRIGHT_BLACK))
+
+        for t in task_types:
+            row = f"{str(t['id']):>{id_width}}  {str(t['name']):<{name_width}}  {str(t['source']):<{source_width}}"
+            if 'sample' in t:
+                row += f"  {t['sample']}"
+            
+            # Highlight custom types
+            if t['id'] != "null":
+                print(row)
+            else:
+                print(colorize(row, TextColor.BRIGHT_BLACK))
+
+        if source == "inferred":
+            print(f"\n{colorize('Tip:', TextColor.BRIGHT_YELLOW)} type names are inferred from sampled tasks.")
+            print("     Edit a representative task in ClickUp UI to confirm the exact name.")
+        
+        print(f"\nTotal types: {len(task_types)}")
+
+    except Exception as e:
+        handle_cli_error(e, {'command': 'task_types'})
+
+
+class TaskTypesCommand(TaskCommandBase):
+    """Display all task types (custom item types) defined in the workspace."""
+
+    def execute(self):
+        """Execute the task_types command."""
+        return _task_types_impl(self.args, self.context, self.client, self.use_color)
+
+
+def task_types_command(args):
+    """Command function wrapper for backward compatibility."""
+    command = TaskTypesCommand(args, command_name='task_types')
+    command.execute()
+
+
 def register_command(subparsers):
     """Register task management commands."""
     # Task create
@@ -1581,6 +1833,7 @@ def register_command(subparsers):
         epilog='''Tips:
   • Create task in current list: cum tc "My Task" --list current
   • Create subtask under parent: cum tc "Subtask" --parent 86abc123
+  • Set task type: cum tc "New Feature" --list current --type Feature
   • Set priority with name or number: cum tc "Urgent" --priority urgent (or --priority 1)
   • Apply checklist template: cum tc "Task" --list current --checklist-template "dev-workflow"
   • Clone checklists from another task: cum tc "New" --list current --clone-checklists-from current'''
@@ -1609,6 +1862,8 @@ def register_command(subparsers):
     task_create_parser.add_argument('--skip-mermaid', action='store_true',
                                     help='Skip mermaid diagram processing in description')
     task_create_parser.add_argument('--image-cache', help='Directory for image cache')
+    task_create_parser.add_argument('--task-type', '--type', dest='task_type',
+                                    help='Task type (e.g., "Task", "Milestone", "Feature")')
     task_create_parser.set_defaults(func=task_create_command)
 
     # Task update
@@ -1621,6 +1876,7 @@ def register_command(subparsers):
   • Update task name: cum tu current --name "New Name"
   • Change status: cum tu 86abc123 --status "in progress"
   • Add tags: cum tu current --add-tags bug urgent
+  • Set task type: cum tu current --type Feature
   • Update from file: cum tu current --description-file notes.md
   • Move to new parent: cum tu 86abc123 --parent 86def456'''
     )
@@ -1634,6 +1890,8 @@ def register_command(subparsers):
     task_update_parser.add_argument('--add-tags', nargs='+', help='Tags to add')
     task_update_parser.add_argument('--remove-tags', nargs='+', help='Tags to remove')
     task_update_parser.add_argument('--parent', help='New parent task ID')
+    task_update_parser.add_argument('--task-type', '--type', dest='task_type',
+                                    help='New task type (e.g., "Task", "Milestone", "Feature")')
     task_update_parser.add_argument('--no-markdown', dest='markdown', action='store_false',
                                     help='Disable markdown formatting in description')
     task_update_parser.add_argument('--skip-mermaid', action='store_true',
@@ -1857,3 +2115,23 @@ def register_command(subparsers):
     task_move_parser.add_argument('--force', '-f', action='store_true',
                                    help='Skip confirmation prompt')
     task_move_parser.set_defaults(func=task_move_command)
+
+    # Task types
+    task_types_parser = subparsers.add_parser(
+        'task_types',
+        aliases=['tt'],
+        help='Display all task types defined in the workspace',
+        description='Display all task types (custom item types) defined in the workspace with their numeric IDs. '
+                    'Falls back to scanning tasks if the registry is empty.',
+        epilog='''Tips:
+  • List all workspace task types: cum tt
+  • Scan specific list for types: cum tt 901517404278
+  • Include standard Task type: cum tt --include-task-default
+  • Output as JSON: cum tt --json'''
+    )
+    task_types_parser.add_argument('list_id', nargs='?', help='Optional list ID to scan for types (if registry is empty)')
+    task_types_parser.add_argument('--include-task-default', action='store_true',
+                                    help='Include standard "Task" type (ID: null)')
+    task_types_parser.add_argument('--json', action='store_true',
+                                    help='Output in machine-readable JSON format')
+    task_types_parser.set_defaults(func=task_types_command)
