@@ -1,0 +1,454 @@
+{
+  "taskWorkflows": {
+    "codingTask": {
+      "name": "Coding Task Workflows",
+      "workflows": [
+        {
+          "name": "Standard Development Flow",
+          "steps": ["Requirements Review", "Technical Design", "Implementation", "Unit Testing", "Code Review", "Integration Testing", "Documentation", "Deployment"]
+        },
+        {
+          "name": "Agile Sprint Task",
+          "steps": ["Sprint Planning", "Task Breakdown", "Daily Development", "Standup Updates", "Testing", "Demo Preparation", "Sprint Review", "Retrospective"]
+        },
+        {
+          "name": "API Development",
+          "steps": ["API Design", "Schema Definition", "Endpoint Implementation", "Request Validation", "Response Formatting", "API Testing", "Documentation", "Client Integration"]
+        },
+        {
+          "name": "Database Feature",
+          "steps": ["Data Model Design", "Migration Script", "Repository Layer", "Service Layer", "Controller Implementation", "Integration Tests", "Performance Testing", "Deployment"]
+        },
+        {
+          "name": "Frontend Component",
+          "steps": ["UI/UX Design Review", "Component Structure", "State Management", "Event Handlers", "Styling", "Accessibility Testing", "Cross-browser Testing", "Production Build"]
+        },
+        {
+          "name": "Microservice Creation",
+          "steps": ["Service Design", "Interface Definition", "Core Logic", "Message Handlers", "Error Handling", "Service Tests", "Container Setup", "Orchestration Config"]
+        },
+        {
+          "name": "Algorithm Implementation",
+          "steps": ["Problem Analysis", "Algorithm Design", "Complexity Analysis", "Implementation", "Edge Case Handling", "Performance Testing", "Optimization", "Documentation"]
+        },
+        {
+          "name": "Security Feature",
+          "steps": ["Threat Modeling", "Security Design", "Implementation", "Vulnerability Testing", "Penetration Testing", "Security Review", "Compliance Check", "Deployment"]
+        },
+        {
+          "name": "Integration Task",
+          "steps": ["System Analysis", "Interface Design", "Adapter Implementation", "Data Mapping", "Error Handling", "Integration Testing", "Performance Testing", "Monitoring Setup"]
+        },
+        {
+          "name": "Refactoring Task",
+          "steps": ["Code Analysis", "Refactor Planning", "Test Coverage", "Incremental Refactoring", "Regression Testing", "Performance Comparison", "Code Review", "Documentation Update"]
+        }
+      ]
+    },
+    "bugFix": {
+      "name": "Bug Fix Workflows",
+      "workflows": [
+        {
+          "name": "Critical Production Bug",
+          "steps": ["Incident Alert", "Initial Assessment", "Reproduction", "Root Cause Analysis", "Hotfix Development", "Emergency Testing", "Deployment", "Post-mortem"]
+        },
+        {
+          "name": "Standard Bug Resolution",
+          "steps": ["Bug Report Review", "Reproduction", "Investigation", "Fix Implementation", "Unit Testing", "Regression Testing", "Code Review", "Release"]
+        },
+        {
+          "name": "Data Corruption Fix",
+          "steps": ["Data Analysis", "Corruption Identification", "Backup Verification", "Fix Development", "Data Recovery", "Integrity Testing", "Validation", "Monitoring"]
+        },
+        {
+          "name": "Performance Bug",
+          "steps": ["Performance Profiling", "Bottleneck Identification", "Optimization Planning", "Fix Implementation", "Benchmark Testing", "Load Testing", "Monitoring Setup", "Release"]
+        },
+        {
+          "name": "Security Vulnerability",
+          "steps": ["Vulnerability Assessment", "Risk Evaluation", "Patch Development", "Security Testing", "Penetration Testing", "Security Review", "Deployment", "Security Announcement"]
+        },
+        {
+          "name": "UI/UX Bug",
+          "steps": ["Visual Inspection", "Browser Testing", "Root Cause", "CSS/JS Fix", "Cross-browser Testing", "Accessibility Check", "Visual Regression", "Deploy"]
+        },
+        {
+          "name": "Integration Bug",
+          "steps": ["Integration Point Analysis", "Log Analysis", "API Testing", "Fix Development", "End-to-end Testing", "Partner Verification", "Deployment", "Monitoring"]
+        },
+        {
+          "name": "Race Condition Fix",
+          "steps": ["Condition Analysis", "Thread Analysis", "Synchronization Design", "Implementation", "Concurrency Testing", "Stress Testing", "Code Review", "Deploy"]
+        },
+        {
+          "name": "Memory Leak Resolution",
+          "steps": ["Memory Profiling", "Leak Detection", "Object Analysis", "Fix Implementation", "Memory Testing", "Performance Validation", "Long-run Testing", "Release"]
+        },
+        {
+          "name": "Regression Bug",
+          "steps": ["Version Comparison", "Change Analysis", "Root Cause", "Fix Development", "Regression Suite", "Integration Testing", "Validation", "Release"]
+        }
+      ]
+    },
+    "featureRequest": {
+      "name": "Feature Request Workflows",
+      "workflows": [
+        {
+          "name": "User-Requested Feature",
+          "steps": ["Request Collection", "Feasibility Study", "Requirements Gathering", "Design Phase", "Development", "User Testing", "Feedback Integration", "Release"]
+        },
+        {
+          "name": "Strategic Feature",
+          "steps": ["Strategic Planning", "Market Analysis", "Requirements Definition", "Architecture Design", "Sprint Planning", "Iterative Development", "Beta Testing", "Launch"]
+        },
+        {
+          "name": "MVP Feature",
+          "steps": ["Concept Definition", "Core Features Identification", "Rapid Prototyping", "User Feedback", "Iteration", "Polish", "Soft Launch", "Full Release"]
+        },
+        {
+          "name": "Enhancement Request",
+          "steps": ["Current State Analysis", "Enhancement Design", "Impact Assessment", "Implementation", "A/B Testing", "Performance Validation", "Gradual Rollout", "Full Deployment"]
+        },
+        {
+          "name": "Integration Feature",
+          "steps": ["Partner Discussion", "API Analysis", "Integration Design", "Development", "Partner Testing", "Security Review", "Documentation", "Launch"]
+        },
+        {
+          "name": "Mobile Feature",
+          "steps": ["Mobile UX Design", "Platform Analysis", "Native Development", "Device Testing", "Performance Optimization", "App Store Prep", "Beta Release", "Production Release"]
+        },
+        {
+          "name": "Analytics Feature",
+          "steps": ["Metrics Definition", "Data Model Design", "Collection Implementation", "Dashboard Development", "Validation Testing", "Stakeholder Review", "Training", "Rollout"]
+        },
+        {
+          "name": "Automation Feature",
+          "steps": ["Process Analysis", "Automation Design", "Workflow Development", "Testing Scenarios", "User Acceptance", "Training Materials", "Phased Rollout", "Full Automation"]
+        },
+        {
+          "name": "Accessibility Feature",
+          "steps": ["Accessibility Audit", "WCAG Analysis", "Design Updates", "Implementation", "Screen Reader Testing", "User Testing", "Compliance Verification", "Release"]
+        },
+        {
+          "name": "Performance Feature",
+          "steps": ["Performance Baseline", "Optimization Goals", "Architecture Changes", "Implementation", "Benchmark Testing", "Load Testing", "Monitoring Setup", "Release"]
+        }
+      ]
+    },
+    "research": {
+      "name": "Research & Investigation Workflows",
+      "workflows": [
+        {
+          "name": "Technical Spike",
+          "steps": ["Problem Definition", "Research Planning", "Literature Review", "Experimentation", "Data Collection", "Analysis", "Recommendations", "Presentation"]
+        },
+        {
+          "name": "Feasibility Study",
+          "steps": ["Requirements Gathering", "Technical Analysis", "Cost Analysis", "Risk Assessment", "POC Development", "Validation", "Report Creation", "Decision Meeting"]
+        },
+        {
+          "name": "Technology Evaluation",
+          "steps": ["Criteria Definition", "Market Research", "Vendor Analysis", "Technical Testing", "Performance Comparison", "Cost-Benefit Analysis", "Recommendation", "Implementation Plan"]
+        },
+        {
+          "name": "Performance Investigation",
+          "steps": ["Baseline Measurement", "Profiling Setup", "Data Collection", "Bottleneck Analysis", "Root Cause Analysis", "Solution Design", "Testing", "Report"]
+        },
+        {
+          "name": "Security Assessment",
+          "steps": ["Scope Definition", "Threat Modeling", "Vulnerability Scanning", "Penetration Testing", "Risk Analysis", "Mitigation Planning", "Report Generation", "Remediation Plan"]
+        },
+        {
+          "name": "Architecture Review",
+          "steps": ["Current State Documentation", "Requirements Analysis", "Options Exploration", "Trade-off Analysis", "POC Development", "Validation", "Recommendation", "Roadmap"]
+        },
+        {
+          "name": "Market Research",
+          "steps": ["Objective Setting", "Data Sources Identification", "Data Collection", "Competitor Analysis", "Trend Analysis", "Insight Generation", "Report Creation", "Strategy Session"]
+        },
+        {
+          "name": "User Research",
+          "steps": ["Research Planning", "Participant Recruitment", "Interview Conducting", "Survey Distribution", "Data Analysis", "Persona Creation", "Findings Report", "Design Workshop"]
+        },
+        {
+          "name": "Compliance Investigation",
+          "steps": ["Regulation Review", "Gap Analysis", "Risk Assessment", "Implementation Requirements", "Cost Estimation", "Timeline Planning", "Compliance Report", "Action Plan"]
+        },
+        {
+          "name": "Innovation Research",
+          "steps": ["Trend Scanning", "Opportunity Identification", "Concept Development", "Feasibility Analysis", "Prototype Creation", "User Testing", "Business Case", "Pitch Presentation"]
+        }
+      ]
+    },
+    "documentation": {
+      "name": "Documentation Task Workflows",
+      "workflows": [
+        {
+          "name": "API Documentation",
+          "steps": ["API Inventory", "Structure Planning", "Endpoint Documentation", "Example Creation", "Authentication Guide", "Error Codes", "Review Process", "Publishing"]
+        },
+        {
+          "name": "User Guide Creation",
+          "steps": ["Audience Analysis", "Content Planning", "Writing Draft", "Screenshot Creation", "Review Cycle", "User Testing", "Revisions", "Publication"]
+        },
+        {
+          "name": "Technical Specification",
+          "steps": ["Requirements Gathering", "Architecture Documentation", "Interface Specification", "Data Model Documentation", "Sequence Diagrams", "Technical Review", "Approval", "Distribution"]
+        },
+        {
+          "name": "README Update",
+          "steps": ["Current State Review", "Gap Identification", "Content Update", "Code Example Update", "Installation Guide", "Contribution Guidelines", "Review", "Commit"]
+        },
+        {
+          "name": "Knowledge Base Article",
+          "steps": ["Topic Selection", "Research", "Outline Creation", "Content Writing", "Peer Review", "SEO Optimization", "Publishing", "Promotion"]
+        },
+        {
+          "name": "Runbook Creation",
+          "steps": ["Process Identification", "Step Documentation", "Screenshot Capture", "Error Handling", "Validation Procedures", "Team Review", "Testing", "Deployment"]
+        },
+        {
+          "name": "Architecture Documentation",
+          "steps": ["System Analysis", "Component Mapping", "Diagram Creation", "Interface Documentation", "Data Flow Documentation", "Security Documentation", "Review", "Maintenance Plan"]
+        },
+        {
+          "name": "Release Notes",
+          "steps": ["Change Collection", "Feature Highlights", "Bug Fix Summary", "Breaking Changes", "Migration Guide", "Review Process", "Formatting", "Distribution"]
+        },
+        {
+          "name": "Training Materials",
+          "steps": ["Learning Objectives", "Content Structure", "Material Creation", "Exercise Development", "Quiz Creation", "Pilot Testing", "Feedback Integration", "Finalization"]
+        },
+        {
+          "name": "Compliance Documentation",
+          "steps": ["Requirement Analysis", "Policy Documentation", "Procedure Writing", "Control Documentation", "Evidence Collection", "Legal Review", "Approval Process", "Distribution"]
+        }
+      ]
+    },
+    "deployment": {
+      "name": "Deployment Task Workflows",
+      "workflows": [
+        {
+          "name": "Production Release",
+          "steps": ["Release Planning", "Change Freeze", "Backup Creation", "Deployment Execution", "Smoke Testing", "Monitoring", "Rollback Decision", "Success Confirmation"]
+        },
+        {
+          "name": "Hotfix Deployment",
+          "steps": ["Issue Identification", "Fix Development", "Emergency Testing", "Approval Fast-track", "Deployment Window", "Quick Validation", "Monitoring", "Post-mortem"]
+        },
+        {
+          "name": "Staged Rollout",
+          "steps": ["Canary Deployment", "Metrics Collection", "Analysis", "Percentage Increase", "Full Rollout Decision", "Complete Deployment", "Validation", "Announcement"]
+        },
+        {
+          "name": "Blue-Green Deployment",
+          "steps": ["Green Environment Prep", "Application Deployment", "Testing Green", "Traffic Switch", "Blue Monitoring", "Rollback Ready", "Blue Decommission", "Success Confirmation"]
+        },
+        {
+          "name": "Database Migration Deploy",
+          "steps": ["Migration Script Review", "Backup Verification", "Maintenance Mode", "Schema Migration", "Data Migration", "Validation Queries", "Application Deploy", "Full Testing"]
+        },
+        {
+          "name": "Microservice Deployment",
+          "steps": ["Service Build", "Container Creation", "Registry Push", "Orchestration Update", "Service Discovery", "Health Checks", "Traffic Routing", "Monitoring"]
+        },
+        {
+          "name": "Infrastructure Update",
+          "steps": ["Change Planning", "Risk Assessment", "Backup Systems", "Infrastructure Update", "Service Restart", "Connectivity Testing", "Performance Validation", "Documentation Update"]
+        },
+        {
+          "name": "Configuration Deployment",
+          "steps": ["Config Validation", "Environment Check", "Backup Current", "Config Update", "Service Reload", "Functionality Test", "Performance Check", "Rollback Ready"]
+        },
+        {
+          "name": "Security Patch Deploy",
+          "steps": ["Vulnerability Assessment", "Patch Testing", "Risk Evaluation", "Deployment Planning", "Security Update", "Penetration Testing", "Monitoring", "Security Report"]
+        },
+        {
+          "name": "Multi-Region Deploy",
+          "steps": ["Region Prioritization", "Primary Region Deploy", "Validation", "Secondary Regions", "Cross-region Testing", "CDN Update", "Global Validation", "Announcement"]
+        }
+      ]
+    },
+    "databaseMigration": {
+      "name": "Database Migration Workflows",
+      "workflows": [
+        {
+          "name": "Schema Change",
+          "steps": ["Impact Analysis", "Migration Script", "Test Environment", "Backup Production", "Execute Migration", "Validation", "Application Testing", "Performance Check"]
+        },
+        {
+          "name": "Data Migration",
+          "steps": ["Data Analysis", "Transformation Rules", "Migration Script", "Test Run", "Validation Rules", "Production Backup", "Execute Migration", "Data Verification"]
+        },
+        {
+          "name": "Database Upgrade",
+          "steps": ["Compatibility Check", "Upgrade Planning", "Test Upgrade", "Backup Strategy", "Maintenance Window", "Upgrade Execution", "Application Testing", "Performance Baseline"]
+        },
+        {
+          "name": "Table Partitioning",
+          "steps": ["Performance Analysis", "Partition Strategy", "Test Implementation", "Data Redistribution", "Index Rebuild", "Query Optimization", "Application Testing", "Monitoring"]
+        },
+        {
+          "name": "Database Consolidation",
+          "steps": ["Database Inventory", "Consolidation Plan", "Schema Merging", "Data Mapping", "Migration Execution", "Deduplication", "Application Updates", "Decommission Old"]
+        },
+        {
+          "name": "Cross-Platform Migration",
+          "steps": ["Platform Assessment", "Compatibility Analysis", "Schema Conversion", "Data Type Mapping", "Test Migration", "Performance Testing", "Production Migration", "Optimization"]
+        },
+        {
+          "name": "Index Optimization",
+          "steps": ["Query Analysis", "Index Assessment", "Index Strategy", "Test Environment", "Index Creation", "Query Testing", "Performance Validation", "Monitoring"]
+        },
+        {
+          "name": "Archive Migration",
+          "steps": ["Data Classification", "Archive Strategy", "Historical Data Move", "Active Data Validation", "Archive Testing", "Application Updates", "Performance Testing", "Documentation"]
+        },
+        {
+          "name": "Replication Setup",
+          "steps": ["Topology Planning", "Master Setup", "Replica Configuration", "Initial Sync", "Lag Monitoring", "Failover Testing", "Application Configuration", "Documentation"]
+        },
+        {
+          "name": "Database Split",
+          "steps": ["Service Boundaries", "Schema Separation", "Data Distribution", "Migration Planning", "Test Split", "Production Execution", "Service Updates", "Validation"]
+        }
+      ]
+    },
+    "performance": {
+      "name": "Performance Optimization Workflows",
+      "workflows": [
+        {
+          "name": "Application Optimization",
+          "steps": ["Performance Baseline", "Profiling", "Bottleneck Identification", "Optimization Planning", "Code Changes", "Testing", "Benchmark Comparison", "Deployment"]
+        },
+        {
+          "name": "Database Optimization",
+          "steps": ["Query Analysis", "Slow Query Log", "Index Analysis", "Query Optimization", "Index Creation", "Statistics Update", "Testing", "Monitoring"]
+        },
+        {
+          "name": "API Performance",
+          "steps": ["Response Time Analysis", "Payload Analysis", "Caching Strategy", "Query Optimization", "Pagination Implementation", "Load Testing", "CDN Setup", "Monitoring"]
+        },
+        {
+          "name": "Frontend Optimization",
+          "steps": ["Page Speed Analysis", "Bundle Analysis", "Code Splitting", "Lazy Loading", "Image Optimization", "CDN Implementation", "Testing", "Monitoring"]
+        },
+        {
+          "name": "Memory Optimization",
+          "steps": ["Memory Profiling", "Leak Detection", "Object Analysis", "Code Optimization", "Garbage Collection Tuning", "Testing", "Long-run Validation", "Monitoring"]
+        },
+        {
+          "name": "Network Optimization",
+          "steps": ["Network Analysis", "Protocol Optimization", "Compression Setup", "Connection Pooling", "CDN Strategy", "Load Balancing", "Testing", "Monitoring"]
+        },
+        {
+          "name": "Cache Optimization",
+          "steps": ["Cache Analysis", "Hit Rate Analysis", "Cache Strategy", "Implementation", "Invalidation Logic", "Testing", "Performance Validation", "Monitoring"]
+        },
+        {
+          "name": "Scalability Optimization",
+          "steps": ["Load Testing", "Bottleneck Analysis", "Horizontal Scaling", "Load Balancing", "Auto-scaling Setup", "Stress Testing", "Failover Testing", "Monitoring"]
+        },
+        {
+          "name": "Storage Optimization",
+          "steps": ["Storage Analysis", "Compression Strategy", "Archival Planning", "Data Cleanup", "Index Optimization", "Partitioning", "Testing", "Monitoring"]
+        },
+        {
+          "name": "Algorithm Optimization",
+          "steps": ["Complexity Analysis", "Algorithm Selection", "Data Structure Optimization", "Implementation", "Benchmark Testing", "Edge Case Testing", "Performance Validation", "Documentation"]
+        }
+      ]
+    },
+    "project": {
+      "name": "Project Management Workflows",
+      "workflows": [
+        {
+          "name": "Project Initiation",
+          "steps": ["Business Case", "Stakeholder Identification", "Charter Creation", "Kick-off Meeting", "Team Formation", "Communication Plan", "Risk Assessment", "Project Plan"]
+        },
+        {
+          "name": "Agile Project",
+          "steps": ["Product Backlog", "Sprint Planning", "Daily Standups", "Sprint Execution", "Sprint Review", "Retrospective", "Backlog Refinement", "Release Planning"]
+        },
+        {
+          "name": "Waterfall Project",
+          "steps": ["Requirements Phase", "Design Phase", "Development Phase", "Testing Phase", "Deployment Phase", "Maintenance Phase", "Documentation", "Project Closure"]
+        },
+        {
+          "name": "Migration Project",
+          "steps": ["Current State Analysis", "Future State Design", "Gap Analysis", "Migration Planning", "Pilot Migration", "Full Migration", "Validation", "Decommissioning"]
+        },
+        {
+          "name": "Integration Project",
+          "steps": ["Systems Analysis", "Integration Design", "Interface Development", "Data Mapping", "Testing Phase", "Pilot Run", "Full Integration", "Monitoring Setup"]
+        },
+        {
+          "name": "Transformation Project",
+          "steps": ["Vision Setting", "Current State Assessment", "Future State Design", "Roadmap Creation", "Change Management", "Implementation Waves", "Benefits Tracking", "Sustainability"]
+        },
+        {
+          "name": "Infrastructure Project",
+          "steps": ["Requirements Gathering", "Architecture Design", "Vendor Selection", "Infrastructure Setup", "Configuration", "Testing", "Migration", "Documentation"]
+        },
+        {
+          "name": "Compliance Project",
+          "steps": ["Regulation Analysis", "Gap Assessment", "Remediation Planning", "Implementation", "Testing & Validation", "Audit Preparation", "Certification", "Ongoing Monitoring"]
+        },
+        {
+          "name": "Product Launch",
+          "steps": ["Market Research", "Product Development", "Beta Testing", "Marketing Preparation", "Launch Planning", "Soft Launch", "Feedback Collection", "Full Launch"]
+        },
+        {
+          "name": "Crisis Response Project",
+          "steps": ["Issue Assessment", "Crisis Team Assembly", "Action Planning", "Communication Strategy", "Rapid Implementation", "Monitoring", "Recovery", "Lessons Learned"]
+        }
+      ]
+    },
+    "userStory": {
+      "name": "User Story Workflows",
+      "workflows": [
+        {
+          "name": "Story Development",
+          "steps": ["Story Creation", "Acceptance Criteria", "Story Sizing", "Sprint Planning", "Development", "Testing", "Demo", "Acceptance"]
+        },
+        {
+          "name": "Epic Breakdown",
+          "steps": ["Epic Definition", "Story Mapping", "Story Creation", "Dependency Mapping", "Prioritization", "Sprint Distribution", "Tracking", "Epic Closure"]
+        },
+        {
+          "name": "UI Story Flow",
+          "steps": ["UX Design", "Design Review", "Story Creation", "Frontend Development", "Visual Testing", "Accessibility Testing", "User Testing", "Release"]
+        },
+        {
+          "name": "API Story Flow",
+          "steps": ["API Design", "Contract Definition", "Story Creation", "Backend Development", "API Testing", "Integration Testing", "Documentation", "Client Enablement"]
+        },
+        {
+          "name": "Data Story Flow",
+          "steps": ["Data Requirements", "Schema Design", "Story Creation", "Database Changes", "Migration Scripts", "Data Validation", "Performance Testing", "Deployment"]
+        },
+        {
+          "name": "Integration Story",
+          "steps": ["Integration Requirements", "Interface Design", "Story Creation", "Adapter Development", "Integration Testing", "End-to-end Testing", "Partner Validation", "Release"]
+        },
+        {
+          "name": "Performance Story",
+          "steps": ["Performance Criteria", "Baseline Measurement", "Story Creation", "Optimization Work", "Performance Testing", "Load Testing", "Validation", "Monitoring Setup"]
+        },
+        {
+          "name": "Security Story",
+          "steps": ["Security Requirements", "Threat Analysis", "Story Creation", "Security Implementation", "Security Testing", "Penetration Testing", "Security Review", "Deployment"]
+        },
+        {
+          "name": "Technical Debt Story",
+          "steps": ["Debt Identification", "Impact Analysis", "Story Creation", "Refactoring", "Testing", "Performance Validation", "Code Review", "Documentation"]
+        },
+        {
+          "name": "Bug Story",
+          "steps": ["Bug Report", "Story Creation", "Root Cause Analysis", "Fix Development", "Testing", "Regression Testing", "Validation", "Release"]
+        }
+      ]
+    }
+  }
+}
