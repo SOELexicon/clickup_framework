@@ -407,12 +407,11 @@ cum map --python --mer pie --html --output reports/languages.html
 
 ## Examples
 
-See test files for complete examples:
+See maintained pytest files for examples:
 
-- `test_interactive_html.py` - Standalone function usage
-- `test_generator_html_export.py` - BaseGenerator integration
-- `test_cli_html_export.py` - CLI usage examples
-- `test_all_diagram_types.py` - All diagram types
+- `tests/commands/map_helpers/test_base_generator.py` - BaseGenerator behavior
+- `tests/commands/test_map_live_editor.py` - CLI map command integration
+- `tests/commands/test_diagram_differ.py` - HTML report rendering
 
 ## API Reference
 

@@ -393,12 +393,11 @@ your-project/
 
 ## After Running
 
-1. **Commit the changes:**
+1. **Keep the generated Claude files local:**
    ```bash
-   git add .claude/
-   git commit -m "Add ClickUp Framework SessionStart hook"
-   git push
+   git status --ignored
    ```
+   `.claude/` is local assistant configuration and should not be committed with the CLI.
 
 2. **Use in Claude Code:**
    - Open project in Claude Code on the web

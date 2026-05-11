@@ -51,8 +51,24 @@ class DiagramDiffCommand(BaseCommand):
     def _create_client(self):
         return None
 
+    def _resolve_report_output_path(self):
+        """Return the report output file path, including legacy test-call args."""
+        output_file = getattr(self.args, "output_file", None)
+        if output_file:
+            return output_file
+
+        legacy_output = getattr(self.args, "output", None)
+        if legacy_output is None:
+            self.args.output = "console"
+            return None
+        if legacy_output and legacy_output not in {"console", "json", "markdown"}:
+            self.args.output = "console"
+            return legacy_output
+
+        return None
+
     def execute(self):
-        output_path = getattr(self.args, 'output_file', None)
+        output_path = self._resolve_report_output_path()
         output_format = _infer_format(output_path, self.args.format)
         use_color = bool(output_format == "text" and not output_path and self.use_color and not self.args.no_color)
 

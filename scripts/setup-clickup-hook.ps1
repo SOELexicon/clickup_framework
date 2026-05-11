@@ -204,10 +204,8 @@ Write-Host "  • .claude/settings.json" -ForegroundColor White
 Write-Host "  • .env.example (if didn't exist)" -ForegroundColor White
 Write-Host ""
 Write-Host "🚀 Next Steps:" -ForegroundColor Cyan
-Write-Host "  1. Commit these files to your repository:" -ForegroundColor White
-Write-Host "     git add .claude/" -ForegroundColor Gray
-Write-Host "     git commit -m 'Add ClickUp Framework SessionStart hook'" -ForegroundColor Gray
-Write-Host "     git push" -ForegroundColor Gray
+Write-Host "  1. Keep .claude/ local to this machine:" -ForegroundColor White
+Write-Host "     Do not commit local assistant configuration with the CLI" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  2. (Optional) Create a .env file with your API token:" -ForegroundColor White
 Write-Host "     Copy .env.example to .env and add your ClickUp API token" -ForegroundColor Gray

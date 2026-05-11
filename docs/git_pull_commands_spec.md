@@ -231,7 +231,6 @@ def register_command(subparsers):
 
 ### CLI Reference
 - Add commands to `CLI_COMMAND_REFERENCE.md`
-- Add to `.claude/commands/cum.md`
 - Update help text in command tree
 
 ### User Documentation

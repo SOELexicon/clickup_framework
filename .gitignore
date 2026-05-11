@@ -142,23 +142,75 @@ Thumbs.db
 *.pyc
 .env.local
 .env.*.local
-.claude/settings.local.json
 
-# Generated outputs (intermediate files)
+# Local assistant/editor configuration
+.agents/
+.claude/
+CLAUDE.md
+Gemini.md
+.github/README.md
+.github/copilot-instructions.md
+.github/copilot-settings.md
+
+# Generated outputs and reports
+output/
 outputs/
-*_final_part.txt
-*.py.new
-
-# Screenshots HTML files (keep JPGs for documentation)
-screenshots/*.html
-cleanup_git_branches.ps1
-Projects.lnk
+benchmark_output/
+test_batch_output/
+htmlcov/
+coverage.json
+/line-count-report-*.html
+/flow-*.html
+/interactive*.html
+/test-*.html
+/test_*.html
+/test_*.py
+/custom_*.html
+/productiveinbox_*.html
+/*-1.png
+/codemap*.png
+/classes-detailed*.png
+/execution-flow*.png
+/test-diagram-*.svg
+docs/diagrams/
+docs/codemap/diagram.md
+docs/codemap/diagram_class.md
+docs/codemap/diagram_flow.md
+docs/codemap/diagram_flowchart.md
+docs/codemap/diagram_mindmap.md
+docs/codemap/diagram_pie.md
+docs/codemap/diagram_sequence.md
+docs/codemap/diagram_flow_metadata.json
 docs/DOC_LINKING_STATUS.md
 docs/RELATIONSHIP_COMMANDS_IMPLEMENTATION_PLAN.md
 docs/TEMPLATE_ENDPOINTS.md
-flow-*.html
+screenshots/*.html
+
+# Scratch, temporary, and local planning artifacts
+.codex_tmp*/
+.codex_tmp*
+.trace_history/
+scrap/
+knowledge/
+V1/
+*_final_part.txt
+*.py.new
+/.diagram-pipeline*.yaml
+/.gitlab-ci-example.yml
+/temp_lesson_*.md
+/PR_DESCRIPTION.md
+/TEST_RESULTS.md
+/PRODUCTIVEINBOX_TEST_RESULTS.md
+
+# Tool caches and downloaded binaries
+.ctags
 .tags.json
-ctags-p6.2.20251116.0-x64.zip
-test-*.html
-interactive*.html
+ctags/
+ctags*.zip
+ctags_errors.log
+
+# Local OS/shell leftovers
+*.lnk
 nul
+/=3.0.0
+cleanup_git_branches.ps1
