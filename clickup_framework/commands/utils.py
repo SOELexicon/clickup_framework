@@ -11,6 +11,41 @@ from clickup_framework.utils.colors import TextColor, TextStyle, colorize
 
 logger = logging.getLogger(__name__)
 
+_TRUE_STRINGS = {"true", "t", "yes", "y", "1"}
+_FALSE_STRINGS = {"false", "f", "no", "n", "0"}
+
+
+def parse_bool_flag(value: str) -> bool:
+    """
+    argparse ``type=`` callback for boolean CLI flags.
+
+    ``type=bool`` is the classic argparse trap: argparse only calls the type
+    converter on the raw string, so ``type=bool`` runs Python's ``bool()``
+    on it, and ``bool("false")`` is ``True`` because any non-empty string is
+    truthy. A flag like ``--resolved false`` then silently sets the field
+    to ``True`` with no error, which is exactly what let several prior
+    ClickUp audit runs believe they had unticked checklist items they had
+    in fact just re-resolved.
+
+    Args:
+        value: The raw string argparse captured for the flag.
+
+    Returns:
+        The parsed boolean.
+
+    Raises:
+        argparse.ArgumentTypeError: If the string is not a recognised
+            boolean spelling.
+    """
+    lowered = value.strip().lower()
+    if lowered in _TRUE_STRINGS:
+        return True
+    if lowered in _FALSE_STRINGS:
+        return False
+    raise argparse.ArgumentTypeError(
+        f"invalid boolean value: {value!r} (use true/false, yes/no, or 1/0)"
+    )
+
 
 def expand_cli_tag_list(tag_args):
     """

@@ -10,7 +10,7 @@ from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.utils.checklist_mapping import get_mapping_manager
 from clickup_framework.exceptions import ClickUpAPIError
-from clickup_framework.commands.utils import add_common_args
+from clickup_framework.commands.utils import add_common_args, parse_bool_flag
 
 # Metadata for automatic help generation
 COMMAND_METADATA = {
@@ -1041,7 +1041,9 @@ def register_command(subparsers):
     item_update_parser.add_argument('--task', help='Task ID (required when using indices)')
     item_update_parser.add_argument('--name', help='New item name')
     item_update_parser.add_argument('--assignee', help='User ID to assign (or empty to unassign)')
-    item_update_parser.add_argument('--resolved', type=bool, help='Mark as resolved (true/false)')
+    item_update_parser.add_argument(
+        '--resolved', type=parse_bool_flag, help='Mark as resolved (true/false)'
+    )
     item_update_parser.add_argument('--parent', help='Parent checklist item ID')
     item_update_parser.add_argument('--verbose', '-v', action='store_true', help='Show update details')
     add_common_args(item_update_parser)

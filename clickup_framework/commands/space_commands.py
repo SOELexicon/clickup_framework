@@ -5,7 +5,7 @@ from clickup_framework.resources.workspaces import WorkspacesAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
 from clickup_framework.utils.animations import ANSIAnimations
 from clickup_framework.exceptions import ClickUpAPIError
-from clickup_framework.commands.utils import add_common_args
+from clickup_framework.commands.utils import add_common_args, parse_bool_flag
 from clickup_framework.formatters.workspace import SpaceFormatter
 
 
@@ -214,7 +214,9 @@ def register_command(subparsers):
     )
     create_parser.add_argument('team_id', help='Team/Workspace ID (or "current")')
     create_parser.add_argument('name', help='Space name')
-    create_parser.add_argument('--multiple-assignees', type=bool, help='Enable multiple assignees (true/false)')
+    create_parser.add_argument(
+        '--multiple-assignees', type=parse_bool_flag, help='Enable multiple assignees (true/false)'
+    )
     create_parser.add_argument('--features', nargs='+',
                                choices=['due_dates', 'time_tracking', 'tags', 'time_estimates',
                                        'checklists', 'custom_fields', 'remap_dependencies',
@@ -233,9 +235,13 @@ def register_command(subparsers):
     update_parser.add_argument('space_id', help='Space ID (or "current")')
     update_parser.add_argument('--name', help='New space name')
     update_parser.add_argument('--color', help='Space color (hex code)')
-    update_parser.add_argument('--private', type=bool, help='Set private (true/false)')
-    update_parser.add_argument('--admin-can-manage', type=bool, help='Admin can manage (true/false)')
-    update_parser.add_argument('--multiple-assignees', type=bool, help='Multiple assignees (true/false)')
+    update_parser.add_argument('--private', type=parse_bool_flag, help='Set private (true/false)')
+    update_parser.add_argument(
+        '--admin-can-manage', type=parse_bool_flag, help='Admin can manage (true/false)'
+    )
+    update_parser.add_argument(
+        '--multiple-assignees', type=parse_bool_flag, help='Multiple assignees (true/false)'
+    )
     update_parser.add_argument('--verbose', '-v', action='store_true', help='Show update details')
     add_common_args(update_parser)
     update_parser.set_defaults(func=space_update_command)
