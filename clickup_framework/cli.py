@@ -560,6 +560,7 @@ ROOT_COMMAND_CATEGORIES = {
     "page_create": "📄 Docs Management",
     "page_update": "📄 Docs Management",
     "time": "⏱️  Time Tracking",
+    "0h": "⏱️  Time Tracking",
     "dump": "📦 Export/Dump",
     "space": "🏗️  Workspace Hierarchy",
     "folder": "🏗️  Workspace Hierarchy",
