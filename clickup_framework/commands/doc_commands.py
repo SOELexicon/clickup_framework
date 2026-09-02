@@ -649,6 +649,12 @@ def doc_update_command(args):
 
 def doc_export_command(args):
     """Command wrapper for doc export."""
+    # Allow doc_id as a positional (matching doc_get/doc_update) in addition
+    # to --doc-id, so `cum doc_export <workspace> <doc_id>` works like
+    # `cum doc_get <workspace> <doc_id>` instead of only `--doc-id <id>`.
+    positional_doc_id = getattr(args, 'doc_id_positional', None)
+    if positional_doc_id:
+        args.doc_id = positional_doc_id
     command = DocExportCommand(args, command_name='doc_export')
     command.execute()
 
@@ -765,14 +771,18 @@ def register_command(subparsers):
         description='Export ClickUp Docs to local markdown files, preserving structure and content.',
         epilog='''Tips:
   • Export all docs: cum de current --output-dir ./docs
-  • Export specific doc: cum de current --doc-id <id> --output-dir ./docs
+  • Export specific doc: cum de current <doc_id> --output-dir ./docs
+    (or: cum de current --doc-id <doc_id> --output-dir ./docs)
   • Nested structure: cum de current --nested (preserves page hierarchy)
   • Creates folder per doc with .md files for pages
   • Great for version control and offline access'''
     )
     doc_export_parser.add_argument('workspace_id', help='Workspace/team ID (or "current")')
-    doc_export_parser.add_argument('--doc-id', dest='doc_id',
+    doc_export_parser.add_argument('doc_id_positional', nargs='?', default=None,
+                                   metavar='doc_id',
                                    help='Specific doc ID to export (omit to export all)')
+    doc_export_parser.add_argument('--doc-id', dest='doc_id',
+                                   help='Specific doc ID to export (omit to export all; same as positional doc_id)')
     doc_export_parser.add_argument('--output-dir', dest='output_dir', default='.',
                                    help='Output directory (default: current directory)')
     doc_export_parser.add_argument('--nested', action='store_true',
