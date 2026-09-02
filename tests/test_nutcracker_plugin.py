@@ -149,6 +149,7 @@ CUM_COMMANDS_DOCUMENTED = [
     (["show"], []),
     (["tu"], ["--description", "--name"]),
     (["set"], []),
+    (["chk", "list"], []),
 ]
 
 CUM_FLAGS_THAT_MUST_NOT_EXIST = [
@@ -167,7 +168,9 @@ class TestCumCommandsAreReal(unittest.TestCase):
             errors="replace",
             timeout=30,
         )
-        self.assertEqual(result.returncode, 0, f"cum {' '.join(argv)} --help failed:\n{result.stderr}")
+        self.assertEqual(
+            result.returncode, 0, f"cum {' '.join(argv)} --help failed:\n{result.stderr}"
+        )
         return result.stdout
 
     def test_documented_commands_and_flags_exist(self):
@@ -182,7 +185,9 @@ class TestCumCommandsAreReal(unittest.TestCase):
             with self.subTest(command=" ".join(argv)):
                 help_text = self._help(argv)
                 for flag in flags:
-                    self.assertNotIn(flag, help_text, f"cum {' '.join(argv)} unexpectedly has {flag}")
+                    self.assertNotIn(
+                        flag, help_text, f"cum {' '.join(argv)} unexpectedly has {flag}"
+                    )
 
 
 if __name__ == "__main__":
