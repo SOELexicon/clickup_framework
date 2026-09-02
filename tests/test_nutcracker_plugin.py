@@ -147,6 +147,8 @@ CUM_COMMANDS_DOCUMENTED = [
     (["ca"], []),
     (["d"], []),
     (["show"], []),
+    (["tu"], ["--description", "--name"]),
+    (["set"], []),
 ]
 
 CUM_FLAGS_THAT_MUST_NOT_EXIST = [
