@@ -1,6 +1,8 @@
 """Attachment management commands for ClickUp Framework CLI."""
 
 import os
+import re
+import requests
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.resources import AttachmentsAPI
 from clickup_framework.utils.colors import colorize, TextColor, TextStyle
@@ -82,6 +84,113 @@ class AttachmentCreateCommand(BaseCommand):
                 self.error(f"Error uploading attachment: {error_msg}")
 
 
+class AttachmentDownloadCommand(BaseCommand):
+    """
+    Attachment Download Command using BaseCommand.
+    """
+
+    def execute(self):
+        """Download attachment(s) from a task to the local filesystem."""
+        task_id = self.resolve_id('task', self.args.task_id)
+        use_color = self.context.get_ansi_output()
+
+        try:
+            task = self.client.get_task(task_id)
+        except Exception as e:
+            error_msg = str(e)
+            if "404" in error_msg:
+                self.error(f"Task not found: {task_id}")
+            elif "403" in error_msg or "401" in error_msg:
+                self.error("Permission denied. Check your API token and task access.")
+            else:
+                self.error(f"Error fetching task: {error_msg}")
+            return
+
+        attachments = task.get('attachments') or []
+
+        if self.args.id:
+            attachments = [a for a in attachments if str(a.get('id')) == str(self.args.id)]
+            if not attachments:
+                self.error(f"No attachment with ID {self.args.id} found on task {task_id}")
+        elif self.args.index is not None:
+            if self.args.index < 1 or self.args.index > len(attachments):
+                self.error(
+                    f"Attachment index {self.args.index} out of range "
+                    f"(task has {len(attachments)} attachment(s))"
+                )
+            attachments = [attachments[self.args.index - 1]]
+
+        if not attachments:
+            self.error(f"Task {task_id} has no attachments")
+
+        output_dir = self.args.output or "."
+        os.makedirs(output_dir, exist_ok=True)
+
+        saved = []
+        for attachment in attachments:
+            url = attachment.get('url')
+            if not url:
+                continue
+
+            title = attachment.get('title') or f"attachment_{attachment.get('id', 'unknown')}"
+            file_name = self._safe_filename(title)
+            dest_path = os.path.join(output_dir, file_name)
+
+            if use_color:
+                self.print(f"⬇️  Downloading: {colorize(file_name, TextColor.BRIGHT_CYAN, TextStyle.BOLD)}")
+            else:
+                self.print(f"Downloading: {file_name}")
+
+            try:
+                response = requests.get(url, stream=True, timeout=60)
+                response.raise_for_status()
+                with open(dest_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+            except Exception as e:
+                self.print_error(f"Failed to download {file_name}: {e}")
+                continue
+
+            size = os.path.getsize(dest_path)
+            saved.append({'id': attachment.get('id'), 'title': title, 'path': dest_path, 'size': size})
+
+        if not saved:
+            self.error("No attachments were downloaded")
+
+        lines = [ANSIAnimations.success_message(f"Downloaded {len(saved)} attachment(s)"), ""]
+        for item in saved:
+            if use_color:
+                size_str = f"{item['size']:,}"
+                lines.append(
+                    f"📄 {colorize(item['title'], TextColor.BRIGHT_CYAN)} "
+                    f"({colorize(size_str, TextColor.BRIGHT_YELLOW)} bytes) "
+                    f"-> {colorize(item['path'], TextColor.BRIGHT_BLUE)}"
+                )
+            else:
+                lines.append(f"{item['title']} ({item['size']:,} bytes) -> {item['path']}")
+
+        console_out = "\n".join(lines)
+        self.handle_output(data={'task_id': task_id, 'attachments': saved}, console_output=console_out)
+
+    @staticmethod
+    def _safe_filename(name: str) -> str:
+        """Strip path separators and unsafe characters from an attachment title."""
+        name = os.path.basename(name)
+        name = re.sub(r'[\\/:*?"<>|]', '_', name).strip()
+        return name or "attachment"
+
+
+def attachment_download_command(args):
+    """
+    Command function wrapper for backward compatibility.
+
+    This function maintains the existing function-based API while
+    using the BaseCommand class internally.
+    """
+    command = AttachmentDownloadCommand(args, command_name='attachment_download')
+    command.execute()
+
+
 def attachment_create_command(args):
     """
     Command function wrapper for backward compatibility.
@@ -136,3 +245,29 @@ def register_command(subparsers):
     )
     add_common_args(create_parser)
     create_parser.set_defaults(func=attachment_create_command)
+
+    # attachment download
+    download_parser = attachment_subparsers.add_parser(
+        'download',
+        help='Download attachment(s) from a task'
+    )
+    download_parser.add_argument(
+        'task_id',
+        help='Task ID (or "current" to use context)'
+    )
+    download_parser.add_argument(
+        '--output', '-o',
+        help='Directory to save downloaded file(s) into (default: current directory)'
+    )
+    download_group = download_parser.add_mutually_exclusive_group()
+    download_group.add_argument(
+        '--id',
+        help='Download only the attachment with this ID'
+    )
+    download_group.add_argument(
+        '--index',
+        type=int,
+        help='Download only the Nth attachment on the task (1-based, in task order)'
+    )
+    add_common_args(download_parser)
+    download_parser.set_defaults(func=attachment_download_command)
