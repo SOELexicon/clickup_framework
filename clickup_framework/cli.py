@@ -1326,9 +1326,9 @@ def _display_commands(commands, use_color):
             prefix = "└─ " if is_last else "├─ "
 
             if use_color:
-                cmd_colored = colorize(cmd, TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+                cmd_colored = colorize(cmd, TextColor.MAGENTA, TextStyle.BOLD)
                 args_colored = colorize(args, TextColor.BRIGHT_YELLOW) if args else ""
-                desc_colored = colorize(desc, TextColor.BRIGHT_BLACK)
+                desc_colored = colorize(desc, TextColor.BRIGHT_MAGENTA)
             else:
                 cmd_colored = cmd
                 args_colored = args
@@ -1373,8 +1373,8 @@ def _display_examples_and_footer(use_color):
 
     for cmd, desc in examples:
         if use_color:
-            cmd_colored = colorize(cmd, TextColor.BRIGHT_GREEN)
-            desc_colored = colorize(f"  # {desc}", TextColor.BRIGHT_BLACK)
+            cmd_colored = colorize(cmd, TextColor.MAGENTA)
+            desc_colored = colorize(f"  # {desc}", TextColor.BRIGHT_MAGENTA)
         else:
             cmd_colored = cmd
             desc_colored = f"  # {desc}"
