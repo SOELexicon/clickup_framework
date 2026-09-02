@@ -106,5 +106,82 @@ class TestSessionStartHook(unittest.TestCase):
         self.assertIn("Error reading", output["hookSpecificOutput"]["additionalContext"])
 
 
+def _read_frontmatter(skill_md: Path) -> dict:
+    """Parse the YAML-ish frontmatter block (name/description only) of a SKILL.md."""
+    text = skill_md.read_text(encoding="utf-8")
+    match = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+    assert match, f"no frontmatter block in {skill_md}"
+    fields = {}
+    for line in match.group(1).splitlines():
+        if ":" in line:
+            key, _, value = line.partition(":")
+            fields[key.strip()] = value.strip()
+    return fields
+
+
+class TestSkillFrontmatter(unittest.TestCase):
+    def test_every_skill_has_valid_frontmatter(self):
+        for name in SKILL_NAMES:
+            with self.subTest(skill=name):
+                skill_md = PLUGIN_ROOT / "skills" / name / "SKILL.md"
+                self.assertTrue(skill_md.exists(), f"missing {skill_md}")
+                fm = _read_frontmatter(skill_md)
+                self.assertEqual(fm["name"], name)
+                self.assertTrue(
+                    fm["description"].startswith("Use when"),
+                    f"{name} description must start with 'Use when': {fm['description']!r}",
+                )
+
+
+# Each row: (cum subcommand argv, [flags that must appear in its --help]).
+# This is the mechanical form of the "ensure correct usage" requirement: if a
+# skill documents a command or flag that the installed cum doesn't have, this
+# test fails rather than the skill silently teaching a wrong command.
+CUM_COMMANDS_DOCUMENTED = [
+    (["tc"], ["--list", "--parent", "--description"]),
+    (["chk", "create"], []),
+    (["chk", "item-add"], ["--task"]),
+    (["chk", "item-update"], ["--resolved", "--task"]),
+    (["tad"], ["--waiting-on", "--blocking"]),
+    (["tss"], ["--force"]),
+    (["ca"], []),
+    (["d"], []),
+    (["show"], []),
+]
+
+CUM_FLAGS_THAT_MUST_NOT_EXIST = [
+    (["tad"], ["--depends-on", "--blocks"]),
+]
+
+
+@unittest.skipIf(shutil.which("cum") is None, "cum not on PATH")
+class TestCumCommandsAreReal(unittest.TestCase):
+    def _help(self, argv):
+        result = subprocess.run(
+            ["cum", *argv, "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, f"cum {' '.join(argv)} --help failed:\n{result.stderr}")
+        return result.stdout
+
+    def test_documented_commands_and_flags_exist(self):
+        for argv, flags in CUM_COMMANDS_DOCUMENTED:
+            with self.subTest(command=" ".join(argv)):
+                help_text = self._help(argv)
+                for flag in flags:
+                    self.assertIn(flag, help_text, f"cum {' '.join(argv)} lacks {flag}")
+
+    def test_known_wrong_flags_do_not_exist(self):
+        for argv, flags in CUM_FLAGS_THAT_MUST_NOT_EXIST:
+            with self.subTest(command=" ".join(argv)):
+                help_text = self._help(argv)
+                for flag in flags:
+                    self.assertNotIn(flag, help_text, f"cum {' '.join(argv)} unexpectedly has {flag}")
+
+
 if __name__ == "__main__":
     unittest.main()
