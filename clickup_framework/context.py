@@ -156,9 +156,13 @@ class ContextManager:
         Get the current space ID.
 
         Returns:
-            Current space ID or None if not set
+            Current space ID from context, or from CLICKUP_DEFAULT_SPACE env var, or None if neither is set
         """
-        return self._context.get('current_space')
+        # First try context, then environment variable
+        space_id = self._context.get('current_space')
+        if not space_id:
+            space_id = os.environ.get('CLICKUP_DEFAULT_SPACE')
+        return space_id
 
     def set_current_folder(self, folder_id: str) -> None:
         """
@@ -176,9 +180,13 @@ class ContextManager:
         Get the current folder ID.
 
         Returns:
-            Current folder ID or None if not set
+            Current folder ID from context, or from CLICKUP_DEFAULT_FOLDER env var, or None if neither is set
         """
-        return self._context.get('current_folder')
+        # First try context, then environment variable
+        folder_id = self._context.get('current_folder')
+        if not folder_id:
+            folder_id = os.environ.get('CLICKUP_DEFAULT_FOLDER')
+        return folder_id
 
     def set_current_workspace(self, workspace_id: str) -> None:
         """
