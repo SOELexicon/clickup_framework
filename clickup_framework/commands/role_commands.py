@@ -30,7 +30,7 @@ class RolesListCommand(BaseCommand):
     def execute(self):
         team_id = self.resolve_id("workspace", self.args.team_id or "current")
         try:
-            response = self.client.get_custom_roles(team_id)
+            response = self.client.get_custom_roles(team_id, include_members=True)
             roles = response.get("custom_roles", [])
 
             header = colorize(f"Custom Roles ({len(roles)})", TextColor.BRIGHT_CYAN, TextStyle.BOLD)

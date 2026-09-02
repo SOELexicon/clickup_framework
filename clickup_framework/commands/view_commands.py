@@ -37,9 +37,14 @@ def _parse_settings(settings_str):
     if not settings_str:
         return {}
     try:
-        return json.loads(settings_str)
+        parsed = json.loads(settings_str)
     except json.JSONDecodeError as e:
         raise ValueError(f"--settings must be valid JSON: {e}") from e
+    if not isinstance(parsed, dict):
+        raise ValueError(
+            f"--settings must be a JSON object (got {type(parsed).__name__}): {settings_str!r}"
+        )
+    return parsed
 
 
 class ViewListCommand(BaseCommand):

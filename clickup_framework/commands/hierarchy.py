@@ -15,6 +15,24 @@ from clickup_framework.commands.utils import create_format_options, get_list_sta
 logger = logging.getLogger(__name__)
 
 
+def _resolve_typed_current(context, resource_type, value):
+    """
+    Resolve a "current" value passed via a typed flag (--list/--folder/--space)
+    to the actual configured ID for that specific resource type, erroring with
+    a clear message if nothing is configured rather than silently falling
+    through to the generic (list-only) "current" handling in resolve_container_id.
+    """
+    try:
+        return context.resolve_id(resource_type, value)
+    except ValueError:
+        print(
+            f"Error: No current {resource_type} set. Use 'cum set {resource_type} <id>' "
+            f"or the CLICKUP_DEFAULT_{resource_type.upper()} env var.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _hierarchy_impl(args, context, client, use_color):
     """
     Display tasks in hierarchical parent-child view with full pagination support.
@@ -26,12 +44,29 @@ def _hierarchy_impl(args, context, client, use_color):
 
     # An explicit container ID can come from the positional argument or from
     # --list / --folder / --space -- whichever one the caller actually passed.
-    # These are all just alternate ways to spell the same "container_id" input.
+    # These are all just alternate ways to spell the same "container_id" input,
+    # EXCEPT that "current" means something different depending on which flag
+    # it came in on: resolve_container_id()'s own "current" handling only ever
+    # resolves the current *list*, so --folder current / --space current must
+    # be resolved through their own typed context lookup first, or they'd
+    # silently show the current list (or error even when a folder/space IS
+    # configured) instead of the folder/space the caller actually asked for.
+    list_flag_id = getattr(args, 'list_flag_id', None)
+    folder_flag_id = getattr(args, 'folder_id', None)
+    space_flag_id = getattr(args, 'space_id', None)
+
+    if list_flag_id and list_flag_id.lower() == 'current':
+        list_flag_id = _resolve_typed_current(context, 'list', list_flag_id)
+    if folder_flag_id and folder_flag_id.lower() == 'current':
+        folder_flag_id = _resolve_typed_current(context, 'folder', folder_flag_id)
+    if space_flag_id and space_flag_id.lower() == 'current':
+        space_flag_id = _resolve_typed_current(context, 'space', space_flag_id)
+
     explicit_id = (
         getattr(args, 'list_id', None)
-        or getattr(args, 'list_flag_id', None)
-        or getattr(args, 'folder_id', None)
-        or getattr(args, 'space_id', None)
+        or list_flag_id
+        or folder_flag_id
+        or space_flag_id
     )
     args.list_id = explicit_id
 

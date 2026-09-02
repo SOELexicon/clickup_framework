@@ -196,7 +196,7 @@ def register_command(subparsers):
   • List webhooks: cum webhook list
   • Create: cum webhook create current https://example.com/hook --events taskCreated,taskUpdated
   • Subscribe to everything: cum webhook create current https://example.com/hook --events '*'
-  • Update: cum webhook update <webhook_id> --status disabled""",
+  • Update: cum webhook update <webhook_id> --endpoint https://example.com/new-hook""",
     )
     add_common_args(webhook_parser)
     webhook_subparsers = webhook_parser.add_subparsers(

@@ -25,14 +25,16 @@ COMMAND_METADATA = {
 }
 
 
+MAX_TEMPLATE_PAGES = 50
+
+
 class TemplatesListCommand(BaseCommand):
     """List task templates for a workspace."""
 
     def execute(self):
         team_id = self.resolve_id("workspace", self.args.team_id or "current")
         try:
-            response = self.client.get_task_templates(team_id)
-            templates = response.get("templates", [])
+            templates = self._fetch_all_templates(team_id)
 
             header = colorize(
                 f"Task Templates ({len(templates)})", TextColor.BRIGHT_CYAN, TextStyle.BOLD
@@ -52,6 +54,25 @@ class TemplatesListCommand(BaseCommand):
             self.handle_output(data=templates, console_output="\n".join(lines))
         except ClickUpAPIError as e:
             self.error(f"Error listing task templates: {e}")
+
+    def _fetch_all_templates(self, team_id):
+        """Page through GET taskTemplate until a page comes back empty.
+
+        ClickUp's docs mark `page` required and don't document a
+        `last_page`/count field for this endpoint, so an empty page is
+        the only reliable stop signal. Capped at MAX_TEMPLATE_PAGES as a
+        safety net against an API quirk causing an infinite loop.
+        """
+        all_templates = []
+        page = 0
+        while page < MAX_TEMPLATE_PAGES:
+            response = self.client.get_task_templates(team_id, page=page)
+            page_templates = response.get("templates", [])
+            if not page_templates:
+                break
+            all_templates.extend(page_templates)
+            page += 1
+        return all_templates
 
 
 def templates_list_command(args):

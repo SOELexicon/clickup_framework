@@ -182,18 +182,17 @@ class GuestAddToCommand(BaseCommand):
         container_type = self.args.container_type
         container_id = self.resolve_id(container_type, self.args.container_id)
         guest_id = self.args.guest_id
+        permission_level = self.args.permission_level
 
         try:
             if container_type == "task":
-                params = {}
-                if self.args.permission_level:
-                    params["include_shared"] = True
-                    params["permission_level"] = self.args.permission_level
-                self.client.add_guest_to_task(container_id, guest_id, **params)
+                self.client.add_guest_to_task(
+                    container_id, guest_id, permission_level, include_shared=True
+                )
             elif container_type == "list":
-                self.client.add_guest_to_list(container_id, guest_id)
+                self.client.add_guest_to_list(container_id, guest_id, permission_level)
             else:
-                self.client.add_guest_to_folder(container_id, guest_id)
+                self.client.add_guest_to_folder(container_id, guest_id, permission_level)
 
             success_msg = ANSIAnimations.success_message(
                 f"Guest {guest_id} added to {container_type} {container_id}"
@@ -274,7 +273,7 @@ def register_command(subparsers):
         description="Invite, update, and scope access for guests (requires a plan with Guests)",
         epilog="""Tips:
   • Invite: cum guest invite current guest@example.com --can-edit-tags true
-  • Grant list access: cum guest add-to list <list_id> <guest_id>
+  • Grant list access: cum guest add-to list <list_id> <guest_id> --permission-level read
   • Revoke: cum guest remove-from list <list_id> <guest_id>
   • Remove entirely: cum guest remove current <guest_id>""",
     )
@@ -319,7 +318,10 @@ def register_command(subparsers):
     add_to_parser.add_argument("container_id", help="Task, list, or folder ID")
     add_to_parser.add_argument("guest_id", help="Guest ID")
     add_to_parser.add_argument(
-        "--permission-level", choices=["read", "comment", "edit", "create"], help="Task-only"
+        "--permission-level",
+        required=True,
+        choices=["read", "comment", "edit", "create"],
+        help="Required by ClickUp for task, list, and folder access alike",
     )
     add_to_parser.set_defaults(func=guest_add_to_command)
 

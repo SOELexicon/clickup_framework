@@ -144,14 +144,43 @@ class TestHierarchyCommand(unittest.TestCase):
         mock_display_inst.hierarchy_view.assert_called_once()
         self.assertIn("Task Hierarchy", captured_output.getvalue())
 
-    @patch('clickup_framework.commands.set_current.get_context_manager')
-    def test_hierarchy_command_invalid_list(self, mock_context):
+    @patch('clickup_framework.commands.hierarchy.resolve_container_id')
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    def test_hierarchy_command_invalid_list(
+        self, mock_context, mock_client, mock_resolve_container
+    ):
         """Test hierarchy command with invalid list ID."""
+        # NOTE: this test's @patch target used to be
+        # 'clickup_framework.commands.set_current.get_context_manager', which
+        # doesn't patch anything hierarchy.py actually calls -- the test only
+        # passed by accident, via the real (unmocked) resolve_container_id
+        # raising before anything else broke. Fixed to patch the module this
+        # command actually imports from, matching test_hierarchy_command_success.
         mock_context_inst = Mock()
-        mock_context_inst.resolve_id.side_effect = ValueError("Invalid list ID")
+        mock_context_inst.get_ansi_output.return_value = True
         mock_context.return_value = mock_context_inst
 
-        args = argparse.Namespace(list_id='invalid')
+        mock_resolve_container.side_effect = ValueError("Invalid list ID")
+
+        args = argparse.Namespace(
+            list_id='invalid',
+            list_flag_id=None,
+            folder_id=None,
+            space_id=None,
+            show_all=False,
+            header=None,
+            preset=None,
+            colorize=True,
+            show_ids=False,
+            show_tags=True,
+            show_descriptions=False,
+            show_dates=False,
+            show_comments=0,
+            include_completed=False,
+            show_closed_only=False,
+            show_emoji=True,
+        )
 
         with self.assertRaises(SystemExit) as cm:
             hierarchy_command(args)
@@ -207,25 +236,188 @@ class TestHierarchyCommand(unittest.TestCase):
         mock_display_inst.hierarchy_view.assert_called_once()
         self.assertIn("All Workspace Tasks", captured_output.getvalue())
 
-    @patch('clickup_framework.commands.set_current.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
     def test_hierarchy_command_no_list_id_no_all(self, mock_context):
-        """Test hierarchy command with no list_id and no --all flag."""
-        args = argparse.Namespace(list_id=None, show_all=False)
+        """Bare invocation with nothing configured anywhere must still error."""
+        # NOTE: this test's @patch target used to be
+        # 'clickup_framework.commands.set_current.get_context_manager' (wrong
+        # module -- copy/paste from a different test class), so it never
+        # actually mocked what hierarchy.py calls. Fixed to match
+        # test_hierarchy_command_success's target, and the context mock now
+        # explicitly returns None for list/folder/space so this asserts the
+        # "nothing configured" error path added by the list -> folder -> space
+        # fallback, not an accidental Mock-is-truthy short-circuit.
+        mock_context_inst = Mock()
+        mock_context_inst.get_current_list.return_value = None
+        mock_context_inst.get_current_folder.return_value = None
+        mock_context_inst.get_current_space.return_value = None
+        mock_context.return_value = mock_context_inst
+
+        args = argparse.Namespace(
+            list_id=None, list_flag_id=None, folder_id=None, space_id=None, show_all=False
+        )
 
         with self.assertRaises(SystemExit) as cm:
             hierarchy_command(args)
 
         self.assertEqual(cm.exception.code, 1)
 
-    @patch('clickup_framework.commands.set_current.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
     def test_hierarchy_command_both_list_id_and_all(self, mock_context):
         """Test hierarchy command with both list_id and --all flag."""
-        args = argparse.Namespace(list_id='list_123', show_all=True)
+        mock_context.return_value = Mock()
+
+        args = argparse.Namespace(
+            list_id='list_123', list_flag_id=None, folder_id=None, space_id=None, show_all=True
+        )
 
         with self.assertRaises(SystemExit) as cm:
             hierarchy_command(args)
 
         self.assertEqual(cm.exception.code, 1)
+
+    @patch('clickup_framework.commands.hierarchy.get_list_statuses', return_value="")
+    @patch('clickup_framework.commands.hierarchy.resolve_container_id')
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.DisplayManager')
+    def test_hierarchy_command_folder_current_resolves_folder_not_list(
+        self, mock_display_mgr, mock_context, mock_client, mock_resolve_container, mock_statuses
+    ):
+        """--folder current must resolve the current FOLDER, not silently
+        fall through to resolve_container_id's list-only "current" handling.
+        Regression test for the bug where --folder/--space current collapsed
+        to the literal string "current" and always resolved as a list."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context_inst.resolve_id.return_value = 'folder_456'
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client.return_value = mock_client_inst
+
+        mock_resolve_container.return_value = {
+            'type': 'folder', 'id': 'folder_456', 'data': {'lists': []}
+        }
+
+        mock_display_inst = Mock()
+        mock_display_inst.hierarchy_view.return_value = "Folder Hierarchy"
+        mock_display_mgr.return_value = mock_display_inst
+
+        args = argparse.Namespace(
+            list_id=None,
+            list_flag_id=None,
+            folder_id='current',
+            space_id=None,
+            show_all=False,
+            header=None,
+            preset=None,
+            colorize=True,
+            show_ids=False,
+            show_tags=True,
+            show_descriptions=False,
+            show_dates=False,
+            show_comments=0,
+            include_completed=False,
+            show_closed_only=False,
+            show_emoji=True,
+        )
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        try:
+            hierarchy_command(args)
+        finally:
+            sys.stdout = sys.__stdout__
+
+        # The typed folder flag must resolve via context.resolve_id('folder', 'current'),
+        # not fall through to resolve_container_id's list-only "current" handling.
+        mock_context_inst.resolve_id.assert_called_once_with('folder', 'current')
+        mock_resolve_container.assert_called_once_with(
+            mock_client_inst, 'folder_456', mock_context_inst
+        )
+
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    def test_hierarchy_command_folder_current_errors_when_unset(self, mock_context):
+        """--folder current with no current folder configured must error
+        clearly rather than silently resolving as the current list."""
+        mock_context_inst = Mock()
+        mock_context_inst.resolve_id.side_effect = ValueError("No current folder set.")
+        mock_context.return_value = mock_context_inst
+
+        args = argparse.Namespace(
+            list_id=None, list_flag_id=None, folder_id='current', space_id=None, show_all=False
+        )
+
+        with self.assertRaises(SystemExit) as cm:
+            hierarchy_command(args)
+
+        self.assertEqual(cm.exception.code, 1)
+
+    @patch('clickup_framework.commands.hierarchy.get_list_statuses', return_value="")
+    @patch('clickup_framework.commands.hierarchy.resolve_container_id')
+    @patch('clickup_framework.commands.hierarchy.ClickUpClient')
+    @patch('clickup_framework.commands.hierarchy.get_context_manager')
+    @patch('clickup_framework.commands.hierarchy.DisplayManager')
+    def test_hierarchy_command_bare_falls_back_list_then_folder_then_space(
+        self, mock_display_mgr, mock_context, mock_client, mock_resolve_container, mock_statuses
+    ):
+        """Bare `cum list` with no list configured but a folder configured
+        must fall through to the folder, not error -- and must prefer list
+        over folder over space when more than one default is configured."""
+        mock_context_inst = Mock()
+        mock_context_inst.get_ansi_output.return_value = True
+        mock_context_inst.get_current_list.return_value = None
+        mock_context_inst.get_current_folder.return_value = 'folder_from_context'
+        mock_context_inst.get_current_space.return_value = 'space_from_context'
+        mock_context.return_value = mock_context_inst
+
+        mock_client_inst = Mock()
+        mock_client.return_value = mock_client_inst
+
+        mock_resolve_container.return_value = {
+            'type': 'folder', 'id': 'folder_from_context', 'data': {'lists': []}
+        }
+
+        mock_display_inst = Mock()
+        mock_display_inst.hierarchy_view.return_value = "Folder Hierarchy"
+        mock_display_mgr.return_value = mock_display_inst
+
+        args = argparse.Namespace(
+            list_id=None,
+            list_flag_id=None,
+            folder_id=None,
+            space_id=None,
+            show_all=False,
+            header=None,
+            preset=None,
+            colorize=True,
+            show_ids=False,
+            show_tags=True,
+            show_descriptions=False,
+            show_dates=False,
+            show_comments=0,
+            include_completed=False,
+            show_closed_only=False,
+            show_emoji=True,
+        )
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        try:
+            hierarchy_command(args)
+        finally:
+            sys.stdout = sys.__stdout__
+
+        # list is checked first (returns None), so the fallback must move on
+        # to folder rather than stopping -- and skip space entirely since
+        # folder already supplied a value.
+        mock_context_inst.get_current_list.assert_called_once()
+        mock_context_inst.get_current_folder.assert_called_once()
+        mock_context_inst.get_current_space.assert_not_called()
+        mock_resolve_container.assert_called_once_with(
+            mock_client_inst, 'folder_from_context', mock_context_inst
+        )
 
 
 class TestDemoCommand(unittest.TestCase):

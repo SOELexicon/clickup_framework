@@ -68,6 +68,43 @@ class TestContextManager:
     def test_get_nonexistent_returns_none(self):
         """Test that getting nonexistent context returns None."""
         assert self.context.get_current_task() is None
+
+    def test_get_current_folder_falls_back_to_env_var(self):
+        """get_current_folder() must check CLICKUP_DEFAULT_FOLDER when unset
+        in context, matching get_current_list()/get_current_workspace()."""
+        assert self.context.get_current_folder() is None
+        os.environ['CLICKUP_DEFAULT_FOLDER'] = 'folder_from_env'
+        try:
+            assert self.context.get_current_folder() == 'folder_from_env'
+        finally:
+            del os.environ['CLICKUP_DEFAULT_FOLDER']
+
+    def test_get_current_space_falls_back_to_env_var(self):
+        """get_current_space() must check CLICKUP_DEFAULT_SPACE when unset
+        in context, matching get_current_list()/get_current_workspace()."""
+        assert self.context.get_current_space() is None
+        os.environ['CLICKUP_DEFAULT_SPACE'] = 'space_from_env'
+        try:
+            assert self.context.get_current_space() == 'space_from_env'
+        finally:
+            del os.environ['CLICKUP_DEFAULT_SPACE']
+
+    def test_context_file_value_takes_precedence_over_env_var(self):
+        """An explicit context.set_current_folder()/set_current_space() must
+        win over the CLICKUP_DEFAULT_* env var, not just be overwritten by it."""
+        self.context.set_current_folder("folder_from_context")
+        os.environ['CLICKUP_DEFAULT_FOLDER'] = 'folder_from_env'
+        try:
+            assert self.context.get_current_folder() == 'folder_from_context'
+        finally:
+            del os.environ['CLICKUP_DEFAULT_FOLDER']
+
+        self.context.set_current_space("space_from_context")
+        os.environ['CLICKUP_DEFAULT_SPACE'] = 'space_from_env'
+        try:
+            assert self.context.get_current_space() == 'space_from_context'
+        finally:
+            del os.environ['CLICKUP_DEFAULT_SPACE']
         assert self.context.get_current_list() is None
 
     def test_persistence(self):
