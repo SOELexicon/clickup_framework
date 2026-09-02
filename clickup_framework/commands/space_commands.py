@@ -156,6 +156,113 @@ class SpaceListCommand(BaseCommand):
             self.error(f"Error listing spaces: {e}")
 
 
+class SpaceTagListCommand(BaseCommand):
+    """List tags defined on a space."""
+
+    def execute(self):
+        space_id = self.resolve_id('space', self.args.space_id)
+        try:
+            response = self.client.get_space_tags(space_id)
+            tags = response.get('tags', [])
+
+            header = colorize(f"Space Tags ({len(tags)})", TextColor.BRIGHT_CYAN, TextStyle.BOLD)
+            lines = [f"\n{header}"]
+            for tag in tags:
+                name = colorize(tag.get('name', 'unnamed'), TextColor.BRIGHT_WHITE, TextStyle.BOLD)
+                fg = tag.get('tag_fg', 'N/A')
+                bg = tag.get('tag_bg', 'N/A')
+                lines.append(f"  {name} (fg: {fg}, bg: {bg})")
+
+            self.handle_output(data=tags, console_output="\n".join(lines))
+        except ClickUpAPIError as e:
+            self.error(f"Error listing space tags: {e}")
+
+
+class SpaceTagCreateCommand(BaseCommand):
+    """Create a tag on a space."""
+
+    def execute(self):
+        space_id = self.resolve_id('space', self.args.space_id)
+        try:
+            self.client.create_space_tag(
+                space_id,
+                self.args.name,
+                tag_fg=self.args.fg or "#000000",
+                tag_bg=self.args.bg or "#FFFFFF",
+            )
+            success_msg = ANSIAnimations.success_message(f"Tag created: {self.args.name}")
+            self.handle_output(data={"name": self.args.name}, console_output=f"\n{success_msg}")
+        except ClickUpAPIError as e:
+            self.error(f"Error creating space tag: {e}")
+
+
+class SpaceTagUpdateCommand(BaseCommand):
+    """Rename or recolor a space tag.
+
+    ClickUp's PUT space/{id}/tag/{name} requires the tag's full
+    name+fg_color+bg_color together (and confusingly uses fg_color/
+    bg_color here vs tag_fg/tag_bg on create and in the GET response).
+    Fetch the current tag first and merge requested changes in.
+
+    Observed live: the rename (name) reliably takes effect, but
+    bg_color changes were silently ignored by ClickUp's API in
+    testing (200 response, unchanged color on re-fetch) even with a
+    correctly-shaped payload verified via a raw client call bypassing
+    this command entirely. This looks like a ClickUp-side limitation,
+    not something --fg/--bg here can work around.
+    """
+
+    def execute(self):
+        space_id = self.resolve_id('space', self.args.space_id)
+
+        if not self.args.name and not self.args.fg and not self.args.bg:
+            self.error("No updates specified. Use --name, --fg, or --bg")
+
+        try:
+            response = self.client.get_space_tags(space_id)
+            tags = response.get('tags', [])
+            current = next((t for t in tags if t.get('name') == self.args.tag_name), None)
+            if current is None:
+                self.error(f"Tag '{self.args.tag_name}' not found on space {space_id}")
+                return
+
+            tag_payload = {
+                'name': self.args.name or current.get('name'),
+                'fg_color': self.args.fg or current.get('tag_fg'),
+                'bg_color': self.args.bg or current.get('tag_bg'),
+            }
+
+            self.client.update_space_tag(space_id, self.args.tag_name, tag=tag_payload)
+            success_msg = ANSIAnimations.success_message("Tag updated successfully")
+            self.handle_output(data=tag_payload, console_output=f"\n{success_msg}")
+        except ClickUpAPIError as e:
+            self.error(f"Error updating space tag: {e}")
+
+
+class SpaceTagDeleteCommand(BaseCommand):
+    """Delete a tag from a space."""
+
+    def execute(self):
+        space_id = self.resolve_id('space', self.args.space_id)
+
+        if not self.args.force:
+            prompt = f"Delete tag '{self.args.tag_name}' from space {space_id}? [y/N]: "
+            response = input(prompt)
+            if response.lower() not in ['y', 'yes']:
+                self.print("Cancelled.")
+                return
+
+        try:
+            self.client.delete_space_tag(space_id, self.args.tag_name)
+            success_msg = ANSIAnimations.success_message("Tag deleted successfully")
+            self.handle_output(
+                data={"name": self.args.tag_name, "status": "deleted"},
+                console_output=f"\n{success_msg}",
+            )
+        except ClickUpAPIError as e:
+            self.error(f"Error deleting space tag: {e}")
+
+
 # Backward compatibility wrappers
 def space_create_command(args):
     """Command wrapper for space create."""
@@ -185,6 +292,26 @@ def space_list_command(args):
     """Command wrapper for space list."""
     command = SpaceListCommand(args, command_name='space')
     command.execute()
+
+
+def space_tag_list_command(args):
+    """Command wrapper for space tag list."""
+    SpaceTagListCommand(args, command_name='space').execute()
+
+
+def space_tag_create_command(args):
+    """Command wrapper for space tag create."""
+    SpaceTagCreateCommand(args, command_name='space').execute()
+
+
+def space_tag_update_command(args):
+    """Command wrapper for space tag update."""
+    SpaceTagUpdateCommand(args, command_name='space').execute()
+
+
+def space_tag_delete_command(args):
+    """Command wrapper for space tag delete."""
+    SpaceTagDeleteCommand(args, command_name='space').execute()
 
 
 def register_command(subparsers):
@@ -281,3 +408,46 @@ def register_command(subparsers):
     list_parser.add_argument('--show-details', action='store_true', help='Show additional details')
     add_common_args(list_parser)
     list_parser.set_defaults(func=space_list_command)
+
+    # space tag <...>
+    tag_parser = space_subparsers.add_parser(
+        'tag',
+        help='Manage tags defined on a space',
+        description='Create, rename/recolor, list, and delete tags defined on a space',
+    )
+    tag_subparsers = tag_parser.add_subparsers(dest='space_tag_command', help='Tag command')
+
+    tag_list_parser = tag_subparsers.add_parser('list', aliases=['l', 'ls'], help='List space tags')
+    tag_list_parser.add_argument('space_id', help='Space ID (or "current")')
+    add_common_args(tag_list_parser)
+    tag_list_parser.set_defaults(func=space_tag_list_command)
+
+    tag_create_parser = tag_subparsers.add_parser(
+        'create', aliases=['c'], help='Create a space tag'
+    )
+    tag_create_parser.add_argument('space_id', help='Space ID (or "current")')
+    tag_create_parser.add_argument('name', help='Tag name')
+    tag_create_parser.add_argument('--fg', help='Foreground (text) color, hex (default: #000000)')
+    tag_create_parser.add_argument('--bg', help='Background color, hex (default: #FFFFFF)')
+    add_common_args(tag_create_parser)
+    tag_create_parser.set_defaults(func=space_tag_create_command)
+
+    tag_update_parser = tag_subparsers.add_parser(
+        'update', aliases=['u'], help='Rename or recolor a space tag'
+    )
+    tag_update_parser.add_argument('space_id', help='Space ID (or "current")')
+    tag_update_parser.add_argument('tag_name', help='Current tag name')
+    tag_update_parser.add_argument('--name', help='New tag name')
+    tag_update_parser.add_argument('--fg', help='New foreground (text) color, hex')
+    tag_update_parser.add_argument('--bg', help='New background color, hex')
+    add_common_args(tag_update_parser)
+    tag_update_parser.set_defaults(func=space_tag_update_command)
+
+    tag_delete_parser = tag_subparsers.add_parser(
+        'delete', aliases=['rm'], help='Delete a space tag'
+    )
+    tag_delete_parser.add_argument('space_id', help='Space ID (or "current")')
+    tag_delete_parser.add_argument('tag_name', help='Tag name')
+    tag_delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
+    add_common_args(tag_delete_parser)
+    tag_delete_parser.set_defaults(func=space_tag_delete_command)
