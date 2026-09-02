@@ -94,12 +94,15 @@ class GroupUpdateCommand(BaseCommand):
         if self.args.handle:
             updates["handle"] = self.args.handle
 
+        # ClickUp's Update User Group request nests member changes under a
+        # `members` key -- {"members": {"add": [...], "rem": [...]}} -- not
+        # top-level `add`/`rem` fields. Confirmed against the vendored API
+        # reference schema (UpdateTeamrequest) and its example payload; see
+        # PR #185 review thread for the full comparison.
         add_ids = _parse_ids(self.args.add_members)
         remove_ids = _parse_ids(self.args.remove_members)
-        if add_ids:
-            updates["add"] = add_ids
-        if remove_ids:
-            updates["rem"] = remove_ids
+        if add_ids or remove_ids:
+            updates["members"] = {"add": add_ids, "rem": remove_ids}
 
         if not updates:
             self.error(
