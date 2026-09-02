@@ -55,5 +55,53 @@ class TestHooksConfig(unittest.TestCase):
         self.assertEqual(command_hooks[0].get("shell"), "bash")
 
 
+def _run_hook(plugin_root: Path) -> dict:
+    """Run the SessionStart hook script via bash and parse its JSON output."""
+    script = plugin_root / "hooks" / "session-start.sh"
+    # Resolve bash through PATH explicitly. A bare "bash" goes through Windows
+    # CreateProcess, which searches System32 BEFORE PATH -- and System32 holds
+    # WSL's bash.exe launcher, which (with no distro) prints a UTF-16
+    # "Catastrophic failure ... E_UNEXPECTED" to stdout instead of running the
+    # script. shutil.which only searches PATH, so it finds Git Bash instead.
+    bash = shutil.which("bash") or "bash"
+    result = subprocess.run(
+        [bash, str(script)],
+        input="{}",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=30,
+    )
+    return json.loads(result.stdout)
+
+
+class TestSessionStartHook(unittest.TestCase):
+    def test_hook_script_exists(self):
+        self.assertTrue((PLUGIN_ROOT / "hooks" / "session-start.sh").exists())
+
+    def test_emits_hook_json_with_skill_content(self):
+        output = _run_hook(PLUGIN_ROOT)
+        hook_out = output["hookSpecificOutput"]
+        self.assertEqual(hook_out["hookEventName"], "SessionStart")
+        context = hook_out["additionalContext"]
+        self.assertIn("nutcracker", context)
+        # The routing skill's own name must be present -- that's the point of
+        # force-loading it. If the skill file is missing, the fallback error
+        # text lands here instead and this assertion catches it.
+        self.assertIn("using-cum-planning", context)
+
+    def test_degrades_to_valid_json_when_skill_missing(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_root = Path(tmp)
+            (fake_root / "hooks").mkdir()
+            shutil.copy(PLUGIN_ROOT / "hooks" / "session-start.sh", fake_root / "hooks")
+            # No skills/ directory at all -- the script must still print JSON.
+            output = _run_hook(fake_root)
+        self.assertIn("hookSpecificOutput", output)
+        self.assertIn("Error reading", output["hookSpecificOutput"]["additionalContext"])
+
+
 if __name__ == "__main__":
     unittest.main()
