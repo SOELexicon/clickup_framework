@@ -59,9 +59,10 @@ cum-mcp = "clickup_framework.mcp_server:main"
 exclude = ["scripts*", "tests*"]
 
 [tool.setuptools.package-data]
-# Skill/hook assets installed by `cum install-skill` -- must ship in wheels
-# and sdists too, not just be present in an editable/dev checkout.
-clickup_framework = ["skill_assets/**/*"]
+# Skill/hook assets installed by `cum install-skill`, and plugin assets
+# installed by `cum install-plugin` -- must ship in wheels and sdists too,
+# not just be present in an editable/dev checkout.
+clickup_framework = ["skill_assets/**/*", "plugin/**/*"]
 
 [tool.setuptools_scm]
 write_to = "clickup_framework/_version.py"

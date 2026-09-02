@@ -28,14 +28,23 @@ in session state.
 
 ## Install
 
-This is a plugin, not a standalone skill, so `cum install-skill` doesn't
-install it. Copy the plugin directory into your Claude plugins directory:
+```bash
+cum install-plugin --enable
+```
+
+Copies this directory into `~/.claude/plugins/nutcracker` and sets
+`enabledPlugins.nutcracker` to `true` in `~/.claude/settings.json`. Run
+`cum install-plugin` without `--enable` to copy the files only and wire
+`enabledPlugins` yourself; add `--force` to reinstall over an existing
+copy (the previous install is backed up to `~/.claude/plugin-backups/`);
+`--target-dir` installs into a project's `.claude/` instead of the user
+profile.
+
+Equivalent manual steps, if you'd rather not use the CLI:
 
 ```bash
 cp -r clickup_framework/plugin ~/.claude/plugins/nutcracker
 ```
-
-then enable it in `~/.claude/settings.json`:
 
 ```json
 {
@@ -45,8 +54,9 @@ then enable it in `~/.claude/settings.json`:
 }
 ```
 
-Start a new session (or run `/hooks` once) so the SessionStart hook is
-picked up. You'll see a `You have nutcracker` banner in context.
+Either way, start a new session (or run `/hooks` once) so the
+SessionStart hook is picked up. You'll see a `You have nutcracker`
+banner in context.
 
 ## Verify
 
