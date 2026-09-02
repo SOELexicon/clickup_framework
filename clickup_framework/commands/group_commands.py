@@ -96,8 +96,10 @@ class GroupUpdateCommand(BaseCommand):
 
         add_ids = _parse_ids(self.args.add_members)
         remove_ids = _parse_ids(self.args.remove_members)
-        if add_ids or remove_ids:
-            updates["members"] = {"add": add_ids, "rem": remove_ids}
+        if add_ids:
+            updates["add"] = add_ids
+        if remove_ids:
+            updates["rem"] = remove_ids
 
         if not updates:
             self.error(
