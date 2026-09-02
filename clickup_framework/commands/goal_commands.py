@@ -354,7 +354,10 @@ def register_command(subparsers):
     create_parser.add_argument("team_id", help='Workspace ID (or "current")')
     create_parser.add_argument("name", help="Goal name")
     create_parser.add_argument(
-        "--due-date", type=int, help="Due date (Unix timestamp in milliseconds)"
+        "--due-date",
+        type=int,
+        required=True,
+        help="Due date (Unix timestamp in milliseconds)",
     )
     create_parser.add_argument("--description", help="Goal description")
     create_parser.add_argument("--color", help="Hex color (e.g. #32a852)")
