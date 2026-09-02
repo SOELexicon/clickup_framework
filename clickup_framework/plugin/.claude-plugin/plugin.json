@@ -1,0 +1,15 @@
+{
+  "name": "nutcracker",
+  "description": "Hierarchical task planning and execution backed by ClickUp via the cum CLI, instead of local plan files",
+  "version": "0.1.0",
+  "author": {
+    "name": "ClickUp Skills Development Team"
+  },
+  "keywords": [
+    "clickup",
+    "cum",
+    "planning",
+    "task-hierarchy",
+    "skills"
+  ]
+}
