@@ -1238,6 +1238,12 @@ print(f\"✓ Task: {task['name']}\")
 "
 ```
 
+## Plugins
+
+- **nutcracker** (`clickup_framework/plugin/`) — hierarchical task planning
+  and execution for Claude Code, backed by ClickUp via `cum` instead of local
+  plan files. See `clickup_framework/plugin/README.md` for install steps.
+
 ## License
 
 Part of the Skills Repository - Apache 2.0 License
