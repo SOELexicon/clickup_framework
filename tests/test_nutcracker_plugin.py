@@ -85,10 +85,13 @@ class TestSessionStartHook(unittest.TestCase):
         self.assertEqual(hook_out["hookEventName"], "SessionStart")
         context = hook_out["additionalContext"]
         self.assertIn("nutcracker", context)
-        # The routing skill's own name must be present -- that's the point of
-        # force-loading it. If the skill file is missing, the fallback error
-        # text lands here instead and this assertion catches it.
-        self.assertIn("using-cum-planning", context)
+        # Must be the REAL skill content, not the fallback. The fallback error
+        # string itself contains "using-cum-planning", so asserting on the
+        # name alone can't tell the two apart -- assert on a marker that only
+        # the actual skill body has (its verified command table), and that no
+        # error text leaked in.
+        self.assertNotIn("Error reading", context)
+        self.assertIn("--waiting-on", context)
 
     def test_degrades_to_valid_json_when_skill_missing(self):
         import tempfile
