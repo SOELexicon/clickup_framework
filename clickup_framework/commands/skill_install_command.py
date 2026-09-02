@@ -41,6 +41,22 @@ def _err(message):
     sys.exit(1)
 
 
+def _check_cum_dependency() -> None:
+    """Warn (don't block) if `cum` isn't resolvable on PATH.
+
+    The hook depends on `cum` being callable; installing it anyway is fine
+    (someone might install cum right after, or the PATH is fixed later), but
+    silently leaving the hook non-functional with no explanation is not --
+    install time is exactly when the user is paying attention.
+    """
+    if shutil.which("cum") is None:
+        print(
+            "Warning: 'cum' was not found on PATH. The hook will install fine "
+            "but will do nothing (prints '{}') until 'cum' is installed and "
+            "resolvable -- see 'pip install -e .' / the project README."
+        )
+
+
 def _install_skill_files(
     source_dir: Path, skill_target: Path, force: bool, use_color: bool
 ) -> bool:
@@ -155,7 +171,12 @@ def install_skill_command(args):
     _install_skill_files(source_dir, skill_target, args.force, use_color)
 
     if args.hook:
+        _check_cum_dependency()
         _install_hook(skill_target, target_root, args.force, use_color)
+        print(
+            "\nSet CUM_TODO_SYNC_DISABLED=1 in your environment to turn the hook off "
+            "again later without removing it from settings.json."
+        )
     else:
         print(
             "\nSkill installed without the SessionStart hook. Re-run with --hook "

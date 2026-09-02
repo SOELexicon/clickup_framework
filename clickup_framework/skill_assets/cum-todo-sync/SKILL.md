@@ -93,14 +93,28 @@ rest of this section is what it does under the hood, for when you need to do
 it by hand (a manual install, a different machine, or `cum install-skill`
 isn't available in the version you're running).
 
-The hook runs `cum assigned -O json --output-file <tmp>` (stdout/stderr
-discarded, not `capture_output=True`/`text=True`, to dodge a Windows
-console-codepage `UnicodeDecodeError` on cum's colorized output), reads the
-resulting tasks, and prints `{"hookSpecificOutput": {"hookEventName":
-"SessionStart", "additionalContext": "<summary>"}}` -- a short list of
-assigned tasks plus a one-line pointer back to this skill. It degrades to
-`{}` silently on any failure (cum missing, no credentials, no assigned
-tasks, timeout) -- never breaks session start.
+The hook checks `shutil.which("cum")` before doing anything else (an
+explicit dependency check, not exception fallout) and runs `cum assigned -O
+json --output-file <tmp>` (stdout/stderr discarded, not
+`capture_output=True`/`text=True`, to dodge a Windows console-codepage
+`UnicodeDecodeError` on cum's colorized output), reads the resulting tasks,
+and prints `{"hookSpecificOutput": {"hookEventName": "SessionStart",
+"additionalContext": "<summary>"}}` -- a short list of assigned tasks plus a
+one-line pointer back to this skill. It degrades to `{}` silently on any
+failure (cum missing, no credentials, no assigned tasks, timeout, malformed
+output) -- never breaks session start. `cum install-skill --hook` warns (but
+still installs) if `cum` isn't on PATH at install time, since a silently
+inert hook is confusing otherwise.
+
+**Turning it off:** set `CUM_TODO_SYNC_DISABLED=1` (also accepts
+`true`/`yes`/`on`, case-insensitive) in the environment to make the hook
+print `{}` immediately without ever touching `cum` -- useful for turning the
+feature off temporarily without editing `settings.json`. The hook's own
+logic (`is_disabled`, `fetch_assigned_tasks`, `build_summary`, `build_output`
+in `hooks/session_start.py`) is unit-tested in
+`tests/test_cum_todo_sync_hook.py` in the clickup_framework repo, covering
+the disabled path, cum-missing, non-zero exit, timeout, malformed/non-list
+JSON output, and the happy path.
 
 **Check before assuming it's live.** Read `~/.claude/settings.json` (global)
 or `.claude/settings.json`/`.claude/settings.local.json` (project, if
