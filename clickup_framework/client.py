@@ -541,9 +541,13 @@ class ClickUpClient:
         return self.workspaces.get_workspace_hierarchy(team_id)
 
     # Custom Fields endpoints - Delegated to CustomFieldsAPI
-    def get_accessible_custom_fields(self, list_id: str) -> Dict[str, Any]:
+    def get_accessible_custom_fields(
+        self, list_id: str, include_applied_objects: Optional[bool] = None
+    ) -> Dict[str, Any]:
         """Get custom fields accessible from a list."""
-        return self.custom_fields.get_accessible_custom_fields(list_id)
+        return self.custom_fields.get_accessible_custom_fields(
+            list_id, include_applied_objects=include_applied_objects
+        )
 
     def set_custom_field_value(self, task_id: str, field_id: str, value: Any) -> Dict[str, Any]:
         """Set custom field value on a task."""

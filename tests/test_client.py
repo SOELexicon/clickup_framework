@@ -160,7 +160,30 @@ class TestCustomFields(ClickUpTestCase):
         self.assertIsInstance(result["fields"], list)
         print(f"  ✓ Retrieved {len(result['fields'])} custom fields")
 
-    def test_02_set_custom_field_value(self):
+    def test_02_get_custom_fields_include_applied_objects(self):
+        """Test that include_applied_objects is actually sent as a query param."""
+        from unittest.mock import patch
+
+        with patch.object(
+            self.client.custom_fields, "_request", wraps=self.client.custom_fields._request
+        ) as spy:
+            self.client.get_accessible_custom_fields(
+                self.test_list_id, include_applied_objects=True
+            )
+            spy.assert_called_once_with(
+                "GET", f"list/{self.test_list_id}/field", params={"include_applied_objects": True}
+            )
+
+        # Omitting the flag entirely must not send the param at all.
+        with patch.object(
+            self.client.custom_fields, "_request", wraps=self.client.custom_fields._request
+        ) as spy:
+            self.client.get_accessible_custom_fields(self.test_list_id)
+            spy.assert_called_once_with("GET", f"list/{self.test_list_id}/field", params=None)
+
+        print("  ✓ include_applied_objects threads through to the request params")
+
+    def test_03_set_custom_field_value(self):
         """Test setting a custom field value."""
         # Note: This test requires a custom field to exist
         # We'll skip if no custom fields are available

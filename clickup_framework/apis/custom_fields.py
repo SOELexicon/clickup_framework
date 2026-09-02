@@ -2,16 +2,31 @@
 Custom Fields API - Low-level API for ClickUp custom field endpoints.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from .base import BaseAPI
 
 
 class CustomFieldsAPI(BaseAPI):
     """Low-level API for custom field operations."""
 
-    def get_accessible_custom_fields(self, list_id: str) -> Dict[str, Any]:
-        """Get custom fields accessible from a list."""
-        return self._request("GET", f"list/{list_id}/field")
+    def get_accessible_custom_fields(
+        self, list_id: str, include_applied_objects: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """
+        Get custom fields accessible from a list.
+
+        Args:
+            list_id: List ID
+            include_applied_objects: When True, asks ClickUp to include an
+                `applied_objects` entry (object_type/object_id pairs) on
+                fields scoped to specific custom task types, so callers can
+                tell which task types a field actually applies to. Omitted
+                from the request entirely unless explicitly set.
+        """
+        params = {}
+        if include_applied_objects is not None:
+            params["include_applied_objects"] = include_applied_objects
+        return self._request("GET", f"list/{list_id}/field", params=params or None)
 
     def get_folder_custom_fields(self, folder_id: str) -> Dict[str, Any]:
         """Get custom fields accessible from a folder."""

@@ -364,7 +364,9 @@ def _custom_field_list_impl(args, context, client, use_color):
         elif args.list:
             # List available fields for a list
             list_id = context.resolve_id('list', args.list)
-            response = fields_api.get_for_list(list_id)
+            response = fields_api.get_for_list(
+                list_id, include_applied_objects=args.include_applied_objects
+            )
             fields = response.get('fields', [])
 
             print(f"\n{colorize('Custom Fields for List', TextStyle.BOLD)} {list_id}\n")
@@ -433,6 +435,12 @@ def _print_field_definitions(fields: List[Dict[str, Any]]):
             elif field_type == 'rating':
                 count = field.get('type_config', {}).get('count', 5)
                 print(f"      Max: {count}")
+
+            applied_objects = field.get('applied_objects')
+            if applied_objects:
+                # object_type 19 == custom task type; object_id matches a task's custom_item_id
+                type_ids = [str(obj.get('object_id')) for obj in applied_objects]
+                print(f"      Applies to task types: {', '.join(type_ids)}")
 
             print()
 
@@ -611,6 +619,13 @@ def register_command(subparsers):
     list_group.add_argument('--list', help='List available fields for a list')
     list_group.add_argument('--space', help='List available fields for a space')
     list_group.add_argument('--workspace', help='List available fields for a workspace')
+    list_parser.add_argument(
+        '--include-applied-objects',
+        action='store_true',
+        default=None,
+        help='With --list: ask ClickUp to include which custom task types each field '
+        'applies to (fields with no applied_objects apply broadly)',
+    )
     list_parser.set_defaults(func=custom_field_list_command)
 
     # custom-field remove
