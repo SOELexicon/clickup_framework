@@ -58,14 +58,19 @@ def _check_cum_dependency() -> None:
 
 
 def _install_skill_files(
-    source_dir: Path, skill_target: Path, force: bool, use_color: bool
+    source_dir: Path, skill_target: Path, target_root: Path, force: bool, use_color: bool
 ) -> bool:
     """Copy the bundled skill directory into place. Returns True if files were (re)written."""
     if skill_target.exists():
         if not force:
             print(f"Skill files already present at {skill_target} (use --force to reinstall).")
             return False
-        backup = skill_target.with_name(skill_target.name + ".bak")
+        # Back up OUTSIDE target_root/"skills" -- anything under "skills/" with
+        # a SKILL.md gets auto-discovered, so a sibling "<name>.bak" directory
+        # shows up as its own (stale, misleadingly-named) installed skill.
+        backup_dir = target_root / "skill-backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup = backup_dir / skill_target.name
         if backup.exists():
             shutil.rmtree(backup)
         shutil.move(str(skill_target), str(backup))
@@ -106,15 +111,32 @@ def _install_hook(skill_target: Path, target_root: Path, force: bool, use_color:
     session_start = hooks.setdefault("SessionStart", [])
 
     command = f'python "{hook_script}"'
+    hook_script_str = str(hook_script)
+
+    def _is_our_hook(h):
+        return h.get("type") == "command" and hook_script_str in h.get("command", "")
+
     already_present = any(
-        h.get("type") == "command" and h.get("command") == command
-        for entry in session_start
-        for h in entry.get("hooks", [])
+        _is_our_hook(h) for entry in session_start for h in entry.get("hooks", [])
     )
 
     if already_present and not force:
-        print("SessionStart hook already wired up (use --force to add a duplicate entry).")
+        print("SessionStart hook already wired up (use --force to update it).")
         return
+
+    if already_present:
+        # Remove any existing entry for this hook script before re-adding, so
+        # --force updates the entry in place instead of accumulating
+        # duplicates that would run the hook multiple times per session.
+        # Filters at the individual-hook level (not whole entries) in case an
+        # entry ever mixes this hook with an unrelated one; drops an entry
+        # only once it has no hooks left.
+        rebuilt = []
+        for entry in session_start:
+            remaining = [h for h in entry.get("hooks", []) if not _is_our_hook(h)]
+            if remaining:
+                rebuilt.append({**entry, "hooks": remaining})
+        session_start[:] = rebuilt
 
     session_start.append(
         {
@@ -168,7 +190,7 @@ def install_skill_command(args):
     print(f"\n{header}")
     print(f"Target: {skill_target}")
 
-    _install_skill_files(source_dir, skill_target, args.force, use_color)
+    _install_skill_files(source_dir, skill_target, target_root, args.force, use_color)
 
     if args.hook:
         _check_cum_dependency()
