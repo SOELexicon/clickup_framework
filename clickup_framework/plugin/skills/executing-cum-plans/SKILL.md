@@ -36,11 +36,22 @@ record.
 
 ### 2. Find ready work
 
-`cum d <parent_id>` shows each subtask's dependencies; a subtask whose
-`--waiting-on` tasks are all complete is ready. Work ready tasks only. If
-every remaining subtask is blocked, that is a plan defect (a dependency
-cycle, or a dependency on a task that doesn't exist) — stop and ask,
-don't work an out-of-order task to route around it.
+`cum d <parent_id>` lists the subtasks but does **not** show their
+dependencies (verified live). Readiness lives on each subtask's own view:
+
+```
+cum d <subtask_id>
+```
+
+shows an `⬆️ UPSTREAM DEPENDENCIES` list. Read the **status marker** on each
+upstream task: `✅` means complete, `⬜` means not. A subtask is ready when
+every upstream task shows `✅`. Do **not** use the "Currently blocked by N
+task(s)" / "N direct blocker" summary for this — verified live, that count
+includes completed dependencies and never decrements, so it reports a task
+as blocked long after it's actually ready. Work ready tasks only. If every remaining
+subtask is blocked, that is a plan defect (a dependency cycle, or a
+dependency on a task that doesn't exist) — stop and ask, don't work an
+out-of-order task to route around it.
 
 ### 3. Work a task
 

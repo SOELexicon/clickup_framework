@@ -49,5 +49,6 @@ clickup_framework repo). Use these forms exactly.
 | Task blocks another | `cum tad <task_id> --blocking <other_id>` | **not** `--blocks` — doesn't exist |
 | Set status | `cum tss <task_id> "<status>"` | status names are **list-specific**; check `cum d <task_id>` first, never assume "in progress" exists. Refuses to complete a task with unresolved checklist items unless `--force` — don't pass `--force` routinely, that check is the point |
 | Comment | `cum ca <task_id> "<text>"` | |
-| Read a plan | `cum d <parent_id>` | shows description, subtasks, dependencies |
+| Read a plan | `cum d <parent_id>` | shows the description and the subtask list. It does **not** show subtask dependencies |
+| Read a task's dependencies | `cum d <subtask_id>` | the subtask's own view lists `⬆️ UPSTREAM DEPENDENCIES` with a status marker each: `✅` complete, `⬜` not. Ready = every upstream is `✅`. Ignore the "blocked by N" count — it includes completed dependencies and never decrements |
 | Current context | `cum show` | which list/task/space is "current" |

@@ -99,7 +99,7 @@ One checklist per subtask, one item per bite-sized step (2–5 minutes
 each). Keep the TDD steps separate items — they are separate gates:
 
 ```
-cum chk create <subtask_id> "Steps" -O json
+cum chk create <subtask_id> "Steps"
 cum chk item-add <checklist_id> "Step 1: Write the failing test: <what it asserts>"
 cum chk item-add <checklist_id> "Step 2: Run it and confirm it fails: <command> -> <expected failure>"
 cum chk item-add <checklist_id> "Step 3: Implement the minimal code: <file, what changes>"
@@ -107,8 +107,11 @@ cum chk item-add <checklist_id> "Step 4: Run it and confirm it passes: <command>
 cum chk item-add <checklist_id> "Step 5: Commit: git add <files> && git commit -m '<message>'"
 ```
 
-`<checklist_id>` is the real ID from the `chk create` JSON output. Put the
-actual content in each item — the test's assertion, the exact command, the
+`<checklist_id>` is the UUID on the `Checklist ID:` line of `chk create`'s
+console output. Read it from there — `chk create` does **not** refresh
+`cum_output.json` even with `-O json` (verified live), so the JSON file
+still holds the previous `tc` call's task and reading it would hand you a
+task ID where a checklist ID belongs. Put the actual content in each item — the test's assertion, the exact command, the
 file — not "write tests" or "implement it". A step an engineer with zero
 context couldn't act on is a plan failure, same as in `writing-plans`.
 
