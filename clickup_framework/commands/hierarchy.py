@@ -15,6 +15,24 @@ from clickup_framework.commands.utils import create_format_options, get_list_sta
 logger = logging.getLogger(__name__)
 
 
+def _resolve_typed_current(context, resource_type, value):
+    """
+    Resolve a "current" value passed via a typed flag (--list/--folder/--space)
+    to the actual configured ID for that specific resource type, erroring with
+    a clear message if nothing is configured rather than silently falling
+    through to the generic (list-only) "current" handling in resolve_container_id.
+    """
+    try:
+        return context.resolve_id(resource_type, value)
+    except ValueError:
+        print(
+            f"Error: No current {resource_type} set. Use 'cum set {resource_type} <id>' "
+            f"or the CLICKUP_DEFAULT_{resource_type.upper()} env var.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _hierarchy_impl(args, context, client, use_color):
     """
     Display tasks in hierarchical parent-child view with full pagination support.
@@ -24,25 +42,57 @@ def _hierarchy_impl(args, context, client, use_color):
     # Check if --all flag is set
     show_all = getattr(args, 'show_all', False)
 
-    # Check if --space flag is set
-    space_id = getattr(args, 'space_id', None)
+    # An explicit container ID can come from the positional argument or from
+    # --list / --folder / --space -- whichever one the caller actually passed.
+    # These are all just alternate ways to spell the same "container_id" input,
+    # EXCEPT that "current" means something different depending on which flag
+    # it came in on: resolve_container_id()'s own "current" handling only ever
+    # resolves the current *list*, so --folder current / --space current must
+    # be resolved through their own typed context lookup first, or they'd
+    # silently show the current list (or error even when a folder/space IS
+    # configured) instead of the folder/space the caller actually asked for.
+    list_flag_id = getattr(args, 'list_flag_id', None)
+    folder_flag_id = getattr(args, 'folder_id', None)
+    space_flag_id = getattr(args, 'space_id', None)
 
-    # If --space is provided, use it as the list_id
-    if space_id:
-        args.list_id = space_id
+    if list_flag_id and list_flag_id.lower() == 'current':
+        list_flag_id = _resolve_typed_current(context, 'list', list_flag_id)
+    if folder_flag_id and folder_flag_id.lower() == 'current':
+        folder_flag_id = _resolve_typed_current(context, 'folder', folder_flag_id)
+    if space_flag_id and space_flag_id.lower() == 'current':
+        space_flag_id = _resolve_typed_current(context, 'space', space_flag_id)
+
+    explicit_id = (
+        getattr(args, 'list_id', None)
+        or list_flag_id
+        or folder_flag_id
+        or space_flag_id
+    )
+    args.list_id = explicit_id
 
     # Get the include_completed and show_closed_only flags
     include_completed = getattr(args, 'include_completed', False)
     show_closed_only = getattr(args, 'show_closed_only', False)
     include_closed = include_completed or show_closed_only
 
-    # Validate that either list_id or --all is provided
-    if not show_all and not args.list_id:
-        print("Error: Either provide a container ID, use --space, or use --all to show all workspace tasks", file=sys.stderr)
+    if show_all and explicit_id:
+        print("Error: Cannot use both a container ID/--list/--folder/--space and --all flag together", file=sys.stderr)
         sys.exit(1)
 
-    if show_all and args.list_id:
-        print("Error: Cannot use both container ID/--space and --all flag together", file=sys.stderr)
+    # Nothing explicit was passed -- fall back to whatever's configured as
+    # current (context file, then CLICKUP_DEFAULT_* env vars), checked in
+    # list -> folder -> space order so the most specific default wins.
+    if not show_all and not args.list_id:
+        args.list_id = (
+            context.get_current_list()
+            or context.get_current_folder()
+            or context.get_current_space()
+        )
+
+    # Validate that either list_id or --all is provided
+    if not show_all and not args.list_id:
+        print("Error: Either provide a container ID, use --list/--folder/--space, use --all to show all workspace tasks, "
+              "or set a default via 'cum set list/folder/space <id>' or the CLICKUP_DEFAULT_LIST/FOLDER/SPACE env vars", file=sys.stderr)
         sys.exit(1)
 
     if show_all:
@@ -346,10 +396,14 @@ def register_command(subparsers):
         ('l', 'Display tasks in hierarchical view (alias)')
     ]:
         p = subparsers.add_parser(name, help=help_text)
-        p.add_argument('list_id', nargs='?', help='ClickUp space, folder, list, or task ID')
+        p.add_argument('list_id', nargs='?',
+                        help='ClickUp space, folder, list, or task ID (or "current"). '
+                             'Falls back to the configured default list/folder/space if omitted.')
         p.add_argument('--header', help='Custom header text')
         p.add_argument('--all', dest='show_all', action='store_true', help='Show all tasks from entire workspace')
-        p.add_argument('--space', dest='space_id', help='Show all in specific space')
+        p.add_argument('--list', dest='list_flag_id', help='List ID to show (or "current"); overrides the configured default list')
+        p.add_argument('--folder', dest='folder_id', help='Folder ID to show (or "current"); overrides the configured default folder')
+        p.add_argument('--space', dest='space_id', help='Space ID to show (or "current"); overrides the configured default space')
         p.add_argument('--depth', type=int, help='Limit depth')
         add_common_args(p)
         p.set_defaults(func=hierarchy_command, preset='full')

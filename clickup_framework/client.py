@@ -541,9 +541,13 @@ class ClickUpClient:
         return self.workspaces.get_workspace_hierarchy(team_id)
 
     # Custom Fields endpoints - Delegated to CustomFieldsAPI
-    def get_accessible_custom_fields(self, list_id: str) -> Dict[str, Any]:
+    def get_accessible_custom_fields(
+        self, list_id: str, include_applied_objects: Optional[bool] = None
+    ) -> Dict[str, Any]:
         """Get custom fields accessible from a list."""
-        return self.custom_fields.get_accessible_custom_fields(list_id)
+        return self.custom_fields.get_accessible_custom_fields(
+            list_id, include_applied_objects=include_applied_objects
+        )
 
     def set_custom_field_value(self, task_id: str, field_id: str, value: Any) -> Dict[str, Any]:
         """Set custom field value on a task."""
@@ -887,14 +891,16 @@ class ClickUpClient:
         return self.workspaces.get_shared_hierarchy(team_id)
 
     # Roles - Delegated to RolesAPI
-    def get_custom_roles(self, team_id: str) -> Dict[str, Any]:
+    def get_custom_roles(
+        self, team_id: str, include_members: Optional[bool] = None
+    ) -> Dict[str, Any]:
         """Get custom roles for a workspace."""
-        return self.roles.get_custom_roles(team_id)
+        return self.roles.get_custom_roles(team_id, include_members=include_members)
 
     # Templates - Delegated to TemplatesAPI
-    def get_task_templates(self, team_id: str) -> Dict[str, Any]:
+    def get_task_templates(self, team_id: str, page: int = 0) -> Dict[str, Any]:
         """Get task templates for a workspace."""
-        return self.templates.get_task_templates(team_id)
+        return self.templates.get_task_templates(team_id, page=page)
 
     # Goals - Delegated to GoalsAPI
     def get_goals(self, team_id: str, **params) -> Dict[str, Any]:
@@ -946,25 +952,31 @@ class ClickUpClient:
         """Remove a guest from workspace."""
         return self.guests.remove_guest_from_workspace(team_id, guest_id)
 
-    def add_guest_to_task(self, task_id: str, guest_id: str, **params) -> Dict[str, Any]:
+    def add_guest_to_task(
+        self, task_id: str, guest_id: str, permission_level: str, **params
+    ) -> Dict[str, Any]:
         """Add a guest to a task."""
-        return self.guests.add_guest_to_task(task_id, guest_id, **params)
+        return self.guests.add_guest_to_task(task_id, guest_id, permission_level, **params)
 
     def remove_guest_from_task(self, task_id: str, guest_id: str, **params) -> Dict[str, Any]:
         """Remove a guest from a task."""
         return self.guests.remove_guest_from_task(task_id, guest_id, **params)
 
-    def add_guest_to_list(self, list_id: str, guest_id: str) -> Dict[str, Any]:
+    def add_guest_to_list(
+        self, list_id: str, guest_id: str, permission_level: str
+    ) -> Dict[str, Any]:
         """Add a guest to a list."""
-        return self.guests.add_guest_to_list(list_id, guest_id)
+        return self.guests.add_guest_to_list(list_id, guest_id, permission_level)
 
     def remove_guest_from_list(self, list_id: str, guest_id: str) -> Dict[str, Any]:
         """Remove a guest from a list."""
         return self.guests.remove_guest_from_list(list_id, guest_id)
 
-    def add_guest_to_folder(self, folder_id: str, guest_id: str) -> Dict[str, Any]:
+    def add_guest_to_folder(
+        self, folder_id: str, guest_id: str, permission_level: str
+    ) -> Dict[str, Any]:
         """Add a guest to a folder."""
-        return self.guests.add_guest_to_folder(folder_id, guest_id)
+        return self.guests.add_guest_to_folder(folder_id, guest_id, permission_level)
 
     def remove_guest_from_folder(self, folder_id: str, guest_id: str) -> Dict[str, Any]:
         """Remove a guest from a folder."""

@@ -4,7 +4,7 @@ CustomFieldsAPI - High-level API for ClickUp custom field operations
 Provides convenient methods for accessing and managing custom fields.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 class CustomFieldsAPI:
@@ -37,12 +37,17 @@ class CustomFieldsAPI:
         """
         self.client = client
 
-    def get_for_list(self, list_id: str) -> Dict[str, Any]:
+    def get_for_list(
+        self, list_id: str, include_applied_objects: Optional[bool] = None
+    ) -> Dict[str, Any]:
         """
         Get custom fields accessible from a list.
 
         Args:
             list_id: List ID
+            include_applied_objects: When True, includes `applied_objects`
+                (custom task type scoping) on fields that are limited to
+                specific task types.
 
         Returns:
             Custom fields list (raw dict)
@@ -52,7 +57,9 @@ class CustomFieldsAPI:
             for field in fields.get('fields', []):
                 print(f"{field['name']}: {field['type']}")
         """
-        return self.client.get_accessible_custom_fields(list_id)
+        return self.client.get_accessible_custom_fields(
+            list_id, include_applied_objects=include_applied_objects
+        )
 
     def get_for_folder(self, folder_id: str) -> Dict[str, Any]:
         """
