@@ -100,6 +100,31 @@ class SearchCommand(BaseCommand):
         matcher = self._compile_pattern()
         return [line for line in hierarchy_output.splitlines() if matcher.search(line)]
 
+    def _print_available_ids(self):
+        """Print currently configured container/list IDs from local context (no API calls)."""
+        from clickup_framework.utils.colors import colorize, TextColor
+
+        use_color = self.context.get_ansi_output()
+        items = [
+            ('Workspace', self.context.get_current_workspace(), TextColor.BRIGHT_MAGENTA),
+            ('Space', self.context.get_current_space(), TextColor.BRIGHT_BLUE),
+            ('Folder', self.context.get_current_folder(), TextColor.BRIGHT_CYAN),
+            ('List', self.context.get_current_list(), TextColor.BRIGHT_YELLOW),
+        ]
+
+        available = [(label, value, color) for label, value, color in items if value]
+
+        if not available:
+            self.print_warning("No container/list IDs are currently set. Use `cum set <type> <id>` to configure one.")
+            return
+
+        self.print("\nCurrently configured IDs:")
+        for label, value, color in available:
+            if use_color:
+                self.print(f"  {label}: {colorize(str(value), color)}")
+            else:
+                self.print(f"  {label}: {value}")
+
     def execute(self):
         """
         Search for tasks and lists matching a pattern.
@@ -107,41 +132,53 @@ class SearchCommand(BaseCommand):
         This command provides an intuitive search interface by executing
         the hierarchy command internally and filtering the rendered output.
         """
-        try:
-            output = self._render_hierarchy_output()
-            matches = self._filter_matches(output)
+        self._print_available_ids()
+        self.error(
+            "\nThe `search` command is temporarily disabled: it renders the full "
+            "workspace hierarchy internally, which hammers the ClickUp API and is "
+            "very slow on large workspaces. Use `cum hierarchy --container <id>` "
+            "or `cum list` with a narrower scope instead."
+        )
 
-            if not matches:
-                use_color = self.context.get_ansi_output()
-
-                if use_color:
-                    from clickup_framework.utils.colors import colorize, TextColor
-                    pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW)
-                    self.print(f"\n🔍 No tasks found matching {pattern_colored}\n")
-                else:
-                    self.print(f'\n🔍 No tasks found matching "{self.args.pattern}"\n')
-                return
-
-            # Print results with header
-            use_color = self.context.get_ansi_output()
-            result_count = len(matches)
-
-            if use_color:
-                from clickup_framework.utils.colors import colorize, TextColor, TextStyle
-                pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
-                count_colored = colorize(str(result_count), TextColor.BRIGHT_GREEN, TextStyle.BOLD)
-                header = f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n"
-            else:
-                header = f'\n🔍 Found {result_count} result(s) matching "{self.args.pattern}"\n'
-
-            # Print the filtered output
-            full_output = header + "\n" + "\n".join(matches)
-            self.handle_output(
-                data={'matches': matches, 'count': result_count, 'pattern': self.args.pattern},
-                console_output=full_output
-            )
-        except Exception as e:
-            self.error(f"Error executing search: {e}")
+    # Disabled implementation, kept for reference / re-enabling later.
+    # See execute() above for why this is bypassed.
+    #
+    # def _run_search(self):
+    #     try:
+    #         output = self._render_hierarchy_output()
+    #         matches = self._filter_matches(output)
+    #
+    #         if not matches:
+    #             use_color = self.context.get_ansi_output()
+    #
+    #             if use_color:
+    #                 from clickup_framework.utils.colors import colorize, TextColor
+    #                 pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW)
+    #                 self.print(f"\n🔍 No tasks found matching {pattern_colored}\n")
+    #             else:
+    #                 self.print(f'\n🔍 No tasks found matching "{self.args.pattern}"\n')
+    #             return
+    #
+    #         # Print results with header
+    #         use_color = self.context.get_ansi_output()
+    #         result_count = len(matches)
+    #
+    #         if use_color:
+    #             from clickup_framework.utils.colors import colorize, TextColor, TextStyle
+    #             pattern_colored = colorize(f'"{self.args.pattern}"', TextColor.BRIGHT_YELLOW, TextStyle.BOLD)
+    #             count_colored = colorize(str(result_count), TextColor.BRIGHT_GREEN, TextStyle.BOLD)
+    #             header = f"\n🔍 Found {count_colored} result(s) matching {pattern_colored}\n"
+    #         else:
+    #             header = f'\n🔍 Found {result_count} result(s) matching "{self.args.pattern}"\n'
+    #
+    #         # Print the filtered output
+    #         full_output = header + "\n" + "\n".join(matches)
+    #         self.handle_output(
+    #             data={'matches': matches, 'count': result_count, 'pattern': self.args.pattern},
+    #             console_output=full_output
+    #         )
+    #     except Exception as e:
+    #         self.error(f"Error executing search: {e}")
 
 
 def search_command(args):
