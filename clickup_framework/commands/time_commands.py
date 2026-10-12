@@ -1,11 +1,39 @@
-"""Time tracking commands for ClickUp Framework CLI."""
+"""Time tracking commands for ClickUp Framework CLI.
+
+Variables:  COMMAND_METADATA, REPORT_FORMATS, REPORT_FILE_EXTENSIONS, REPORT_MAX_TASK_PAGES,
+            REPORT_COMMENT_PAGE_SIZE, REPORT_WEEK_START
+Functions:  _parse_date_to_ms, _parse_report_date, _coerce_entries, _coerce_entry, _entry_task,
+            _entry_task_id, _entry_task_name, _entry_user_id, _entry_user_name,
+            _entry_description, _entry_start_ms, _entry_end_ms, _entry_duration_ms,
+            _entry_is_running, _format_description_cell, _report_entry, _report_file_name,
+            time_start_command, time_stop_command, time_status_command, time_list_command,
+            time_add_command, time_delete_command, time_report_command, register_command
+Classes:    TimeCommandBase, TimeStartCommand, TimeStopCommand, TimeStatusCommand,
+            TimeListCommand, TimeAddCommand, TimeDeleteCommand, TimeReportCommand
+"""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import re
+import sys
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
 from clickup_framework.commands.base_command import BaseCommand
+from clickup_framework.commands.time_report_helpers import (
+    build_time_report,
+    derive_comment_activities,
+    derive_schedule_items,
+    derive_task_activities,
+    range_bounds_ms,
+    render_html,
+    render_json,
+    render_markdown,
+    resolve_report_range,
+    resolve_report_timezone,
+    task_info_from_task,
+    timezone_label,
+)
 from clickup_framework.resources import TimeAPI
 from clickup_framework.utils import format_duration, format_timestamp, parse_duration_to_ms
 from clickup_framework.utils.argparse_helpers import raw_text_formatter
@@ -17,11 +45,24 @@ COMMAND_METADATA = {
     "commands": [
         {
             "name": "time",
-            "args": "start|stop|status|list|add|delete [options]",
-            "description": "Start, stop, inspect, list, add, and delete ClickUp time entries",
+            "args": "start|stop|status|list|add|delete|report [options]",
+            "description": (
+                "Start, stop, inspect, list, add, and delete ClickUp time entries, "
+                "or build a read-only weekly timesheet report"
+            ),
         }
     ],
 }
+
+REPORT_FORMATS = ("html", "json", "markdown")
+REPORT_FILE_EXTENSIONS = {"html": "html", "json": "json", "markdown": "md"}
+# Safety valve on the assigned-tasks scan: 20 pages x 100 tasks is far more than one person
+# updates in a few weeks, and far less than an accidental whole-workspace crawl.
+REPORT_MAX_TASK_PAGES = 20
+# ClickUp's task comment endpoint hands back the 25 most recent comments per call.
+REPORT_COMMENT_PAGE_SIZE = 25
+# Weeks run Monday to Sunday, matching week_start_day=1 on the ClickUp user profile.
+REPORT_WEEK_START = 0
 
 
 def _parse_date_to_ms(value: str, *, end_of_day: bool = False) -> int:
@@ -35,6 +76,16 @@ def _parse_date_to_ms(value: str, *, end_of_day: bool = False) -> int:
         date_value = date_value + timedelta(days=1) - timedelta(milliseconds=1)
 
     return int(date_value.timestamp() * 1000)
+
+
+def _parse_report_date(value: Optional[str]) -> Optional[date]:
+    """Parse an optional YYYY-MM-DD string into a calendar date."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError(f"Invalid date '{value}'. Use YYYY-MM-DD.") from exc
 
 
 def _coerce_entries(result: Any) -> List[Dict[str, Any]]:
@@ -93,6 +144,14 @@ def _entry_user_name(entry: Dict[str, Any]) -> str:
     if isinstance(user, dict):
         return user.get("username") or user.get("name") or "Unknown"
     return "Unknown"
+
+
+def _entry_user_id(entry: Dict[str, Any]) -> str:
+    """Return the entry owner's user ID as a string, or empty when absent."""
+    user = entry.get("user")
+    if isinstance(user, dict) and user.get("id") is not None:
+        return str(user["id"])
+    return ""
 
 
 def _entry_description(entry: Dict[str, Any]) -> str:
@@ -161,6 +220,41 @@ def _format_description_cell(description: str, width: int = 32) -> str:
     if len(description) <= width:
         return description
     return description[: width - 3] + "..."
+
+
+def _report_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
+    """Flatten a raw ClickUp time entry into the shape the report builder consumes."""
+    task = _entry_task(entry)
+    status = task.get("status")
+    location = entry.get("task_location") if isinstance(entry.get("task_location"), dict) else {}
+    location_text = " / ".join(
+        part
+        for part in (location.get("folder_name"), location.get("list_name"))
+        if part and part != "hidden"
+    )
+    task_id = _entry_task_id(entry)
+    return {
+        "id": str(entry.get("id") or ""),
+        "task_id": task_id,
+        "task_name": _entry_task_name(entry) if task_id else "(no task)",
+        "task_url": entry.get("task_url") or "",
+        "status": status.get("status") if isinstance(status, dict) else (status or ""),
+        "location": location_text,
+        "start_ms": _entry_start_ms(entry),
+        "end_ms": _entry_end_ms(entry),
+        "duration_ms": _entry_duration_ms(entry),
+        "description": _entry_description(entry),
+        "running": _entry_is_running(entry),
+        "billable": bool(entry.get("billable")),
+    }
+
+
+def _report_file_name(report: Dict[str, Any], output_format: str) -> str:
+    """Default file name, e.g. time_report_craig_2026-10-06_2026-10-12.html."""
+    who = report["user"].get("username") or report["user"].get("id") or "user"
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", str(who)).strip("-").lower() or "user"
+    extension = REPORT_FILE_EXTENSIONS[output_format]
+    return f"time_report_{slug}_{report['range']['start']}_{report['range']['end']}.{extension}"
 
 
 class TimeCommandBase(BaseCommand):
@@ -420,6 +514,315 @@ class TimeDeleteCommand(TimeCommandBase):
         self.print_success(f"Deleted time entry {self.args.timer_id}")
 
 
+class TimeReportCommand(TimeCommandBase):
+    """
+    Purpose:    Read-only timesheet: tracked time per day, per week, per task, plus the tasks
+                a user touched each day. Defaults to the token owner; any member's ID can be
+                passed instead (ClickUp only shows other people's time to Owners and Admins).
+    Usage:      cum time report [user_id] [--weeks N | --start-date D --end-date D]
+                                [--format html|json|markdown] [--output-file PATH]
+                                [--timezone ZONE] [--no-touched] [--no-scheduled] [--team ID]
+                Only GET endpoints are called. Nothing in ClickUp is created, edited or
+                persisted locally apart from the report file itself.
+    Version:    0.2.0
+    Changes:    [v0.1.0] Initial: weekly/daily/task rollup, touched-task signals (tracked,
+                commented, created; plus actor-unknown closes/updates on assigned tasks),
+                HTML (default), JSON and Markdown output.
+                [v0.2.0] Per-day "due or starting" list for assigned tasks whose due date
+                or start date falls on the day; --no-scheduled to skip it.
+    """
+
+    def execute(self):
+        team_id = self._team_id()
+        me = self._authorized_user()
+        target = self._target_user(team_id, me)
+        target_id = str(target.get("id") or "")
+        is_self = target_id == str(me.get("id"))
+
+        tz_name = getattr(self.args, "timezone", None) or me.get("timezone")
+        tz = resolve_report_timezone(tz_name)
+        tz_text = timezone_label(tz, tz_name)
+        today = datetime.now(tz).date() if tz else date.today()
+
+        try:
+            start, end = resolve_report_range(
+                today,
+                weeks=getattr(self.args, "weeks", 1),
+                start=_parse_report_date(getattr(self.args, "start_date", None)),
+                end=_parse_report_date(getattr(self.args, "end_date", None)),
+                week_start=REPORT_WEEK_START,
+            )
+        except ValueError as exc:
+            self.error(str(exc))
+        start_ms, end_ms = range_bounds_ms(start, end, tz)
+
+        who = target.get("username") or target_id
+        self.print_info(f"Reading time entries for {who} ({start} to {end}, {tz_text})...")
+        entries = self._fetch_entries(team_id, target_id, is_self, start_ms, end_ms)
+
+        notes = [
+            f"Days are bucketed in {tz_text}. A time entry counts in full toward the day it "
+            "started, even if it runs past midnight.",
+        ]
+        if not is_self and not getattr(self.args, "timezone", None):
+            notes.append(
+                f"ClickUp does not expose other members' time zones, so this report uses "
+                f"{tz_text} (the token owner's). Pass --timezone to override."
+            )
+
+        want_touched = not getattr(self.args, "no_touched", False)
+        want_scheduled = not getattr(self.args, "no_scheduled", False)
+
+        # Assigned tasks changed since the range began feed both lists: touched signals,
+        # and start dates on tasks that have since been closed.
+        recent_assigned: List[Dict[str, Any]] = []
+        if want_touched or want_scheduled:
+            recent_assigned = self._fetch_task_pages(
+                team_id,
+                notes,
+                "assigned tasks updated in range",
+                assignees=[target_id],
+                date_updated_gt=start_ms,
+                include_closed=True,
+            )
+
+        activities: List[Dict[str, Any]] = []
+        if want_touched:
+            activities = self._collect_activities(
+                target_id, entries, recent_assigned, start_ms, end_ms, notes
+            )
+        else:
+            notes.append("Touched-task scan skipped (--no-touched); only tracked tasks are listed.")
+
+        schedule: List[Dict[str, Any]] = []
+        if want_scheduled:
+            schedule = self._collect_schedule(
+                team_id, target_id, recent_assigned, start_ms, end_ms, notes
+            )
+
+        report = build_time_report(
+            user={**target, "id": target_id},
+            workspace_id=team_id,
+            entries=entries,
+            activities=activities,
+            start=start,
+            end=end,
+            tz=tz,
+            tz_label=tz_text,
+            week_start=REPORT_WEEK_START,
+            notes=notes,
+            schedule=schedule,
+        )
+        self._emit(report)
+
+    # ---------- user resolution ----------
+
+    def _authorized_user(self) -> Dict[str, Any]:
+        result = self.client.get_authorized_user()
+        if isinstance(result, dict) and isinstance(result.get("user"), dict):
+            return result["user"]
+        return result if isinstance(result, dict) else {}
+
+    def _target_user(self, team_id: str, me: Dict[str, Any]) -> Dict[str, Any]:
+        """Return the token owner, or the workspace member matching the requested ID."""
+        requested = getattr(self.args, "user_id_flag", None) or getattr(self.args, "user_id", None)
+        if not requested or str(requested) == str(me.get("id")):
+            return me
+        requested = str(requested).strip()
+        if not requested.isdigit():
+            self.error(f"User ID must be numeric, got '{requested}'.")
+
+        # The member list rides along on the workspace payload; the dedicated get-user
+        # endpoint is Enterprise-only, so this is the polite way to learn a name.
+        try:
+            workspaces = self.client.get_authorized_workspaces()
+        except Exception:
+            workspaces = {}
+        for team in (workspaces or {}).get("teams", []):
+            if str(team.get("id")) != str(team_id):
+                continue
+            for member in team.get("members", []):
+                user = member.get("user") if isinstance(member, dict) else None
+                if isinstance(user, dict) and str(user.get("id")) == requested:
+                    return user
+        self.print_warning(f"User {requested} is not a member of workspace {team_id} (or hidden).")
+        return {"id": requested}
+
+    # ---------- data fetching (GET only) ----------
+
+    def _fetch_entries(
+        self, team_id: str, target_id: str, is_self: bool, start_ms: int, end_ms: int
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {
+            "start_date": start_ms,
+            "end_date": end_ms,
+            "include_location_names": "true",
+        }
+        if not is_self:
+            params["assignee"] = target_id
+        try:
+            result = self.client.get_time_entries(team_id, **params)
+        except Exception as exc:
+            if is_self:
+                raise
+            self.error(
+                f"Could not read time entries for user {target_id}: {exc}\n"
+                "Viewing another member's time needs a Workspace Owner or Admin token."
+            )
+
+        raw_entries = _coerce_entries(result)
+        owned = [e for e in raw_entries if _entry_user_id(e) in ("", target_id)]
+        if raw_entries and not owned:
+            # ClickUp can quietly ignore the assignee filter for non-admins and hand back the
+            # caller's own entries. Better an honest error than someone else's timesheet.
+            self.error(
+                f"ClickUp returned time entries for a different user than {target_id}. "
+                "Viewing another member's time needs a Workspace Owner or Admin token."
+            )
+        return [_report_entry(entry) for entry in owned if _entry_start_ms(entry) is not None]
+
+    def _fetch_task_pages(
+        self, team_id: str, notes: List[str], label: str, **filters: Any
+    ) -> List[Dict[str, Any]]:
+        """
+        Page through GET /team/{id}/task with ``filters`` (subtasks always included).
+        A failure becomes a report note rather than a crash: the timesheet half of the
+        report is still worth having when the task half can't be read.
+        """
+        tasks: List[Dict[str, Any]] = []
+        try:
+            for page in range(REPORT_MAX_TASK_PAGES):
+                result = self.client.get_team_tasks(team_id, subtasks=True, page=page, **filters)
+                batch = result.get("tasks", []) if isinstance(result, dict) else []
+                tasks.extend(task for task in batch if isinstance(task, dict))
+                if not batch or result.get("last_page", True):
+                    return tasks
+        except Exception as exc:
+            notes.append(f"Could not read {label} ({exc}); related lists may be incomplete.")
+            return tasks
+        notes.append(
+            f"Stopped reading {label} after {REPORT_MAX_TASK_PAGES} pages; "
+            "related lists may be incomplete."
+        )
+        return tasks
+
+    def _collect_activities(
+        self,
+        target_id: str,
+        entries: List[Dict[str, Any]],
+        assigned: List[Dict[str, Any]],
+        start_ms: int,
+        end_ms: int,
+        notes: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Build touched-task signals from assigned tasks and the user's comments."""
+        activities = derive_task_activities(assigned, target_id, start_ms, end_ms)
+
+        candidates: Dict[str, Dict[str, Any]] = {}
+        for task in assigned:
+            info = task_info_from_task(task)
+            candidates[info["task_id"]] = info
+        for entry in entries:
+            if entry["task_id"] and entry["task_id"] not in candidates:
+                candidates[entry["task_id"]] = {
+                    "task_id": entry["task_id"],
+                    "name": entry["task_name"],
+                    "url": entry["task_url"],
+                    "status": entry["status"],
+                    "location": entry["location"],
+                }
+
+        if candidates:
+            self.print_info(f"Scanning comments on {len(candidates)} task(s)...")
+        truncated: List[str] = []
+        failed = 0
+        for task_id, info in candidates.items():
+            try:
+                result = self.client.get_task_comments(task_id)
+            except Exception:
+                failed += 1
+                continue
+            comments = result.get("comments", []) if isinstance(result, dict) else []
+            activities.extend(
+                derive_comment_activities(info, comments, target_id, start_ms, end_ms)
+            )
+            dates = [int(c["date"]) for c in comments if str(c.get("date") or "").isdigit()]
+            if len(comments) >= REPORT_COMMENT_PAGE_SIZE and dates and min(dates) >= start_ms:
+                truncated.append(info["name"])
+
+        notes.append(
+            "Touched tasks: tracked time, comments and tasks created are the user's own "
+            "activity. 'Closed' and 'Last updated' are timestamps on tasks assigned to the user; "
+            "ClickUp's public API does not say who made those changes, and 'Last updated' only "
+            "reflects the most recent change. Only tasks with tracked time or assigned to the "
+            "user are scanned, and threaded replies are not included."
+        )
+        if truncated:
+            notes.append(
+                f"Only the {REPORT_COMMENT_PAGE_SIZE} most recent comments are read per task; "
+                f"{len(truncated)} busy task(s) may have older in-range comments not counted: "
+                + ", ".join(truncated[:10])
+                + ("..." if len(truncated) > 10 else "")
+            )
+        if failed:
+            notes.append(f"Comments could not be read for {failed} task(s).")
+        return activities
+
+    def _collect_schedule(
+        self,
+        team_id: str,
+        target_id: str,
+        recent_assigned: List[Dict[str, Any]],
+        start_ms: int,
+        end_ms: int,
+        notes: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Assigned tasks whose due date or start date falls inside the range."""
+        # ClickUp filters due dates server-side (closed tasks included, so "finished early"
+        # still shows). There is no start-date filter, so start dates come from the open
+        # assigned tasks plus the ones already read because they changed during the range.
+        due = self._fetch_task_pages(
+            team_id,
+            notes,
+            "assigned tasks due in range",
+            assignees=[target_id],
+            due_date_gt=start_ms - 1,
+            due_date_lt=end_ms + 1,
+            include_closed=True,
+        )
+        open_assigned = self._fetch_task_pages(
+            team_id, notes, "open assigned tasks", assignees=[target_id]
+        )
+        notes.append(
+            "Due or starting: tasks assigned to the user whose due date or start date falls "
+            "on the day. Overdue means the task was still open after its due day. Start dates "
+            "come from open assigned tasks and tasks updated during the range, so a task closed "
+            "before the range began is not listed by its start date."
+        )
+        return derive_schedule_items([*due, *open_assigned, *recent_assigned], start_ms, end_ms)
+
+    # ---------- output ----------
+
+    def _emit(self, report: Dict[str, Any]) -> None:
+        output_format = getattr(self.args, "format", None) or "html"
+        renderers = {"html": render_html, "json": render_json, "markdown": render_markdown}
+        text = renderers[output_format](report)
+
+        path = getattr(self.args, "report_output_file", None)
+        if output_format == "html" and not path:
+            path = _report_file_name(report, output_format)
+
+        summary = report["summary"]
+        self.print_info(
+            f"Tracked {summary['total']} across {summary['days_tracked']} day(s) on "
+            f"{summary['task_count']} task(s); {summary['touched_task_count']} task(s) touched."
+        )
+        if path:
+            self._write_text_output_file(path, text)
+        else:
+            sys.stdout.write(text)
+
+
 def time_start_command(args):
     TimeStartCommand(args, command_name="time").execute()
 
@@ -444,6 +847,10 @@ def time_delete_command(args):
     TimeDeleteCommand(args, command_name="time").execute()
 
 
+def time_report_command(args):
+    TimeReportCommand(args, command_name="time").execute()
+
+
 def register_command(subparsers):
     """Register time tracking commands."""
     parser = subparsers.add_parser(
@@ -451,9 +858,10 @@ def register_command(subparsers):
         help="Manage ClickUp time tracking entries and running timers",
         formatter_class=raw_text_formatter(),
         description=(
-            "Start, stop, inspect, list, add, and delete ClickUp time entries. "
-            "Defaults to the current workspace for team resolution and supports "
-            "the 'current' task context keyword where a task ID is expected."
+            "Start, stop, inspect, list, add, and delete ClickUp time entries, or build a "
+            "read-only timesheet report. Defaults to the current workspace for team "
+            "resolution and supports the 'current' task context keyword where a task ID "
+            "is expected."
         ),
         epilog=(
             "Examples:\n"
@@ -463,6 +871,8 @@ def register_command(subparsers):
             "  cum time list current --start-date 2026-04-01 --end-date 2026-04-05\n"
             "  cum time add current 2h30m --description \"Yesterday's work\" --date 2026-04-04\n"
             "  cum time delete <timer_id> --force\n"
+            "  cum time report\n"
+            "  cum time report 12345678 --weeks 4 --format markdown -o team_member.md\n"
         ),
     )
     time_subparsers = parser.add_subparsers(dest="time_command", help="Time tracking command")
@@ -509,3 +919,76 @@ def register_command(subparsers):
     delete_parser.add_argument("--force", "-f", action="store_true", help="Skip confirmation prompt")
     add_common_args(delete_parser)
     delete_parser.set_defaults(func=time_delete_command)
+
+    # No add_common_args here on purpose: its -O/--output defaults to console, and this
+    # report defaults to an HTML file. Read-only: every API call it makes is a GET.
+    report_parser = time_subparsers.add_parser(
+        "report",
+        help="Read-only timesheet: time per day/week/task and tasks touched each day",
+        formatter_class=raw_text_formatter(),
+        description=(
+            "Build a read-only timesheet for a user: tracked time for each day of each "
+            "week, the tasks it was tracked against, and the tasks the user touched each "
+            "day (tracked time, comments, tasks created, plus closes/updates on tasks "
+            "assigned to them), and assigned tasks due or starting each day. Defaults to "
+            "the token owner and the current week. Nothing in ClickUp is created or changed."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  cum time report                              # you, this week, HTML file\n"
+            "  cum time report --weeks 4                    # last 4 weeks\n"
+            "  cum time report 12345678                     # another member (admin token)\n"
+            "  cum time report --start-date 2026-09-01 --end-date 2026-09-30 -f json\n"
+            "  cum time report -f markdown -o timesheet.md\n"
+        ),
+    )
+    report_parser.add_argument(
+        "user_id", nargs="?", help="ClickUp user ID to report on (defaults to you, the token owner)"
+    )
+    report_parser.add_argument(
+        "--user-id", dest="user_id_flag", metavar="USER_ID", help="Same as the positional user_id"
+    )
+    report_parser.add_argument(
+        "--team", dest="team_id", help='Workspace/team ID (defaults to "current")'
+    )
+    report_parser.add_argument(
+        "--weeks",
+        type=int,
+        default=1,
+        help="Whole weeks to cover, ending with the current week (default: 1)",
+    )
+    report_parser.add_argument("--start-date", help="Range start in YYYY-MM-DD (overrides --weeks)")
+    report_parser.add_argument("--end-date", help="Range end in YYYY-MM-DD")
+    report_parser.add_argument(
+        "-f",
+        "--format",
+        choices=REPORT_FORMATS,
+        default="html",
+        help="Report format (default: html, written to a file)",
+    )
+    report_parser.add_argument(
+        "-o",
+        "--output-file",
+        "--to-file",
+        dest="report_output_file",
+        metavar="PATH",
+        help=(
+            "Write the report to PATH. HTML defaults to "
+            "time_report_<user>_<start>_<end>.html; JSON and Markdown default to stdout"
+        ),
+    )
+    report_parser.add_argument(
+        "--timezone",
+        help="IANA time zone for day boundaries (default: your ClickUp profile time zone)",
+    )
+    report_parser.add_argument(
+        "--no-touched",
+        action="store_true",
+        help="Skip the comment and assigned-task activity scan (tracked tasks still listed)",
+    )
+    report_parser.add_argument(
+        "--no-scheduled",
+        action="store_true",
+        help="Skip the per-day list of assigned tasks due or starting that day",
+    )
+    report_parser.set_defaults(func=time_report_command)
