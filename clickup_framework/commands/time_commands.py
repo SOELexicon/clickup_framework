@@ -68,6 +68,14 @@ REPORT_COMMENT_PAGE_SIZE = 25
 REPORT_WEEK_START = 0
 
 
+def _sidebar_index(value: Any) -> int:
+    """ClickUp sidebar orderindex, or a large number when it is missing."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 1_000_000_000
+
+
 def _parse_date_to_ms(value: str, *, end_of_day: bool = False) -> int:
     """Parse a YYYY-MM-DD date string into a local Unix timestamp in ms."""
     try:
@@ -604,8 +612,9 @@ class TimeReportCommand(TimeCommandBase):
         if want_scheduled:
             today_start_ms = local_midnight_ms(today, tz)
             today_end_ms = local_midnight_ms(today + timedelta(days=1), tz) - 1
+            list_order = self._location_order(team_id, cache, notes)
             schedule, open_work = self._collect_schedule(
-                cache, start_ms, end_ms, today_start_ms, today_end_ms, notes
+                cache, start_ms, end_ms, today_start_ms, today_end_ms, notes, list_order
             )
 
         report = build_time_report(
@@ -835,8 +844,9 @@ class TimeReportCommand(TimeCommandBase):
         today_start_ms: int,
         today_end_ms: int,
         notes: List[str],
+        list_order: Dict[str, Tuple[int, int, int]],
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Build the per-day schedule and the in-progress/overdue list from ``cache``."""
+        """Build the per-day schedule and the assigned-task list from ``cache``."""
         notes.append(
             "Due or starting: tasks assigned to the user whose due date or start date falls "
             "on the day. Overdue on that list means the task was still open after its due day. "
@@ -844,16 +854,82 @@ class TimeReportCommand(TimeCommandBase):
             "task closed before the range began is not listed by its start date."
         )
         notes.append(
-            "In progress and overdue is built from the cached assigned tasks, not from the "
-            "due-date filter. In progress: open, due after today, start date today or earlier "
-            "or blank. Overdue: open, due before today. Time estimate is the task's own estimate. "
-            "Total time estimate adds subtasks that were in the cache; a subtask assigned to "
-            "someone else is not included."
+            "Assigned tasks are every open task assigned to the user, grouped by folder and "
+            "list in sidebar order, with subtasks under their parent. In progress: due after "
+            "today, start date today or earlier or blank. Overdue: due before today. Time "
+            "estimate is the task's own estimate. Total time estimate adds subtasks that were "
+            "in the cache; a subtask assigned to someone else is not included."
         )
         return (
             derive_schedule_items(cache, start_ms, end_ms),
-            derive_open_work(cache, today_start_ms, today_end_ms),
+            derive_open_work(cache, today_start_ms, today_end_ms, list_order),
         )
+
+    def _location_order(
+        self, team_id: str, tasks: List[Dict[str, Any]], notes: List[str]
+    ) -> Dict[str, Tuple[int, int, int]]:
+        """
+        Map each list id to (space index, folder order, list order).
+
+        Space index follows the order ClickUp returns spaces. Folder and list order
+        are the orderindex values from the sidebar. Only spaces that contain one of
+        ``tasks`` are read.
+        """
+        needed = set()
+        for task in tasks:
+            space = task.get("space") if isinstance(task.get("space"), dict) else {}
+            if space.get("id"):
+                needed.add(str(space["id"]))
+        if not needed:
+            return {}
+        try:
+            result = self.client.get_team_spaces(team_id)
+        except Exception as exc:
+            notes.append(f"Could not read spaces ({exc}); assigned tasks are grouped by name.")
+            return {}
+        spaces = result.get("spaces") if isinstance(result, dict) else None
+        if not isinstance(spaces, list):
+            return {}
+
+        order: Dict[str, Tuple[int, int, int]] = {}
+        for space_index, space in enumerate(spaces):
+            if not isinstance(space, dict):
+                continue
+            space_id = str(space.get("id") or "")
+            if space_id not in needed:
+                continue
+            space_name = space.get("name") or space_id
+            try:
+                folder_result = self.client.get_space_folders(space_id)
+                folders = folder_result.get("folders") if isinstance(folder_result, dict) else []
+            except Exception as exc:
+                notes.append(f"Could not read folders in {space_name} ({exc}).")
+                folders = []
+            for folder in folders or []:
+                if not isinstance(folder, dict):
+                    continue
+                folder_index = _sidebar_index(folder.get("orderindex"))
+                for task_list in folder.get("lists") or []:
+                    if isinstance(task_list, dict) and task_list.get("id"):
+                        order[str(task_list["id"])] = (
+                            space_index,
+                            folder_index,
+                            _sidebar_index(task_list.get("orderindex")),
+                        )
+            try:
+                loose_result = self.client.get_space_lists(space_id)
+                loose = loose_result.get("lists") if isinstance(loose_result, dict) else []
+            except Exception as exc:
+                notes.append(f"Could not read lists in {space_name} ({exc}).")
+                loose = []
+            for task_list in loose or []:
+                if isinstance(task_list, dict) and task_list.get("id"):
+                    order[str(task_list["id"])] = (
+                        space_index,
+                        _sidebar_index(task_list.get("orderindex")),
+                        0,
+                    )
+        return order
 
     # ---------- output ----------
 
@@ -985,8 +1061,8 @@ def register_command(subparsers):
             "week, the tasks it was tracked against, and the tasks the user touched each "
             "day (tracked time, comments, tasks created, plus closes/updates on tasks "
             "assigned to them), and assigned tasks due or starting each day. Also lists "
-            "open tasks that are overdue, or due after today with a start date today "
-            "or earlier, or blank, with each task's time estimate and the total including "
+            "every open task assigned to the user, grouped by folder and list, with each "
+            "task's time estimate and the total including "
             "subtasks. Defaults to the token owner and the current week. Nothing in "
             "ClickUp is created or changed."
         ),

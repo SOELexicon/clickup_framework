@@ -13,15 +13,16 @@ Variables:  REPORT_SCHEMA_VERSION, WEEKDAY_NAMES, MS_PER_HOUR, MS_PER_MINUTE, DA
             SCHEDULE_START, CLOSED_STATUS_TYPES
 Functions:  resolve_report_timezone, timezone_label, local_date, local_datetime,
             local_midnight_ms, week_start_for, resolve_report_range, range_bounds_ms,
-            format_hours, hours_value, format_estimate_label, task_updated_after,
-            task_info_from_task, rollup_time_estimates, derive_task_activities,
-            derive_schedule_items, derive_open_work, derive_comment_activities,
-            build_time_report
+            format_hours, hours_value, format_estimate_label, open_work_label,
+            task_updated_after, task_info_from_task, rollup_time_estimates,
+            derive_task_activities, derive_schedule_items, derive_open_work,
+            derive_comment_activities, build_time_report
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, tzinfo
+from decimal import Decimal
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 REPORT_SCHEMA_VERSION = 2
@@ -199,6 +200,17 @@ def format_estimate_label(item: Dict[str, Any]) -> str:
     if item.get("total_estimate"):
         parts.append(f"Total {item['total_estimate']}")
     return " / ".join(parts)
+
+
+def open_work_label(item: Dict[str, Any]) -> str:
+    """Badge text for an assigned task: Overdue, Due today, In progress, or blank."""
+    if item.get("overdue"):
+        return "Overdue"
+    if item.get("due_today"):
+        return "Due today"
+    if item.get("in_progress"):
+        return "In progress"
+    return ""
 
 
 def task_updated_after(task: Dict[str, Any], start_ms: int) -> bool:
@@ -390,23 +402,65 @@ def derive_schedule_items(
     return items
 
 
+def _decimal_order(value: Any) -> Decimal:
+    """ClickUp order indexes are long decimal strings; keep them exact for sorting."""
+    if value in (None, ""):
+        return Decimal("1e30")
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return Decimal("1e30")
+
+
+def _order_tasks_in_list(tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Parent task, then its subtasks, each run in ClickUp list order."""
+    ids = {task["task_id"] for task in tasks}
+    children: Dict[str, List[Dict[str, Any]]] = {}
+    roots: List[Dict[str, Any]] = []
+    for task in tasks:
+        parent = task.get("parent_id") or ""
+        if parent and parent in ids:
+            children.setdefault(parent, []).append(task)
+        else:
+            roots.append(task)
+
+    def order_key(task: Dict[str, Any]) -> Tuple[Decimal, str]:
+        return (_decimal_order(task.get("orderindex")), task["name"].lower())
+
+    ordered: List[Dict[str, Any]] = []
+
+    def walk(task: Dict[str, Any], nested: bool) -> None:
+        ordered.append({**task, "nested": nested})
+        for child in sorted(children.get(task["task_id"], []), key=order_key):
+            walk(child, True)
+
+    for root in sorted(roots, key=order_key):
+        walk(root, False)
+    return ordered
+
+
 def derive_open_work(
     tasks: Iterable[Dict[str, Any]],
     today_start_ms: int,
     today_end_ms: int,
+    list_order: Optional[Dict[str, Tuple[int, int, int]]] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Purpose:    List open assigned tasks that are overdue, or already in progress.
-    Usage:      In progress means the due date is after today and the start date is today
-                or earlier, or blank. Overdue means the due date is before today and the
-                task is still open. Closed tasks and tasks with no due date are left out.
-                A task can also appear on its due or start day via derive_schedule_items;
-                this list is the plate as of today, including dates outside the window.
-    Version:    0.1.0
-    Changes:    [v0.1.0] Initial.
+    Purpose:    List every open task assigned to the user, in folder and list order.
+    Usage:      Closed tasks are left out. Overdue means the due date is before today.
+                In progress means the due date is after today and the start date is today
+                or earlier, or blank. Due today is its own flag. Anything else (no due
+                date, or a start date still in the future) is still listed. ``list_order``
+                maps a list id to (space index, folder order, list order) from the
+                workspace sidebar. Subtasks sit under their parent inside the same list.
+    Version:    0.2.0
+    Changes:    [v0.1.0] Initial: overdue and in-progress tasks only.
+                [v0.2.0] Every open assigned task, grouped by folder and list order.
     """
     task_list = [task for task in tasks if isinstance(task, dict)]
     rollup = rollup_time_estimates(task_list)
+    positions = list_order or {}
+    unknown = (1_000_000_000, 1_000_000_000, 1_000_000_000)
     seen = set()
     items: List[Dict[str, Any]] = []
     for task in task_list:
@@ -416,29 +470,57 @@ def derive_open_work(
         if _task_is_closed(task):
             continue
         due_ms = _to_ms(task.get("due_date"))
-        if due_ms is None:
-            continue
         start_ms = _to_ms(task.get("start_date"))
-        overdue = due_ms < today_start_ms
-        # A start date of today has already begun, same as a blank start or an earlier one.
-        in_progress = due_ms > today_end_ms and (start_ms is None or start_ms <= today_end_ms)
-        if not overdue and not in_progress:
-            continue
+        overdue = due_ms is not None and due_ms < today_start_ms
+        due_today = due_ms is not None and today_start_ms <= due_ms <= today_end_ms
+        in_progress = (
+            due_ms is not None
+            and due_ms > today_end_ms
+            and (start_ms is None or start_ms <= today_end_ms)
+        )
         parent = task.get("parent")
         parent_id = "" if parent in (None, "", "null") else str(parent)
+        task_list_obj = task.get("list") if isinstance(task.get("list"), dict) else {}
+        list_id = str(task_list_obj.get("id") or "")
+        rank = positions.get(list_id, unknown)
+        info = task_info_from_task(task)
         items.append(
             {
-                **task_info_from_task(task),
+                **info,
                 **_estimate_fields(str(task["id"]), rollup),
                 "parent_id": parent_id,
+                "list_id": list_id,
                 "overdue": overdue,
                 "in_progress": in_progress,
+                "due_today": due_today,
                 "due_ms": due_ms,
                 "start_ms": start_ms,
+                "orderindex": (
+                    "" if task.get("orderindex") in (None, "") else str(task.get("orderindex"))
+                ),
+                "space_index": rank[0],
+                "folder_index": rank[1],
+                "list_index": rank[2],
+                "nested": False,
             }
         )
-    items.sort(key=lambda item: (not item["overdue"], item["due_ms"], item["name"].lower()))
-    return items
+
+    groups: Dict[str, List[Dict[str, Any]]] = {}
+    for item in items:
+        groups.setdefault(item["list_id"] or item["location"], []).append(item)
+    ordered_groups = sorted(
+        groups.values(),
+        key=lambda group: (
+            group[0]["space_index"],
+            group[0]["folder_index"],
+            group[0]["list_index"],
+            group[0]["location"].lower(),
+        ),
+    )
+    flattened: List[Dict[str, Any]] = []
+    for group in ordered_groups:
+        flattened.extend(_order_tasks_in_list(group))
+    return flattened
 
 
 def derive_comment_activities(

@@ -17,7 +17,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any, Dict, List
 
-from .report_builder import format_estimate_label, format_hours
+from .report_builder import format_estimate_label, format_hours, open_work_label
 
 PAGE_CSS = """
 :root {
@@ -95,6 +95,9 @@ summary .sub { margin-left: auto; }
 ul.touched { list-style: none; padding: 0; margin: 6px 0 0; }
 ul.touched li { padding: 6px 0; border-bottom: 1px dashed var(--border); }
 ul.touched li:last-child { border-bottom: none; }
+ul.touched li.nested { margin-left: 18px; }
+h3.group { text-transform: none; letter-spacing: 0; color: var(--text); font-size: 14px;
+           margin: 18px 0 0; }
 .badge { display: inline-block; font-size: 11px; border-radius: 6px; padding: 1px 7px;
          margin: 2px 4px 0 0; background: var(--accent-soft); color: var(--accent); }
 .badge.weak { background: var(--weak-soft); color: var(--weak); }
@@ -262,34 +265,48 @@ def _scheduled_list(day: Dict[str, Any]) -> str:
     return f'<ul class="touched">{"".join(items)}</ul>'
 
 
+def _work_badge(item: Dict[str, Any]) -> str:
+    label = open_work_label(item)
+    if label == "Overdue":
+        return '<span class="badge over">Overdue</span>'
+    if label == "Due today":
+        return '<span class="badge due">Due today</span>'
+    if label == "In progress":
+        return '<span class="badge start">In progress</span>'
+    return ""
+
+
 def _open_work_section(report: Dict[str, Any]) -> str:
     items = report.get("open_work") or []
     if not items:
         return ""
     summary = report["summary"]
-    rows = []
+    groups: List[tuple] = []
     for item in items:
-        badge = (
-            '<span class="badge over">Overdue</span>'
-            if item.get("overdue")
-            else '<span class="badge start">In progress</span>'
-        )
-        extra = " &middot; ".join(
-            _e(part) for part in (item.get("status"), item.get("location")) if part
-        )
-        extra_html = f' <span class="sub">{extra}</span>' if extra else ""
-        rows.append(
-            f"<li>{_link(item['name'], item['url'])}{extra_html}{_estimate_html(item)}"
-            f"<div>{badge}</div></li>"
+        key = (item.get("list_id") or "", item.get("location") or "No list")
+        if not groups or groups[-1][0] != key:
+            groups.append((key, []))
+        groups[-1][1].append(item)
+    blocks = []
+    for (_, location), rows_src in groups:
+        rows = []
+        for item in rows_src:
+            extra = f' <span class="sub">{_e(item["status"])}</span>' if item.get("status") else ""
+            row_class = ' class="nested"' if item.get("nested") else ""
+            rows.append(
+                f"<li{row_class}>{_link(item['name'], item['url'])}{extra}"
+                f"{_estimate_html(item)}<div>{_work_badge(item)}</div></li>"
+            )
+        blocks.append(
+            f'<h3 class="group">{_e(location)}</h3><ul class="touched">{"".join(rows)}</ul>'
         )
     pill = (
         f"{summary.get('open_work_count', len(items))} &middot; "
         f"total {_e(summary.get('open_work_total_estimate', '0m'))}"
     )
     return (
-        '<section class="week"><div class="week-head"><h2>In progress and overdue</h2>'
-        f'<span class="pill">{pill}</span></div>'
-        f'<ul class="touched">{"".join(rows)}</ul></section>'
+        '<section class="week"><div class="week-head"><h2>Assigned tasks</h2>'
+        f'<span class="pill">{pill}</span></div>{"".join(blocks)}</section>'
     )
 
 
@@ -368,6 +385,7 @@ def render_html(report: Dict[str, Any]) -> str:
         _tile("Tasks touched", summary["touched_task_count"]),
         _tile("Due in range", summary.get("due_count", 0)),
         _tile("Starting in range", summary.get("starting_count", 0)),
+        _tile("Assigned", summary.get("open_work_count", 0)),
         _tile("In progress", summary.get("open_work_in_progress_count", 0)),
         _tile("Overdue", summary.get("open_work_overdue_count", 0)),
         _tile("Time estimated", summary.get("open_work_estimate", "0m")),

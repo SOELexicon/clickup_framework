@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
-from .report_builder import format_estimate_label, format_hours
+from .report_builder import format_estimate_label, format_hours, open_work_label
 
 
 def render_json(report: Dict[str, Any]) -> str:
@@ -95,23 +95,31 @@ def _open_work_lines(report: Dict[str, Any]) -> List[str]:
         return []
     summary = report["summary"]
     lines = [
-        "## In progress and overdue",
+        "## Assigned tasks",
         "",
-        f"{summary.get('open_work_in_progress_count', 0)} in progress, "
-        f"{summary.get('open_work_overdue_count', 0)} overdue. "
+        f"{summary.get('open_work_count', 0)} assigned "
+        f"({summary.get('open_work_in_progress_count', 0)} in progress, "
+        f"{summary.get('open_work_overdue_count', 0)} overdue). "
         f"Time estimated {summary.get('open_work_estimate', '0m')}, "
         f"total time estimated {summary.get('open_work_total_estimate', '0m')}.",
         "",
     ]
+    current = None
     for item in items:
-        where = f" ({item['location']})" if item.get("location") else ""
+        location = item.get("location") or "No list"
+        if location != current:
+            if current is not None:
+                lines.append("")
+            lines.append(f"### {location}")
+            lines.append("")
+            current = location
         status = f" [{item['status']}]" if item.get("status") else ""
-        kind = "Overdue" if item.get("overdue") else "In progress"
+        kind = open_work_label(item)
         estimate = format_estimate_label(item)
-        suffix = f". {estimate}" if estimate else ""
-        lines.append(
-            f"- {_md_link(item['name'], item['url'])}{status}{where}: {kind}{suffix}"
-        )
+        details = ". ".join(part for part in (kind, estimate) if part)
+        suffix = f": {details}" if details else ""
+        indent = "  " if item.get("nested") else ""
+        lines.append(f"{indent}- {_md_link(item['name'], item['url'])}{status}{suffix}")
     lines.append("")
     return lines
 
@@ -195,8 +203,9 @@ def render_markdown(report: Dict[str, Any]) -> str:
         f"- Due in range: {summary.get('due_count', 0)} "
         f"(overdue and still open: {summary.get('overdue_count', 0)})",
         f"- Starting in range: {summary.get('starting_count', 0)}",
-        f"- In progress: {summary.get('open_work_in_progress_count', 0)}",
-        f"- Overdue: {summary.get('open_work_overdue_count', 0)}",
+        f"- Assigned: {summary.get('open_work_count', 0)} "
+        f"({summary.get('open_work_in_progress_count', 0)} in progress, "
+        f"{summary.get('open_work_overdue_count', 0)} overdue)",
         f"- Time estimated on that work: {summary.get('open_work_estimate', '0m')}",
         f"- Total time estimated on that work: {summary.get('open_work_total_estimate', '0m')}",
     ]

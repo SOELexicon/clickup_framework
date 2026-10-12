@@ -344,12 +344,24 @@ def test_open_work_includes_overdue_and_future_due_with_blank_or_past_start():
         _task("none"),
     ]
     items = derive_open_work(tasks, today_start, today_end)
-    assert [item["task_id"] for item in items] == ["old", "gone", "sub", "today", "blank"]
-    assert items[0]["overdue"] is True and items[1]["in_progress"] is True
-    assert items[1]["estimate_ms"] == HOUR
-    assert items[1]["total_estimate_ms"] == 3 * HOUR
-    assert items[2]["estimate_ms"] == 2 * HOUR and items[2]["total_estimate_ms"] == 2 * HOUR
-    assert items[4]["estimate"] == "4h" and items[4]["total_estimate"] == "4h"
+    assert [item["task_id"] for item in items] == [
+        "blank",
+        "due",
+        "gone",
+        "sub",
+        "later",
+        "none",
+        "old",
+        "today",
+    ]
+    by_id = {item["task_id"]: item for item in items}
+    assert by_id["old"]["overdue"] is True and by_id["gone"]["in_progress"] is True
+    assert by_id["due"]["due_today"] is True and by_id["later"]["in_progress"] is False
+    assert by_id["none"]["overdue"] is False and by_id["sub"]["nested"] is True
+    assert by_id["gone"]["estimate_ms"] == HOUR
+    assert by_id["gone"]["total_estimate_ms"] == 3 * HOUR
+    assert by_id["sub"]["estimate_ms"] == 2 * HOUR and by_id["sub"]["total_estimate_ms"] == 2 * HOUR
+    assert by_id["blank"]["estimate"] == "4h" and by_id["blank"]["total_estimate"] == "4h"
 
     report = _report([], open_work=items)
     assert report["summary"]["open_work_overdue_count"] == 1
@@ -359,11 +371,13 @@ def test_open_work_includes_overdue_and_future_due_with_blank_or_past_start():
     assert report["summary"]["open_work_estimate_ms"] == 7 * HOUR
 
     html_text = render_html(report)
-    assert "In progress and overdue" in html_text
+    assert "Assigned tasks" in html_text
     assert "Est 1h / Total 3h" in html_text
-    assert "Task later" not in html_text
+    assert "Task later" in html_text and "Task done" not in html_text
+    assert html_text.index("Task gone") < html_text.index("Task sub")
     markdown_text = render_markdown(report)
-    assert "## In progress and overdue" in markdown_text
+    assert "## Assigned tasks" in markdown_text
+    assert "### Backlog" in markdown_text
     assert "Est 4h / Total 4h" in markdown_text
 
     scheduled = derive_schedule_items(
@@ -371,6 +385,41 @@ def test_open_work_includes_overdue_and_future_due_with_blank_or_past_start():
     )
     due = next(item for item in scheduled if item["task_id"] == "gone")
     assert due["total_estimate_ms"] == 3 * HOUR
+
+
+def test_open_work_follows_folder_and_list_order():
+    today = date(2026, 10, 12)
+    today_start = local_midnight_ms(today, UTC)
+    today_end = local_midnight_ms(today + timedelta(days=1), UTC) - 1
+
+    def task(task_id, list_id, name, order="1", parent=None):
+        payload = _task(task_id)
+        payload["name"] = name
+        payload["list"] = {"id": list_id, "name": list_id}
+        payload["folder"] = {"id": "folder", "name": "Folder"}
+        payload["orderindex"] = order
+        payload["due_date"] = str(_ms(2026, 11, 2, 12))
+        if parent:
+            payload["parent"] = parent
+        return payload
+
+    tasks = [
+        task("a1", "list-a", "A", order="1"),
+        task("b1", "list-b", "B", order="5"),
+        task("child", "list-a", "Child", order="0", parent="a1"),
+        task("a2", "list-a", "Zed", order="0"),
+    ]
+    items = derive_open_work(
+        tasks,
+        today_start,
+        today_end,
+        list_order={"list-b": (0, 0, 0), "list-a": (0, 1, 0)},
+    )
+    assert [item["task_id"] for item in items] == ["b1", "a2", "a1", "child"]
+    assert items[3]["nested"] is True
+    html_text = render_html(_report([], open_work=items))
+    assert html_text.index("Folder / list-b") < html_text.index("Folder / list-a")
+    assert 'class="nested"' in html_text
 
 
 # ==================== renderers ====================
@@ -571,13 +620,14 @@ def test_plate_uses_cached_open_tasks_the_due_filter_would_drop(tmp_path, capsys
     payload = json.loads(output)
 
     plate = {item["task_id"]: item for item in payload["open_work"]}
-    assert set(plate) == {"span", "kid", "late"}
+    assert set(plate) == {"span", "kid", "late", "wait"}
     assert plate["late"]["overdue"] is True
     assert plate["span"]["in_progress"] is True
+    assert plate["wait"]["in_progress"] is False and plate["wait"]["overdue"] is False
     assert plate["span"]["estimate_ms"] == 2 * HOUR
     assert plate["span"]["total_estimate_ms"] == 3 * HOUR
     assert payload["summary"]["open_work_total_estimate_ms"] == 3 * HOUR + 30 * 60_000
-    assert "Task wait" not in output
+    assert "Task wait" in output
 
 
 def test_boolean_query_params_are_lowercase_for_clickup():
