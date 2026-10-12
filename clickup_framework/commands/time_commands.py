@@ -694,8 +694,10 @@ class TimeReportCommand(TimeCommandBase):
         self, team_id: str, target_id: str, is_self: bool, start_ms: int, end_ms: int
     ) -> List[Dict[str, Any]]:
         params: Dict[str, Any] = {
-            "start_date": start_ms,
-            "end_date": end_ms,
+            # ClickUp treats start_date as exclusive, so an entry that begins on the
+            # first millisecond of the range (local midnight) never comes back.
+            "start_date": start_ms - 1,
+            "end_date": end_ms + 1,
             "include_location_names": "true",
         }
         if not is_self:
@@ -719,7 +721,13 @@ class TimeReportCommand(TimeCommandBase):
                 f"ClickUp returned time entries for a different user than {target_id}. "
                 "Viewing another member's time needs a Workspace Owner or Admin token."
             )
-        return [_report_entry(entry) for entry in owned if _entry_start_ms(entry) is not None]
+        reported = []
+        for entry in owned:
+            started = _entry_start_ms(entry)
+            if started is None or started < start_ms or started > end_ms:
+                continue
+            reported.append(_report_entry(entry))
+        return reported
 
     def _fetch_task_pages(
         self, team_id: str, notes: List[str], label: str, **filters: Any
