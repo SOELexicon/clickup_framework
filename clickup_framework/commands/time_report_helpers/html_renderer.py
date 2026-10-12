@@ -178,17 +178,44 @@ def _task_matrix(week: Dict[str, Any]) -> str:
         where = f'<div class="sub">{_e(task["location"])}</div>' if task["location"] else ""
         rows.append(
             f"<tr><td>{_link(task['name'], task['url'])}{where}</td>{''.join(cells)}"
-            f'<td class="n"><strong>{_e(task["total"])}</strong></td></tr>'
+            f'<td class="n"><strong>{_e(task["total"])}</strong></td>'
+            f'{_estimate_cells(task)}</tr>'
         )
     foot = "".join(
         f'<td class="n">{_e(day["total"]) if day["total_ms"] else ""}</td>' for day in days
     )
+    estimate_ms, total_estimate_ms = _week_estimate_totals(week["tasks"])
     return (
         '<div class="scroll"><table><thead><tr><th>Task</th>'
-        f'{head}<th class="n">Total</th></tr></thead><tbody>{"".join(rows)}</tbody>'
-        f'<tfoot><tr><td>Total</td>{foot}<td class="n">{_e(week["total"])}</td></tr></tfoot>'
+        f'{head}<th class="n">Tracked</th><th class="n">Est</th><th class="n">Total est</th>'
+        f'</tr></thead><tbody>{"".join(rows)}</tbody>'
+        f'<tfoot><tr><td>Total</td>{foot}<td class="n">{_e(week["total"])}</td>'
+        f'<td class="n">{_e(_estimate_footer(estimate_ms))}</td>'
+        f'<td class="n">{_e(_estimate_footer(total_estimate_ms))}</td></tr></tfoot>'
         "</table></div>"
     )
+
+
+def _estimate_cells(task: Dict[str, Any]) -> str:
+    own = task.get("estimate") or "-"
+    total = task.get("total_estimate") or "-"
+    return f'<td class="n">{_e(own)}</td><td class="n">{_e(total)}</td>'
+
+
+def _estimate_footer(ms: int) -> str:
+    return format_hours(ms) if ms else "-"
+
+
+def _week_estimate_totals(tasks: List[Dict[str, Any]]) -> tuple:
+    """Own estimates, and rolled-up totals without counting a listed subtask twice."""
+    ids = {task.get("task_id") for task in tasks}
+    own = sum(int(task.get("estimate_ms") or 0) for task in tasks)
+    total = sum(
+        int(task.get("total_estimate_ms") or 0)
+        for task in tasks
+        if task.get("parent_id") not in ids
+    )
+    return own, total
 
 
 def _entries_table(day: Dict[str, Any]) -> str:
@@ -229,6 +256,13 @@ def _touched_list(day: Dict[str, Any]) -> str:
         link = _link(touched["name"], touched["url"])
         items.append(f"<li>{link}{extra_html}<div>{badges}</div></li>")
     return f'<ul class="touched">{"".join(items)}</ul>'
+
+
+def _tracked_html(item: Dict[str, Any]) -> str:
+    tracked_ms = int(item.get("tracked_ms") or 0)
+    if not tracked_ms:
+        return ""
+    return f' <span class="sub">Tracked {_e(format_hours(tracked_ms))}</span>'
 
 
 def _estimate_html(item: Dict[str, Any]) -> str:
@@ -295,7 +329,7 @@ def _open_work_section(report: Dict[str, Any]) -> str:
             row_class = ' class="nested"' if item.get("nested") else ""
             rows.append(
                 f"<li{row_class}>{_link(item['name'], item['url'])}{extra}"
-                f"{_estimate_html(item)}<div>{_work_badge(item)}</div></li>"
+                f"{_tracked_html(item)}{_estimate_html(item)}<div>{_work_badge(item)}</div></li>"
             )
         blocks.append(
             f'<h3 class="group">{_e(location)}</h3><ul class="touched">{"".join(rows)}</ul>'
@@ -305,7 +339,7 @@ def _open_work_section(report: Dict[str, Any]) -> str:
         f"total {_e(summary.get('open_work_total_estimate', '0m'))}"
     )
     return (
-        '<section class="week"><div class="week-head"><h2>Assigned tasks</h2>'
+        '<section class="week"><div class="week-head"><h2>Assigned and tracked</h2>'
         f'<span class="pill">{pill}</span></div>{"".join(blocks)}</section>'
     )
 

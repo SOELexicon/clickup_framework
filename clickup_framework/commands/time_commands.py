@@ -26,6 +26,7 @@ from clickup_framework.commands.time_report_helpers import (
     derive_open_work,
     derive_schedule_items,
     derive_task_activities,
+    estimates_for,
     local_midnight_ms,
     range_bounds_ms,
     render_html,
@@ -535,7 +536,7 @@ class TimeReportCommand(TimeCommandBase):
                                 [--timezone ZONE] [--no-touched] [--no-scheduled] [--team ID]
                 Only GET endpoints are called. Nothing in ClickUp is created, edited or
                 persisted locally apart from the report file itself.
-    Version:    0.3.0
+    Version:    0.4.0
     Changes:    [v0.1.0] Initial: weekly/daily/task rollup, touched-task signals (tracked,
                 commented, created; plus actor-unknown closes/updates on assigned tasks),
                 HTML (default), JSON and Markdown output.
@@ -546,6 +547,8 @@ class TimeReportCommand(TimeCommandBase):
                 open tasks due after today whose start date is today or earlier, or blank,
                 and open tasks overdue from before today. Each row shows the task's own
                 time estimate and the total including subtasks in the cache.
+                [v0.4.0] Tasks with tracked time are included even when the user is not
+                the assignee, and the week matrix shows Est and Total est.
     """
 
     def execute(self):
@@ -598,6 +601,17 @@ class TimeReportCommand(TimeCommandBase):
                 team_id, target_id, start_ms, end_ms, notes, include_open=want_scheduled
             )
 
+        tracked_ms: Dict[str, int] = {}
+        for entry in entries:
+            tracked_id = entry.get("task_id") or ""
+            if tracked_id:
+                tracked_ms[tracked_id] = tracked_ms.get(tracked_id, 0) + int(
+                    entry.get("duration_ms") or 0
+                )
+        if tracked_ms:
+            cache = self._merge_tracked_tasks(cache, set(tracked_ms), notes)
+        estimate_fields = estimates_for(cache, tracked_ms) if tracked_ms else {}
+
         activities: List[Dict[str, Any]] = []
         if want_touched:
             recent_assigned = [task for task in cache if task_updated_after(task, start_ms)]
@@ -614,7 +628,14 @@ class TimeReportCommand(TimeCommandBase):
             today_end_ms = local_midnight_ms(today + timedelta(days=1), tz) - 1
             list_order = self._location_order(team_id, cache, notes)
             schedule, open_work = self._collect_schedule(
-                cache, start_ms, end_ms, today_start_ms, today_end_ms, notes, list_order
+                cache,
+                start_ms,
+                end_ms,
+                today_start_ms,
+                today_end_ms,
+                notes,
+                list_order,
+                tracked_ms,
             )
 
         report = build_time_report(
@@ -630,6 +651,7 @@ class TimeReportCommand(TimeCommandBase):
             notes=notes,
             schedule=schedule,
             open_work=open_work,
+            estimates=estimate_fields,
         )
         self._emit(report)
 
@@ -845,6 +867,7 @@ class TimeReportCommand(TimeCommandBase):
         today_end_ms: int,
         notes: List[str],
         list_order: Dict[str, Tuple[int, int, int]],
+        tracked_ms: Dict[str, int],
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Build the per-day schedule and the assigned-task list from ``cache``."""
         notes.append(
@@ -854,16 +877,67 @@ class TimeReportCommand(TimeCommandBase):
             "task closed before the range began is not listed by its start date."
         )
         notes.append(
-            "Assigned tasks are every open task assigned to the user, grouped by folder and "
-            "list in sidebar order, with subtasks under their parent. In progress: due after "
-            "today, start date today or earlier or blank. Overdue: due before today. Time "
-            "estimate is the task's own estimate. Total time estimate adds subtasks that were "
-            "in the cache; a subtask assigned to someone else is not included."
+            "Assigned and tracked tasks are grouped by folder and list in sidebar order. "
+            "A task you booked time to is included even when you are not the assignee, so "
+            "its time estimate is not left at zero. In progress: due after today, start date "
+            "today or earlier or blank. Overdue: due before today. Time estimate is the "
+            "task's own estimate. Total time estimate adds subtasks in the cache."
         )
         return (
             derive_schedule_items(cache, start_ms, end_ms),
-            derive_open_work(cache, today_start_ms, today_end_ms, list_order),
+            derive_open_work(
+                cache, today_start_ms, today_end_ms, list_order, tracked_ms=tracked_ms
+            ),
         )
+
+    def _merge_tracked_tasks(
+        self,
+        cache: List[Dict[str, Any]],
+        tracked_ids: set,
+        notes: List[str],
+    ) -> List[Dict[str, Any]]:
+        """
+        Add tasks that have tracked time but were not in the assignee cache.
+
+        Subtasks of those tasks are kept for the rolled-up total and marked so they
+        are not listed on their own unless time was booked to them directly.
+        """
+        known = {str(task.get("id")) for task in cache if isinstance(task, dict) and task.get("id")}
+        missing = [task_id for task_id in tracked_ids if task_id not in known]
+        if not missing:
+            return cache
+        fetched: List[Dict[str, Any]] = []
+        failed = 0
+        for task_id in missing:
+            try:
+                task = self.client.get_task(task_id, include_subtasks=True)
+            except Exception:
+                failed += 1
+                continue
+            if not isinstance(task, dict) or not task.get("id"):
+                failed += 1
+                continue
+            fetched.append(task)
+            known.add(str(task["id"]))
+            for sub in task.get("subtasks") or []:
+                if not isinstance(sub, dict) or not sub.get("id"):
+                    continue
+                sub_id = str(sub["id"])
+                if sub_id in known:
+                    continue
+                parent = sub.get("parent") or task["id"]
+                rollup_only = sub_id not in tracked_ids
+                fetched.append({**sub, "parent": parent, "_rollup_only": rollup_only})
+                known.add(sub_id)
+        if failed:
+            notes.append(
+                f"Could not read {failed} task(s) with tracked time; their estimates may be missing."
+            )
+        elif fetched:
+            notes.append(
+                "Tasks with tracked time are listed even when you are not the assignee."
+            )
+        return [*cache, *fetched]
 
     def _location_order(
         self, team_id: str, tasks: List[Dict[str, Any]], notes: List[str]
@@ -1061,7 +1135,8 @@ def register_command(subparsers):
             "week, the tasks it was tracked against, and the tasks the user touched each "
             "day (tracked time, comments, tasks created, plus closes/updates on tasks "
             "assigned to them), and assigned tasks due or starting each day. Also lists "
-            "every open task assigned to the user, grouped by folder and list, with each "
+            "every open task assigned to the user, plus tasks they booked time to even "
+            "when they are not the assignee, grouped by folder and list, with each "
             "task's time estimate and the total including "
             "subtasks. Defaults to the token owner and the current week. Nothing in "
             "ClickUp is created or changed."

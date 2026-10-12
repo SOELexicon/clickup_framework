@@ -54,8 +54,8 @@ def _task_matrix(week: Dict[str, Any]) -> List[str]:
     if not week["tasks"]:
         return ["_No time tracked this week._"]
     days = week["days"]
-    header = "| Task | " + " | ".join(day["weekday"] for day in days) + " | Total |"
-    divider = "| --- | " + " | ".join("---:" for _ in days) + " | ---: |"
+    header = "| Task | " + " | ".join(day["weekday"] for day in days) + " | Tracked | Est | Total est |"
+    divider = "| --- | " + " | ".join("---:" for _ in days) + " | ---: | ---: | ---: |"
     lines = [header, divider]
     for task in week["tasks"]:
         cells = []
@@ -65,12 +65,13 @@ def _task_matrix(week: Dict[str, Any]) -> List[str]:
         lines.append(
             f"| {_md_cell(_md_link(task['name'], task['url']))} | "
             + " | ".join(cells)
-            + f" | **{task['total']}** |"
+            + f" | **{task['total']}** | {task.get('estimate') or '-'} | "
+            f"{task.get('total_estimate') or '-'} |"
         )
     lines.append(
         "| **Total** | "
         + " | ".join(day["total"] if day["total_ms"] else "" for day in days)
-        + f" | **{week['total']}** |"
+        + f" | **{week['total']}** | | |"
     )
     return lines
 
@@ -95,7 +96,7 @@ def _open_work_lines(report: Dict[str, Any]) -> List[str]:
         return []
     summary = report["summary"]
     lines = [
-        "## Assigned tasks",
+        "## Assigned and tracked",
         "",
         f"{summary.get('open_work_count', 0)} assigned "
         f"({summary.get('open_work_in_progress_count', 0)} in progress, "
@@ -116,7 +117,10 @@ def _open_work_lines(report: Dict[str, Any]) -> List[str]:
         status = f" [{item['status']}]" if item.get("status") else ""
         kind = open_work_label(item)
         estimate = format_estimate_label(item)
-        details = ". ".join(part for part in (kind, estimate) if part)
+        tracked = ""
+        if item.get("tracked_ms"):
+            tracked = f"Tracked {format_hours(item['tracked_ms'])}"
+        details = ". ".join(part for part in (kind, tracked, estimate) if part)
         suffix = f": {details}" if details else ""
         indent = "  " if item.get("nested") else ""
         lines.append(f"{indent}- {_md_link(item['name'], item['url'])}{status}{suffix}")

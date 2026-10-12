@@ -202,6 +202,35 @@ def format_estimate_label(item: Dict[str, Any]) -> str:
     return " / ".join(parts)
 
 
+def estimates_for(
+    tasks: Iterable[Dict[str, Any]], task_ids: Iterable[str]
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Purpose:    Time estimate fields for tasks that have tracked time.
+    Usage:      Includes tasks the user booked time to but is not assigned to, so the
+                timesheet can show the real estimate instead of a zero.
+    Version:    0.1.0
+    Changes:    [v0.1.0] Initial.
+    """
+    task_list = [task for task in tasks if isinstance(task, dict)]
+    rollup = rollup_time_estimates(task_list)
+    parents: Dict[str, str] = {}
+    for task in task_list:
+        if not task.get("id"):
+            continue
+        parent = task.get("parent")
+        parents[str(task["id"])] = "" if parent in (None, "", "null") else str(parent)
+    estimates: Dict[str, Dict[str, Any]] = {}
+    for task_id in task_ids:
+        if not task_id:
+            continue
+        estimates[str(task_id)] = {
+            **_estimate_fields(str(task_id), rollup),
+            "parent_id": parents.get(str(task_id), ""),
+        }
+    return estimates
+
+
 def open_work_label(item: Dict[str, Any]) -> str:
     """Badge text for an assigned task: Overdue, Due today, In progress, or blank."""
     if item.get("overdue"):
@@ -444,21 +473,25 @@ def derive_open_work(
     today_start_ms: int,
     today_end_ms: int,
     list_order: Optional[Dict[str, Tuple[int, int, int]]] = None,
+    tracked_ms: Optional[Dict[str, int]] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Purpose:    List every open task assigned to the user, in folder and list order.
-    Usage:      Closed tasks are left out. Overdue means the due date is before today.
+    Purpose:    List open assigned tasks, plus any task the user booked time to.
+    Usage:      Closed tasks are left out unless their id is in ``tracked_ms``. Tasks
+                marked ``_rollup_only`` exist so a parent total can include subtasks and
+                are not listed themselves. Overdue means the due date is before today.
                 In progress means the due date is after today and the start date is today
-                or earlier, or blank. Due today is its own flag. Anything else (no due
-                date, or a start date still in the future) is still listed. ``list_order``
-                maps a list id to (space index, folder order, list order) from the
-                workspace sidebar. Subtasks sit under their parent inside the same list.
-    Version:    0.2.0
+                or earlier, or blank. ``list_order`` maps a list id to (space index,
+                folder order, list order). Subtasks sit under their parent.
+    Version:    0.3.0
     Changes:    [v0.1.0] Initial: overdue and in-progress tasks only.
                 [v0.2.0] Every open assigned task, grouped by folder and list order.
+                [v0.3.0] Tasks with tracked time stay in the list even when the user
+                is not the assignee.
     """
     task_list = [task for task in tasks if isinstance(task, dict)]
     rollup = rollup_time_estimates(task_list)
+    tracked = {str(task_id): int(ms or 0) for task_id, ms in (tracked_ms or {}).items() if task_id}
     positions = list_order or {}
     unknown = (1_000_000_000, 1_000_000_000, 1_000_000_000)
     seen = set()
@@ -467,7 +500,10 @@ def derive_open_work(
         if not task.get("id") or task["id"] in seen:
             continue
         seen.add(task["id"])
-        if _task_is_closed(task):
+        task_key = str(task["id"])
+        if task.get("_rollup_only") and task_key not in tracked:
+            continue
+        if _task_is_closed(task) and task_key not in tracked:
             continue
         due_ms = _to_ms(task.get("due_date"))
         start_ms = _to_ms(task.get("start_date"))
@@ -493,6 +529,7 @@ def derive_open_work(
                 "overdue": overdue,
                 "in_progress": in_progress,
                 "due_today": due_today,
+                "tracked_ms": tracked.get(task_key, 0),
                 "due_ms": due_ms,
                 "start_ms": start_ms,
                 "orderindex": (
@@ -689,6 +726,19 @@ def _finalise_day(day: Dict[str, Any]) -> Dict[str, Any]:
     return day
 
 
+def _stamp_estimates(
+    tasks: List[Dict[str, Any]], estimates: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Copy time-estimate fields onto rolled-up tracked tasks."""
+    if not estimates:
+        return tasks
+    for task in tasks:
+        extra = estimates.get(task.get("task_id") or "")
+        if extra:
+            task.update(extra)
+    return tasks
+
+
 def _task_rollup(days: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Aggregate finalised days into per-task totals with a per-day breakdown."""
     rollup: Dict[str, Dict[str, Any]] = {}
@@ -739,6 +789,7 @@ def build_time_report(
     generated_at: Optional[datetime] = None,
     schedule: Iterable[Dict[str, Any]] = (),
     open_work: Iterable[Dict[str, Any]] = (),
+    estimates: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Purpose:    Assemble the full report dict shared by every renderer.
@@ -843,9 +894,9 @@ def build_time_report(
         week["total_ms"] = sum(day["total_ms"] for day in week_days)
         week["total"] = format_hours(week["total_ms"])
         week["hours"] = hours_value(week["total_ms"])
-        week["tasks"] = _task_rollup(week_days)
+        week["tasks"] = _stamp_estimates(_task_rollup(week_days), estimates or {})
 
-    overall_tasks = _task_rollup(days)
+    overall_tasks = _stamp_estimates(_task_rollup(days), estimates or {})
     total_ms = sum(day["total_ms"] for day in days)
     days_tracked = sum(1 for day in days if day["total_ms"] > 0)
     touched_ids = {
