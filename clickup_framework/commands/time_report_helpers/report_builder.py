@@ -13,8 +13,10 @@ Variables:  REPORT_SCHEMA_VERSION, WEEKDAY_NAMES, MS_PER_HOUR, MS_PER_MINUTE, DA
             SCHEDULE_START, CLOSED_STATUS_TYPES
 Functions:  resolve_report_timezone, timezone_label, local_date, local_datetime,
             local_midnight_ms, week_start_for, resolve_report_range, range_bounds_ms,
-            format_hours, hours_value, task_info_from_task, derive_task_activities,
-            derive_schedule_items, derive_comment_activities, build_time_report
+            format_hours, hours_value, format_estimate_label, task_updated_after,
+            task_info_from_task, rollup_time_estimates, derive_task_activities,
+            derive_schedule_items, derive_open_work, derive_comment_activities,
+            build_time_report
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, tzinfo
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 2
 WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 MS_PER_MINUTE = 60_000
 MS_PER_HOUR = 3_600_000
@@ -183,6 +185,28 @@ def hours_value(ms: int) -> float:
     return round((ms or 0) / MS_PER_HOUR, 2)
 
 
+def format_estimate_label(item: Dict[str, Any]) -> str:
+    """
+    Purpose:    One line for a task's own time estimate and the total including subtasks.
+    Usage:      Empty when neither is set. Both are shown when either is set, so a leaf
+                task reads "Est 4h / Total 4h" and a parent with subtasks can differ.
+    Version:    0.1.0
+    Changes:    [v0.1.0] Initial.
+    """
+    parts = []
+    if item.get("estimate"):
+        parts.append(f"Est {item['estimate']}")
+    if item.get("total_estimate"):
+        parts.append(f"Total {item['total_estimate']}")
+    return " / ".join(parts)
+
+
+def task_updated_after(task: Dict[str, Any], start_ms: int) -> bool:
+    """Return True when the task's date_updated is strictly after ``start_ms``."""
+    updated = _to_ms(task.get("date_updated"))
+    return updated is not None and updated > start_ms
+
+
 def _to_ms(value: Any) -> Optional[int]:
     """Parse ClickUp's string-or-int millisecond timestamps."""
     if value in (None, ""):
@@ -191,6 +215,66 @@ def _to_ms(value: Any) -> Optional[int]:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _estimate_ms(task: Dict[str, Any]) -> int:
+    """Return a task's own time_estimate in ms, or 0 when it is unset."""
+    ms = _to_ms(task.get("time_estimate"))
+    if ms is None or ms <= 0:
+        return 0
+    return ms
+
+
+def _estimate_fields(task_id: str, rollup: Dict[str, Tuple[int, int]]) -> Dict[str, Any]:
+    """Attach display strings for a task's own estimate and its rolled-up total."""
+    own, total = rollup.get(str(task_id), (0, 0))
+    return {
+        "estimate_ms": own,
+        "estimate": format_hours(own) if own else "",
+        "total_estimate_ms": total,
+        "total_estimate": format_hours(total) if total else "",
+    }
+
+
+def rollup_time_estimates(tasks: Iterable[Dict[str, Any]]) -> Dict[str, Tuple[int, int]]:
+    """
+    Purpose:    Map each task id to (own estimate ms, total including descendant subtasks).
+    Usage:      ClickUp's team-task payload with subtasks=true stores each task's own
+                ``time_estimate``, not the UI rollup. The total is that value plus every
+                descendant present in ``tasks``. A subtask assigned to someone else is
+                absent from an assignee-filtered cache, so a parent total can be short
+                of the number ClickUp shows when rollup is on.
+    Version:    0.1.0
+    Changes:    [v0.1.0] Initial.
+    """
+    by_id: Dict[str, Dict[str, Any]] = {}
+    child_ids: Dict[str, List[str]] = {}
+    for task in tasks:
+        if not isinstance(task, dict) or not task.get("id"):
+            continue
+        task_id = str(task["id"])
+        by_id[task_id] = task
+        parent = task.get("parent")
+        if parent not in (None, "", "null"):
+            kids = child_ids.setdefault(str(parent), [])
+            if task_id not in kids:
+                kids.append(task_id)
+
+    totals: Dict[str, int] = {}
+
+    def total(task_id: str, stack: set) -> int:
+        if task_id in totals:
+            return totals[task_id]
+        if task_id in stack:
+            return 0
+        stack.add(task_id)
+        own = _estimate_ms(by_id.get(task_id, {}))
+        summed = own + sum(total(child_id, stack) for child_id in child_ids.get(task_id, []))
+        stack.remove(task_id)
+        totals[task_id] = summed
+        return summed
+
+    return {task_id: (_estimate_ms(task), total(task_id, set())) for task_id, task in by_id.items()}
 
 
 def _in_window(ms: Optional[int], start_ms: int, end_ms: int) -> bool:
@@ -279,20 +363,81 @@ def derive_schedule_items(
                 queries; duplicates are collapsed by task ID. Each in-range date becomes one
                 item with kind "due" or "start" and the task's closed state, so the day
                 view can say "due today, already done" or "due last Tuesday, still open".
-    Version:    0.1.0
+                Work that is already underway or overdue from before the window is not a
+                date landing on a day; derive_open_work lists that separately.
+    Version:    0.2.0
     Changes:    [v0.1.0] Initial.
+                [v0.2.0] Each item carries the task's own time estimate and the total
+                including descendant subtasks from the same payload.
     """
+    task_list = [task for task in tasks if isinstance(task, dict)]
+    rollup = rollup_time_estimates(task_list)
     seen = set()
     items: List[Dict[str, Any]] = []
-    for task in tasks:
-        if not isinstance(task, dict) or not task.get("id") or task["id"] in seen:
+    for task in task_list:
+        if not task.get("id") or task["id"] in seen:
             continue
         seen.add(task["id"])
-        info = {**task_info_from_task(task), "closed": _task_is_closed(task)}
+        info = {
+            **task_info_from_task(task),
+            **_estimate_fields(str(task["id"]), rollup),
+            "closed": _task_is_closed(task),
+        }
         for kind, field in ((SCHEDULE_DUE, "due_date"), (SCHEDULE_START, "start_date")):
             at_ms = _to_ms(task.get(field))
             if _in_window(at_ms, start_ms, end_ms):
                 items.append({**info, "kind": kind, "at_ms": at_ms})
+    return items
+
+
+def derive_open_work(
+    tasks: Iterable[Dict[str, Any]],
+    today_start_ms: int,
+    today_end_ms: int,
+) -> List[Dict[str, Any]]:
+    """
+    Purpose:    List open assigned tasks that are overdue, or already in progress.
+    Usage:      In progress means the due date is after today and the start date is today
+                or earlier, or blank. Overdue means the due date is before today and the
+                task is still open. Closed tasks and tasks with no due date are left out.
+                A task can also appear on its due or start day via derive_schedule_items;
+                this list is the plate as of today, including dates outside the window.
+    Version:    0.1.0
+    Changes:    [v0.1.0] Initial.
+    """
+    task_list = [task for task in tasks if isinstance(task, dict)]
+    rollup = rollup_time_estimates(task_list)
+    seen = set()
+    items: List[Dict[str, Any]] = []
+    for task in task_list:
+        if not task.get("id") or task["id"] in seen:
+            continue
+        seen.add(task["id"])
+        if _task_is_closed(task):
+            continue
+        due_ms = _to_ms(task.get("due_date"))
+        if due_ms is None:
+            continue
+        start_ms = _to_ms(task.get("start_date"))
+        overdue = due_ms < today_start_ms
+        # A start date of today has already begun, same as a blank start or an earlier one.
+        in_progress = due_ms > today_end_ms and (start_ms is None or start_ms <= today_end_ms)
+        if not overdue and not in_progress:
+            continue
+        parent = task.get("parent")
+        parent_id = "" if parent in (None, "", "null") else str(parent)
+        items.append(
+            {
+                **task_info_from_task(task),
+                **_estimate_fields(str(task["id"]), rollup),
+                "parent_id": parent_id,
+                "overdue": overdue,
+                "in_progress": in_progress,
+                "due_ms": due_ms,
+                "start_ms": start_ms,
+            }
+        )
+    items.sort(key=lambda item: (not item["overdue"], item["due_ms"], item["name"].lower()))
     return items
 
 
@@ -384,8 +529,17 @@ def _schedule(day: Dict[str, Any], item: Dict[str, Any], overdue: bool) -> None:
     """Record a due/start date on a day, merging both onto one row when they coincide."""
     bucket = day["_scheduled"].setdefault(
         _task_key(item),
-        {**_new_task_bucket(item), "closed": bool(item.get("closed")), "due": False,
-         "starts": False, "overdue": False},
+        {
+            **_new_task_bucket(item),
+            "closed": bool(item.get("closed")),
+            "due": False,
+            "starts": False,
+            "overdue": False,
+            "estimate_ms": item.get("estimate_ms") or 0,
+            "estimate": item.get("estimate") or "",
+            "total_estimate_ms": item.get("total_estimate_ms") or 0,
+            "total_estimate": item.get("total_estimate") or "",
+        },
     )
     if item.get("kind") == SCHEDULE_DUE:
         bucket["due"] = True
@@ -472,6 +626,22 @@ def _task_rollup(days: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return tasks
 
 
+def _plate_estimate_totals(open_work: List[Dict[str, Any]]) -> Tuple[int, int]:
+    """
+    Sum own estimates, and rolled-up totals without counting a subtask twice.
+
+    A subtask whose parent is also on the plate is already inside the parent's total.
+    """
+    on_plate = {item["task_id"] for item in open_work}
+    own = sum(int(item.get("estimate_ms") or 0) for item in open_work)
+    total = sum(
+        int(item.get("total_estimate_ms") or 0)
+        for item in open_work
+        if item.get("parent_id") not in on_plate
+    )
+    return own, total
+
+
 def build_time_report(
     *,
     user: Dict[str, Any],
@@ -486,19 +656,22 @@ def build_time_report(
     notes: Optional[List[str]] = None,
     generated_at: Optional[datetime] = None,
     schedule: Iterable[Dict[str, Any]] = (),
+    open_work: Iterable[Dict[str, Any]] = (),
 ) -> Dict[str, Any]:
     """
     Purpose:    Assemble the full report dict shared by every renderer.
     Usage:      ``entries`` are flattened time entries with keys id, task_id, task_name,
                 task_url, status, location, start_ms, end_ms, duration_ms, description,
                 running, billable. ``activities`` come from derive_task_activities and
-                derive_comment_activities; ``schedule`` from derive_schedule_items. Entries
-                are bucketed by their start time, so a 22:00-01:00 stint counts in full
-                toward the day it began.
-    Version:    0.2.0
+                derive_comment_activities; ``schedule`` from derive_schedule_items;
+                ``open_work`` from derive_open_work. Entries are bucketed by their start
+                time, so a 22:00-01:00 stint counts in full toward the day it began.
+    Version:    0.3.0
     Changes:    [v0.1.0] Initial: weeks -> days -> tasks, touched tasks with signal labels.
                 [v0.2.0] Per-day "scheduled" list: tasks whose due or start date falls on
                 the day, with closed and overdue flags.
+                [v0.3.0] Open-work list (in progress or overdue as of today) with own and
+                rolled-up time estimates.
     """
     generated = generated_at or datetime.now().astimezone()
     today = local_date(int(generated.timestamp() * 1000), tz)
@@ -597,6 +770,8 @@ def build_time_report(
         touched["task_id"] for day in days for touched in day["touched"] if touched["attributed"]
     }
     scheduled = [item for day in days for item in day["scheduled"]]
+    plate = list(open_work)
+    plate_own_ms, plate_total_ms = _plate_estimate_totals(plate)
 
     return {
         "report": "clickup_time_report",
@@ -629,8 +804,16 @@ def build_time_report(
             "due_count": sum(1 for item in scheduled if item["due"]),
             "starting_count": sum(1 for item in scheduled if item["starts"]),
             "overdue_count": sum(1 for item in scheduled if item["overdue"]),
+            "open_work_count": len(plate),
+            "open_work_overdue_count": sum(1 for item in plate if item.get("overdue")),
+            "open_work_in_progress_count": sum(1 for item in plate if item.get("in_progress")),
+            "open_work_estimate_ms": plate_own_ms,
+            "open_work_estimate": format_hours(plate_own_ms),
+            "open_work_total_estimate_ms": plate_total_ms,
+            "open_work_total_estimate": format_hours(plate_total_ms),
         },
         "weeks": weeks,
         "tasks": overall_tasks,
+        "open_work": plate,
         "notes": list(notes or []),
     }

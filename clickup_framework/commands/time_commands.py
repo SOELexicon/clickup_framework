@@ -17,14 +17,16 @@ from __future__ import annotations
 import re
 import sys
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.time_report_helpers import (
     build_time_report,
     derive_comment_activities,
+    derive_open_work,
     derive_schedule_items,
     derive_task_activities,
+    local_midnight_ms,
     range_bounds_ms,
     render_html,
     render_json,
@@ -32,6 +34,7 @@ from clickup_framework.commands.time_report_helpers import (
     resolve_report_range,
     resolve_report_timezone,
     task_info_from_task,
+    task_updated_after,
     timezone_label,
 )
 from clickup_framework.resources import TimeAPI
@@ -524,12 +527,17 @@ class TimeReportCommand(TimeCommandBase):
                                 [--timezone ZONE] [--no-touched] [--no-scheduled] [--team ID]
                 Only GET endpoints are called. Nothing in ClickUp is created, edited or
                 persisted locally apart from the report file itself.
-    Version:    0.2.0
+    Version:    0.3.0
     Changes:    [v0.1.0] Initial: weekly/daily/task rollup, touched-task signals (tracked,
                 commented, created; plus actor-unknown closes/updates on assigned tasks),
                 HTML (default), JSON and Markdown output.
                 [v0.2.0] Per-day "due or starting" list for assigned tasks whose due date
                 or start date falls on the day; --no-scheduled to skip it.
+                [v0.3.0] Assigned tasks are cached once, then the schedule and the
+                in-progress/overdue list are derived from that cache. The list includes
+                open tasks due after today whose start date is today or earlier, or blank,
+                and open tasks overdue from before today. Each row shows the task's own
+                time estimate and the total including subtasks in the cache.
     """
 
     def execute(self):
@@ -573,21 +581,18 @@ class TimeReportCommand(TimeCommandBase):
         want_touched = not getattr(self.args, "no_touched", False)
         want_scheduled = not getattr(self.args, "no_scheduled", False)
 
-        # Assigned tasks changed since the range began feed both lists: touched signals,
-        # and start dates on tasks that have since been closed.
-        recent_assigned: List[Dict[str, Any]] = []
+        # One cached read of the assigned tasks. Touched signals only need the ones
+        # updated in range; the schedule and the in-progress/overdue list need the
+        # whole open set, because a due-date filter drops anything due outside the week.
+        cache: List[Dict[str, Any]] = []
         if want_touched or want_scheduled:
-            recent_assigned = self._fetch_task_pages(
-                team_id,
-                notes,
-                "assigned tasks updated in range",
-                assignees=[target_id],
-                date_updated_gt=start_ms,
-                include_closed=True,
+            cache = self._load_assigned_cache(
+                team_id, target_id, start_ms, end_ms, notes, include_open=want_scheduled
             )
 
         activities: List[Dict[str, Any]] = []
         if want_touched:
+            recent_assigned = [task for task in cache if task_updated_after(task, start_ms)]
             activities = self._collect_activities(
                 target_id, entries, recent_assigned, start_ms, end_ms, notes
             )
@@ -595,9 +600,12 @@ class TimeReportCommand(TimeCommandBase):
             notes.append("Touched-task scan skipped (--no-touched); only tracked tasks are listed.")
 
         schedule: List[Dict[str, Any]] = []
+        open_work: List[Dict[str, Any]] = []
         if want_scheduled:
-            schedule = self._collect_schedule(
-                team_id, target_id, recent_assigned, start_ms, end_ms, notes
+            today_start_ms = local_midnight_ms(today, tz)
+            today_end_ms = local_midnight_ms(today + timedelta(days=1), tz) - 1
+            schedule, open_work = self._collect_schedule(
+                cache, start_ms, end_ms, today_start_ms, today_end_ms, notes
             )
 
         report = build_time_report(
@@ -612,6 +620,7 @@ class TimeReportCommand(TimeCommandBase):
             week_start=REPORT_WEEK_START,
             notes=notes,
             schedule=schedule,
+            open_work=open_work,
         )
         self._emit(report)
 
@@ -768,19 +777,34 @@ class TimeReportCommand(TimeCommandBase):
             notes.append(f"Comments could not be read for {failed} task(s).")
         return activities
 
-    def _collect_schedule(
+    def _load_assigned_cache(
         self,
         team_id: str,
         target_id: str,
-        recent_assigned: List[Dict[str, Any]],
         start_ms: int,
         end_ms: int,
         notes: List[str],
+        include_open: bool,
     ) -> List[Dict[str, Any]]:
-        """Assigned tasks whose due date or start date falls inside the range."""
-        # ClickUp filters due dates server-side (closed tasks included, so "finished early"
-        # still shows). There is no start-date filter, so start dates come from the open
-        # assigned tasks plus the ones already read because they changed during the range.
+        """
+        Read the assigned tasks once and return them deduped by id.
+
+        Closed tasks updated in the range cover touched signals and start dates on work
+        that has since been closed. When the schedule is wanted, open tasks are read with
+        no date filter and merged in last, so a task due next month or overdue from last
+        month is in the cache even though a due-date window would have dropped it.
+        """
+        updated = self._fetch_task_pages(
+            team_id,
+            notes,
+            "assigned tasks updated in range",
+            assignees=[target_id],
+            date_updated_gt=start_ms,
+            include_closed=True,
+        )
+        if not include_open:
+            return updated
+
         due = self._fetch_task_pages(
             team_id,
             notes,
@@ -791,15 +815,45 @@ class TimeReportCommand(TimeCommandBase):
             include_closed=True,
         )
         open_assigned = self._fetch_task_pages(
-            team_id, notes, "open assigned tasks", assignees=[target_id]
+            team_id,
+            notes,
+            "open assigned tasks",
+            assignees=[target_id],
+            include_closed=False,
         )
+        merged: Dict[str, Dict[str, Any]] = {}
+        for task in (*due, *updated, *open_assigned):
+            if isinstance(task, dict) and task.get("id"):
+                merged[str(task["id"])] = task
+        return list(merged.values())
+
+    def _collect_schedule(
+        self,
+        cache: List[Dict[str, Any]],
+        start_ms: int,
+        end_ms: int,
+        today_start_ms: int,
+        today_end_ms: int,
+        notes: List[str],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Build the per-day schedule and the in-progress/overdue list from ``cache``."""
         notes.append(
             "Due or starting: tasks assigned to the user whose due date or start date falls "
-            "on the day. Overdue means the task was still open after its due day. Start dates "
-            "come from open assigned tasks and tasks updated during the range, so a task closed "
-            "before the range began is not listed by its start date."
+            "on the day. Overdue on that list means the task was still open after its due day. "
+            "Start dates come from open assigned tasks and tasks updated during the range, so a "
+            "task closed before the range began is not listed by its start date."
         )
-        return derive_schedule_items([*due, *open_assigned, *recent_assigned], start_ms, end_ms)
+        notes.append(
+            "In progress and overdue is built from the cached assigned tasks, not from the "
+            "due-date filter. In progress: open, due after today, start date today or earlier "
+            "or blank. Overdue: open, due before today. Time estimate is the task's own estimate. "
+            "Total time estimate adds subtasks that were in the cache; a subtask assigned to "
+            "someone else is not included."
+        )
+        return (
+            derive_schedule_items(cache, start_ms, end_ms),
+            derive_open_work(cache, today_start_ms, today_end_ms),
+        )
 
     # ---------- output ----------
 
@@ -930,8 +984,11 @@ def register_command(subparsers):
             "Build a read-only timesheet for a user: tracked time for each day of each "
             "week, the tasks it was tracked against, and the tasks the user touched each "
             "day (tracked time, comments, tasks created, plus closes/updates on tasks "
-            "assigned to them), and assigned tasks due or starting each day. Defaults to "
-            "the token owner and the current week. Nothing in ClickUp is created or changed."
+            "assigned to them), and assigned tasks due or starting each day. Also lists "
+            "open tasks that are overdue, or due after today with a start date today "
+            "or earlier, or blank, with each task's time estimate and the total including "
+            "subtasks. Defaults to the token owner and the current week. Nothing in "
+            "ClickUp is created or changed."
         ),
         epilog=(
             "Examples:\n"

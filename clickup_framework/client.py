@@ -226,6 +226,11 @@ class ClickUpClient:
                 if isinstance(value, list):
                     # Use bracket notation for array parameters
                     normalized_params[f"{key}[]"] = value
+                elif isinstance(value, bool):
+                    # ClickUp treats the strings "True"/"False" as the wrong flag, so
+                    # subtasks=True was silently ignored and include_closed=False did
+                    # not exclude closed tasks.
+                    normalized_params[key] = "true" if value else "false"
                 else:
                     normalized_params[key] = value
             params = normalized_params

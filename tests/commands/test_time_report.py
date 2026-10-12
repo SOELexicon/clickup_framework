@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import json
 from argparse import Namespace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 import pytest
 
+from clickup_framework.client import ClickUpClient
 from clickup_framework.commands.time_commands import TimeReportCommand
 from clickup_framework.commands.time_report_helpers import (
     build_time_report,
     derive_comment_activities,
+    derive_open_work,
     derive_schedule_items,
     derive_task_activities,
     format_hours,
@@ -52,7 +54,12 @@ def _entry(start_ms, duration_ms, task_id="t1", name="Task One", **extra):
 
 
 def _report(
-    entries, activities=(), start=date(2026, 10, 5), end=date(2026, 10, 18), schedule=()
+    entries,
+    activities=(),
+    start=date(2026, 10, 5),
+    end=date(2026, 10, 18),
+    schedule=(),
+    open_work=(),
 ):
     return build_time_report(
         user=USER,
@@ -66,6 +73,7 @@ def _report(
         notes=["a note"],
         generated_at=datetime(2026, 10, 12, 9, 0, tzinfo=UTC),
         schedule=schedule,
+        open_work=open_work,
     )
 
 
@@ -288,6 +296,83 @@ def test_schedule_items_dedupe_merge_and_flag_overdue():
     assert "Due or starting:" in markdown_text and ": Overdue" in markdown_text
 
 
+def test_open_work_includes_overdue_and_future_due_with_blank_or_past_start():
+    today = date(2026, 10, 12)
+    today_start = local_midnight_ms(today, UTC)
+    today_end = local_midnight_ms(today + timedelta(days=1), UTC) - 1
+
+    future_blank = _task("blank")
+    future_blank["due_date"] = str(_ms(2026, 11, 2, 17))
+    future_blank["time_estimate"] = 4 * HOUR
+
+    started = _task("gone")
+    started["start_date"] = str(_ms(2026, 10, 1, 9))
+    started["due_date"] = str(_ms(2026, 10, 20, 17))
+    started["time_estimate"] = HOUR
+    child = _task("sub")
+    child["parent"] = "gone"
+    child["due_date"] = str(_ms(2026, 10, 20, 17))
+    child["time_estimate"] = 2 * HOUR
+
+    overdue = _task("old")
+    overdue["due_date"] = str(_ms(2026, 9, 1, 17))
+
+    starts_today = _task("today")
+    starts_today["start_date"] = str(_ms(2026, 10, 12, 9))
+    starts_today["due_date"] = str(_ms(2026, 10, 20, 17))
+
+    starts_later = _task("later")
+    starts_later["start_date"] = str(_ms(2026, 10, 15, 9))
+    starts_later["due_date"] = str(_ms(2026, 11, 1, 17))
+
+    due_today = _task("due")
+    due_today["due_date"] = str(_ms(2026, 10, 12, 17))
+
+    closed = _task("done", closed=_ms(2026, 9, 2))
+    closed["due_date"] = str(_ms(2026, 9, 1, 17))
+
+    tasks = [
+        future_blank,
+        started,
+        dict(started),
+        child,
+        overdue,
+        starts_today,
+        starts_later,
+        due_today,
+        closed,
+        _task("none"),
+    ]
+    items = derive_open_work(tasks, today_start, today_end)
+    assert [item["task_id"] for item in items] == ["old", "gone", "sub", "today", "blank"]
+    assert items[0]["overdue"] is True and items[1]["in_progress"] is True
+    assert items[1]["estimate_ms"] == HOUR
+    assert items[1]["total_estimate_ms"] == 3 * HOUR
+    assert items[2]["estimate_ms"] == 2 * HOUR and items[2]["total_estimate_ms"] == 2 * HOUR
+    assert items[4]["estimate"] == "4h" and items[4]["total_estimate"] == "4h"
+
+    report = _report([], open_work=items)
+    assert report["summary"]["open_work_overdue_count"] == 1
+    assert report["summary"]["open_work_in_progress_count"] == 4
+    # "gone" already includes "sub", so the plate total is 3h + 4h, not 3h + 2h + 4h.
+    assert report["summary"]["open_work_total_estimate_ms"] == 7 * HOUR
+    assert report["summary"]["open_work_estimate_ms"] == 7 * HOUR
+
+    html_text = render_html(report)
+    assert "In progress and overdue" in html_text
+    assert "Est 1h / Total 3h" in html_text
+    assert "Task later" not in html_text
+    markdown_text = render_markdown(report)
+    assert "## In progress and overdue" in markdown_text
+    assert "Est 4h / Total 4h" in markdown_text
+
+    scheduled = derive_schedule_items(
+        [started, child], _ms(2026, 10, 20), _ms(2026, 10, 21) - 1
+    )
+    due = next(item for item in scheduled if item["task_id"] == "gone")
+    assert due["total_estimate_ms"] == 3 * HOUR
+
+
 # ==================== renderers ====================
 
 
@@ -435,6 +520,7 @@ def test_no_touched_still_reads_schedule_but_not_comments(tmp_path):
     filters = [call.kwargs for call in client.get_team_tasks.call_args_list]
     assert any("due_date_gt" in f and f["include_closed"] for f in filters)
     assert any("date_updated_gt" in f for f in filters)
+    assert any(f.get("include_closed") is False for f in filters)
     assert all(f["assignees"] == ["42"] and f["subtasks"] for f in filters)
 
 
@@ -450,3 +536,61 @@ def test_schedule_lists_due_and_start_dates_from_the_command(tmp_path, capsys):
     assert [s["task_id"] for s in days["2026-10-08"]["scheduled"]] == ["s1"]
     assert days["2026-10-08"]["scheduled"][0]["due"] is True
     assert days["2026-10-06"]["scheduled"][0]["starts"] is True
+
+
+def test_plate_uses_cached_open_tasks_the_due_filter_would_drop(tmp_path, capsys):
+    client = _mock_client()
+    today = datetime.now(UTC).date()
+    future = today + timedelta(days=40)
+    past = today - timedelta(days=40)
+    later = today + timedelta(days=10)
+
+    spanning = _task("span")
+    spanning["due_date"] = str(_ms(future.year, future.month, future.day, 12))
+    spanning["start_date"] = str(_ms(past.year, past.month, past.day, 12))
+    spanning["time_estimate"] = 2 * HOUR
+    child = _task("kid")
+    child["parent"] = "span"
+    child["due_date"] = str(_ms(future.year, future.month, future.day, 12))
+    child["time_estimate"] = HOUR
+    overdue = _task("late")
+    overdue["due_date"] = str(_ms(past.year, past.month, past.day, 12))
+    overdue["time_estimate"] = 30 * 60_000
+    not_started = _task("wait")
+    not_started["start_date"] = str(_ms(later.year, later.month, later.day, 12))
+    not_started["due_date"] = str(_ms(future.year, future.month, future.day, 12))
+
+    def get_team_tasks(team_id, **kwargs):
+        if kwargs.get("due_date_gt") is not None or kwargs.get("date_updated_gt") is not None:
+            return {"tasks": [], "last_page": True}
+        return {"tasks": [spanning, child, overdue, not_started], "last_page": True}
+
+    client.get_team_tasks.side_effect = get_team_tasks
+    _run(_command_args(tmp_path, format="json", report_output_file=None), client)
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+
+    plate = {item["task_id"]: item for item in payload["open_work"]}
+    assert set(plate) == {"span", "kid", "late"}
+    assert plate["late"]["overdue"] is True
+    assert plate["span"]["in_progress"] is True
+    assert plate["span"]["estimate_ms"] == 2 * HOUR
+    assert plate["span"]["total_estimate_ms"] == 3 * HOUR
+    assert payload["summary"]["open_work_total_estimate_ms"] == 3 * HOUR + 30 * 60_000
+    assert "Task wait" not in output
+
+
+def test_boolean_query_params_are_lowercase_for_clickup():
+    client = ClickUpClient(api_token="pk_test")
+    response = Mock(status_code=200)
+    response.json.return_value = {"tasks": [], "last_page": True}
+    client.session = Mock()
+    client.session.request.return_value = response
+    client.rate_limiter = Mock()
+
+    client.get_team_tasks("team-1", subtasks=True, include_closed=False, assignees=["42"])
+
+    params = client.session.request.call_args.kwargs["params"]
+    assert params["subtasks"] == "true"
+    assert params["include_closed"] == "false"
+    assert params["assignees[]"] == ["42"]

@@ -8,7 +8,8 @@ user input and user input has opinions about angle brackets.
 
 Variables:  PAGE_CSS
 Functions:  render_html (plus private _plural, _e, _link, _tile, _day_strip, _task_matrix,
-            _entries_table, _touched_list, _scheduled_list, _day_details, _all_tasks)
+            _entries_table, _touched_list, _scheduled_list, _open_work_section,
+            _day_details, _all_tasks)
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any, Dict, List
 
-from .report_builder import format_hours
+from .report_builder import format_estimate_label, format_hours
 
 PAGE_CSS = """
 :root {
@@ -227,6 +228,13 @@ def _touched_list(day: Dict[str, Any]) -> str:
     return f'<ul class="touched">{"".join(items)}</ul>'
 
 
+def _estimate_html(item: Dict[str, Any]) -> str:
+    label = format_estimate_label(item)
+    if not label:
+        return ""
+    return f' <span class="sub">{_e(label)}</span>'
+
+
 def _scheduled_list(day: Dict[str, Any]) -> str:
     items = []
     for item in day["scheduled"]:
@@ -247,8 +255,42 @@ def _scheduled_list(day: Dict[str, Any]) -> str:
         extra_html = f' <span class="sub">{extra}</span>' if extra else ""
         link = _link(item["name"], item["url"])
         row_class = ' class="closed"' if item["closed"] else ""
-        items.append(f"<li{row_class}>{link}{extra_html}<div>{''.join(badges)}</div></li>")
+        items.append(
+            f"<li{row_class}>{link}{extra_html}{_estimate_html(item)}"
+            f"<div>{''.join(badges)}</div></li>"
+        )
     return f'<ul class="touched">{"".join(items)}</ul>'
+
+
+def _open_work_section(report: Dict[str, Any]) -> str:
+    items = report.get("open_work") or []
+    if not items:
+        return ""
+    summary = report["summary"]
+    rows = []
+    for item in items:
+        badge = (
+            '<span class="badge over">Overdue</span>'
+            if item.get("overdue")
+            else '<span class="badge start">In progress</span>'
+        )
+        extra = " &middot; ".join(
+            _e(part) for part in (item.get("status"), item.get("location")) if part
+        )
+        extra_html = f' <span class="sub">{extra}</span>' if extra else ""
+        rows.append(
+            f"<li>{_link(item['name'], item['url'])}{extra_html}{_estimate_html(item)}"
+            f"<div>{badge}</div></li>"
+        )
+    pill = (
+        f"{summary.get('open_work_count', len(items))} &middot; "
+        f"total {_e(summary.get('open_work_total_estimate', '0m'))}"
+    )
+    return (
+        '<section class="week"><div class="week-head"><h2>In progress and overdue</h2>'
+        f'<span class="pill">{pill}</span></div>'
+        f'<ul class="touched">{"".join(rows)}</ul></section>'
+    )
 
 
 def _day_details(week: Dict[str, Any]) -> str:
@@ -303,9 +345,11 @@ def render_html(report: Dict[str, Any]) -> str:
     """
     Purpose:    Render the report as a single self-contained HTML page.
     Usage:      html_text = render_html(build_time_report(...))
-    Version:    0.1.0
+    Version:    0.3.0
     Changes:    [v0.1.0] Initial: tiles, per-week day strip, task x day matrix, day detail
                 with time entries and touched tasks (actor-unknown signals styled apart).
+                [v0.2.0] Due / starting list.
+                [v0.3.0] In progress and overdue section, with time estimate and total.
     """
     user = report["user"]
     summary = report["summary"]
@@ -324,6 +368,10 @@ def render_html(report: Dict[str, Any]) -> str:
         _tile("Tasks touched", summary["touched_task_count"]),
         _tile("Due in range", summary.get("due_count", 0)),
         _tile("Starting in range", summary.get("starting_count", 0)),
+        _tile("In progress", summary.get("open_work_in_progress_count", 0)),
+        _tile("Overdue", summary.get("open_work_overdue_count", 0)),
+        _tile("Time estimated", summary.get("open_work_estimate", "0m")),
+        _tile("Total estimated", summary.get("open_work_total_estimate", "0m")),
     ]
 
     weeks_html: List[str] = []
@@ -361,11 +409,13 @@ def render_html(report: Dict[str, Any]) -> str:
         f"<span>Workspace {_e(report['workspace_id'])}</span>"
         f"<span>Generated {_e(report['generated_at'])}</span>{running}</div>"
         f'<div class="tiles">{"".join(tiles)}</div>'
-        f'{"".join(weeks_html)}{_all_tasks(report)}{notes}'
+        f"{_open_work_section(report)}{''.join(weeks_html)}{_all_tasks(report)}{notes}"
         '<p class="legend">Blue badges are activity attributed to the user (tracked time, '
         "comments, tasks created). Amber badges are timestamps on tasks assigned to the user "
         "where ClickUp does not say who made the change. Due and Starts mark tasks assigned "
-        "to the user whose due or start date falls on that day; Overdue means still open "
-        "after its due day.</p>"
+        "to the user whose due or start date falls on that day. In progress means the due "
+        "date is after today and the start date is today or earlier, or blank. Overdue means "
+        "still open with a due date before today. Est is the task's own time estimate; "
+        "Total adds subtasks included in the assigned-task cache.</p>"
         "</main></body></html>\n"
     )

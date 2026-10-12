@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
-from .report_builder import format_hours
+from .report_builder import format_estimate_label, format_hours
 
 
 def render_json(report: Dict[str, Any]) -> str:
@@ -83,7 +83,37 @@ def _schedule_label(item: Dict[str, Any]) -> str:
         parts.append("Starts")
     if item["closed"]:
         parts.append("Done")
+    estimate = format_estimate_label(item)
+    if estimate:
+        parts.append(estimate)
     return ", ".join(parts)
+
+
+def _open_work_lines(report: Dict[str, Any]) -> List[str]:
+    items = report.get("open_work") or []
+    if not items:
+        return []
+    summary = report["summary"]
+    lines = [
+        "## In progress and overdue",
+        "",
+        f"{summary.get('open_work_in_progress_count', 0)} in progress, "
+        f"{summary.get('open_work_overdue_count', 0)} overdue. "
+        f"Time estimated {summary.get('open_work_estimate', '0m')}, "
+        f"total time estimated {summary.get('open_work_total_estimate', '0m')}.",
+        "",
+    ]
+    for item in items:
+        where = f" ({item['location']})" if item.get("location") else ""
+        status = f" [{item['status']}]" if item.get("status") else ""
+        kind = "Overdue" if item.get("overdue") else "In progress"
+        estimate = format_estimate_label(item)
+        suffix = f". {estimate}" if estimate else ""
+        lines.append(
+            f"- {_md_link(item['name'], item['url'])}{status}{where}: {kind}{suffix}"
+        )
+    lines.append("")
+    return lines
 
 
 def _day_detail(day: Dict[str, Any]) -> List[str]:
@@ -136,9 +166,10 @@ def render_markdown(report: Dict[str, Any]) -> str:
     """
     Purpose:    Render the report as GitHub-flavoured Markdown.
     Usage:      text = render_markdown(build_time_report(...))
-    Version:    0.2.0
+    Version:    0.3.0
     Changes:    [v0.1.0] Initial: summary, per-week day table, task x day matrix, day detail.
                 [v0.2.0] Due / starting column and per-day "Due or starting" list.
+                [v0.3.0] In progress and overdue section, with time estimate and total.
     """
     user = report["user"]
     summary = report["summary"]
@@ -164,10 +195,15 @@ def render_markdown(report: Dict[str, Any]) -> str:
         f"- Due in range: {summary.get('due_count', 0)} "
         f"(overdue and still open: {summary.get('overdue_count', 0)})",
         f"- Starting in range: {summary.get('starting_count', 0)}",
+        f"- In progress: {summary.get('open_work_in_progress_count', 0)}",
+        f"- Overdue: {summary.get('open_work_overdue_count', 0)}",
+        f"- Time estimated on that work: {summary.get('open_work_estimate', '0m')}",
+        f"- Total time estimated on that work: {summary.get('open_work_total_estimate', '0m')}",
     ]
     if summary["running_entries"]:
         lines.append(f"- Running timers included up to now: {summary['running_entries']}")
     lines.append("")
+    lines.extend(_open_work_lines(report))
 
     for week in report["weeks"]:
         lines.extend([f"## {week['label']} ({week['total']})", ""])
