@@ -12,6 +12,7 @@ import pytest
 from clickup_framework.client import ClickUpClient
 from clickup_framework.commands.time_commands import TimeReportCommand
 from clickup_framework.commands.time_report_helpers import (
+    build_task_index,
     build_time_report,
     derive_comment_activities,
     derive_open_work,
@@ -24,7 +25,10 @@ from clickup_framework.commands.time_report_helpers import (
     resolve_report_range,
     resolve_report_timezone,
 )
-from clickup_framework.commands.time_report_helpers.report_builder import local_midnight_ms
+from clickup_framework.commands.time_report_helpers.report_builder import (
+    local_midnight_ms,
+    safe_color,
+)
 
 UTC = timezone.utc
 HOUR = 3_600_000
@@ -60,6 +64,7 @@ def _report(
     end=date(2026, 10, 18),
     schedule=(),
     open_work=(),
+    task_index=None,
 ):
     return build_time_report(
         user=USER,
@@ -74,6 +79,7 @@ def _report(
         generated_at=datetime(2026, 10, 12, 9, 0, tzinfo=UTC),
         schedule=schedule,
         open_work=open_work,
+        task_index=task_index,
     )
 
 
@@ -371,14 +377,16 @@ def test_open_work_includes_overdue_and_future_due_with_blank_or_past_start():
     assert report["summary"]["open_work_estimate_ms"] == 7 * HOUR
 
     html_text = render_html(report)
-    assert "Assigned tasks" in html_text
-    assert "Est 1h / Total 3h" in html_text
+    assert "Assigned and tracked" in html_text
+    gone_row = html_text[html_text.index("Task gone") :].split("</tr>")[0]
+    assert '<td class="n">1h</td><td class="n">3h</td>' in gone_row
     assert "Task later" in html_text and "Task done" not in html_text
     assert html_text.index("Task gone") < html_text.index("Task sub")
     markdown_text = render_markdown(report)
-    assert "## Assigned tasks" in markdown_text
+    assert "## Assigned and tracked" in markdown_text
     assert "### Backlog" in markdown_text
-    assert "Est 4h / Total 4h" in markdown_text
+    blank_row = next(line for line in markdown_text.splitlines() if "Task blank" in line)
+    assert "| 4h | 4h |" in blank_row
 
     scheduled = derive_schedule_items(
         [started, child], _ms(2026, 10, 20), _ms(2026, 10, 21) - 1
@@ -644,3 +652,108 @@ def test_boolean_query_params_are_lowercase_for_clickup():
     assert params["subtasks"] == "true"
     assert params["include_closed"] == "false"
     assert params["assignees[]"] == ["42"]
+
+
+# ==================== task detail index ====================
+
+
+def _rich_task(task_id="r1", **extra):
+    task = _task(task_id, updated=_ms(2026, 10, 9, 10))
+    task.update(
+        {
+            "custom_id": "DEV-7",
+            "status": {"status": "in review", "color": "#7c3aed", "type": "custom"},
+            "priority": {"priority": "high", "color": "#f50000"},
+            "assignees": [
+                {"id": 42, "username": "Ada", "initials": "AL", "color": "#eeeeee"},
+                {"id": 7, "username": "Bob", "initials": "BB", "color": "#595d66"},
+            ],
+            "tags": [{"name": "billing"}, {"name": "urgent"}],
+            "start_date": str(_ms(2026, 10, 6, 23, 30)),
+            "due_date": str(_ms(2026, 10, 9, 17)),
+            "time_estimate": str(4 * HOUR),
+            "time_spent": str(5 * HOUR),
+        }
+    )
+    task.update(extra)
+    return task
+
+
+def test_task_index_carries_people_dates_estimates_and_booked_time():
+    parent = _task("p0")
+    parent["time_estimate"] = str(HOUR)
+    child = _rich_task("r1", parent="p0")
+    stub = {"id": "r1", "name": "Task r1"}  # compact subtask stub must not win
+    index = build_task_index([parent, child, stub], UTC, date(2026, 10, 12))
+
+    detail = index["r1"]
+    assert [p["username"] for p in detail["assignees"]] == ["Ada", "Bob"]
+    assert detail["custom_id"] == "DEV-7" and detail["priority"] == "high"
+    assert detail["status"] == "in review" and detail["status_color"] == "#7c3aed"
+    assert detail["tags"] == ["billing", "urgent"]
+    assert detail["start_date"] == "2026-10-06" and detail["due_date"] == "2026-10-09"
+    assert detail["due_in_days"] == -3
+    assert detail["booked_ms"] == 5 * HOUR and detail["booked"] == "5h"
+    assert detail["estimate_ms"] == 4 * HOUR
+    assert detail["parent_name"] == "Task p0"
+    assert index["p0"]["total_estimate_ms"] == 5 * HOUR
+    assert detail["closed"] is False
+
+
+def test_task_index_dates_follow_the_report_timezone():
+    london = resolve_report_timezone("Europe/London")
+    if london is None:
+        pytest.skip("IANA time zone data not available on this machine")
+    # 23:30 UTC on 6 Oct is 00:30 BST on 7 Oct.
+    index = build_task_index([_rich_task()], london, date(2026, 10, 12))
+    assert index["r1"]["start_date"] == "2026-10-07"
+
+
+def test_safe_color_only_allows_plain_hex():
+    assert safe_color("#abc") == "#abc" and safe_color("#A1B2C3ff") == "#A1B2C3ff"
+    for bad in ("red", "#12", "#abc;}</style><script>", "url(x)", None, ""):
+        assert safe_color(bad) == ""
+
+
+def test_detail_columns_render_and_hostile_colours_are_dropped():
+    nasty = '#fff;}</style><script>alert(1)</script>'
+    task = _rich_task(status={"status": "open", "color": nasty, "type": "open"})
+    task["assignees"][0]["color"] = nasty
+    task["priority"] = {"priority": "urgent", "color": nasty}
+    index = build_task_index([task], UTC, date(2026, 10, 12))
+    entry = _entry(_ms(2026, 10, 6, 9), HOUR, task_id="r1", name="Task r1")
+    report = _report([entry], task_index=index)
+
+    html_text = render_html(report)
+    assert "<script>" not in html_text and "</style><script" not in html_text
+    assert "Ada" in html_text and "Bob" in html_text
+    assert "Booked (all users)" in html_text and "Tracked (you)" in html_text
+    assert "3d overdue" in html_text and "DEV-7" in html_text
+    assert "max-width: 1180px" not in html_text
+
+    markdown_text = render_markdown(report)
+    matrix_row = next(line for line in markdown_text.splitlines() if "Task r1" in line)
+    assert "Ada, Bob" in matrix_row and "| 5h |" in matrix_row
+
+    payload = json.loads(render_json(report))
+    assert payload["schema_version"] == 3
+    assert payload["task_index"]["r1"]["assignees"][1]["username"] == "Bob"
+
+
+def test_closed_tracked_task_is_done_not_overdue():
+    today = date(2026, 10, 12)
+    today_start = local_midnight_ms(today, UTC)
+    today_end = local_midnight_ms(today + timedelta(days=1), UTC) - 1
+    finished = _task("fin", closed=_ms(2026, 10, 1))
+    finished["due_date"] = str(_ms(2026, 9, 15, 17))
+    items = derive_open_work([finished], today_start, today_end, tracked_ms={"fin": HOUR})
+
+    assert len(items) == 1
+    item = items[0]
+    assert item["closed"] is True
+    assert not item["overdue"] and not item["due_today"] and not item["in_progress"]
+    report = _report([], open_work=items)
+    assert report["summary"]["open_work_overdue_count"] == 0
+    row = render_html(report).split("Task fin")[1].split("</tr>")[0]
+    assert "Done" in row and "Overdue" not in row
+

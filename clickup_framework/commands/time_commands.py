@@ -21,6 +21,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from clickup_framework.commands.base_command import BaseCommand
 from clickup_framework.commands.time_report_helpers import (
+    build_task_index,
     build_time_report,
     derive_comment_activities,
     derive_open_work,
@@ -536,7 +537,7 @@ class TimeReportCommand(TimeCommandBase):
                                 [--timezone ZONE] [--no-touched] [--no-scheduled] [--team ID]
                 Only GET endpoints are called. Nothing in ClickUp is created, edited or
                 persisted locally apart from the report file itself.
-    Version:    0.4.0
+    Version:    0.5.0
     Changes:    [v0.1.0] Initial: weekly/daily/task rollup, touched-task signals (tracked,
                 commented, created; plus actor-unknown closes/updates on assigned tasks),
                 HTML (default), JSON and Markdown output.
@@ -549,6 +550,9 @@ class TimeReportCommand(TimeCommandBase):
                 time estimate and the total including subtasks in the cache.
                 [v0.4.0] Tasks with tracked time are included even when the user is not
                 the assignee, and the week matrix shows Est and Total est.
+                [v0.5.0] Task index built from the same cached reads (no extra requests):
+                assignees, status, priority, tags, start/due/created/updated/closed dates
+                and time booked by all users, shown as columns in every task table.
     """
 
     def execute(self):
@@ -652,6 +656,7 @@ class TimeReportCommand(TimeCommandBase):
             schedule=schedule,
             open_work=open_work,
             estimates=estimate_fields,
+            task_index=build_task_index(cache, tz, today),
         )
         self._emit(report)
 

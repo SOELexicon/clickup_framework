@@ -3,6 +3,7 @@
 from .html_renderer import render_html
 from .renderers import render_json, render_markdown
 from .report_builder import (
+    build_task_index,
     build_time_report,
     derive_comment_activities,
     derive_open_work,
@@ -16,12 +17,14 @@ from .report_builder import (
     range_bounds_ms,
     resolve_report_range,
     resolve_report_timezone,
+    safe_color,
     task_info_from_task,
     task_updated_after,
     timezone_label,
 )
 
 __all__ = [
+    "build_task_index",
     "build_time_report",
     "derive_comment_activities",
     "derive_open_work",
@@ -38,6 +41,7 @@ __all__ = [
     "render_markdown",
     "resolve_report_range",
     "resolve_report_timezone",
+    "safe_color",
     "task_info_from_task",
     "task_updated_after",
     "timezone_label",
