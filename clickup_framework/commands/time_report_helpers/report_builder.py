@@ -10,22 +10,24 @@ without a token.
 Variables:  REPORT_SCHEMA_VERSION, WEEKDAY_NAMES, MS_PER_HOUR, MS_PER_MINUTE, DAYS_PER_WEEK,
             SIGNAL_TRACKED, SIGNAL_COMMENTED, SIGNAL_CREATED, SIGNAL_CLOSED, SIGNAL_UPDATED,
             ATTRIBUTED_SIGNALS, SIGNAL_ORDER, NO_TASK_ID, NO_TASK_NAME, SCHEDULE_DUE,
-            SCHEDULE_START, CLOSED_STATUS_TYPES
+            SCHEDULE_START, CLOSED_STATUS_TYPES, HEX_COLOR
 Functions:  resolve_report_timezone, timezone_label, local_date, local_datetime,
             local_midnight_ms, week_start_for, resolve_report_range, range_bounds_ms,
             format_hours, hours_value, format_estimate_label, open_work_label,
-            task_updated_after, task_info_from_task, rollup_time_estimates,
+            task_updated_after, task_info_from_task, safe_color, build_task_index,
+            rollup_time_estimates,
             derive_task_activities, derive_schedule_items, derive_open_work,
             derive_comment_activities, build_time_report
 """
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta, tzinfo
 from decimal import Decimal
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-REPORT_SCHEMA_VERSION = 2
+REPORT_SCHEMA_VERSION = 3
 WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 MS_PER_MINUTE = 60_000
 MS_PER_HOUR = 3_600_000
@@ -51,6 +53,9 @@ NO_TASK_NAME = "(no task)"
 SCHEDULE_DUE = "due"
 SCHEDULE_START = "start"
 CLOSED_STATUS_TYPES = frozenset({"closed", "done"})
+
+# ClickUp colours go into style="" attributes; only plain hex survives.
+HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3,8}$")
 
 
 # ==================== Time zone and calendar helpers ====================
@@ -232,7 +237,9 @@ def estimates_for(
 
 
 def open_work_label(item: Dict[str, Any]) -> str:
-    """Badge text for an assigned task: Overdue, Due today, In progress, or blank."""
+    """Badge text for an assigned task: Done, Overdue, Due today, In progress, or blank."""
+    if item.get("closed"):
+        return "Done"
     if item.get("overdue"):
         return "Overdue"
     if item.get("due_today"):
@@ -343,6 +350,106 @@ def task_info_from_task(task: Dict[str, Any]) -> Dict[str, Any]:
         "status": status_name or "",
         "location": " / ".join(location_parts),
     }
+
+
+def safe_color(value: Any) -> str:
+    """
+    Purpose:    Return a CSS hex colour, or "" for anything else.
+    Usage:      ClickUp colours end up inside style="" attributes, so they get a strict
+                allow-list rather than an escape: "#abc" passes, "red;}</style>" does not.
+    Version:    0.1.0
+    Changes:    [v0.1.0] Initial.
+    """
+    text = str(value or "").strip()
+    return text if HEX_COLOR.match(text) else ""
+
+
+def _iso_day(ms: Optional[int], tz: Optional[tzinfo]) -> str:
+    return local_date(ms, tz).isoformat() if ms is not None else ""
+
+
+def _richness(task: Dict[str, Any]) -> int:
+    """Rough count of populated fields, so a full payload beats a compact subtask stub."""
+    return sum(1 for value in task.values() if value not in (None, "", [], {}))
+
+
+def build_task_index(
+    tasks: Iterable[Dict[str, Any]],
+    tz: Optional[tzinfo],
+    today: date,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Purpose:    One detail record per task the report already read, keyed by task id.
+    Usage:      Renderers look rows up here by task_id to show assignees, status, priority,
+                tags, start/due/created/updated/closed dates, estimates (own and rolled up
+                with the same rollup as the open-work list) and time booked by everyone
+                (ClickUp's time_spent, which counts all users, not just the report user).
+                Dates are calendar dates in ``tz``; the team-task payload has no "has a time"
+                flag, so times are never shown. Missing tasks simply have no entry.
+    Version:    0.1.0
+    Changes:    [v0.1.0] Initial.
+    """
+    best: Dict[str, Dict[str, Any]] = {}
+    for task in tasks:
+        if not isinstance(task, dict) or not task.get("id"):
+            continue
+        key = str(task["id"])
+        if key not in best or _richness(task) > _richness(best[key]):
+            best[key] = task
+
+    rollup = rollup_time_estimates(best.values())
+    names = {key: task.get("name") or NO_TASK_NAME for key, task in best.items()}
+    index: Dict[str, Dict[str, Any]] = {}
+    for key, task in best.items():
+        status = task.get("status") if isinstance(task.get("status"), dict) else {}
+        priority = task.get("priority") if isinstance(task.get("priority"), dict) else {}
+        creator = task.get("creator") if isinstance(task.get("creator"), dict) else {}
+        parent = task.get("parent")
+        parent_id = "" if parent in (None, "", "null") else str(parent)
+        due_ms = _to_ms(task.get("due_date"))
+        closed_ms = _to_ms(task.get("date_done")) or _to_ms(task.get("date_closed"))
+        booked_ms = max(_to_ms(task.get("time_spent")) or 0, 0)
+        assignees = [
+            {
+                "id": str(person.get("id") or ""),
+                "username": person.get("username") or person.get("email") or "",
+                "initials": person.get("initials") or "",
+                "color": safe_color(person.get("color")),
+            }
+            for person in task.get("assignees") or []
+            if isinstance(person, dict)
+        ]
+        index[key] = {
+            **task_info_from_task(task),
+            **_estimate_fields(key, rollup),
+            "custom_id": task.get("custom_id") or "",
+            "status_type": status.get("type") or "",
+            "status_color": safe_color(status.get("color")),
+            "closed": _task_is_closed(task),
+            "priority": priority.get("priority") or "",
+            "priority_color": safe_color(priority.get("color")),
+            "assignees": assignees,
+            "creator": creator.get("username") or "",
+            "tags": [
+                tag["name"]
+                for tag in task.get("tags") or []
+                if isinstance(tag, dict) and tag.get("name")
+            ],
+            "points": task.get("points"),
+            "start_date": _iso_day(_to_ms(task.get("start_date")), tz),
+            "due_date": _iso_day(due_ms, tz),
+            "due_in_days": (
+                (local_date(due_ms, tz) - today).days if due_ms is not None else None
+            ),
+            "date_created": _iso_day(_to_ms(task.get("date_created")), tz),
+            "date_updated": _iso_day(_to_ms(task.get("date_updated")), tz),
+            "date_closed": _iso_day(closed_ms, tz),
+            "booked_ms": booked_ms,
+            "booked": format_hours(booked_ms) if booked_ms else "",
+            "parent_id": parent_id,
+            "parent_name": names.get(parent_id, "") if parent_id else "",
+        }
+    return index
 
 
 def derive_task_activities(
@@ -483,11 +590,13 @@ def derive_open_work(
                 In progress means the due date is after today and the start date is today
                 or earlier, or blank. ``list_order`` maps a list id to (space index,
                 folder order, list order). Subtasks sit under their parent.
-    Version:    0.3.0
+    Version:    0.4.0
     Changes:    [v0.1.0] Initial: overdue and in-progress tasks only.
                 [v0.2.0] Every open assigned task, grouped by folder and list order.
                 [v0.3.0] Tasks with tracked time stay in the list even when the user
                 is not the assignee.
+                [v0.4.0] Closed tasks (present only because time was booked) carry
+                closed=True and are never flagged overdue, due today or in progress.
     """
     task_list = [task for task in tasks if isinstance(task, dict)]
     rollup = rollup_time_estimates(task_list)
@@ -507,10 +616,14 @@ def derive_open_work(
             continue
         due_ms = _to_ms(task.get("due_date"))
         start_ms = _to_ms(task.get("start_date"))
-        overdue = due_ms is not None and due_ms < today_start_ms
-        due_today = due_ms is not None and today_start_ms <= due_ms <= today_end_ms
+        # Closed tasks are only here because time was booked to them; a finished task is
+        # done, not overdue, however late it finished.
+        closed = _task_is_closed(task)
+        overdue = not closed and due_ms is not None and due_ms < today_start_ms
+        due_today = not closed and due_ms is not None and today_start_ms <= due_ms <= today_end_ms
         in_progress = (
-            due_ms is not None
+            not closed
+            and due_ms is not None
             and due_ms > today_end_ms
             and (start_ms is None or start_ms <= today_end_ms)
         )
@@ -526,6 +639,7 @@ def derive_open_work(
                 **_estimate_fields(str(task["id"]), rollup),
                 "parent_id": parent_id,
                 "list_id": list_id,
+                "closed": closed,
                 "overdue": overdue,
                 "in_progress": in_progress,
                 "due_today": due_today,
@@ -790,6 +904,7 @@ def build_time_report(
     schedule: Iterable[Dict[str, Any]] = (),
     open_work: Iterable[Dict[str, Any]] = (),
     estimates: Optional[Dict[str, Dict[str, Any]]] = None,
+    task_index: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Purpose:    Assemble the full report dict shared by every renderer.
@@ -799,12 +914,14 @@ def build_time_report(
                 derive_comment_activities; ``schedule`` from derive_schedule_items;
                 ``open_work`` from derive_open_work. Entries are bucketed by their start
                 time, so a 22:00-01:00 stint counts in full toward the day it began.
-    Version:    0.3.0
+    Version:    0.4.0
     Changes:    [v0.1.0] Initial: weeks -> days -> tasks, touched tasks with signal labels.
                 [v0.2.0] Per-day "scheduled" list: tasks whose due or start date falls on
                 the day, with closed and overdue flags.
                 [v0.3.0] Open-work list (in progress or overdue as of today) with own and
                 rolled-up time estimates.
+                [v0.4.0] ``task_index`` from build_task_index is emitted as-is so every
+                renderer can show assignees, dates, priority, tags and booked time.
     """
     generated = generated_at or datetime.now().astimezone()
     today = local_date(int(generated.timestamp() * 1000), tz)
@@ -948,5 +1065,6 @@ def build_time_report(
         "weeks": weeks,
         "tasks": overall_tasks,
         "open_work": plate,
+        "task_index": dict(task_index or {}),
         "notes": list(notes or []),
     }
